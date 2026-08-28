@@ -26,6 +26,13 @@ Synthetic fixtures are contract tests only. They are never financial evidence.
 - `NO_ALPHA_CLAIM`
 - `NO_EXECUTABLE_OPTIONS_CLAIM`
 
+## Project map
+
+- [Architecture](docs/ARCHITECTURE.md) — implemented behavior, planned boundaries, and invariants.
+- [Team onboarding](docs/TEAM_ONBOARDING.md) — required research and lane ownership.
+- [Source and claim policy](docs/SOURCE_AND_CLAIM_POLICY.md) — evidence metadata and permitted claims.
+- [Contributing](CONTRIBUTING.md) — branch, test, review, and safety gates.
+
 ## Development
 
 ```bash
