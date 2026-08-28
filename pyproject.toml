@@ -1,0 +1,40 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ringdown-market"
+version = "0.1.0"
+description = "Offline point-in-time alpha and latency evaluation harness for scheduled earnings reactions."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+license = { text = "MIT" }
+authors = [
+  { name = "Benedict Anokye-Davies", email = "bbeennyy860@gmail.com" }
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3,<9",
+  "ruff>=0.9,<1"
+]
+
+[project.scripts]
+ringdown = "ringdown_market.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ringdown_market"]
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-markers"
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]

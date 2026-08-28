@@ -1,0 +1,115 @@
+{
+  "fixture_class": "SYNTHETIC_CONTRACT_FIXTURE",
+  "limitations": [
+    "NOT_HISTORICAL_DATA",
+    "NOT_ALPHA_EVIDENCE",
+    "NO_BROKER_EXECUTION"
+  ],
+  "spec": {
+    "hold_seconds": 3600,
+    "minimum_events": 4,
+    "required_latency_profile": "p95",
+    "latency_profiles": {
+      "zero": 0,
+      "p95": 30000
+    }
+  },
+  "events": [
+    {
+      "decision": {
+        "event_id": "synthetic-up-1",
+        "issuer": "SYN1",
+        "decision_cutoff": "2026-08-28T13:35:00+00:00",
+        "latest_evidence_at": "2026-08-28T12:00:00+00:00",
+        "feature_snapshot_at": "2026-08-28T13:35:00+00:00",
+        "opening_return": 0.0,
+        "market_opening_return": 0.0,
+        "sector_opening_return": 0.0,
+        "market_beta": 0.0,
+        "sector_beta": 0.0,
+        "price_only_score": 0.0,
+        "fundamental_score": 0.0,
+        "numeric_score": 0.0,
+        "candidate_signal": "UP"
+      },
+      "path": [
+        {"at": "2026-08-28T13:35:00+00:00", "stock": 99.0, "market": 100.0, "sector": 100.0},
+        {"at": "2026-08-28T13:35:30+00:00", "stock": 100.0, "market": 100.0, "sector": 100.0},
+        {"at": "2026-08-28T14:35:00+00:00", "stock": 101.0, "market": 100.0, "sector": 100.0},
+        {"at": "2026-08-28T14:35:30+00:00", "stock": 102.0, "market": 100.0, "sector": 100.0}
+      ]
+    },
+    {
+      "decision": {
+        "event_id": "synthetic-down-1",
+        "issuer": "SYN2",
+        "decision_cutoff": "2026-08-28T13:35:00+00:00",
+        "latest_evidence_at": "2026-08-28T12:00:00+00:00",
+        "feature_snapshot_at": "2026-08-28T13:35:00+00:00",
+        "opening_return": 0.0,
+        "market_opening_return": 0.0,
+        "sector_opening_return": 0.0,
+        "market_beta": 0.0,
+        "sector_beta": 0.0,
+        "price_only_score": 0.0,
+        "fundamental_score": 0.0,
+        "numeric_score": 0.0,
+        "candidate_signal": "DOWN"
+      },
+      "path": [
+        {"at": "2026-08-28T13:35:00+00:00", "stock": 101.0, "market": 100.0, "sector": 100.0},
+        {"at": "2026-08-28T13:35:30+00:00", "stock": 100.0, "market": 100.0, "sector": 100.0},
+        {"at": "2026-08-28T14:35:00+00:00", "stock": 99.0, "market": 100.0, "sector": 100.0},
+        {"at": "2026-08-28T14:35:30+00:00", "stock": 98.0, "market": 100.0, "sector": 100.0}
+      ]
+    },
+    {
+      "decision": {
+        "event_id": "synthetic-abstain-1",
+        "issuer": "SYN3",
+        "decision_cutoff": "2026-08-28T13:35:00+00:00",
+        "latest_evidence_at": "2026-08-28T12:00:00+00:00",
+        "feature_snapshot_at": "2026-08-28T13:35:00+00:00",
+        "opening_return": 0.0,
+        "market_opening_return": 0.0,
+        "sector_opening_return": 0.0,
+        "market_beta": 0.0,
+        "sector_beta": 0.0,
+        "price_only_score": 0.0,
+        "fundamental_score": 0.0,
+        "numeric_score": 0.0,
+        "candidate_signal": "UNCERTAIN"
+      },
+      "path": [
+        {"at": "2026-08-28T13:35:00+00:00", "stock": 100.0, "market": 100.0, "sector": 100.0},
+        {"at": "2026-08-28T13:35:30+00:00", "stock": 100.0, "market": 100.0, "sector": 100.0},
+        {"at": "2026-08-28T14:35:00+00:00", "stock": 120.0, "market": 100.0, "sector": 100.0},
+        {"at": "2026-08-28T14:35:30+00:00", "stock": 125.0, "market": 100.0, "sector": 100.0}
+      ]
+    },
+    {
+      "decision": {
+        "event_id": "synthetic-up-2",
+        "issuer": "SYN4",
+        "decision_cutoff": "2026-08-28T13:35:00+00:00",
+        "latest_evidence_at": "2026-08-28T12:00:00+00:00",
+        "feature_snapshot_at": "2026-08-28T13:35:00+00:00",
+        "opening_return": 0.0,
+        "market_opening_return": 0.0,
+        "sector_opening_return": 0.0,
+        "market_beta": 0.0,
+        "sector_beta": 0.0,
+        "price_only_score": 0.0,
+        "fundamental_score": 0.0,
+        "numeric_score": 0.0,
+        "candidate_signal": "UP"
+      },
+      "path": [
+        {"at": "2026-08-28T13:35:00+00:00", "stock": 100.0, "market": 100.0, "sector": 100.0},
+        {"at": "2026-08-28T13:35:30+00:00", "stock": 100.0, "market": 100.0, "sector": 100.0},
+        {"at": "2026-08-28T14:35:00+00:00", "stock": 100.5, "market": 100.0, "sector": 100.0},
+        {"at": "2026-08-28T14:35:30+00:00", "stock": 101.0, "market": 100.0, "sector": 100.0}
+      ]
+    }
+  ]
+}
