@@ -13,7 +13,7 @@ The official event pages were verified on 28 August 2026. They stated that:
 - the paper account ID is required for judging;
 - judging includes P&L, implementation, originality, and presentation.
 
-The preserved page did not settle whether positions must be flat at submission, whether a minimum trade count exists, or whether AI assistance requires disclosure. Treat those as unconfirmed until an organizer publishes an answer. Paper performance is simulated, not evidence of live profitability.
+The preserved page did not settle whether positions must be flat at submission, whether a minimum trade count exists, or whether AI assistance requires disclosure. Treat those as unconfirmed until an organizer publishes an answer. Paper performance is simulated, not evidence of strategy profitability outside that environment.
 
 Official event pages:
 
