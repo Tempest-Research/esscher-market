@@ -164,7 +164,7 @@ relevant regular session:
 | `INTRADAY` | Release is public during the regular session. | A preregistered post-publication reaction window after processing latency. |
 | `UNRESOLVED` | Timing or session status cannot be established safely. | No trade or historical admission until resolved. |
 
-“Before” and “after” are not determined from the date alone. Use the source
+"Before" and "after" are not determined from the date alone. Use the source
 timezone, venue calendar, daylight-saving rules, holiday schedule, and any
 declared release-time convention.
 
@@ -269,7 +269,7 @@ semantics rather than replacing them with a single event date.
 ### Missing, revised, and conflicting evidence
 
 - **Missing time:** set `published_at_type: unknown`, record the missing field,
-  and apply the conservative admission policy. Do not infer “before open” from
+  and apply the conservative admission policy. Do not infer "before open" from
   a date-only page.
 - **Revised source:** retain the original captured hash and the later revision
   as separate evidence versions. The decision can use only the version known
@@ -579,32 +579,32 @@ from the wording of this proposal.
 
 ### Official event and repository sources
 
-1. [Issue #1: Lane B point-in-time evidence gate](https://github.com/Tempest-Research/ringdown-market/issues/1) — repository issue and acceptance criteria; checked 2026-08-29.
-2. [Ringdown source and claim policy](../SOURCE_AND_CLAIM_POLICY.md) — repository policy; checked 2026-08-29.
-3. [Ringdown architecture](../ARCHITECTURE.md) — implemented evaluation boundaries; checked 2026-08-29.
-4. [Ringdown team onboarding](../TEAM_ONBOARDING.md) — current research and claim boundaries; checked 2026-08-29.
+1. [Issue #1: Lane B point-in-time evidence gate](https://github.com/Tempest-Research/ringdown-market/issues/1) - repository issue and acceptance criteria; checked 2026-08-29.
+2. [Ringdown source and claim policy](../SOURCE_AND_CLAIM_POLICY.md) - repository policy; checked 2026-08-29.
+3. [Ringdown architecture](../ARCHITECTURE.md) - implemented evaluation boundaries; checked 2026-08-29.
+4. [Ringdown team onboarding](../TEAM_ONBOARDING.md) - current research and claim boundaries; checked 2026-08-29.
 
 ### SEC and EDGAR
 
-5. [SEC EDGAR Application Programming Interfaces](https://www.sec.gov/search-filings/edgar-application-programming-interfaces) — public API access, update behavior, and no API-key requirement for `data.sec.gov`; checked 2026-08-29.
-6. [SEC Webmaster FAQ](https://www.sec.gov/os/webmaster-faq#developers) — request limits, user-agent guidance, EDGAR timestamp meanings, and lack of a first-availability timestamp; checked 2026-08-29.
-7. [SEC Search Filings](https://www.sec.gov/edgar/search-and-access) — public EDGAR filing access and search entry points; checked 2026-08-29.
+5. [SEC EDGAR Application Programming Interfaces](https://www.sec.gov/search-filings/edgar-application-programming-interfaces) - public API access, update behavior, and no API-key requirement for `data.sec.gov`; checked 2026-08-29.
+6. [SEC Webmaster FAQ](https://www.sec.gov/os/webmaster-faq#developers) - request limits, user-agent guidance, EDGAR timestamp meanings, and lack of a first-availability timestamp; checked 2026-08-29.
+7. [SEC Search Filings](https://www.sec.gov/edgar/search-and-access) - public EDGAR filing access and search entry points; checked 2026-08-29.
 
 ### Market sessions
 
-8. [NYSE Holidays and Trading Hours](https://www.nyse.com/markets/hours-calendars) — equity, options, holiday, and early-close session schedule; checked 2026-08-29.
+8. [NYSE Holidays and Trading Hours](https://www.nyse.com/markets/hours-calendars) - equity, options, holiday, and early-close session schedule; checked 2026-08-29.
 
 ### Alpaca
 
-9. [Alpaca Historical Option Data](https://docs.alpaca.markets/us/docs/historical-option-data) — availability from February 2024 and `Indicative` versus `OPRA` data sources; checked 2026-08-29.
-10. [Alpaca About Market Data API](https://docs.alpaca.markets/us/docs/about-market-data-api) — Trading API authentication and Basic versus Algo Trader Plus data entitlements; checked 2026-08-29.
-11. [Alpaca Paper Trading](https://docs.alpaca.markets/us/docs/paper-trading) — simulation model, paper/live differences, fill assumptions, and limitations; checked 2026-08-29.
-12. [Alpaca Options Trading](https://docs.alpaca.markets/us/docs/options-trading) — paper options enablement, contract details, order constraints, and paper non-trade activity timing; checked 2026-08-29.
-13. [Alpaca Real-time Option Data](https://docs.alpaca.markets/us/docs/real-time-option-data) — option quote/trade timestamp fields and feed-specific stream behavior; checked 2026-08-29.
+9. [Alpaca Historical Option Data](https://docs.alpaca.markets/us/docs/historical-option-data) - availability from February 2024 and `Indicative` versus `OPRA` data sources; checked 2026-08-29.
+10. [Alpaca About Market Data API](https://docs.alpaca.markets/us/docs/about-market-data-api) - Trading API authentication and Basic versus Algo Trader Plus data entitlements; checked 2026-08-29.
+11. [Alpaca Paper Trading](https://docs.alpaca.markets/us/docs/paper-trading) - simulation model, paper/live differences, fill assumptions, and limitations; checked 2026-08-29.
+12. [Alpaca Options Trading](https://docs.alpaca.markets/us/docs/options-trading) - paper options enablement, contract details, order constraints, and paper non-trade activity timing; checked 2026-08-29.
+13. [Alpaca Real-time Option Data](https://docs.alpaca.markets/us/docs/real-time-option-data) - option quote/trade timestamp fields and feed-specific stream behavior; checked 2026-08-29.
 
 ### Academic method
 
-14. A. Craig MacKinlay, [Event Studies in Economics and Finance](https://ideas.repec.org/a/aea/jeclit/v35y1997i1p13-39.html), *Journal of Economic Literature*, 35(1), 13-39, 1997 — event-study methodology and complications; abstract and citation checked 2026-08-29.
+14. A. Craig MacKinlay, [Event Studies in Economics and Finance](https://ideas.repec.org/a/aea/jeclit/v35y1997i1p13-39.html), *Journal of Economic Literature*, 35(1), 13-39, 1997 - event-study methodology and complications; abstract and citation checked 2026-08-29.
 
 ## Review checklist
 
