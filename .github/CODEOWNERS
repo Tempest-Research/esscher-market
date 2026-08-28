@@ -1,0 +1,21 @@
+# Final integration and shared project surfaces
+* @bbeennyy860-cyber
+
+# Evidence, strategy, and deterministic replay
+/src/ringdown_market/alpha/ @MS-Mesh @bbeennyy860-cyber
+/tests/fixtures/ @MS-Mesh @bbeennyy860-cyber
+/data/ @MS-Mesh @bbeennyy860-cyber
+
+# Runtime and the sole broker boundary
+/src/ringdown_market/execution/ @bbeennyy860-cyber
+
+# Static proof and public submission surfaces
+/web/ @akurkar07 @bbeennyy860-cyber
+/docs/public/ @akurkar07 @bbeennyy860-cyber
+/README.md @akurkar07 @bbeennyy860-cyber
+
+# Governance and release controls
+/.github/ @bbeennyy860-cyber
+/pyproject.toml @bbeennyy860-cyber
+/uv.lock @bbeennyy860-cyber
+/scripts/ @bbeennyy860-cyber
