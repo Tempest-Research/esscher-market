@@ -26,7 +26,7 @@ Use `uv run`; do not depend on a globally installed Python package.
 6. Keep one concern per pull request. Do not mix formatting, refactors, and features.
 7. Open a draft pull request with no reviewers requested.
 8. Mark it ready only after the diff, public wording, and verification receipts are complete.
-9. Merge only after CI passes, the current head has one approval, and conversations are resolved.
+9. Merge only after CI passes on the current head, the manual review and comprehension record are complete, and conversations are resolved. The implementation owner may merge their own pull request. Independent approval is required only when the issue, ownership boundary, or risk level explicitly requires it.
 
 Never push directly to `main`. Do not force-push a branch another contributor is using.
 
