@@ -453,7 +453,7 @@ class McpPaperBroker:
     async def submit_open(self, permit: DebitVerticalPermit) -> OpenOrderReceipt:
         """Submit one permit and return only after exact readback agreement."""
 
-        observed_at = self._active_time(
+        self._active_time(
             issued_at=permit.issued_at,
             expires_at=permit.expires_at,
             label="entry",
@@ -464,6 +464,7 @@ class McpPaperBroker:
             submission_phase="submission",
             readback_phase="readback",
         )
+        observed_at = self._observed_time()
 
         return OpenOrderReceipt(
             broker_order_id=readback_id,

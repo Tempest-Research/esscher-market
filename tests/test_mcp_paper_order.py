@@ -261,6 +261,32 @@ def test_transport_ambiguity_reads_back_without_resubmitting() -> None:
     assert receipt.client_order_id == call.client_order_id
 
 
+def test_open_receipt_uses_post_readback_observation_time() -> None:
+    permit = bull_call_permit()
+    call = build_open_order_call(permit)
+    readback_observed_at = NOW + timedelta(seconds=2)
+    clock_values = iter((NOW, readback_observed_at))
+    session = RecordingSession(
+        [
+            {
+                "id": "order-123",
+                "client_order_id": call.client_order_id,
+                "status": "accepted",
+            },
+            {
+                "id": "order-123",
+                "client_order_id": call.client_order_id,
+                "status": "new",
+            },
+        ]
+    )
+    broker = McpPaperBroker(session, clock=lambda: next(clock_values))
+
+    receipt = asyncio.run(broker.submit_open(permit))
+
+    assert receipt.observed_at == readback_observed_at
+
+
 def test_expired_permit_makes_no_mcp_call() -> None:
     session = RecordingSession([])
     broker = McpPaperBroker(session, clock=lambda: NOW)
