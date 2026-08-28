@@ -72,7 +72,7 @@ Read the frozen public trace schema before building UI. The public surface must 
 
 Every scene must visibly distinguish:
 
-- `PAPER` from live trading;
+- paper execution from offline evaluation;
 - `SYNTHETIC_CONTRACT_FIXTURE` from historical data;
 - `INDICATIVE_DATA` from executable option prices;
 - engineering evidence from alpha or profitability evidence.

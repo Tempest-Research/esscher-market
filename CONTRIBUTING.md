@@ -46,10 +46,9 @@ Before review, be ready to explain the purpose, one data-flow trace, one invaria
 
 ## Safety boundaries
 
-- No live-money trading.
-- No competition-account mutation during development.
-- Broker mutation requires an accepted execution contract and exactly one official MCP-or-CLI adapter.
-- No runtime direct-REST fallback.
+- Execution is permanently limited to Alpaca paper accounts. Do not add another account mode.
+- Paper-account mutation requires an accepted execution contract and exactly one official MCP adapter.
+- Do not add direct REST, CLI, or second-adapter fallbacks.
 - No blind retry after an ambiguous order submission.
 - Never commit credentials, account identifiers, private event data, `.env` files, or local tool instructions.
 - Synthetic fixtures require `SYNTHETIC_CONTRACT_FIXTURE`, `NOT_HISTORICAL_DATA`, `NOT_ALPHA_EVIDENCE`, and `NO_BROKER_EXECUTION`.
