@@ -65,9 +65,9 @@ Free or indicative quotes must not be converted into OPRA/NBBO, fill-quality, or
 - **Engineering evidence:** contracts, deterministic output, tests, and adapter behavior.
 - **Historical research evidence:** untouched point-in-time panels that pass registered gates.
 - **Paper execution evidence:** sanitized broker readback from the dedicated paper account.
-- **Live-market evidence:** outside this project's scope.
+- **Other execution modes:** absent from the product definition.
 
-Do not promote evidence between levels. Green tests do not prove alpha. A paper fill does not prove a live fill. Positive paper P&L does not prove profitability.
+Do not promote evidence between levels. Green tests do not prove alpha. A paper fill does not establish executable historical pricing. Positive paper P&L does not prove profitability.
 
 ## External code and generated material
 
