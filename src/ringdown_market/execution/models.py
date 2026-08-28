@@ -190,3 +190,38 @@ class DebitVerticalPermit:
         """Maximum opening debit in paper-account dollars."""
 
         return self.limit_price * Decimal(100)
+
+
+@dataclass(frozen=True, slots=True)
+class ClosePermit:
+    """A short-lived capability authorizing one atomic paper close attempt."""
+
+    permit_id: str
+    open_permit_id: str
+    event_run_id: str
+    policy_sha256: str
+    snapshot_sha256: str
+    issued_at: datetime
+    expires_at: datetime
+    limit_price: Decimal
+    run_mode: RunMode = RunMode.PAPER
+    data_class: DataClass = DataClass.INDICATIVE_DATA
+
+    def __post_init__(self) -> None:
+        identities = (self.permit_id, self.open_permit_id, self.event_run_id)
+        if not all(value.strip() for value in identities):
+            raise ValueError("permit_id, open_permit_id, and event_run_id must be non-empty")
+        if self.run_mode is not RunMode.PAPER:
+            raise ValueError("run_mode must be PAPER")
+        if self.data_class is not DataClass.INDICATIVE_DATA:
+            raise ValueError("data_class must be INDICATIVE_DATA")
+        _require_sha256(self.policy_sha256, "policy_sha256")
+        _require_sha256(self.snapshot_sha256, "snapshot_sha256")
+        _require_aware(self.issued_at, "issued_at")
+        _require_aware(self.expires_at, "expires_at")
+        if self.expires_at <= self.issued_at:
+            raise ValueError("expires_at must be after issued_at")
+        if not self.limit_price.is_finite() or self.limit_price >= 0:
+            raise ValueError("close limit_price must be a finite negative credit")
+        if self.limit_price.as_tuple().exponent < -2:
+            raise ValueError("limit_price cannot use more than two decimal places")

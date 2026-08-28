@@ -1,4 +1,4 @@
-"""Single-door Alpaca MCP boundary for governed paper option openings."""
+"""Single-door Alpaca MCP boundary for governed paper option lifecycles."""
 
 from __future__ import annotations
 
@@ -9,14 +9,25 @@ from copy import deepcopy
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
+from enum import StrEnum
 from typing import Protocol
 
-from .models import DataClass, DebitVerticalPermit, RunMode
+from .models import (
+    ClosePermit,
+    DataClass,
+    DebitVerticalPermit,
+    OptionSide,
+    PositionIntent,
+    RunMode,
+)
 
 ALPACA_MCP_VERSION = "2.3.0"
 ALPACA_MCP_COMMIT = "872abbf28dab6cdde7d341fc13ac139b8002d1d9"
 OPEN_TOOL = "place_option_order"
 READBACK_TOOL = "get_order_by_client_id"
+ORDER_BY_ID_TOOL = "get_order_by_id"
+CANCEL_TOOL = "cancel_order_by_id"
+POSITIONS_TOOL = "get_all_positions"
 
 
 class PermitNotExecutable(RuntimeError):
@@ -27,12 +38,18 @@ class BrokerResponseError(RuntimeError):
     """Raised when broker acknowledgement or readback is missing or ambiguous."""
 
 
+class PaperLifecycleManualRequired(RuntimeError):
+    """Raised when atomic automation cannot safely resolve paper exposure."""
+
+
+class PaperLifecycleNotFlat(RuntimeError):
+    """Raised when broker position truth still contains an event leg."""
+
+
 class McpToolSession(Protocol):
     """Normalized subset of an MCP session consumed by the broker gateway."""
 
-    async def call_tool(
-        self, name: str, arguments: Mapping[str, object]
-    ) -> Mapping[str, object]: ...
+    async def call_tool(self, name: str, arguments: Mapping[str, object]) -> object: ...
 
 
 def _canonical_json(value: object) -> bytes:
@@ -86,6 +103,63 @@ class OpenOrderReceipt:
     adapter: str = "ALPACA_MCP"
     adapter_version: str = ALPACA_MCP_VERSION
     adapter_commit: str = ALPACA_MCP_COMMIT
+
+
+class PaperLifecycleOutcome(StrEnum):
+    CANCELED_FLAT = "CANCELED_FLAT"
+    CLOSED_FLAT = "CLOSED_FLAT"
+
+
+@dataclass(frozen=True, slots=True)
+class PaperLifecycleReceipt:
+    """Sanitized terminal receipt backed by broker position truth."""
+
+    event_run_id: str
+    open_permit_id: str
+    close_permit_id: str
+    open_order_id: str
+    open_order_status: str
+    close_order_id: str | None
+    close_order_status: str | None
+    close_request_sha256: str | None
+    target_symbols: tuple[str, str]
+    outcome: PaperLifecycleOutcome
+    observed_at: datetime
+    run_mode: RunMode = RunMode.PAPER
+    data_class: DataClass = DataClass.INDICATIVE_DATA
+
+    def __post_init__(self) -> None:
+        required = (
+            self.event_run_id,
+            self.open_permit_id,
+            self.close_permit_id,
+            self.open_order_id,
+            self.open_order_status,
+        )
+        if not all(value.strip() for value in required):
+            raise ValueError("paper lifecycle receipt identities must be non-empty")
+        if len(set(self.target_symbols)) != 2:
+            raise ValueError("target_symbols must contain two distinct symbols")
+        if self.outcome is PaperLifecycleOutcome.CLOSED_FLAT:
+            if not self.close_order_id or not self.close_order_status:
+                raise ValueError("CLOSED_FLAT requires close-order identity")
+            if self.close_request_sha256 is None:
+                raise ValueError("CLOSED_FLAT requires close_request_sha256")
+        elif any(
+            value is not None
+            for value in (
+                self.close_order_id,
+                self.close_order_status,
+                self.close_request_sha256,
+            )
+        ):
+            raise ValueError("CANCELED_FLAT cannot claim a close order")
+        if self.observed_at.tzinfo is None or self.observed_at.utcoffset() is None:
+            raise ValueError("observed_at must be timezone-aware")
+        if self.run_mode is not RunMode.PAPER:
+            raise ValueError("paper lifecycle receipts must remain PAPER")
+        if self.data_class is not DataClass.INDICATIVE_DATA:
+            raise ValueError("paper lifecycle receipts must remain INDICATIVE_DATA")
 
 
 def _permit_identity(permit: DebitVerticalPermit) -> dict[str, object]:
@@ -157,19 +231,135 @@ def build_open_order_call(permit: DebitVerticalPermit) -> OpenOrderCall:
     )
 
 
-def _broker_identity(response: Mapping[str, object], *, phase: str) -> tuple[str, str, str]:
+def build_close_order_call(
+    open_permit: DebitVerticalPermit,
+    close_permit: ClosePermit,
+) -> OpenOrderCall:
+    """Compile one atomic reversed multi-leg close through the same MCP tool."""
+
+    if close_permit.open_permit_id != open_permit.permit_id:
+        raise ValueError("close permit does not reference the opening permit")
+    if close_permit.event_run_id != open_permit.event_run_id:
+        raise ValueError("close and opening permits must share one event_run_id")
+    if close_permit.snapshot_sha256 != open_permit.snapshot_sha256:
+        raise ValueError("close and opening permits must share one snapshot")
+    if close_permit.run_mode is not RunMode.PAPER or open_permit.run_mode is not RunMode.PAPER:
+        raise ValueError("option lifecycle must remain PAPER")
+    if (
+        close_permit.data_class is not DataClass.INDICATIVE_DATA
+        or open_permit.data_class is not DataClass.INDICATIVE_DATA
+    ):
+        raise ValueError("option lifecycle must remain INDICATIVE_DATA")
+
+    width = abs(open_permit.legs[1].strike - open_permit.legs[0].strike)
+    if abs(close_permit.limit_price) > width:
+        raise ValueError("close credit cannot exceed the vertical width")
+
+    close_legs = []
+    for leg in open_permit.legs:
+        if leg.side is OptionSide.BUY:
+            side = OptionSide.SELL
+            intent = PositionIntent.SELL_TO_CLOSE
+        else:
+            side = OptionSide.BUY
+            intent = PositionIntent.BUY_TO_CLOSE
+        close_legs.append(
+            {
+                "symbol": leg.symbol,
+                "ratio_qty": str(leg.ratio_qty),
+                "side": side.value,
+                "position_intent": intent.value,
+            }
+        )
+
+    close_identity = {
+        "schema_version": 1,
+        "operation": "CLOSE",
+        "permit_id": close_permit.permit_id,
+        "open_permit_id": close_permit.open_permit_id,
+        "event_run_id": close_permit.event_run_id,
+        "policy_sha256": close_permit.policy_sha256,
+        "snapshot_sha256": close_permit.snapshot_sha256,
+        "issued_at": close_permit.issued_at.isoformat(),
+        "expires_at": close_permit.expires_at.isoformat(),
+        "limit_price": _decimal_text(close_permit.limit_price),
+        "run_mode": close_permit.run_mode.value,
+        "data_class": close_permit.data_class.value,
+        "quantity": open_permit.quantity,
+        "legs": close_legs,
+    }
+    close_sha256 = _sha256(close_identity)
+    client_order_id = f"rd-close-{close_sha256[:32]}"
+    arguments: dict[str, object] = {
+        "qty": str(open_permit.quantity),
+        "type": "limit",
+        "time_in_force": "day",
+        "limit_price": _decimal_text(close_permit.limit_price),
+        "client_order_id": client_order_id,
+        "order_class": "mleg",
+        "legs": close_legs,
+    }
+    request_sha256 = _sha256(
+        {
+            "adapter": "ALPACA_MCP",
+            "adapter_version": ALPACA_MCP_VERSION,
+            "adapter_commit": ALPACA_MCP_COMMIT,
+            "tool": OPEN_TOOL,
+            "arguments": arguments,
+        }
+    )
+    return OpenOrderCall(
+        client_order_id=client_order_id,
+        request_sha256=request_sha256,
+        _arguments=tuple(arguments.items()),
+    )
+
+
+def _mapping_response(response: object, *, phase: str) -> Mapping[str, object]:
+    if not isinstance(response, Mapping):
+        raise BrokerResponseError(f"Alpaca MCP {phase} returned a non-object response")
     if "error" in response:
         raise BrokerResponseError(f"Alpaca MCP {phase} rejected: {response['error']}")
-    order_id = response.get("id")
-    client_order_id = response.get("client_order_id")
-    status = response.get("status")
+    return response
+
+
+def _broker_identity(response: object, *, phase: str) -> tuple[str, str, str]:
+    payload = _mapping_response(response, phase=phase)
+    order_id = payload.get("id")
+    client_order_id = payload.get("client_order_id")
+    status = payload.get("status")
     if not all(isinstance(value, str) and value for value in (order_id, client_order_id, status)):
         raise BrokerResponseError(f"Alpaca MCP {phase} omitted required order identity")
     return order_id, client_order_id, status
 
 
+def _open_position_symbols(response: object) -> set[str]:
+    if isinstance(response, Mapping):
+        _mapping_response(response, phase="position readback")
+        raise BrokerResponseError(
+            "Alpaca MCP position readback returned an object instead of a list"
+        )
+    if not isinstance(response, list):
+        raise BrokerResponseError("Alpaca MCP position readback returned an invalid response")
+
+    symbols: set[str] = set()
+    for position in response:
+        if not isinstance(position, Mapping):
+            raise BrokerResponseError("Alpaca MCP position readback contained an invalid position")
+        symbol = position.get("symbol")
+        if not isinstance(symbol, str) or not symbol:
+            raise BrokerResponseError("Alpaca MCP position readback omitted a position symbol")
+        symbols.add(symbol)
+    return symbols
+
+
 class McpPaperBroker:
-    """Submit once through Alpaca MCP, then resolve identity by broker readback."""
+    """Drive one bounded paper lifecycle through a single Alpaca MCP door."""
+
+    _CANCELLABLE_STATUSES = frozenset(
+        {"new", "accepted", "pending_new", "accepted_for_bidding", "held", "calculated"}
+    )
+    _UNFILLED_TERMINAL_STATUSES = frozenset({"canceled", "expired", "rejected"})
 
     def __init__(
         self,
@@ -180,18 +370,27 @@ class McpPaperBroker:
         self._session = session
         self._clock = clock
 
-    async def submit_open(self, permit: DebitVerticalPermit) -> OpenOrderReceipt:
-        """Submit one permit and return only after exact readback agreement."""
-
+    def _observed_time(self) -> datetime:
         observed_at = self._clock()
         if observed_at.tzinfo is None or observed_at.utcoffset() is None:
             raise PermitNotExecutable("broker clock must be timezone-aware")
-        if observed_at < permit.issued_at:
-            raise PermitNotExecutable("entry permit is not active yet")
-        if observed_at >= permit.expires_at:
-            raise PermitNotExecutable("entry permit expired before submission")
+        return observed_at
 
-        call = build_open_order_call(permit)
+    def _active_time(self, *, issued_at: datetime, expires_at: datetime, label: str) -> datetime:
+        observed_at = self._observed_time()
+        if observed_at < issued_at:
+            raise PermitNotExecutable(f"{label} permit is not active yet")
+        if observed_at >= expires_at:
+            raise PermitNotExecutable(f"{label} permit expired before submission")
+        return observed_at
+
+    async def _submit_and_readback(
+        self,
+        call: OpenOrderCall,
+        *,
+        submission_phase: str,
+        readback_phase: str,
+    ) -> tuple[str, str, str]:
         submission_error: Exception | None = None
         submitted_id: str | None = None
         try:
@@ -199,9 +398,13 @@ class McpPaperBroker:
         except Exception as error:
             submission_error = error
         else:
-            submitted_id, submitted_client_id, _ = _broker_identity(submitted, phase="submission")
+            submitted_id, submitted_client_id, _ = _broker_identity(
+                submitted, phase=submission_phase
+            )
             if submitted_client_id != call.client_order_id:
-                raise BrokerResponseError("submission client order identity did not match request")
+                raise BrokerResponseError(
+                    f"{submission_phase} client order identity did not match request"
+                )
 
         try:
             readback = await self._session.call_tool(
@@ -209,12 +412,12 @@ class McpPaperBroker:
                 {"client_order_id": call.client_order_id},
             )
             readback_id, readback_client_id, readback_status = _broker_identity(
-                readback, phase="readback"
+                readback, phase=readback_phase
             )
         except Exception as error:
             if submission_error is not None:
                 raise BrokerResponseError(
-                    "submission outcome was ambiguous and readback failed; "
+                    f"{submission_phase} outcome was ambiguous and readback failed; "
                     "manual reconciliation required"
                 ) from error
             raise
@@ -226,6 +429,41 @@ class McpPaperBroker:
                 "broker order identity differed between submission and readback; "
                 "manual reconciliation required"
             )
+        return readback_id, readback_client_id, readback_status
+
+    async def _read_order(self, order_id: str, client_order_id: str) -> tuple[str, str, str]:
+        response = await self._session.call_tool(ORDER_BY_ID_TOOL, {"order_id": order_id})
+        read_id, read_client_id, status = _broker_identity(response, phase="order readback")
+        if read_id != order_id or read_client_id != client_order_id:
+            raise BrokerResponseError(
+                "order readback identity did not match the expected paper order"
+            )
+        return read_id, read_client_id, status.lower()
+
+    async def _verify_event_flat(self, target_symbols: tuple[str, str]) -> datetime:
+        response = await self._session.call_tool(POSITIONS_TOOL, {})
+        open_symbols = _open_position_symbols(response)
+        remaining = sorted(set(target_symbols) & open_symbols)
+        if remaining:
+            raise PaperLifecycleNotFlat(
+                "broker position truth still contains event legs: " + ", ".join(remaining)
+            )
+        return self._observed_time()
+
+    async def submit_open(self, permit: DebitVerticalPermit) -> OpenOrderReceipt:
+        """Submit one permit and return only after exact readback agreement."""
+
+        observed_at = self._active_time(
+            issued_at=permit.issued_at,
+            expires_at=permit.expires_at,
+            label="entry",
+        )
+        call = build_open_order_call(permit)
+        readback_id, readback_client_id, readback_status = await self._submit_and_readback(
+            call,
+            submission_phase="submission",
+            readback_phase="readback",
+        )
 
         return OpenOrderReceipt(
             broker_order_id=readback_id,
@@ -237,4 +475,126 @@ class McpPaperBroker:
             observed_at=observed_at,
             run_mode=permit.run_mode,
             data_class=permit.data_class,
+        )
+
+    async def resolve_to_flat(
+        self,
+        *,
+        open_permit: DebitVerticalPermit,
+        open_receipt: OpenOrderReceipt,
+        close_permit: ClosePermit,
+    ) -> PaperLifecycleReceipt:
+        """Cancel an unfilled order or atomically close a fill, then prove event-flat."""
+
+        self._active_time(
+            issued_at=close_permit.issued_at,
+            expires_at=close_permit.expires_at,
+            label="close",
+        )
+        open_call = build_open_order_call(open_permit)
+        if (
+            open_receipt.permit_id != open_permit.permit_id
+            or open_receipt.event_run_id != open_permit.event_run_id
+            or open_receipt.client_order_id != open_call.client_order_id
+            or open_receipt.request_sha256 != open_call.request_sha256
+        ):
+            raise PermitNotExecutable("open receipt does not match the opening permit")
+        if (
+            open_receipt.run_mode is not RunMode.PAPER
+            or open_receipt.data_class is not DataClass.INDICATIVE_DATA
+        ):
+            raise PermitNotExecutable("open receipt is outside the paper competition boundary")
+        if (
+            open_receipt.adapter != "ALPACA_MCP"
+            or open_receipt.adapter_version != ALPACA_MCP_VERSION
+            or open_receipt.adapter_commit != ALPACA_MCP_COMMIT
+        ):
+            raise PermitNotExecutable("open receipt does not match the pinned MCP adapter")
+
+        close_call = build_close_order_call(open_permit, close_permit)
+        _, _, open_status = await self._read_order(
+            open_receipt.broker_order_id,
+            open_receipt.client_order_id,
+        )
+
+        if open_status == "partially_filled":
+            raise PaperLifecycleManualRequired(
+                "partial fill cannot be repaired by sequential option legging"
+            )
+
+        if open_status in self._CANCELLABLE_STATUSES:
+            cancel_error: Exception | None = None
+            try:
+                cancel_response = await self._session.call_tool(
+                    CANCEL_TOOL,
+                    {"order_id": open_receipt.broker_order_id},
+                )
+                if isinstance(cancel_response, Mapping) and "error" in cancel_response:
+                    _mapping_response(cancel_response, phase="cancel")
+            except Exception as error:
+                cancel_error = error
+
+            try:
+                _, _, open_status = await self._read_order(
+                    open_receipt.broker_order_id,
+                    open_receipt.client_order_id,
+                )
+            except Exception as error:
+                if cancel_error is not None:
+                    raise PaperLifecycleManualRequired(
+                        "cancel outcome was ambiguous and order readback failed"
+                    ) from error
+                raise
+
+        if open_status == "partially_filled":
+            raise PaperLifecycleManualRequired(
+                "partial fill cannot be repaired by sequential option legging"
+            )
+
+        target_symbols = tuple(leg.symbol for leg in open_permit.legs)
+        if open_status in self._UNFILLED_TERMINAL_STATUSES:
+            flat_observed_at = await self._verify_event_flat(target_symbols)
+            return PaperLifecycleReceipt(
+                event_run_id=open_permit.event_run_id,
+                open_permit_id=open_permit.permit_id,
+                close_permit_id=close_permit.permit_id,
+                open_order_id=open_receipt.broker_order_id,
+                open_order_status=open_status,
+                close_order_id=None,
+                close_order_status=None,
+                close_request_sha256=None,
+                target_symbols=target_symbols,
+                outcome=PaperLifecycleOutcome.CANCELED_FLAT,
+                observed_at=flat_observed_at,
+            )
+
+        if open_status != "filled":
+            raise PaperLifecycleManualRequired(
+                f"unsupported paper order state requires reconciliation: {open_status}"
+            )
+
+        close_order_id, _, close_status = await self._submit_and_readback(
+            close_call,
+            submission_phase="close submission",
+            readback_phase="close readback",
+        )
+        close_status = close_status.lower()
+        if close_status != "filled":
+            raise PaperLifecycleNotFlat(
+                f"atomic close order is not filled; broker status is {close_status}"
+            )
+
+        flat_observed_at = await self._verify_event_flat(target_symbols)
+        return PaperLifecycleReceipt(
+            event_run_id=open_permit.event_run_id,
+            open_permit_id=open_permit.permit_id,
+            close_permit_id=close_permit.permit_id,
+            open_order_id=open_receipt.broker_order_id,
+            open_order_status=open_status,
+            close_order_id=close_order_id,
+            close_order_status=close_status,
+            close_request_sha256=close_call.request_sha256,
+            target_symbols=target_symbols,
+            outcome=PaperLifecycleOutcome.CLOSED_FLAT,
+            observed_at=flat_observed_at,
         )
