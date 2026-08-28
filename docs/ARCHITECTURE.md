@@ -1,10 +1,12 @@
 # Architecture
 
-This document separates implemented behavior from planned behavior. A roadmap is not a runtime receipt.
+This document separates implemented behavior from remaining integration work. A roadmap is not a runtime receipt.
 
-## Implemented on `main`
+## Implemented in the `0.2.0` draft
 
-Ringdown is an offline Python 3.12 research harness:
+Ringdown has two connected, paper-only planes.
+
+### Research plane
 
 ```text
 labeled event fixture
@@ -24,19 +26,47 @@ Q-FAST reject-only gate
 deterministic JSON report + hashes
 ```
 
+### Paper execution plane
+
+```text
+immutable opening permit
+        |
+        v
+exact Alpaca MCP multi-leg request
+        |
+        v
+submit once + read back by deterministic client ID
+        |
+        +--> unfilled: cancel order
+        |
+        +--> filled: atomic reversed multi-leg close
+        |
+        +--> partial or unknown: stop for manual reconciliation
+        |
+        v
+get_all_positions broker truth
+        |
+        v
+CANCELED_FLAT or CLOSED_FLAT receipt
+```
+
 Current modules:
 
 - `alpha/models.py`: immutable decision and market-path contracts;
 - `alpha/evaluation.py`: achievable-entry and fill-relative evaluation;
 - `alpha/baselines.py`: deterministic frozen comparators, including abstention;
 - `alpha/qfast.py`: small-sample rejection and latency gates;
-- `cli.py`: labeled input parsing and deterministic report generation.
+- `execution/models.py`: immutable opening and closing permits for one debit vertical;
+- `execution/mcp.py`: the single Alpaca MCP request, readback, cancellation, atomic-close, and event-flat reconciliation boundary;
+- `cli.py`: labeled input parsing, deterministic report generation, and package-version output.
 
-The current repository does not connect to Alpaca, place paper orders, load credentials, produce executable option prices, or establish alpha.
+The execution boundary is pinned to Alpaca MCP `2.3.0` at commit `872abbf28dab6cdde7d341fc13ac139b8002d1d9`. The package does not load credentials or instantiate an MCP client. A host must inject a normalized paper-account session.
 
-## Planned vertical path
+The adapter is contract-tested with injected sessions. The repository does not yet contain a sanitized real paper-account receipt, executable historical option prices, or evidence of alpha or profitability.
 
-The intended system path is:
+## Remaining vertical integration
+
+The intended complete path is:
 
 ```text
 scheduled event manifest
@@ -54,16 +84,13 @@ residual signal or abstention
 risk and execution permit
         |
         v
-one official Alpaca MCP adapter
-        |
-        v
-paper order readback + reconciliation
+implemented paper execution plane
         |
         v
 sanitized static public trace
 ```
 
-Each arrow is a contract boundary. Missing or ambiguous information fails closed to `NO_TRADE`, reconciliation, or `SHADOW_ONLY`; it does not trigger a second adapter.
+The real point-in-time manifest, evidence qualification, signal-to-permit bridge, host MCP session wiring, and static proof artifact remain separate reviewed slices. Missing or ambiguous information fails closed to abstention or reconciliation; it never selects another adapter.
 
 ## Core evaluation
 
@@ -82,9 +109,12 @@ The residual return removes frozen market and sector components measured over th
 3. Exit is measured relative to the achieved entry, not an idealized cutoff.
 4. Candidate and baselines use the same panel, timing, and risk assumptions.
 5. Synthetic fixtures cannot be relabeled as historical evidence.
-6. Broker mutation is paper-only and passes through one frozen official adapter.
-7. An ambiguous submission is reconciled by deterministic client ID, never blindly retried.
-8. Public artifacts are static, sanitized, and incapable of mutation.
+6. Execution is permanently paper-account only and uses one pinned official Alpaca MCP adapter.
+7. Direct REST, CLI, and second-adapter fallbacks are prohibited.
+8. An ambiguous order submission is reconciled by deterministic client ID, never blindly retried.
+9. A filled spread closes as one reversed multi-leg order; partial fills never trigger sequential-leg repair.
+10. A terminal flat receipt requires broker position truth to contain neither event leg.
+11. Public artifacts are static, sanitized, and incapable of mutation.
 
 ## Path ownership
 
