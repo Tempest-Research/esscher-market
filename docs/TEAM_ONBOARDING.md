@@ -98,7 +98,7 @@ Automation may help inspect, draft, test, or review. The human contributor still
 
 - Runtime/contracts and Alpaca integration: Ben, with one implementation owner per file.
 - Evidence/strategy/evaluation: `MS-Mesh`.
-- Static proof/demo/submission: `akurkar07` after the pending repository invitation is accepted.
+- Static proof/demo/submission: `akurkar07`.
 - Final integration and public wording: Ben.
 
 GitHub ownership is encoded in [CODEOWNERS](../.github/CODEOWNERS). Cross-lane changes are proposed through a small contract PR; two people do not edit the same file concurrently.

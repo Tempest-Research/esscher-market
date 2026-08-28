@@ -93,4 +93,4 @@ The residual return removes frozen market and sector components measured over th
 - `web/` and public presentation assets: proof/submission lane.
 - `.github/`, packaging, shared contracts, and final integration: Ben.
 
-See [CODEOWNERS](../.github/CODEOWNERS) for the enforceable review map.
+See [CODEOWNERS](../.github/CODEOWNERS) for path ownership and review routing. Branch protection separately requires one current approval; CODEOWNERS does not replace that gate.

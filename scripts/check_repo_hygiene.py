@@ -22,8 +22,8 @@ REQUIRED_FILES = {
 FORBIDDEN_NAMES = {
     ".env",
     ".cursorrules",
-    "AGENTS.md",
-    "CLAUDE.md",
+    "agents.md",
+    "claude.md",
     "credentials.json",
     "service-account.json",
     "token.json",
@@ -60,6 +60,8 @@ DIRECT_ALPACA_HOSTS = {
     "data.alpaca.markets",
     "paper-api.alpaca.markets",
 }
+BROKER_CODE_ROOTS = {"src", "scripts", "web"}
+HYGIENE_CHECKER = Path("scripts/check_repo_hygiene.py")
 SECRET_PATTERNS = {
     "GitHub token": re.compile(r"\bgh[opurs]_[A-Za-z0-9]{20,}\b"),
     "private key": re.compile(r"-----BEGIN (?:EC |OPENSSH |RSA )?PRIVATE KEY-----"),
@@ -101,23 +103,30 @@ def _read_text(path: Path, errors: list[str]) -> str | None:
 
 
 def _check_paths(tracked: set[Path], visible: set[Path], errors: list[str]) -> None:
-    missing = sorted(REQUIRED_FILES - visible)
+    missing = sorted(REQUIRED_FILES - tracked)
     errors.extend(f"missing required file: {path.as_posix()}" for path in missing)
 
     for path in sorted(visible):
-        parts = set(path.parts)
-        if path.name in FORBIDDEN_NAMES:
+        name = path.name.casefold()
+        parts = {part.casefold() for part in path.parts}
+        if name in FORBIDDEN_NAMES:
             errors.append(f"forbidden local or secret file: {path.as_posix()}")
-        if path.suffix.lower() in FORBIDDEN_SUFFIXES:
+        if path.suffix.casefold() in FORBIDDEN_SUFFIXES:
             errors.append(f"forbidden secret-key file type: {path.as_posix()}")
         if parts & FORBIDDEN_PARTS:
             errors.append(f"generated directory must not be committed: {path.as_posix()}")
 
     for path in sorted(tracked):
-        if path.name == ".env.example":
+        name = path.name.casefold()
+        if name == ".env.example":
             continue
-        if path.name.startswith(".env"):
+        if name.startswith(".env"):
             errors.append(f"tracked environment file: {path.as_posix()}")
+
+
+def _contains_host(text: str, host: str) -> bool:
+    pattern = rf"(?<![a-z0-9.-]){re.escape(host)}(?=$|[^a-z0-9.-])"
+    return re.search(pattern, text, flags=re.IGNORECASE) is not None
 
 
 def _check_text(path: Path, text: str, errors: list[str]) -> None:
@@ -125,9 +134,10 @@ def _check_text(path: Path, text: str, errors: list[str]) -> None:
         if pattern.search(text):
             errors.append(f"{path.as_posix()}: possible {label}")
 
-    if path.parts[:2] == ("src", "ringdown_market"):
+    root = path.parts[0].casefold() if path.parts else ""
+    if root in BROKER_CODE_ROOTS and path != HYGIENE_CHECKER:
         for host in DIRECT_ALPACA_HOSTS:
-            if host in text:
+            if _contains_host(text, host):
                 errors.append(
                     f"{path.as_posix()}: direct Alpaca host '{host}' bypasses the adapter boundary"
                 )
