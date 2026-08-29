@@ -83,7 +83,8 @@ Current modules:
 - `execution/mcp.py`: the single Alpaca MCP request, readback, cancellation, atomic-close, and event-flat reconciliation boundary;
 - `execution/paper_demo.py`: exact approval, durable submit-once recovery, fill-economics classification, and sanitized terminal receipt bundle;
 - `runtime/scheduled.py`: strict one-event manifest and due-window validation, cross-process overlap lock, atomic hash-bound restart state, terminal no-op, and manual-reconciliation boundary;
-- `cli.py`: labeled research input parsing, one-shot scheduled runtime command, deterministic output, and package-version output.
+- `demo/judge_trace.py`: deterministic self-contained HTML projection over byte-identical frozen evidence and scheduled lifecycle artifacts, with strict PAPER/claim validation and inert source attribution;
+- `cli.py`: labeled research input parsing, one-shot scheduled runtime command, offline trace rendering, deterministic output, and package-version output.
 
 The execution boundary is pinned to Alpaca MCP `2.3.0` at commit `872abbf28dab6cdde7d341fc13ac139b8002d1d9`. The package does not load credentials or instantiate an MCP server. A host must inject one normalized session and attest its PAPER environment from host-owned MCP configuration. The factory verifies the six required tools from the official surface, reads only sanitized account eligibility, then exposes only the adapter's five runtime tools. Its prepared-session object constructs the existing `McpPaperBroker`; no alternate production broker path is introduced. A timed-out mutation is typed as ambiguous so the adapter reads back its deterministic client-order ID instead of submitting again.
 
@@ -121,7 +122,7 @@ implemented paper execution plane
 sanitized static public trace
 ```
 
-The real point-in-time event collection and static proof artifact remain separate reviewed slices. The implemented bridge accepts only exact frozen artifacts that already passed the registered research gates; it does not create evidence, rescore a signal, or open an execution session. The implemented host boundary constructs only a preflighted PAPER session for the same official adapter. Missing or ambiguous information fails closed to rejection or reconciliation; it never selects another adapter.
+The real point-in-time event collection is frozen, and the static proof renderer now projects one v2 evidence manifest plus three separate scheduled lifecycle contract fixtures. No merged artifact causally joins that v2 event to a decision, permit, or terminal receipt, so the page renders those links as missing instead of splicing unrelated values. A future real causally joined public trace remains a separate reviewed artifact. The implemented bridge accepts only exact frozen artifacts that already passed the registered research gates; it does not create evidence, rescore a signal, or open an execution session. The implemented host boundary constructs only a preflighted PAPER session for the same official adapter. Missing or ambiguous information fails closed to rejection or reconciliation; it never selects another adapter.
 
 ## Core evaluation
 

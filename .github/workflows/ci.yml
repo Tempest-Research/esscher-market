@@ -38,3 +38,6 @@ jobs:
             --input "$GITHUB_WORKSPACE/tests/fixtures/synthetic_contract_panel.json" \
             --output "$RUNNER_TEMP/ringdown-smoke/report.json"
           ringdown-smoke/bin/python -c 'import json, pathlib; report=json.loads(pathlib.Path("ringdown-smoke/report.json").read_text()); assert report["mode"] == "OFFLINE_RESEARCH"; assert report["event_count"] == 4'
+          ringdown-smoke/bin/ringdown render-judge-trace \
+            --output "$RUNNER_TEMP/ringdown-smoke/esscher-evidence-trace.html"
+          ringdown-smoke/bin/python -c 'import pathlib; page=pathlib.Path("ringdown-smoke/esscher-evidence-trace.html").read_text(); assert page.startswith("<!doctype html>"); assert "ACCEPTED_TERMINAL_FLAT" in page; assert "MANUAL_RECONCILIATION" in page; assert "STATIC · READ-ONLY · NO NETWORK" in page'

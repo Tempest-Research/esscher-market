@@ -68,6 +68,24 @@ The one-shot scheduled runner accepts one strict approved event manifest, valida
 - `NO_ALPHA_CLAIM`
 - `NO_EXECUTABLE_OPTIONS_CLAIM`
 
+## Offline evidence-to-receipt trace
+
+Render the self-contained read-only walkthrough from the packaged frozen inputs:
+
+```bash
+uv run ringdown render-judge-trace --output build/esscher-evidence-trace.html
+```
+
+Open `build/esscher-evidence-trace.html` in any modern browser. An installed wheel exposes the same command without `uv run`:
+
+```bash
+ringdown render-judge-trace --output esscher-evidence-trace.html
+```
+
+The page requires no server, JavaScript, network access, credential, or broker session. It shows one issue #2 point-in-time evidence manifest, then leaves its absent research decision and permit visibly missing. Separately labeled issue #13 synthetic fixtures show terminal-flat, rejected-before-mutation, and manual-reconciliation lifecycle outcomes. Every rendered factual value carries its source JSON pointer; the packaged copies are tested byte-for-byte against the committed source artifacts.
+
+`PAPER`, `INDICATIVE_DATA`, `SYNTHETIC_CONTRACT_FIXTURE`, and `NO_BROKER_EXECUTION` remain visible. A synthetic PAPER P&L example is operational contract evidence only—not alpha, an executable historical fill, or expected profitability.
+
 ## Project map
 
 - [Architecture](docs/ARCHITECTURE.md) — implemented behavior, planned boundaries, and invariants.

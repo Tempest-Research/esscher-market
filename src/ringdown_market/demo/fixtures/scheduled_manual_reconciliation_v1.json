@@ -1,0 +1,27 @@
+{
+  "artifact": {
+    "broker_mutation": "NO_FURTHER_MUTATION",
+    "claims": [
+      "PAPER_OPERATIONAL_RESULT",
+      "INDICATIVE_DATA",
+      "NOT_ALPHA_EVIDENCE"
+    ],
+    "data_class": "INDICATIVE_DATA",
+    "disposition": "MANUAL_RECONCILIATION_REQUIRED",
+    "error_code": "AMBIGUOUS_OR_PARTIAL_BROKER_STATE",
+    "event_run_id": "rd-event-dddddddddddddddddddddddddddddddd",
+    "lifecycle": "MANUAL_RECONCILIATION",
+    "manifest_sha256": "bdc08462aadf64c7843574fe49acc17d96edcf3618e05a7b3f04845c01db7827",
+    "observed_at": "2026-08-29T20:00:00+00:00",
+    "run_mode": "PAPER",
+    "schema": "ringdown.scheduled_run_error",
+    "schema_version": 1
+  },
+  "fixture_class": "SYNTHETIC_CONTRACT_FIXTURE",
+  "limitations": [
+    "NOT_HISTORICAL_DATA",
+    "NOT_ALPHA_EVIDENCE",
+    "NO_BROKER_EXECUTION"
+  ],
+  "scenario": "AMBIGUOUS_MANUAL_RECONCILIATION"
+}

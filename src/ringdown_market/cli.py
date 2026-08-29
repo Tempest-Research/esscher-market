@@ -24,6 +24,7 @@ from .alpha.qfast import (
     evaluate_latency_gate,
     run_qfast,
 )
+from .demo.judge_trace import load_packaged_trace_inputs, render_judge_trace
 from .runtime.scheduled import (
     ScheduledEventManifest,
     ScheduledEventOverlap,
@@ -255,6 +256,11 @@ def _build_parser() -> argparse.ArgumentParser:
         help="host-owned module:function returning PaperDemoPlan",
     )
     scheduled.add_argument("--dry-run", action="store_true")
+    trace = subparsers.add_parser(
+        "render-judge-trace",
+        help="render the packaged offline read-only evidence-to-receipt walkthrough",
+    )
+    trace.add_argument("--output", type=Path, required=True)
     return parser
 
 
@@ -299,6 +305,11 @@ def main(
             + "\n",
             encoding="utf-8",
         )
+        return 0
+    if args.command == "render-judge-trace":
+        rendered = render_judge_trace(load_packaged_trace_inputs())
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_bytes(rendered)
         return 0
     if args.command == "run-scheduled-event":
         runtime_clock = (lambda: datetime.now(UTC)) if clock is None else clock
