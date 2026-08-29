@@ -20,17 +20,14 @@ Every real event manifest must retain:
 
 - stable event ID and issuer;
 - source URL and publisher;
-- earliest source-supported public-observability timestamp with timezone, or an
-  explicit unknown/date-only state;
+- earliest source-supported public-observability timestamp with timezone, or an explicit unknown/date-only state;
 - source timestamp type and precision, with SEC acceptance retained separately;
 - retrieval timestamp with timezone;
-- collector-observed timestamp, when available, retained separately from
-  publication time;
+- collector-observed timestamp, when available, retained separately from publication time;
 - decision cutoff and feature snapshot timestamp;
 - per-feature source dependencies and the dependency-check result;
 - content hash or immutable source revision where permitted;
-- data classification, feed/data-quality qualifiers, entitlement note, and
-  redistribution status;
+- data classification, feed/data-quality qualifiers, entitlement note, and redistribution status;
 - explicit missing, revised, or conflicting fields.
 
 Retrieval time does not replace publication time. A document downloaded before the cutoff can still contain a later revision; a document downloaded later may be valid only if its historical version is independently preserved.
@@ -66,22 +63,14 @@ Purpose: observations that are useful for research or demonstration but do not p
 
 Free or indicative quotes must not be converted into OPRA/NBBO, fill-quality, or option-P&L claims.
 
-`INDICATIVE_DATA` is a qualifier on a source or artifact, not a replacement for
-the artifact class `POINT_IN_TIME_EVENT_PANEL`. A panel may carry this qualifier
-when one of its feeds is indicative; the qualifier remains visible in reports
-and public traces.
+`INDICATIVE_DATA` is a qualifier on a source or artifact, not a replacement for the artifact class `POINT_IN_TIME_EVENT_PANEL`. A panel may carry this qualifier when one of its feeds is indicative; the qualifier remains visible in reports and public traces.
 
 ## Status vocabulary
 
-- `ELIGIBLE`: the evidence, timing, feature dependencies, and common outcome
-  path pass the registered gate;
-- `UNCERTAIN`: a method abstains on an eligible event and contributes zero
-  signed return for that method;
-- `UNAVAILABLE`: a required outcome input or path is absent after evidence and
-  timing passed; retain the row and exclusion reason, but exclude it from the
-  common eligible denominator;
-- `UNRESOLVED`: publication timing, source conflict, or session status is not
-  safely established; do not admit the row.
+- `ELIGIBLE`: the evidence, timing, feature dependencies, and common outcome path pass the registered gate;
+- `UNCERTAIN`: a method abstains on an eligible event and contributes zero signed return for that method;
+- `UNAVAILABLE`: a required outcome input or path is absent after evidence and timing passed; retain the row and exclusion reason, but exclude it from the common eligible denominator;
+- `UNRESOLVED`: publication timing, source conflict, or session status is not safely established; do not admit the row.
 
 ## Claim levels
 

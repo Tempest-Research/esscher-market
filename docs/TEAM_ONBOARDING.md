@@ -1,7 +1,6 @@
 # Team onboarding
 
-Read this before opening a Ringdown pull request. It defines the shared system
-boundaries and research rules.
+Read this before opening a Ringdown pull request. It defines the shared system boundaries and research rules.
 
 ## Current competition facts
 
@@ -14,11 +13,7 @@ The official event pages were verified on 28 August 2026. They stated that:
 - the paper account ID is required for judging;
 - judging includes P&L, implementation, originality, and presentation.
 
-Ringdown's submission policy is to close all positions and cancel all open
-orders before submission. Ringdown does not impose a minimum number of live
-trades; the research panel requires at least 20 untouched eligible events for
-Q-FAST. Paper performance is simulated, not evidence of strategy profitability
-outside that environment.
+Ringdown's submission policy is to close all positions and cancel all open orders before submission. Ringdown does not impose a minimum number of live trades; the research panel requires at least 20 untouched eligible events for Q-FAST. Paper performance is simulated, not evidence of strategy profitability outside that environment.
 
 Official event pages:
 
@@ -83,6 +78,21 @@ Every scene must visibly distinguish:
 - engineering evidence from alpha or profitability evidence.
 
 Do not invent a broker receipt to complete a screen. Show an explicit unavailable or simulated state instead.
+
+## Rules for automation-assisted work
+
+Automation may help inspect, draft, test, or review. The human contributor still owns every line and claim.
+
+- Never put credentials, private account IDs, private datasets, or unpublished team material into a model prompt.
+- Read the real file and relevant tests before proposing a change.
+- Ground external API behavior in an official URL or pinned source revision.
+- Treat generated code and summaries as untrusted until the diff and execution output are checked.
+- Never fabricate commands, test output, datasets, citations, fills, or receipts.
+- Never copy code, assets, copywriting, or fixtures from competing submissions.
+- Do not add dependencies unless the PR explains why the standard library or existing stack is insufficient.
+- Do not perform broad refactors while delivering a lane task.
+- Remove local agent instruction files and generated work logs from the commit.
+- Before review, explain the change's purpose, data flow, invariant, failure mode, and trade-off.
 
 ## Ownership
 

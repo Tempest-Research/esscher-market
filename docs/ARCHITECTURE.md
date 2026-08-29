@@ -86,10 +86,7 @@ The residual return removes frozen market and sector components measured over th
 7. An ambiguous submission is reconciled by deterministic client ID, never blindly retried.
 8. Public artifacts are static, sanitized, and incapable of mutation.
 
-Historical panel admission additionally requires per-feature source dependencies,
-typed publication timestamps, entitlement metadata, and a common outcome path.
-The current aggregate `DecisionSnapshot` timestamp checks do not establish those
-feature-level dependencies by themselves.
+Historical panel admission additionally requires per-feature source dependencies, typed publication timestamps, entitlement metadata, and a common outcome path. The current aggregate `DecisionSnapshot` timestamp checks do not establish those feature-level dependencies by themselves.
 
 ## Path ownership
 

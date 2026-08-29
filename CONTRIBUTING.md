@@ -30,6 +30,20 @@ Use `uv run`; do not depend on a globally installed Python package.
 
 Never push directly to `main`. Do not force-push a branch another contributor is using.
 
+## Automation-assisted changes
+
+Automation output is an untrusted proposal, not evidence.
+
+- The human contributor owns the diff and must understand it.
+- Never place credentials, account identifiers, or private datasets in prompts.
+- Verify external contracts against official documentation or pinned source.
+- Read the actual changed files and tests before requesting review.
+- Do not include generated work logs, local agent instructions, or automated co-author trailers.
+- Do not fabricate commands, output, citations, data, fills, or receipts.
+- Do not copy code, assets, or language from competing submissions.
+
+Before review, be ready to explain the purpose, one data-flow trace, one invariant, one failure mode, and the chosen trade-off without relying on generated prose.
+
 ## Safety boundaries
 
 - Execution is permanently limited to Alpaca paper accounts. Do not add another account mode.
