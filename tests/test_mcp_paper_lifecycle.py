@@ -8,6 +8,12 @@ from decimal import Decimal
 
 import pytest
 
+from ringdown_market.contracts.execution_policy import (
+    ALPACA_MCP_PROTOCOL_SHA256,
+    PAPER_PERMIT_POLICY_SHA256,
+    RESEARCH_DECISION_PROTOCOL_SHA256,
+    paper_event_run_id,
+)
 from ringdown_market.execution.mcp import (
     McpPaperBroker,
     OpenOrderReceipt,
@@ -28,6 +34,7 @@ from ringdown_market.execution.models import (
     PositionIntent,
     RunMode,
     VerticalType,
+    debit_vertical_permit_id,
 )
 
 NOW = datetime(2026, 8, 28, 15, 0, tzinfo=UTC)
@@ -36,11 +43,16 @@ SHORT_SYMBOL = "NVDA260918C00185000"
 
 
 def open_permit() -> DebitVerticalPermit:
-    return DebitVerticalPermit(
-        permit_id="permit-open-001",
-        event_run_id="event-nvda-2026q2",
-        policy_sha256="a" * 64,
+    decision_sha256 = "d" * 64
+    candidate = DebitVerticalPermit._from_frozen_decision(
+        permit_id="UNBOUND",
+        event_run_id=paper_event_run_id(decision_sha256),
+        policy_sha256=PAPER_PERMIT_POLICY_SHA256,
         snapshot_sha256="b" * 64,
+        decision_sha256=decision_sha256,
+        evidence_sha256="e" * 64,
+        protocol_sha256=RESEARCH_DECISION_PROTOCOL_SHA256,
+        execution_protocol_sha256=ALPACA_MCP_PROTOCOL_SHA256,
         issued_at=NOW - timedelta(seconds=5),
         expires_at=NOW + timedelta(seconds=30),
         vertical_type=VerticalType.BULL_CALL,
@@ -67,15 +79,17 @@ def open_permit() -> DebitVerticalPermit:
             ),
         ),
     )
+    return replace(candidate, permit_id=debit_vertical_permit_id(candidate))
 
 
 def close_permit() -> ClosePermit:
+    opening = open_permit()
     return ClosePermit(
         permit_id="permit-close-001",
-        open_permit_id="permit-open-001",
-        event_run_id="event-nvda-2026q2",
+        open_permit_id=opening.permit_id,
+        event_run_id=opening.event_run_id,
         policy_sha256="c" * 64,
-        snapshot_sha256="b" * 64,
+        snapshot_sha256=opening.snapshot_sha256,
         issued_at=NOW - timedelta(seconds=5),
         expires_at=NOW + timedelta(seconds=30),
         limit_price=Decimal("-0.40"),

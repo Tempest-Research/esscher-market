@@ -12,6 +12,20 @@ from decimal import Decimal, InvalidOperation
 from enum import StrEnum
 from typing import Protocol
 
+from ringdown_market.contracts.execution_policy import (
+    ALPACA_MCP_COMMIT,
+    ALPACA_MCP_PROTOCOL_SHA256,
+    ALPACA_MCP_VERSION,
+    CANCEL_TOOL,
+    OPEN_TOOL,
+    ORDER_BY_ID_TOOL,
+    PAPER_PERMIT_POLICY_SHA256,
+    POSITIONS_TOOL,
+    READBACK_TOOL,
+    RESEARCH_DECISION_PROTOCOL_SHA256,
+    paper_event_run_id,
+)
+
 from .models import (
     ClosePermit,
     DataClass,
@@ -19,15 +33,8 @@ from .models import (
     OptionSide,
     PositionIntent,
     RunMode,
+    debit_vertical_permit_id,
 )
-
-ALPACA_MCP_VERSION = "2.3.0"
-ALPACA_MCP_COMMIT = "872abbf28dab6cdde7d341fc13ac139b8002d1d9"
-OPEN_TOOL = "place_option_order"
-READBACK_TOOL = "get_order_by_client_id"
-ORDER_BY_ID_TOOL = "get_order_by_id"
-CANCEL_TOOL = "cancel_order_by_id"
-POSITIONS_TOOL = "get_all_positions"
 
 
 class PermitNotExecutable(RuntimeError):
@@ -162,12 +169,28 @@ class PaperLifecycleReceipt:
             raise ValueError("paper lifecycle receipts must remain INDICATIVE_DATA")
 
 
+def _validate_registered_open_permit(permit: DebitVerticalPermit) -> None:
+    expected_id = debit_vertical_permit_id(permit)
+    if (
+        permit.protocol_sha256 != RESEARCH_DECISION_PROTOCOL_SHA256
+        or permit.execution_protocol_sha256 != ALPACA_MCP_PROTOCOL_SHA256
+        or permit.policy_sha256 != PAPER_PERMIT_POLICY_SHA256
+        or permit.permit_id != expected_id
+        or permit.event_run_id != paper_event_run_id(permit.decision_sha256)
+    ):
+        raise ValueError("opening permit is not a registered frozen decision permit")
+
+
 def _permit_identity(permit: DebitVerticalPermit) -> dict[str, object]:
     return {
         "schema_version": 1,
         "operation": "OPEN",
         "permit_id": permit.permit_id,
         "event_run_id": permit.event_run_id,
+        "decision_sha256": permit.decision_sha256,
+        "evidence_sha256": permit.evidence_sha256,
+        "protocol_sha256": permit.protocol_sha256,
+        "execution_protocol_sha256": permit.execution_protocol_sha256,
         "policy_sha256": permit.policy_sha256,
         "snapshot_sha256": permit.snapshot_sha256,
         "issued_at": permit.issued_at.isoformat(),
@@ -196,6 +219,7 @@ def _permit_identity(permit: DebitVerticalPermit) -> dict[str, object]:
 def build_open_order_call(permit: DebitVerticalPermit) -> OpenOrderCall:
     """Compile a permit into Alpaca MCP's pinned multi-leg option schema."""
 
+    _validate_registered_open_permit(permit)
     permit_sha256 = _sha256(_permit_identity(permit))
     client_order_id = f"rd-open-{permit_sha256[:32]}"
     arguments: dict[str, object] = {
@@ -390,6 +414,7 @@ class McpPaperBroker:
     ) -> None:
         self._session = session
         self._clock = clock
+        self._consumed_open_permit_ids: set[str] = set()
 
     def _observed_time(self) -> datetime:
         observed_at = self._clock()
@@ -484,6 +509,9 @@ class McpPaperBroker:
             label="entry",
         )
         call = build_open_order_call(permit)
+        if permit.permit_id in self._consumed_open_permit_ids:
+            raise PermitNotExecutable("entry permit was already consumed by this broker session")
+        self._consumed_open_permit_ids.add(permit.permit_id)
         readback_id, readback_client_id, readback_status = await self._submit_and_readback(
             call,
             submission_phase="submission",

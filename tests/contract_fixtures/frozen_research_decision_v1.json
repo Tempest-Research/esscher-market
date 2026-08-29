@@ -1,0 +1,168 @@
+{
+  "fixture_metadata": {
+    "artifact_class": "SYNTHETIC_CONTRACT_FIXTURE",
+    "limitations": [
+      "NOT_HISTORICAL_DATA",
+      "NOT_ALPHA_EVIDENCE",
+      "NO_BROKER_EXECUTION"
+    ],
+    "purpose": "Deterministic decision-to-permit contract behavior only. The embedded production-shaped values are illustrative, not research or broker evidence."
+  },
+  "evidence_manifest": {
+    "schema": "ringdown.point_in_time_evidence_manifest",
+    "schema_version": 1,
+    "event_id": "synthetic-nvda-2026q2",
+    "issuer": "NVIDIA CORPORATION",
+    "decision_cutoff": "2026-08-28T13:35:00Z",
+    "latest_evidence_at": "2026-08-28T13:30:00Z",
+    "feature_snapshot_at": "2026-08-28T13:35:00Z",
+    "frozen_at": "2026-08-28T13:35:00Z",
+    "data_class": "POINT_IN_TIME_EVENT_PANEL",
+    "data_qualifiers": [
+      "INDICATIVE_DATA",
+      "NOT_ALPHA_EVIDENCE"
+    ],
+    "field_source_refs": {
+      "candidate_signal": [
+        "issuer-release"
+      ],
+      "earnings_numeric": [
+        "issuer-release",
+        "sec-filing"
+      ]
+    },
+    "records": [
+      {
+        "evidence_id": "issuer-release",
+        "event_id": "synthetic-nvda-2026q2",
+        "issuer": "NVIDIA CORPORATION",
+        "source_kind": "ISSUER_PRIMARY",
+        "source_url": "https://example.invalid/investor-relations/synthetic-release",
+        "publisher": "Synthetic Issuer Fixture",
+        "published_at": "2026-08-28T13:20:00Z",
+        "published_at_type": "issuer_release_timestamp",
+        "published_at_precision": "second",
+        "published_date_or_interval": null,
+        "source_timezone": "UTC",
+        "accepted_at": null,
+        "retrieved_at": "2026-08-28T13:25:00Z",
+        "source_observed_at": "2026-08-28T13:25:00Z",
+        "decision_cutoff": "2026-08-28T13:35:00Z",
+        "feature_snapshot_at": "2026-08-28T13:35:00Z",
+        "content_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+        "hash_representation": "raw_bytes",
+        "data_class": "POINT_IN_TIME_EVENT_PANEL",
+        "data_qualifiers": [
+          "INDICATIVE_DATA",
+          "NOT_ALPHA_EVIDENCE"
+        ],
+        "entitlement_note": "Synthetic contract fixture; no external bytes or entitlement claim.",
+        "redistribution_note": "METADATA_AND_HASH_ONLY",
+        "field_status": "PRESENT"
+      },
+      {
+        "evidence_id": "sec-filing",
+        "event_id": "synthetic-nvda-2026q2",
+        "issuer": "NVIDIA CORPORATION",
+        "source_kind": "SEC_OFFICIAL",
+        "source_url": "https://example.invalid/edgar/synthetic-filing",
+        "publisher": "Synthetic SEC Fixture",
+        "published_at": "2026-08-28T13:30:00Z",
+        "published_at_type": "official_dissemination_timestamp",
+        "published_at_precision": "second",
+        "published_date_or_interval": null,
+        "source_timezone": "UTC",
+        "accepted_at": "2026-08-28T13:29:00Z",
+        "retrieved_at": "2026-08-28T13:31:00Z",
+        "source_observed_at": "2026-08-28T13:31:00Z",
+        "decision_cutoff": "2026-08-28T13:35:00Z",
+        "feature_snapshot_at": "2026-08-28T13:35:00Z",
+        "content_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+        "hash_representation": "raw_bytes",
+        "data_class": "POINT_IN_TIME_EVENT_PANEL",
+        "data_qualifiers": [
+          "INDICATIVE_DATA",
+          "NOT_ALPHA_EVIDENCE"
+        ],
+        "entitlement_note": "Synthetic contract fixture; no external bytes or entitlement claim.",
+        "redistribution_note": "METADATA_AND_HASH_ONLY",
+        "field_status": "PRESENT"
+      }
+    ]
+  },
+  "input_snapshot": {
+    "schema": "ringdown.feature_input_snapshot",
+    "schema_version": 1,
+    "event_id": "synthetic-nvda-2026q2",
+    "issuer": "NVIDIA CORPORATION",
+    "decision_cutoff": "2026-08-28T13:35:00Z",
+    "feature_snapshot_at": "2026-08-28T13:35:00Z",
+    "frozen_at": "2026-08-28T13:35:00Z",
+    "features": [
+      {
+        "feature_id": "earnings_numeric/v1",
+        "source_refs": [
+          "issuer-release",
+          "sec-filing"
+        ],
+        "source_max_public_at": "2026-08-28T13:30:00Z",
+        "feature_computed_at": "2026-08-28T13:34:00Z",
+        "definition_version": "earnings_numeric/v1",
+        "field_status": "PRESENT",
+        "dependency_check": "ELIGIBLE",
+        "value_sha256": "3333333333333333333333333333333333333333333333333333333333333333"
+      },
+      {
+        "feature_id": "candidate_signal/v1",
+        "source_refs": [
+          "issuer-release"
+        ],
+        "source_max_public_at": "2026-08-28T13:20:00Z",
+        "feature_computed_at": "2026-08-28T13:34:30Z",
+        "definition_version": "candidate_signal/v1",
+        "field_status": "PRESENT",
+        "dependency_check": "ELIGIBLE",
+        "value_sha256": "4444444444444444444444444444444444444444444444444444444444444444"
+      }
+    ]
+  },
+  "decision_template": {
+    "schema": "ringdown.frozen_research_decision",
+    "schema_version": 1,
+    "event_id": "synthetic-nvda-2026q2",
+    "issuer": "NVIDIA CORPORATION",
+    "decision_cutoff": "2026-08-28T13:35:00Z",
+    "latest_evidence_at": "2026-08-28T13:30:00Z",
+    "feature_snapshot_at": "2026-08-28T13:35:00Z",
+    "frozen_at": "2026-08-28T13:35:00Z",
+    "decision_state": "APPROVED",
+    "direction": "UP",
+    "eligibility": "ELIGIBLE",
+    "qfast_status": "NOT_REJECTED_SMALL_SAMPLE",
+    "qlatency_status": "NOT_REJECTED_SMALL_SAMPLE",
+    "claim": "NOT_ALPHA_EVIDENCE",
+    "data_class": "POINT_IN_TIME_EVENT_PANEL",
+    "data_qualifiers": [
+      "INDICATIVE_DATA",
+      "NOT_ALPHA_EVIDENCE"
+    ],
+    "strategy": {
+      "kind": "DEBIT_VERTICAL",
+      "underlying": "NVDA",
+      "vertical_type": "BULL_CALL",
+      "expiry": "2026-09-18",
+      "quantity": 1,
+      "limit_price": "1.25",
+      "long_leg": {
+        "symbol": "NVDA260918C00180000",
+        "option_type": "CALL",
+        "strike": "180.00"
+      },
+      "short_leg": {
+        "symbol": "NVDA260918C00185000",
+        "option_type": "CALL",
+        "strike": "185.00"
+      }
+    }
+  }
+}
