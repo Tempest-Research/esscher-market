@@ -1,0 +1,27 @@
+{
+  "artifact": {
+    "broker_mutation": "NOT_ATTEMPTED",
+    "claims": [
+      "PAPER_OPERATIONAL_RESULT",
+      "INDICATIVE_DATA",
+      "NOT_ALPHA_EVIDENCE"
+    ],
+    "data_class": "INDICATIVE_DATA",
+    "disposition": "REJECTED_BEFORE_MUTATION",
+    "error_code": "MANIFEST_OR_STATE_REJECTED",
+    "event_run_id": null,
+    "lifecycle": "REJECTED",
+    "manifest_sha256": "7dd3578779ee9d9ff4e1d7c61128a9b0ae77e19090186ad03a4ad2bc4df028b2",
+    "observed_at": "2026-08-29T20:00:00+00:00",
+    "run_mode": "PAPER",
+    "schema": "ringdown.scheduled_run_error",
+    "schema_version": 1
+  },
+  "fixture_class": "SYNTHETIC_CONTRACT_FIXTURE",
+  "limitations": [
+    "NOT_HISTORICAL_DATA",
+    "NOT_ALPHA_EVIDENCE",
+    "NO_BROKER_EXECUTION"
+  ],
+  "scenario": "REJECTED_BEFORE_MUTATION"
+}
