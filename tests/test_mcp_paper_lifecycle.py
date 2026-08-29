@@ -186,6 +186,7 @@ def test_cancels_unfilled_order_then_verifies_event_positions_are_flat() -> None
                 "id": receipt.broker_order_id,
                 "client_order_id": receipt.client_order_id,
                 "status": "canceled",
+                "filled_qty": "0",
             },
             [],
         ]
@@ -222,6 +223,7 @@ def test_terminal_receipt_uses_the_final_position_observation_time() -> None:
                 "id": receipt.broker_order_id,
                 "client_order_id": receipt.client_order_id,
                 "status": "canceled",
+                "filled_qty": "0",
             },
             [],
         ]
@@ -312,6 +314,78 @@ def test_partial_fill_refuses_sequential_leg_repair() -> None:
     assert [name for name, _ in session.calls] == ["get_order_by_id"]
 
 
+@pytest.mark.parametrize("terminal_status", ["canceled", "expired"])
+def test_terminal_order_with_nonzero_fill_requires_manual_reconciliation(
+    terminal_status: str,
+) -> None:
+    permit = open_permit()
+    receipt = open_receipt(permit)
+    session = RecordingSession(
+        [
+            {
+                "id": receipt.broker_order_id,
+                "client_order_id": receipt.client_order_id,
+                "status": terminal_status,
+                "filled_qty": "0.5",
+            }
+        ]
+    )
+    broker = McpPaperBroker(session, clock=lambda: NOW)
+
+    with pytest.raises(PaperLifecycleManualRequired, match="nonzero fill"):
+        asyncio.run(
+            broker.resolve_to_flat(
+                open_permit=permit,
+                open_receipt=receipt,
+                close_permit=close_permit(),
+            )
+        )
+
+    assert [name for name, _ in session.calls] == ["get_order_by_id"]
+
+
+@pytest.mark.parametrize(
+    "order_fields",
+    [
+        {},
+        {"filled_qty": None},
+        {"filled_qty": ""},
+        {"filled_qty": "not-a-number"},
+        {"filled_qty": "-0.1"},
+        {"filled_qty": "NaN"},
+        {"filled_qty": "Infinity"},
+        {"filled_qty": True},
+    ],
+)
+def test_canceled_order_with_ambiguous_fill_quantity_requires_manual_reconciliation(
+    order_fields: dict[str, object],
+) -> None:
+    permit = open_permit()
+    receipt = open_receipt(permit)
+    session = RecordingSession(
+        [
+            {
+                "id": receipt.broker_order_id,
+                "client_order_id": receipt.client_order_id,
+                "status": "canceled",
+                **order_fields,
+            }
+        ]
+    )
+    broker = McpPaperBroker(session, clock=lambda: NOW)
+
+    with pytest.raises(PaperLifecycleManualRequired, match="filled quantity"):
+        asyncio.run(
+            broker.resolve_to_flat(
+                open_permit=permit,
+                open_receipt=receipt,
+                close_permit=close_permit(),
+            )
+        )
+
+    assert [name for name, _ in session.calls] == ["get_order_by_id"]
+
+
 def test_position_truth_prevents_false_flat_receipt() -> None:
     permit = open_permit()
     receipt = open_receipt(permit)
@@ -321,6 +395,7 @@ def test_position_truth_prevents_false_flat_receipt() -> None:
                 "id": receipt.broker_order_id,
                 "client_order_id": receipt.client_order_id,
                 "status": "canceled",
+                "filled_qty": "0",
             },
             [{"symbol": LONG_SYMBOL, "qty": "1"}],
         ]

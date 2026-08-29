@@ -8,7 +8,7 @@ from collections.abc import Callable, Mapping
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from enum import StrEnum
 from typing import Protocol
 
@@ -323,14 +323,35 @@ def _mapping_response(response: object, *, phase: str) -> Mapping[str, object]:
     return response
 
 
-def _broker_identity(response: object, *, phase: str) -> tuple[str, str, str]:
+def _broker_identity(response: object, *, phase: str) -> tuple[str, str, str, Decimal | None]:
     payload = _mapping_response(response, phase=phase)
     order_id = payload.get("id")
     client_order_id = payload.get("client_order_id")
     status = payload.get("status")
     if not all(isinstance(value, str) and value for value in (order_id, client_order_id, status)):
         raise BrokerResponseError(f"Alpaca MCP {phase} omitted required order identity")
-    return order_id, client_order_id, status
+
+    filled_qty: Decimal | None = None
+    if "filled_qty" in payload:
+        raw_filled_qty = payload["filled_qty"]
+        if isinstance(raw_filled_qty, bool) or not isinstance(
+            raw_filled_qty, (str, int, float, Decimal)
+        ):
+            raise PaperLifecycleManualRequired(
+                f"Alpaca MCP {phase} returned an invalid filled quantity"
+            )
+        try:
+            filled_qty = Decimal(str(raw_filled_qty))
+        except InvalidOperation as error:
+            raise PaperLifecycleManualRequired(
+                f"Alpaca MCP {phase} returned an invalid filled quantity"
+            ) from error
+        if not filled_qty.is_finite() or filled_qty < 0:
+            raise PaperLifecycleManualRequired(
+                f"Alpaca MCP {phase} returned an invalid filled quantity"
+            )
+
+    return order_id, client_order_id, status, filled_qty
 
 
 def _open_position_symbols(response: object) -> set[str]:
@@ -398,7 +419,7 @@ class McpPaperBroker:
         except Exception as error:
             submission_error = error
         else:
-            submitted_id, submitted_client_id, _ = _broker_identity(
+            submitted_id, submitted_client_id, _, _ = _broker_identity(
                 submitted, phase=submission_phase
             )
             if submitted_client_id != call.client_order_id:
@@ -411,7 +432,7 @@ class McpPaperBroker:
                 READBACK_TOOL,
                 {"client_order_id": call.client_order_id},
             )
-            readback_id, readback_client_id, readback_status = _broker_identity(
+            readback_id, readback_client_id, readback_status, _ = _broker_identity(
                 readback, phase=readback_phase
             )
         except Exception as error:
@@ -431,14 +452,18 @@ class McpPaperBroker:
             )
         return readback_id, readback_client_id, readback_status
 
-    async def _read_order(self, order_id: str, client_order_id: str) -> tuple[str, str, str]:
+    async def _read_order(
+        self, order_id: str, client_order_id: str
+    ) -> tuple[str, str, str, Decimal | None]:
         response = await self._session.call_tool(ORDER_BY_ID_TOOL, {"order_id": order_id})
-        read_id, read_client_id, status = _broker_identity(response, phase="order readback")
+        read_id, read_client_id, status, filled_qty = _broker_identity(
+            response, phase="order readback"
+        )
         if read_id != order_id or read_client_id != client_order_id:
             raise BrokerResponseError(
                 "order readback identity did not match the expected paper order"
             )
-        return read_id, read_client_id, status.lower()
+        return read_id, read_client_id, status.lower(), filled_qty
 
     async def _verify_event_flat(self, target_symbols: tuple[str, str]) -> datetime:
         response = await self._session.call_tool(POSITIONS_TOOL, {})
@@ -513,7 +538,7 @@ class McpPaperBroker:
             raise PermitNotExecutable("open receipt does not match the pinned MCP adapter")
 
         close_call = build_close_order_call(open_permit, close_permit)
-        _, _, open_status = await self._read_order(
+        _, _, open_status, open_filled_qty = await self._read_order(
             open_receipt.broker_order_id,
             open_receipt.client_order_id,
         )
@@ -536,7 +561,7 @@ class McpPaperBroker:
                 cancel_error = error
 
             try:
-                _, _, open_status = await self._read_order(
+                _, _, open_status, open_filled_qty = await self._read_order(
                     open_receipt.broker_order_id,
                     open_receipt.client_order_id,
                 )
@@ -554,6 +579,14 @@ class McpPaperBroker:
 
         target_symbols = tuple(leg.symbol for leg in open_permit.legs)
         if open_status in self._UNFILLED_TERMINAL_STATUSES:
+            if open_filled_qty is None:
+                raise PaperLifecycleManualRequired(
+                    "terminal paper order omitted the filled quantity required for reconciliation"
+                )
+            if open_filled_qty != 0:
+                raise PaperLifecycleManualRequired(
+                    "terminal paper order has a nonzero fill and requires manual reconciliation"
+                )
             flat_observed_at = await self._verify_event_flat(target_symbols)
             return PaperLifecycleReceipt(
                 event_run_id=open_permit.event_run_id,
