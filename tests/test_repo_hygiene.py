@@ -22,6 +22,49 @@ REQUIRED_FILES = set(HYGIENE.REQUIRED_FILES)
 
 
 @pytest.mark.parametrize(
+    "stale_name",
+    [
+        "Ring" + "down",
+        "RING" + "DOWN",
+        "rInG" + "dOwN",
+        "Ring</em>" + "down",
+    ],
+)
+def test_stale_public_branding_fails_outside_the_exact_allowlist(stale_name: str) -> None:
+    errors: list[str] = []
+    legacy_name = HYGIENE.LEGACY_PUBLIC_BRAND
+
+    HYGIENE._check_legacy_brand(Path("docs/stale-name.md"), f"# {stale_name}\n", errors)
+
+    assert errors == [
+        f"docs/stale-name.md:1: stale public brand '{legacy_name}'; use Esscher or add an exact "
+        "compatibility/migration allowance"
+    ]
+
+
+def test_lowercase_ringdown_casing_is_reserved_for_machine_identifiers() -> None:
+    errors: list[str] = []
+
+    HYGIENE._check_legacy_brand(
+        Path("docs/technical-identifiers.md"),
+        "Use the `ringdown`, `ringdown-market`, and `ringdown_market` interfaces.\n",
+        errors,
+    )
+
+    assert errors == []
+
+
+def test_exact_legacy_brand_compatibility_line_is_allowed() -> None:
+    path = Path("src/ringdown_market/cli.py")
+    allowed_line = next(iter(HYGIENE.LEGACY_BRAND_ALLOWLIST[path]))
+    errors: list[str] = []
+
+    HYGIENE._check_legacy_brand(path, f"{allowed_line}\n", errors)
+
+    assert errors == []
+
+
+@pytest.mark.parametrize(
     "candidate",
     [
         Path(".ENV"),

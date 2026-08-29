@@ -4,7 +4,7 @@ This document separates implemented behavior from remaining integration work. A 
 
 ## Implemented in the `0.2.0` draft
 
-Ringdown has two connected, paper-only planes.
+Esscher has two connected, permanently paper-only planes.
 
 ### Research plane
 
@@ -64,6 +64,12 @@ The execution boundary is pinned to Alpaca MCP `2.3.0` at commit `872abbf28dab6c
 
 The adapter is contract-tested with injected sessions. The repository does not yet contain a sanitized real paper-account receipt, executable historical option prices, or evidence of alpha or profitability.
 
+## Product and machine-interface naming
+
+Esscher is the human-facing product name. The `0.2.0` draft deliberately keeps the `ringdown-market` distribution, `ringdown_market` import package, `ringdown` command and version prefix, configuration keys, report schema keys, and receipt identifiers. The repository remains `Tempest-Research/ringdown-market` until the separately approved post-merge cutover.
+
+The deterministic report keeps the legacy `project: "Ringdown"` value and adds `product_name: "Esscher"` for public display. This is an additive alias; existing schema keys and values remain available.
+
 ## Remaining vertical integration
 
 The intended complete path is:
@@ -94,7 +100,7 @@ The real point-in-time manifest, evidence qualification, signal-to-permit bridge
 
 ## Core evaluation
 
-For event `i`, Ringdown evaluates:
+For event `i`, Esscher evaluates:
 
 ```text
 g_i = signal_i * residual_return_i

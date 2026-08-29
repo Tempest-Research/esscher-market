@@ -4,7 +4,7 @@ Rules for evidence, timing, market data, and evaluation in a future historical e
 
 ## 1. Scope and claim boundary
 
-Ringdown measures whether a signal describes an issuer's move after a scheduled earnings event and a fixed entry delay better than frozen comparators.
+Esscher measures whether a signal describes an issuer's move after a scheduled earnings event and a fixed entry delay better than frozen comparators.
 
 Use three separate clocks:
 
@@ -147,7 +147,7 @@ For `content_sha256`:
 
 SHA-256 is an integrity digest, not a publication timestamp or a signature. The [NIST Secure Hash Standard](https://csrc.nist.gov/pubs/fips/180-4/upd1/final) describes digests as a way to detect changes to messages. In this contract, the digest is useful only when the exact source representation and the digest are preserved together.
 
-If a provider's terms prohibit storing or publishing the bytes, retain the permitted source reference and hash only if the terms allow hashing. This is a Ringdown publication policy, not a determination that any particular provider permits redistribution or hashing. Use `PUBLIC_BYTES_ALLOWED`, `METADATA_AND_HASH_ONLY`, or `UNAVAILABLE_NOT_PERMITTED` as the explicit redistribution status. A hash proves that the stored representation matches the preserved digest; it does not prove the provider's publication time.
+If a provider's terms prohibit storing or publishing the bytes, retain the permitted source reference and hash only if the terms allow hashing. This is an Esscher publication policy, not a determination that any particular provider permits redistribution or hashing. Use `PUBLIC_BYTES_ALLOWED`, `METADATA_AND_HASH_ONLY`, or `UNAVAILABLE_NOT_PERMITTED` as the explicit redistribution status. A hash proves that the stored representation matches the preserved digest; it does not prove the provider's publication time.
 
 ## 3. Event timing contract
 
@@ -289,7 +289,7 @@ The current `DecisionSnapshot` rejects a later `latest_evidence_at` or `feature_
 
 ## 5. Residual return
 
-The raw issuer move contains more than an issuer-specific reaction. It can include a broad market move and a sector move during the same entry-to-exit window. Event-study methodology examines security-price effects around an event and commonly compares the issuer's move with reference-market behavior; see MacKinlay's [event-study survey](https://ideas.repec.org/a/aea/jeclit/v35y1997i1p13-39.html). Ringdown removes its registered market and sector components with frozen betas.
+The raw issuer move contains more than an issuer-specific reaction. It can include a broad market move and a sector move during the same entry-to-exit window. Event-study methodology examines security-price effects around an event and commonly compares the issuer's move with reference-market behavior; see MacKinlay's [event-study survey](https://ideas.repec.org/a/aea/jeclit/v35y1997i1p13-39.html). Esscher removes its registered market and sector components with frozen betas.
 
 For event `i`, define log returns over the **same achieved window** from `entry_at` to `exit_at`:
 
@@ -313,7 +313,7 @@ This is the same structure implemented in `src/ringdown_market/alpha/evaluation.
 5. Record missing observations, corporate-action treatment, proxy identity, estimation window, and beta version.
 6. If the market or sector series cannot be aligned without look-ahead, fail closed rather than silently falling back to an unrelated window.
 
-Residualization is an evaluation choice, not a guarantee that all confounding has been removed. MacKinlay's [academic event-study survey](https://ideas.repec.org/a/aea/jeclit/v35y1997i1p13-39.html) describes event studies as measuring price effects around an event and discusses their complications; it does not validate this repository's exact beta model. Ringdown's chosen formula and window must therefore remain explicit and preregistered.
+Residualization is an evaluation choice, not a guarantee that all confounding has been removed. MacKinlay's [academic event-study survey](https://ideas.repec.org/a/aea/jeclit/v35y1997i1p13-39.html) describes event studies as measuring price effects around an event and discusses their complications; it does not validate this repository's exact beta model. Esscher's chosen formula and window must therefore remain explicit and preregistered.
 
 ## 6. Abstention and denominators
 
@@ -486,9 +486,9 @@ The links below support the external facts in this document. Access dates show w
 ### Official event and repository sources
 
 1. [Issue #1: Lane B point-in-time evidence gate](https://github.com/Tempest-Research/ringdown-market/issues/1) - repository issue and acceptance criteria; checked 2026-08-29.
-2. [Ringdown source and claim policy](../SOURCE_AND_CLAIM_POLICY.md) - repository policy; checked 2026-08-29.
-3. [Ringdown architecture](../ARCHITECTURE.md) - implemented evaluation boundaries; checked 2026-08-29.
-4. [Ringdown team onboarding](../TEAM_ONBOARDING.md) - current research and claim boundaries; checked 2026-08-29.
+2. [Esscher source and claim policy](../SOURCE_AND_CLAIM_POLICY.md) - repository policy; checked 2026-08-29.
+3. [Esscher architecture](../ARCHITECTURE.md) - implemented evaluation boundaries; checked 2026-08-29.
+4. [Esscher team onboarding](../TEAM_ONBOARDING.md) - current research and claim boundaries; checked 2026-08-29.
 5. [Alpaca AI Trading Agents Hackathon](https://lablab.ai/ai-hackathons/alpaca-ai-trading-agents-hackathon) - event dates, submission information, Alpaca paper-account requirements, and judging criteria; checked 2026-08-29.
 
 ### SEC and EDGAR

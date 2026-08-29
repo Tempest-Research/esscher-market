@@ -1,6 +1,6 @@
 # Team onboarding
 
-Read this before opening a Ringdown pull request. It defines the shared system boundaries and research rules.
+Read this before opening an Esscher pull request. It defines the shared system boundaries and research rules.
 
 ## Current competition facts
 
@@ -13,7 +13,7 @@ The official event pages were verified on 28 August 2026. They stated that:
 - the paper account ID is required for judging;
 - judging includes P&L, implementation, originality, and presentation.
 
-Ringdown's submission policy is to close all positions and cancel all open orders before submission. Ringdown does not impose a minimum number of live trades; the research panel requires at least 20 untouched eligible events for Q-FAST. Paper performance is simulated, not evidence of strategy profitability outside that environment.
+Esscher's submission policy is to close all positions and cancel all open orders before submission. Esscher does not impose a minimum number of live trades; the research panel requires at least 20 untouched eligible events for Q-FAST. Paper performance is simulated, not evidence of strategy profitability outside that environment.
 
 Official event pages:
 
@@ -34,7 +34,7 @@ Before a first PR, each contributor must be able to explain:
 2. Why an abstention stays in the eligible-event denominator.
 3. What residual return removes from the issuer's raw move.
 4. Why a synthetic green test is not alpha or fill evidence.
-5. Why Ringdown permits one frozen Alpaca adapter and no runtime REST fallback.
+5. Why Esscher permits one frozen Alpaca adapter and no runtime REST fallback.
 
 If an answer is unclear, research before coding. A plausible implementation built on the wrong market assumption is still wrong. It is merely wrong with tests.
 

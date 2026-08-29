@@ -1,8 +1,21 @@
-# Ringdown
+# Esscher
 
 **Measure the move after the first reaction.**
 
-Ringdown is a paper-only scheduled-earnings research and controlled-execution system. It combines an offline alpha and latency evaluation harness with one bounded official Alpaca MCP adapter. The package does not load credentials or start an MCP session; its host must inject a normalized paper-account session.
+Esscher is a permanently paper-only scheduled-earnings research and controlled-execution system. It combines an offline alpha and latency evaluation harness with one bounded official Alpaca MCP adapter. The package does not load credentials or start an MCP session; its host must inject a normalized paper-account session.
+
+## Name and compatibility
+
+Esscher is the public, human-facing product name. This release deliberately keeps the existing machine interfaces:
+
+- Python distribution: `ringdown-market`;
+- Python import package: `ringdown_market`;
+- CLI command and installed version prefix: `ringdown`;
+- configuration keys, report schema keys, and receipt identifiers: unchanged;
+- report display: keep legacy `project: "Ringdown"` for compatibility and use additive `product_name: "Esscher"` for new displays;
+- GitHub repository before the approved external cutover: `Tempest-Research/ringdown-market`.
+
+The current repository URL and its issue, pull-request, and source links remain canonical until the external rename. This change does not claim trademark clearance or ownership of any package-registry name.
 
 ## Current slice
 
@@ -70,3 +83,14 @@ The output is deterministic: identical input bytes and protocol settings produce
 ## Repository workflow
 
 Use feature branches and draft pull requests. Keep reviewer requests empty until the diff and public wording are ready. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Repository rename cutover (after merge and approval)
+
+Do not execute this checklist from the branding pull request. The repository owner performs it only after the pull request merges, the public wording and understanding gate are approved, and current-head CI passes:
+
+1. Rename `Tempest-Research/ringdown-market` to `Tempest-Research/esscher-market` in GitHub settings.
+2. Verify the old repository URL redirects and existing issue, pull-request, commit, and source links still resolve.
+3. Update local Git remotes, repository badges, and canonical source links in a separate cutover change.
+4. Re-run repository hygiene, tests, wheel installation, and the non-destructive CLI smoke check after link updates.
+5. Keep `ringdown-market`, `ringdown_market`, `ringdown`, configuration keys, and receipt/schema identifiers compatible.
+6. Do not publish a renamed registry package or imply trademark clearance as part of the repository rename.

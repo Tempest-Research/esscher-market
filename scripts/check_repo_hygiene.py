@@ -1,4 +1,4 @@
-"""Fail CI when tracked repository content crosses Ringdown's safety boundaries."""
+"""Fail CI when tracked repository content crosses Esscher's safety boundaries."""
 
 from __future__ import annotations
 
@@ -73,6 +73,32 @@ SYNTHETIC_LIMITATIONS = {
     "NOT_HISTORICAL_DATA",
 }
 MARKDOWN_LINK = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")
+LEGACY_PUBLIC_BRAND = "Ring" + "down"
+LEGACY_PUBLIC_BRAND_PATTERN = re.compile(r"\bringdown\b", flags=re.IGNORECASE)
+INLINE_HTML_TAG = re.compile(r"</?[A-Za-z][^>\n]*>")
+LEGACY_BRAND_ALLOWLIST: dict[Path, frozenset[str]] = {
+    Path("README.md"): frozenset(
+        {
+            f'- report display: keep legacy `project: "{LEGACY_PUBLIC_BRAND}"` for '
+            'compatibility and use additive `product_name: "Esscher"` for new displays;'
+        }
+    ),
+    Path("CHANGELOG.md"): frozenset(
+        {
+            f'- Retained the legacy report `project: "{LEGACY_PUBLIC_BRAND}"` value and added '
+            '`product_name: "Esscher"` as an additive display alias.'
+        }
+    ),
+    Path("docs/ARCHITECTURE.md"): frozenset(
+        {
+            f'The deterministic report keeps the legacy `project: "{LEGACY_PUBLIC_BRAND}"` '
+            'value and adds `product_name: "Esscher"` for public display. This is an additive '
+            "alias; existing schema keys and values remain available."
+        }
+    ),
+    Path("src/ringdown_market/cli.py"): frozenset({f'"project": "{LEGACY_PUBLIC_BRAND}",'}),
+    Path("tests/test_cli.py"): frozenset({f'assert report["project"] == "{LEGACY_PUBLIC_BRAND}"'}),
+}
 
 
 def _git_paths(*args: str) -> set[Path]:
@@ -143,6 +169,34 @@ def _check_text(path: Path, text: str, errors: list[str]) -> None:
                 )
 
 
+def _check_legacy_brand(path: Path, text: str, errors: list[str]) -> None:
+    allowed_lines = LEGACY_BRAND_ALLOWLIST.get(path, frozenset())
+    seen = {line: 0 for line in allowed_lines}
+
+    for line_number, line in enumerate(text.splitlines(), start=1):
+        visible_line = INLINE_HTML_TAG.sub("", line)
+        matches = LEGACY_PUBLIC_BRAND_PATTERN.findall(visible_line)
+        # All-lowercase ringdown is reserved for the preserved machine identifiers.
+        if not any(match != match.lower() for match in matches):
+            continue
+        normalized = line.strip()
+        if normalized not in allowed_lines:
+            errors.append(
+                f"{path.as_posix()}:{line_number}: stale public brand "
+                f"'{LEGACY_PUBLIC_BRAND}'; use Esscher or add an exact "
+                "compatibility/migration allowance"
+            )
+            continue
+        seen[normalized] += 1
+
+    for allowed_line, count in sorted(seen.items()):
+        if count != 1:
+            errors.append(
+                f"{path.as_posix()}: allowlisted legacy brand line occurs {count} times; "
+                f"expected exactly once: {allowed_line}"
+            )
+
+
 def _check_markdown_links(path: Path, text: str, errors: list[str]) -> None:
     if path.suffix.lower() != ".md":
         return
@@ -188,12 +242,18 @@ def main() -> int:
     errors: list[str] = []
     tracked, visible = _candidate_paths()
     _check_paths(tracked, visible, errors)
+    missing_allowlist_paths = set(LEGACY_BRAND_ALLOWLIST) - visible
+    errors.extend(
+        f"legacy brand allowlist path is not visible: {path.as_posix()}"
+        for path in sorted(missing_allowlist_paths)
+    )
 
     for path in sorted(visible):
         text = _read_text(path, errors)
         if text is None:
             continue
         _check_text(path, text, errors)
+        _check_legacy_brand(path, text, errors)
         _check_markdown_links(path, text, errors)
         _check_fixture(path, text, errors)
 

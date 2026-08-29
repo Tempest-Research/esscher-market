@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "ringdown-market"
 version = "0.2.0"
-description = "Paper-only point-in-time research and execution system for scheduled earnings reactions."
+description = "Esscher, a permanently paper-only research and execution system for scheduled earnings reactions."
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 license = { text = "MIT" }
