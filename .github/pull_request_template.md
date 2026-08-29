@@ -14,7 +14,8 @@ What changed, why, and what is deliberately out of scope?
 List the official documentation, pinned source revision, or event manifest used for every external contract or market assumption.
 
 - Source:
-- Data class: `SYNTHETIC_CONTRACT_FIXTURE` / `POINT_IN_TIME_EVENT_PANEL` / `INDICATIVE_DATA` / N/A
+- Data class: `SYNTHETIC_CONTRACT_FIXTURE` / `POINT_IN_TIME_EVENT_PANEL` / N/A
+- Data qualifiers: `INDICATIVE_DATA` / `PAPER` / `NOT_ALPHA_EVIDENCE` / N/A
 
 ## Verification
 

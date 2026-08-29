@@ -9,9 +9,9 @@ Ringdown is a paper-only scheduled-earnings research and controlled-execution sy
 Given a point-in-time event fixture and frozen latency profile, the harness produces a deterministic Q-FAST report that:
 
 - rejects evidence published after the decision cutoff;
-- prices the event from an achievable delayed entry, not an imaginary zero-latency fill;
+- selects the first eligible path observation after modeled latency, not an imaginary zero-latency fill;
 - keeps abstentions in the eligible-event panel as zero returns;
-- compares the candidate signal with frozen baselines at equal risk;
+- compares the candidate signal with frozen baselines under a common unit residual-return convention, not equal capital or live portfolio risk;
 - reports `INSUFFICIENT_DATA`, `REJECTED`, or `NOT_REJECTED_SMALL_SAMPLE` without claiming alpha.
 
 Synthetic fixtures are contract tests only. They are never financial evidence.
@@ -42,6 +42,7 @@ The MCP boundary is implemented and contract-tested with injected sessions. It i
 - [Architecture](docs/ARCHITECTURE.md) — implemented behavior, planned boundaries, and invariants.
 - [Team onboarding](docs/TEAM_ONBOARDING.md) — required research and lane ownership.
 - [Source and claim policy](docs/SOURCE_AND_CLAIM_POLICY.md) — evidence metadata and permitted claims.
+- [Point-in-time evidence gate](docs/research/point-in-time-evidence-gate.md) — timing, provenance, residualization, denominator, and options-data contract.
 - [Contributing](CONTRIBUTING.md) — branch, test, review, and safety gates.
 - [Changelog](CHANGELOG.md) — versioned behavior changes and release state.
 

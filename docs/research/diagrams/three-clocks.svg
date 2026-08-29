@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="320" viewBox="0 0 960 320">
+  <rect width="960" height="320" fill="#ffffff"/>
+  <g font-family="Consolas, 'Courier New', monospace">
+    <text x="20" y="32" font-size="18" fill="#111111">Evidence, decision, and market clocks</text>
+    <line x1="640" y1="50" x2="640" y2="270" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="6 4"/>
+    <text x="20" y="80" font-size="14" fill="#333333">Evidence clock</text>
+    <line x1="170" y1="75" x2="930" y2="75" stroke="#444444" stroke-width="2"/>
+    <circle cx="250" cy="75" r="5" fill="#2563eb"/>
+    <text x="250" y="100" font-size="12" fill="#2563eb" text-anchor="middle">published_at</text>
+    <circle cx="400" cy="75" r="5" fill="#2563eb"/>
+    <text x="400" y="100" font-size="12" fill="#2563eb" text-anchor="middle">source_observed_at</text>
+    <circle cx="540" cy="75" r="5" fill="#2563eb"/>
+    <text x="540" y="100" font-size="12" fill="#2563eb" text-anchor="middle">retrieved_at</text>
+    <text x="20" y="160" font-size="14" fill="#333333">Decision clock</text>
+    <line x1="170" y1="155" x2="930" y2="155" stroke="#444444" stroke-width="2"/>
+    <circle cx="500" cy="155" r="5" fill="#059669"/>
+    <text x="500" y="180" font-size="12" fill="#059669" text-anchor="middle">feature_snapshot_at</text>
+    <line x1="640" y1="140" x2="640" y2="170" stroke="#dc2626" stroke-width="3"/>
+    <text x="640" y="180" font-size="12" fill="#dc2626" text-anchor="middle">decision_cutoff</text>
+    <text x="20" y="240" font-size="14" fill="#333333">Market clock</text>
+    <line x1="170" y1="235" x2="930" y2="235" stroke="#444444" stroke-width="2"/>
+    <circle cx="730" cy="235" r="5" fill="#7c3aed"/>
+    <text x="730" y="260" font-size="12" fill="#7c3aed" text-anchor="middle">entry_at</text>
+    <circle cx="870" cy="235" r="5" fill="#7c3aed"/>
+    <text x="870" y="260" font-size="12" fill="#7c3aed" text-anchor="middle">exit_at</text>
+    <text x="170" y="300" font-size="12" fill="#dc2626">no evidence after decision_cutoff may enter the decision</text>
+  </g>
+</svg>
