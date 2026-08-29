@@ -4,6 +4,8 @@
 
 ### Added
 
+- Four pre-outcome scheduled-earnings replay manifests bound to one frozen event list and selection rule.
+- A strict data-only evidence-manifest v2 validator with event-context provenance and point-in-time gates.
 - Versioned, strict frozen-research-decision, point-in-time evidence-manifest, and feature-input contracts.
 - Pure deterministic mapping from one eligible research decision to one immutable PAPER debit-vertical permit.
 - Exact decision, evidence, input, protocol, and policy lineage in serialized permits and downstream MCP identity checks.
@@ -13,6 +15,7 @@
 ### Safety
 
 - Unknown fields/states, hash or provenance mismatch, post-cutoff dependencies, abstention, failed research gates, unsupported strategy shape, and excess paper risk fail closed before any broker session exists.
+- Evidence-manifest v2 remains ineligible for permit compilation and carries no post-cutoff path or outcome value.
 - Partial or contradictory package fills stop for reconciliation; missing fees remain explicit and raw broker/account identities never enter the receipt bundle.
 - Version impact is `minor`; the package stays at `0.2.0` while issue #11 consolidates the release-train bump to `0.3.0`.
 

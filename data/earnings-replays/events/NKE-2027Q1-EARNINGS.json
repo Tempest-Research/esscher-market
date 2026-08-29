@@ -1,0 +1,83 @@
+{
+  "schema": "ringdown.point_in_time_evidence_manifest",
+  "schema_version": 2,
+  "event_id": "NKE-2027Q1-EARNINGS",
+  "issuer": "NIKE, Inc.",
+  "decision_cutoff": "2026-10-01T20:15:00Z",
+  "latest_evidence_at": "2026-08-29T20:09:21Z",
+  "feature_snapshot_at": "2026-08-29T20:09:21Z",
+  "frozen_at": "2026-08-29T20:09:21Z",
+  "data_class": "POINT_IN_TIME_EVENT_PANEL",
+  "data_qualifiers": ["INDICATIVE_DATA", "NOT_ALPHA_EVIDENCE", "NO_OUTCOME_VALUES", "NO_BROKER_EXECUTION"],
+  "event_list_sha256": "4d0b72f2957b67c42ee15faaebc9c103592efd8c664bdfa79200ba85fa2c8934",
+  "selection_rule_sha256": "972fecea6d59fa706b3f65fbc8d8abf1e801a0bd2991b023845f7ae061d0ce86",
+  "event_context": {
+    "ticker": "NKE",
+    "sector": "CONSUMER_CYCLICAL",
+    "event_timezone": "America/Los_Angeles",
+    "scheduled_event_at": "2026-10-01T20:15:00Z",
+    "event_category": "SCHEDULED_EARNINGS",
+    "market_proxy": "SPY",
+    "sector_proxy": "XLY",
+    "session_id": "XNYS-2026-10-01",
+    "session_open_at": "2026-10-01T13:30:00Z",
+    "session_close_at": "2026-10-01T20:00:00Z",
+    "observation_type": "EARNINGS_RELEASE",
+    "entry_session_policy": "NEXT_REGULAR_SESSION_AFTER_SCHEDULED_EVENT",
+    "missing_or_conflicting_evidence": [],
+    "inclusion_or_exclusion_reason": "INCLUDED: issuer announcement fixes an exact release instant after the regular session close."
+  },
+  "records": [
+    {
+      "evidence_id": "nke-issuer-schedule",
+      "source_kind": "ISSUER_PRIMARY",
+      "source_url": "https://investors.nike.com/investors/news-events-and-reports/investor-news/investor-news-details/2026/NIKE-Inc--Announces-First-Quarter-Fiscal-2027-Earnings-and-Conference-Call/default.aspx",
+      "publisher": "NIKE, Inc.",
+      "published_at": null,
+      "published_at_interval": {"start": "2026-08-28T00:00:00Z", "end": "2026-08-28T23:59:59.999999Z"},
+      "published_at_type": "ISSUER_RELEASE_DATE_BOUND",
+      "published_at_precision": "DATE_INTERVAL",
+      "retrieved_at": "2026-08-29T20:09:21Z",
+      "content_sha256": "8ccb1b46178e603d28db8274c329ea6c8fe26ed00d587a145b9920da93126423",
+      "field_status": "PRESENT",
+      "entitlement_note": "Public issuer investor-relations HTML; no private entitlement used.",
+      "redistribution_status": "METADATA_AND_HASH_ONLY",
+      "limitations": ["Issuer HTML exposes a publication date but no source-supported time-of-day."]
+    },
+    {
+      "evidence_id": "nyse-session-hours",
+      "source_kind": "OFFICIAL_EVENT_RULES",
+      "source_url": "https://www.nyse.com/trade/hours-calendars",
+      "publisher": "New York Stock Exchange",
+      "published_at": null,
+      "published_at_interval": {"start": "2026-01-01T00:00:00Z", "end": "2026-08-29T20:09:21Z"},
+      "published_at_type": "COLLECTOR_OBSERVED_UPPER_BOUND",
+      "published_at_precision": "DATE_INTERVAL",
+      "retrieved_at": "2026-08-29T20:09:21Z",
+      "content_sha256": "49ee8a651ec01ef2866e347842c0fb11309541f247d17aeaaf7ad9d6a513b1ed",
+      "field_status": "PRESENT",
+      "entitlement_note": "Public exchange calendar HTML; no private entitlement used.",
+      "redistribution_status": "METADATA_AND_HASH_ONLY",
+      "limitations": ["Collector observation is an upper bound on page availability, not an asserted publication instant."]
+    }
+  ],
+  "field_source_refs": {
+    "ticker": ["nke-issuer-schedule"],
+
+    "event_timezone": ["nke-issuer-schedule"],
+    "scheduled_event_at": ["nke-issuer-schedule"],
+    "event_category": ["nke-issuer-schedule"],
+    "session_id": ["nyse-session-hours"],
+    "session_open_at": ["nyse-session-hours"],
+    "session_close_at": ["nyse-session-hours"],
+    "observation_type": ["nke-issuer-schedule"]
+  },
+  "feature_dependencies": [
+    {"feature_id": "event_schedule", "source_refs": ["nke-issuer-schedule"], "dependency_check": "ELIGIBLE"},
+    {"feature_id": "regular_session_window", "source_refs": ["nyse-session-hours"], "dependency_check": "ELIGIBLE"}
+  ],
+  "sec_filing": {"url": null, "accepted_at": null, "status": "NOT_YET_AVAILABLE", "reason": "The selected earnings event is future-dated at freeze time; no event filing exists yet."},
+  "entitlement_note": "Public issuer and exchange metadata only.",
+  "redistribution_status": "METADATA_AND_HASH_ONLY",
+  "limitations": ["The exact publication instant is bounded conservatively by the issuer-visible publication date.", "No earnings outcome, post-cutoff source path, market return, option quote, or broker evidence is present.", "This manifest is data-only and cannot generate an execution permit."]
+}

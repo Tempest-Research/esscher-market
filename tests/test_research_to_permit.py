@@ -395,6 +395,16 @@ def test_empty_evidence_manifest_fails_with_explicit_missing_evidence_reason() -
     )
 
 
+def test_data_only_evidence_manifest_v2_cannot_generate_a_permit() -> None:
+    decision, evidence, inputs = contract_parts()
+    evidence["schema_version"] = 2
+
+    assert_rejected(
+        render_contract(decision, evidence, inputs),
+        PermitRejectionReason.UNSUPPORTED_SCHEMA,
+    )
+
+
 def test_missing_publication_instant_fails_with_explicit_missing_evidence_reason() -> None:
     decision, evidence, inputs = contract_parts()
     evidence["records"][0]["published_at"] = None
