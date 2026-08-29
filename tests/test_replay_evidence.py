@@ -323,9 +323,7 @@ def test_record_redistribution_status_must_be_metadata_and_hash_only() -> None:
     _, _, manifests = _bundle()
     manifests[0] = _mutate(
         manifests[0],
-        lambda payload: payload["records"][0].update(
-            {"redistribution_status": "FULL_CONTENT"}
-        ),
+        lambda payload: payload["records"][0].update({"redistribution_status": "FULL_CONTENT"}),
     )
 
     caught = _assert_rejected(manifests, ReplayEvidenceRejectionReason.CLAIM_BOUNDARY_MISMATCH)
