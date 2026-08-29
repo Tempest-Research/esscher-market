@@ -1,13 +1,15 @@
-"""Command-line entry point for deterministic offline evaluation."""
+"""Command-line entry point for deterministic research and one-shot PAPER runtime."""
 
 from __future__ import annotations
 
 import argparse
+import asyncio
 import hashlib
+import importlib
 import json
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict
-from datetime import datetime
+from datetime import UTC, datetime
 from importlib.metadata import version
 from pathlib import Path
 from typing import Any
@@ -21,6 +23,14 @@ from .alpha.qfast import (
     QFastReport,
     evaluate_latency_gate,
     run_qfast,
+)
+from .runtime.scheduled import (
+    ScheduledEventManifest,
+    ScheduledEventOverlap,
+    ScheduledManifestRejected,
+    ScheduledManualReconciliationRequired,
+    ScheduledRunError,
+    run_scheduled_event_command,
 )
 
 ALLOWED_DATA_CLASSES = {
@@ -233,18 +243,104 @@ def _build_parser() -> argparse.ArgumentParser:
     evaluate = subparsers.add_parser("evaluate", help="evaluate a frozen event panel")
     evaluate.add_argument("--input", type=Path, required=True)
     evaluate.add_argument("--output", type=Path, required=True)
+    scheduled = subparsers.add_parser(
+        "run-scheduled-event",
+        help="run at most one approved scheduled PAPER event, then exit",
+    )
+    scheduled.add_argument("--manifest", type=Path, required=True)
+    scheduled.add_argument("--state-dir", type=Path, required=True)
+    scheduled.add_argument(
+        "--host-plan",
+        required=True,
+        help="host-owned module:function returning PaperDemoPlan",
+    )
+    scheduled.add_argument("--dry-run", action="store_true")
     return parser
 
 
-def main(argv: Sequence[str] | None = None) -> int:
+def _load_plan_factory(reference: str) -> Callable[[], object]:
+    if reference.count(":") != 1:
+        raise ScheduledManifestRejected("scheduled host-plan selector is invalid")
+    module_name, attribute = reference.split(":", 1)
+    if (
+        not module_name
+        or not attribute
+        or module_name != module_name.strip()
+        or attribute != attribute.strip()
+    ):
+        raise ScheduledManifestRejected("scheduled host-plan selector is invalid")
+    try:
+        factory = getattr(importlib.import_module(module_name), attribute)
+    except (ImportError, AttributeError):
+        raise ScheduledManifestRejected("scheduled host-plan selector is unavailable") from None
+    if not callable(factory):
+        raise ScheduledManifestRejected("scheduled host-plan target is not callable")
+    return factory
+
+
+def main(
+    argv: Sequence[str] | None = None,
+    *,
+    clock: Callable[[], datetime] | None = None,
+) -> int:
     args = _build_parser().parse_args(argv)
-    if args.command != "evaluate":
-        raise AssertionError("argparse accepted an unknown command")
-    raw_bytes = args.input.read_bytes()
-    report = build_report(raw_bytes)
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(
-        json.dumps(report, indent=2, sort_keys=True, ensure_ascii=False, allow_nan=False) + "\n",
-        encoding="utf-8",
-    )
-    return 0
+    if args.command == "evaluate":
+        raw_bytes = args.input.read_bytes()
+        report = build_report(raw_bytes)
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(
+            json.dumps(
+                report,
+                indent=2,
+                sort_keys=True,
+                ensure_ascii=False,
+                allow_nan=False,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        return 0
+    if args.command == "run-scheduled-event":
+        runtime_clock = (lambda: datetime.now(UTC)) if clock is None else clock
+        manifest_bytes = args.manifest.read_bytes()
+        try:
+            result = asyncio.run(
+                run_scheduled_event_command(
+                    manifest_bytes=manifest_bytes,
+                    state_dir=args.state_dir,
+                    plan_factory=lambda: _load_plan_factory(args.host_plan)(),
+                    dry_run=args.dry_run,
+                    clock=runtime_clock,
+                )
+            )
+        except ScheduledManifestRejected:
+            error = ScheduledRunError(
+                event_run_id=None,
+                manifest_sha256=hashlib.sha256(manifest_bytes).hexdigest(),
+                disposition="REJECTED_BEFORE_MUTATION",
+                lifecycle="REJECTED",
+                error_code="MANIFEST_OR_STATE_REJECTED",
+                broker_mutation="NOT_ATTEMPTED",
+                observed_at=runtime_clock(),
+            )
+            print(error.to_json_bytes().decode("utf-8"))
+            return 2
+        except (ScheduledManualReconciliationRequired, ScheduledEventOverlap) as caught:
+            manifest = ScheduledEventManifest.from_json_bytes(manifest_bytes)
+            is_manual = isinstance(caught, ScheduledManualReconciliationRequired)
+            error = ScheduledRunError(
+                event_run_id=manifest.event_run_id,
+                manifest_sha256=manifest.manifest_sha256,
+                disposition=(
+                    "MANUAL_RECONCILIATION_REQUIRED" if is_manual else "OVERLAPPING_EVENT_REJECTED"
+                ),
+                lifecycle="MANUAL_RECONCILIATION" if is_manual else "REJECTED",
+                error_code=(caught.error_code if is_manual else "OVERLAPPING_ACTIVE_EVENT"),
+                broker_mutation="NO_FURTHER_MUTATION" if is_manual else "NOT_ATTEMPTED",
+                observed_at=runtime_clock(),
+            )
+            print(error.to_json_bytes().decode("utf-8"))
+            return 3 if is_manual else 4
+        print(result.to_json_bytes().decode("utf-8"))
+        return 0
+    raise AssertionError("argparse accepted an unknown command")

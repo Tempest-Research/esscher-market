@@ -36,6 +36,39 @@ class PaperPnlClass(StrEnum):
     PAPER_PNL_UNAVAILABLE = "PAPER_PNL_UNAVAILABLE"
 
 
+PAPER_PNL_DECIMAL_TEXT_MAX_LENGTH = 128
+PAPER_PNL_UNAVAILABLE_REASONS = (
+    frozenset(
+        {
+            "broker fees are negative",
+            "broker fill prices contradict the registered debit/credit signs",
+            "canceled order has a nonzero filled quantity",
+            "closing fill predates opening fill",
+            "closing order economics are missing",
+            "opening and closing fill quantities are not exact",
+            "paper P&L decimal text is out of bounds",
+            "paper P&L inputs are invalid",
+        }
+    )
+    | frozenset(
+        f"{field} {suffix}"
+        for field in (
+            "broker fees",
+            "closing filled average price",
+            "closing filled quantity",
+            "opening filled average price",
+            "opening filled quantity",
+        )
+        for suffix in ("is invalid", "is missing or invalid", "is not finite")
+    )
+    | frozenset(
+        f"{field} {suffix}"
+        for field in ("closing filled_at", "opening filled_at")
+        for suffix in ("is invalid", "is missing", "is not timezone-aware")
+    )
+)
+
+
 @dataclass(frozen=True, slots=True)
 class PaperDemoApproval:
     """Short-lived operator approval bound to one permit and capability proof."""
@@ -242,7 +275,18 @@ def _unique_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
 
 
 def _decimal_text(value: Decimal | None) -> str | None:
-    return None if value is None else format(value.normalize(), "f")
+    if value is None:
+        return None
+    normalized = value.normalize()
+    _, digits, exponent = normalized.as_tuple()
+    if len(digits) > PAPER_PNL_DECIMAL_TEXT_MAX_LENGTH or abs(exponent) > (
+        PAPER_PNL_DECIMAL_TEXT_MAX_LENGTH
+    ):
+        raise ValueError("paper P&L decimal text is out of bounds")
+    rendered = format(normalized, "f")
+    if len(rendered) > PAPER_PNL_DECIMAL_TEXT_MAX_LENGTH:
+        raise ValueError("paper P&L decimal text is out of bounds")
+    return rendered
 
 
 def _datetime_text(value: datetime | None) -> str | None:
@@ -256,7 +300,10 @@ def _order_sha256(order_id: str) -> str:
 def _aware_datetime(value: object, field: str) -> datetime:
     if not isinstance(value, str):
         raise ValueError(f"{field} is missing")
-    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as error:
+        raise ValueError(f"{field} is invalid") from error
     if parsed.tzinfo is None or parsed.utcoffset() is None:
         raise ValueError(f"{field} is not timezone-aware")
     return parsed
@@ -300,6 +347,8 @@ def _broker_fees(*orders: Mapping[str, object]) -> Decimal | None:
 
 
 def _unavailable(reason: str) -> PaperPnlObservation:
+    if reason not in PAPER_PNL_UNAVAILABLE_REASONS:
+        reason = "paper P&L inputs are invalid"
     return PaperPnlObservation(
         classification=PaperPnlClass.PAPER_PNL_UNAVAILABLE,
         gross_realized_pnl=None,
@@ -323,10 +372,13 @@ def _classify_pnl(
         if lifecycle.outcome is PaperLifecycleOutcome.CANCELED_FLAT:
             if open_qty != 0:
                 raise ValueError("canceled order has a nonzero filled quantity")
+            fees = _broker_fees(open_order)
+            _decimal_text(Decimal("0"))
+            _decimal_text(fees)
             return PaperPnlObservation(
                 classification=PaperPnlClass.ZERO_NO_FILL,
                 gross_realized_pnl=Decimal("0"),
-                broker_fees=_broker_fees(open_order),
+                broker_fees=fees,
                 net_realized_pnl=None,
                 open_filled_at=None,
                 close_filled_at=None,
@@ -355,6 +407,9 @@ def _classify_pnl(
         gross = ((-close_price) - open_price) * Decimal(100) * expected_qty
         fees = _broker_fees(open_order, close_order)
         net = None if fees is None else gross - fees
+        _decimal_text(gross)
+        _decimal_text(fees)
+        _decimal_text(net)
         return PaperPnlObservation(
             classification=PaperPnlClass.PAPER_REALIZED_PNL,
             gross_realized_pnl=gross,
