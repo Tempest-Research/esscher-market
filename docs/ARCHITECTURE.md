@@ -82,11 +82,12 @@ Current modules:
 - `execution/host_mcp.py`: the host identity, startup capability/account preflight, sanitized observation, bounded runtime allowlist, and typed transport failures;
 - `execution/mcp.py`: the single Alpaca MCP request, readback, cancellation, atomic-close, and event-flat reconciliation boundary;
 - `execution/paper_demo.py`: exact approval, durable submit-once recovery, fill-economics classification, and sanitized terminal receipt bundle;
-- `cli.py`: labeled input parsing, deterministic report generation, and package-version output.
+- `runtime/scheduled.py`: strict one-event manifest and due-window validation, cross-process overlap lock, atomic hash-bound restart state, terminal no-op, and manual-reconciliation boundary;
+- `cli.py`: labeled research input parsing, one-shot scheduled runtime command, deterministic output, and package-version output.
 
 The execution boundary is pinned to Alpaca MCP `2.3.0` at commit `872abbf28dab6cdde7d341fc13ac139b8002d1d9`. The package does not load credentials or instantiate an MCP server. A host must inject one normalized session and attest its PAPER environment from host-owned MCP configuration. The factory verifies the six required tools from the official surface, reads only sanitized account eligibility, then exposes only the adapter's five runtime tools. Its prepared-session object constructs the existing `McpPaperBroker`; no alternate production broker path is introduced. A timed-out mutation is typed as ambiguous so the adapter reads back its deterministic client-order ID instead of submitting again.
 
-The adapter, host boundary, and inert paper-demo runner are contract-tested with injected fake sessions and clocks. The runner cannot mutate without a current approval bound to the exact permit and capability observation. Its durable attempt markers force readback rather than resubmission after restart, and its receipt hashes raw broker order identities instead of exposing them. The repository does not yet contain a sanitized real paper-account receipt, executable historical option prices, or evidence of alpha or profitability.
+The adapter, host boundary, inert paper-demo runner, and one-shot scheduled runtime are contract-tested with injected fake sessions and clocks. The runners cannot mutate without current approval bound to the exact permit and capability observation. Durable deterministic attempt markers force readback rather than resubmission after restart, while the scheduled runtime adds one atomic integrity-checked state record per event and rejects overlapping active events. Terminal repeats trust only a verified sanitized receipt and perform no host-plan or broker call. The repository does not yet contain a sanitized real paper-account receipt, executable historical option prices, or evidence of alpha or profitability.
 
 ## Product and machine-interface naming
 
@@ -148,6 +149,8 @@ The residual return removes frozen market and sector components measured over th
 12. A filled spread closes as one reversed multi-leg order; partial fills never trigger sequential-leg repair.
 13. A terminal flat receipt requires broker position truth to contain neither event leg.
 14. Public artifacts are static, sanitized, and incapable of mutation.
+15. Each scheduled invocation handles one exact `event_run_id`; non-terminal restart reconciles deterministic broker identity, terminal repeats are no-ops, and a second active event is rejected.
+16. Local scheduled state is an atomic integrity-checked restart cursor; broker order and position readback remains authority, and ambiguous or partial truth stops for manual reconciliation.
 
 Historical panel admission additionally requires per-feature source dependencies, typed publication timestamps, entitlement metadata, and a common outcome path. The aggregate `DecisionSnapshot` alone does not establish those dependencies; the bridge therefore also requires and validates the exact feature-input and evidence-manifest bytes before issuing a permit.
 

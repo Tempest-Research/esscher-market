@@ -1,0 +1,56 @@
+{
+  "artifact": {
+    "broker_mutation": "BOUNDED_PAPER_PIPELINE",
+    "claims": [
+      "PAPER_OPERATIONAL_RESULT",
+      "INDICATIVE_DATA",
+      "NOT_ALPHA_EVIDENCE"
+    ],
+    "data_class": "INDICATIVE_DATA",
+    "disposition": "EXECUTED_TO_TERMINAL",
+    "event_run_id": "rd-event-dddddddddddddddddddddddddddddddd",
+    "lifecycle": "CLOSED_FLAT",
+    "manifest_sha256": "bdc08462aadf64c7843574fe49acc17d96edcf3618e05a7b3f04845c01db7827",
+    "observed_at": "2026-08-29T20:00:00+00:00",
+    "receipt": {
+      "capability_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "claims": [
+        "PAPER_OPERATIONAL_OBSERVATION",
+        "NOT_ALPHA_EVIDENCE"
+      ],
+      "close_order_sha256": "be6a4e24d65ad4f3d68c83106b0e09e4ab4ac9585ed64b9b8aab233ae91fc53a",
+      "close_permit_id": "permit-close-test-001",
+      "close_request_sha256": "5cef2f8090b66d379a4d6673f8a2835b267c9c5702ca5d55861636502ef659dc",
+      "data_class": "INDICATIVE_DATA",
+      "event_run_id": "rd-event-dddddddddddddddddddddddddddddddd",
+      "final_flat_observed_at": "2026-08-29T20:00:00+00:00",
+      "lifecycle_outcome": "CLOSED_FLAT",
+      "open_order_sha256": "75ac39a2db4d631d825b7dfb84eb78fa7b5843acc999edfd45e666c41091ea1e",
+      "open_permit_id": "rd-permit-95ea8700372293d0c3ae79190e96bcb1",
+      "open_request_sha256": "8445202ad37346ee3f642e7b0e594eddae4ac357eaa2cd3cd30df018433ef38e",
+      "paper_pnl": {
+        "broker_fees": null,
+        "classification": "PAPER_REALIZED_PNL",
+        "close_filled_at": "2026-08-29T19:59:58+00:00",
+        "gross_realized_pnl": "35",
+        "net_realized_pnl": null,
+        "open_filled_at": "2026-08-29T19:59:50+00:00",
+        "unavailable_reason": null
+      },
+      "receipt_sha256": "6e219b729a7478f2f59e017701ad38aa2c033877eb0d03d3aa73a4ce63e53c68",
+      "run_mode": "PAPER",
+      "schema": "ringdown.paper_receipt_bundle",
+      "schema_version": 1
+    },
+    "run_mode": "PAPER",
+    "schema": "ringdown.scheduled_run_result",
+    "schema_version": 1
+  },
+  "fixture_class": "SYNTHETIC_CONTRACT_FIXTURE",
+  "limitations": [
+    "NOT_HISTORICAL_DATA",
+    "NOT_ALPHA_EVIDENCE",
+    "NO_BROKER_EXECUTION"
+  ],
+  "scenario": "ACCEPTED_TERMINAL_FLAT"
+}

@@ -55,6 +55,8 @@ The MCP boundary is implemented and contract-tested with injected fake sessions.
 
 The inert paper-demo runner adds a separate short-lived approval bound to the exact permit and host capability proof, durable submit-once markers for restart recovery, exact broker fill-economics classification, and a deterministic sanitized terminal bundle. See [the PAPER demonstration runbook](docs/PAPER_DEMO_RUNBOOK.md). No demonstration has been run by the test suite or by this repository state.
 
+The one-shot scheduled runner accepts one strict approved event manifest, validates the exact PAPER permit/capability identity and half-open due window, serializes active events through an OS-backed lock, atomically persists a hash-bound restart cursor, reconciles deterministic broker order truth, and exits terminal or stopped for manual reconciliation. Dry run performs no local or broker mutation; terminal repeats are no-ops. See [the scheduled-event runbook](docs/SCHEDULED_EVENT_RUNBOOK.md). Tests use injected fake sessions and clocks only.
+
 ## Boundaries
 
 - `PAPER_ONLY`
@@ -74,6 +76,7 @@ The inert paper-demo runner adds a separate short-lived approval bound to the ex
 - [Point-in-time evidence gate](docs/research/point-in-time-evidence-gate.md) — timing, provenance, residualization, denominator, and options-data contract.
 - [Research-to-permit contract](docs/contracts/research-to-permit.md) — exact schemas, identity mapping, rejection reasons, and frozen policy.
 - [PAPER demonstration runbook](docs/PAPER_DEMO_RUNBOOK.md) — read-only preflight, exact approval, bounded mutation envelope, recovery, and receipt interpretation.
+- [Scheduled-event runbook](docs/SCHEDULED_EVENT_RUNBOOK.md) — one-shot manifest, dry run, armed invocation, restart reconciliation, and stop conditions.
 - [Contributing](CONTRIBUTING.md) — branch, test, review, and safety gates.
 - [Changelog](CHANGELOG.md) — versioned behavior changes and release state.
 
