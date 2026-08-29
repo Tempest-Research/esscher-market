@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="620" viewBox="0 0 900 620">
+  <rect width="900" height="620" fill="#ffffff"/>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+      <polygon points="0,0 10,4 0,8" fill="#444444"/>
+    </marker>
+  </defs>
+  <g font-family="Consolas, 'Courier New', monospace">
+    <text x="20" y="30" font-size="18" fill="#111111">Historical panel admission gate</text>
+    <g stroke="#35507a" fill="#e0e7ff">
+      <rect x="60" y="50" width="520" height="52"/>
+      <rect x="60" y="128" width="520" height="52"/>
+      <rect x="60" y="206" width="520" height="52"/>
+      <rect x="60" y="284" width="520" height="52"/>
+      <rect x="60" y="362" width="520" height="52"/>
+      <rect x="60" y="440" width="520" height="52"/>
+      <rect x="60" y="518" width="520" height="52"/>
+    </g>
+    <rect x="660" y="206" width="210" height="150" fill="#fee2e2" stroke="#dc2626"/>
+    <text x="765" y="266" font-size="12" fill="#dc2626" text-anchor="middle">exclude with reason</text>
+    <text x="765" y="286" font-size="11" fill="#dc2626" text-anchor="middle">UNRESOLVED / UNAVAILABLE</text>
+    <text x="765" y="306" font-size="11" fill="#dc2626" text-anchor="middle">retained outside the</text>
+    <text x="765" y="322" font-size="11" fill="#dc2626" text-anchor="middle">eligible denominator</text>
+    <g stroke="#444444" stroke-width="1.5" marker-end="url(#arrow)">
+      <line x1="320" y1="102" x2="320" y2="124"/>
+      <line x1="320" y1="180" x2="320" y2="202"/>
+      <line x1="320" y1="258" x2="320" y2="280"/>
+      <line x1="320" y1="336" x2="320" y2="358"/>
+      <line x1="320" y1="414" x2="320" y2="436"/>
+      <line x1="320" y1="492" x2="320" y2="514"/>
+      <line x1="580" y1="232" x2="656" y2="232"/>
+      <line x1="580" y1="310" x2="656" y2="281"/>
+      <line x1="580" y1="388" x2="656" y2="330"/>
+    </g>
+    <g font-size="13" fill="#111111">
+      <text x="75" y="71">Source record</text>
+      <text x="75" y="90" font-size="11" fill="#333333">source_url, publisher, typed published_at, retrieved_at, content_sha256</text>
+      <text x="75" y="149">Feature manifest</text>
+      <text x="75" y="168" font-size="11" fill="#333333">source_refs, source_max_public_at, definition_version, dependency_check</text>
+      <text x="75" y="227">Cutoff gate</text>
+      <text x="75" y="246" font-size="11" fill="#333333">every dependency and snapshot at or before decision_cutoff</text>
+      <text x="75" y="305">Session classification</text>
+      <text x="75" y="324" font-size="11" fill="#333333">BEFORE_OPEN / INTRADAY / AFTER_CLOSE / UNRESOLVED</text>
+      <text x="75" y="383">Eligible path</text>
+      <text x="75" y="402" font-size="11" fill="#333333">entry_at, exit_at; UNAVAILABLE when the registered path is missing</text>
+      <text x="75" y="461">Evaluation</text>
+      <text x="75" y="480" font-size="11" fill="#333333">residual return; UNCERTAIN zero; abstentions stay in the denominator</text>
+      <text x="75" y="539">Report</text>
+      <text x="75" y="558" font-size="11" fill="#333333">PAPER / INDICATIVE_DATA / NOT_ALPHA_EVIDENCE labels remain visible</text>
+    </g>
+    <text x="60" y="600" font-size="12" fill="#333333">exclusions are declared before outcome review and never based on realized returns</text>
+  </g>
+</svg>
