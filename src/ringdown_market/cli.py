@@ -199,6 +199,7 @@ def build_report(raw_bytes: bytes) -> dict[str, object]:
     return {
         "schema_version": 1,
         "project": "Ringdown",
+        "product_name": "Esscher",
         "mode": "OFFLINE_RESEARCH",
         "data_class": data_class,
         "claims": ["NO_BROKER_EXECUTION", "NOT_ALPHA_EVIDENCE"],
@@ -216,7 +217,13 @@ def build_report(raw_bytes: bytes) -> dict[str, object]:
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="ringdown")
+    parser = argparse.ArgumentParser(
+        prog="ringdown",
+        description=(
+            "Esscher's permanently paper-only scheduled-earnings research command. "
+            "The ringdown command name remains a compatibility interface."
+        ),
+    )
     parser.add_argument(
         "--version",
         action="version",

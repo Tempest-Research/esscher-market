@@ -4,9 +4,14 @@ from pathlib import Path
 
 import pytest
 
+from ringdown_market import __version__
 from ringdown_market.cli import build_report, main
 
 FIXTURE = Path(__file__).parent / "fixtures" / "synthetic_contract_panel.json"
+
+
+def test_package_version_alias_matches_canonical_metadata() -> None:
+    assert __version__ == version("ringdown-market")
 
 
 def test_cli_reports_the_installed_package_version(capsys: pytest.CaptureFixture[str]) -> None:
@@ -15,6 +20,19 @@ def test_cli_reports_the_installed_package_version(capsys: pytest.CaptureFixture
 
     assert exit_info.value.code == 0
     assert capsys.readouterr().out.strip() == f"ringdown {version('ringdown-market')}"
+
+
+def test_cli_help_uses_public_product_name_and_compatibility_command(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as exit_info:
+        main(["--help"])
+
+    assert exit_info.value.code == 0
+    help_text = capsys.readouterr().out
+    assert "usage: ringdown" in help_text
+    assert "Esscher" in help_text
+    assert "paper-only" in help_text
 
 
 def test_cli_writes_a_deterministic_explicitly_limited_report(tmp_path: Path) -> None:
@@ -27,6 +45,7 @@ def test_cli_writes_a_deterministic_explicitly_limited_report(tmp_path: Path) ->
     assert first.read_bytes() == second.read_bytes()
     report = json.loads(first.read_text(encoding="utf-8"))
     assert report["project"] == "Ringdown"
+    assert report["product_name"] == "Esscher"
     assert report["mode"] == "OFFLINE_RESEARCH"
     assert report["data_class"] == "SYNTHETIC_CONTRACT_FIXTURE"
     assert report["event_count"] == 4
