@@ -261,6 +261,8 @@ def build_close_order_call(
 ) -> OpenOrderCall:
     """Compile one atomic reversed multi-leg close through the same MCP tool."""
 
+    if close_permit.policy_sha256 != PAPER_PERMIT_POLICY_SHA256:
+        raise ValueError("close permit does not match the registered PAPER policy")
     if close_permit.open_permit_id != open_permit.permit_id:
         raise ValueError("close permit does not reference the opening permit")
     if close_permit.event_run_id != open_permit.event_run_id:
@@ -436,7 +438,7 @@ class McpPaperBroker:
         *,
         submission_phase: str,
         readback_phase: str,
-    ) -> tuple[str, str, str]:
+    ) -> tuple[str, str, str, Decimal | None]:
         submission_error: Exception | None = None
         submitted_id: str | None = None
         try:
@@ -457,8 +459,8 @@ class McpPaperBroker:
                 READBACK_TOOL,
                 {"client_order_id": call.client_order_id},
             )
-            readback_id, readback_client_id, readback_status, _ = _broker_identity(
-                readback, phase=readback_phase
+            readback_id, readback_client_id, readback_status, readback_filled_qty = (
+                _broker_identity(readback, phase=readback_phase)
             )
         except Exception as error:
             if submission_error is not None:
@@ -475,7 +477,7 @@ class McpPaperBroker:
                 "broker order identity differed between submission and readback; "
                 "manual reconciliation required"
             )
-        return readback_id, readback_client_id, readback_status
+        return readback_id, readback_client_id, readback_status, readback_filled_qty
 
     async def _read_order(
         self, order_id: str, client_order_id: str
@@ -512,7 +514,7 @@ class McpPaperBroker:
         if permit.permit_id in self._consumed_open_permit_ids:
             raise PermitNotExecutable("entry permit was already consumed by this broker session")
         self._consumed_open_permit_ids.add(permit.permit_id)
-        readback_id, readback_client_id, readback_status = await self._submit_and_readback(
+        readback_id, readback_client_id, readback_status, _ = await self._submit_and_readback(
             call,
             submission_phase="submission",
             readback_phase="readback",
@@ -531,12 +533,42 @@ class McpPaperBroker:
             data_class=permit.data_class,
         )
 
+    async def read_open(self, permit: DebitVerticalPermit) -> OpenOrderReceipt:
+        """Recover an already-attempted opening order without another mutation."""
+
+        call = build_open_order_call(permit)
+        response = await self._session.call_tool(
+            READBACK_TOOL,
+            {"client_order_id": call.client_order_id},
+        )
+        order_id, client_order_id, status, _ = _broker_identity(
+            response,
+            phase="opening recovery readback",
+        )
+        if client_order_id != call.client_order_id:
+            raise BrokerResponseError(
+                "opening recovery readback did not match deterministic client order identity"
+            )
+        return OpenOrderReceipt(
+            broker_order_id=order_id,
+            client_order_id=client_order_id,
+            broker_status=status,
+            request_sha256=call.request_sha256,
+            permit_id=permit.permit_id,
+            event_run_id=permit.event_run_id,
+            observed_at=self._observed_time(),
+            run_mode=permit.run_mode,
+            data_class=permit.data_class,
+        )
+
     async def resolve_to_flat(
         self,
         *,
         open_permit: DebitVerticalPermit,
         open_receipt: OpenOrderReceipt,
         close_permit: ClosePermit,
+        claim_close_submission: Callable[[str], bool] | None = None,
+        claim_cancel_mutation: Callable[[str], bool] | None = None,
     ) -> PaperLifecycleReceipt:
         """Cancel an unfilled order or atomically close a fill, then prove event-flat."""
 
@@ -578,15 +610,21 @@ class McpPaperBroker:
 
         if open_status in self._CANCELLABLE_STATUSES:
             cancel_error: Exception | None = None
-            try:
-                cancel_response = await self._session.call_tool(
-                    CANCEL_TOOL,
-                    {"order_id": open_receipt.broker_order_id},
-                )
-                if isinstance(cancel_response, Mapping) and "error" in cancel_response:
-                    _mapping_response(cancel_response, phase="cancel")
-            except Exception as error:
-                cancel_error = error
+            cancel_claimed = (
+                claim_cancel_mutation(open_receipt.broker_order_id)
+                if claim_cancel_mutation is not None
+                else True
+            )
+            if cancel_claimed:
+                try:
+                    cancel_response = await self._session.call_tool(
+                        CANCEL_TOOL,
+                        {"order_id": open_receipt.broker_order_id},
+                    )
+                    if isinstance(cancel_response, Mapping) and "error" in cancel_response:
+                        _mapping_response(cancel_response, phase="cancel")
+                except Exception as error:
+                    cancel_error = error
 
             try:
                 _, _, open_status, open_filled_qty = await self._read_order(
@@ -634,16 +672,43 @@ class McpPaperBroker:
             raise PaperLifecycleManualRequired(
                 f"unsupported paper order state requires reconciliation: {open_status}"
             )
+        if open_filled_qty != Decimal(open_permit.quantity):
+            raise PaperLifecycleManualRequired(
+                "filled opening order quantity does not match the permitted package quantity"
+            )
 
-        close_order_id, _, close_status = await self._submit_and_readback(
-            close_call,
-            submission_phase="close submission",
-            readback_phase="close readback",
+        close_claimed = (
+            claim_close_submission(close_call.client_order_id)
+            if claim_close_submission is not None
+            else True
         )
+        if close_claimed:
+            close_order_id, _, close_status, close_filled_qty = await self._submit_and_readback(
+                close_call,
+                submission_phase="close submission",
+                readback_phase="close readback",
+            )
+        else:
+            recovered = await self._session.call_tool(
+                READBACK_TOOL,
+                {"client_order_id": close_call.client_order_id},
+            )
+            close_order_id, recovered_client_id, close_status, close_filled_qty = _broker_identity(
+                recovered,
+                phase="close recovery readback",
+            )
+            if recovered_client_id != close_call.client_order_id:
+                raise BrokerResponseError(
+                    "close recovery readback did not match deterministic client order identity"
+                )
         close_status = close_status.lower()
         if close_status != "filled":
             raise PaperLifecycleNotFlat(
                 f"atomic close order is not filled; broker status is {close_status}"
+            )
+        if close_filled_qty != Decimal(open_permit.quantity):
+            raise PaperLifecycleManualRequired(
+                "filled closing order quantity does not match the permitted package quantity"
             )
 
         flat_observed_at = await self._verify_event_flat(target_symbols)

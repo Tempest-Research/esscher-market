@@ -1,0 +1,33 @@
+{
+  "fixture_class": "SYNTHETIC_CONTRACT_FIXTURE",
+  "claims": [
+    "NOT_HISTORICAL_DATA",
+    "NOT_ALPHA_EVIDENCE",
+    "NO_BROKER_EXECUTION"
+  ],
+  "schema": "ringdown.paper_demo_lifecycle_fixture",
+  "schema_version": 1,
+  "opening_order": {
+    "client_order_id": "rd-open-deterministic-fixture",
+    "filled_at": "2026-08-29T16:59:50Z",
+    "filled_avg_price": "1.25",
+    "filled_qty": "1",
+    "id": "synthetic-open-order",
+    "status": "filled"
+  },
+  "closing_order": {
+    "client_order_id": "rd-close-deterministic-fixture",
+    "filled_at": "2026-08-29T16:59:58Z",
+    "filled_avg_price": "-1.60",
+    "filled_qty": "1",
+    "id": "synthetic-close-order",
+    "status": "filled"
+  },
+  "final_positions": [],
+  "expected": {
+    "classification": "PAPER_REALIZED_PNL",
+    "gross_realized_pnl": "35",
+    "broker_fees": null,
+    "net_realized_pnl": null
+  }
+}
