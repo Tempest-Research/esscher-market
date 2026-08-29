@@ -11,6 +11,7 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Protocol
 
@@ -23,6 +24,8 @@ from ringdown_market.execution.mcp import (
 )
 from ringdown_market.execution.models import DataClass, RunMode
 from ringdown_market.execution.paper_demo import (
+    PAPER_PNL_DECIMAL_TEXT_MAX_LENGTH,
+    PAPER_PNL_UNAVAILABLE_REASONS,
     FilePaperAttemptStore,
     PaperDemoApproval,
     PaperDemoNotApproved,
@@ -37,8 +40,10 @@ _STATE_LIFECYCLES = _TERMINAL_LIFECYCLES | {"RECONCILING", "MANUAL_RECONCILIATIO
 _MANUAL_FAILURE_CODES = frozenset(
     {
         "AMBIGUOUS_OR_PARTIAL_BROKER_STATE",
+        "DURABLE_STATE_INVALID",
         "DUE_WINDOW_EXPIRED_DURING_RECONCILIATION",
         "RESTART_PLAN_INVALID_OR_EXPIRED",
+        "TERMINAL_RECEIPT_INVALID",
     }
 )
 
@@ -112,6 +117,137 @@ def _required_text(payload: dict[str, object], field: str) -> str:
     return value
 
 
+def _require_sha256(value: object, field: str) -> str:
+    if (
+        not isinstance(value, str)
+        or len(value) != 64
+        or any(character not in "0123456789abcdef" for character in value)
+    ):
+        raise ScheduledManifestRejected(
+            f"terminal receipt {field} must be a lowercase SHA-256 digest"
+        )
+    return value
+
+
+def _canonical_decimal_text(
+    value: object,
+    field: str,
+    *,
+    optional: bool = False,
+) -> Decimal | None:
+    if value is None:
+        if optional:
+            return None
+        raise ScheduledManifestRejected(f"terminal receipt {field} must be decimal text")
+    if not isinstance(value, str) or not 1 <= len(value) <= PAPER_PNL_DECIMAL_TEXT_MAX_LENGTH:
+        raise ScheduledManifestRejected(f"terminal receipt {field} must be bounded decimal text")
+    unsigned = value[1:] if value.startswith("-") else value
+    whole, separator, fraction = unsigned.partition(".")
+    if (
+        not whole
+        or not whole.isascii()
+        or not whole.isdecimal()
+        or (len(whole) > 1 and whole.startswith("0"))
+        or (separator and (not fraction or not fraction.isascii() or not fraction.isdecimal()))
+        or "." in fraction
+    ):
+        raise ScheduledManifestRejected(f"terminal receipt {field} is not canonical decimal text")
+    try:
+        parsed = Decimal(value)
+    except InvalidOperation as error:
+        raise ScheduledManifestRejected(
+            f"terminal receipt {field} is not canonical decimal text"
+        ) from error
+    if not parsed.is_finite() or format(parsed.normalize(), "f") != value:
+        raise ScheduledManifestRejected(f"terminal receipt {field} is not canonical decimal text")
+    return parsed
+
+
+def _canonical_receipt_datetime(
+    value: object,
+    field: str,
+) -> datetime:
+    if not isinstance(value, str) or not 1 <= len(value) <= 64:
+        raise ScheduledManifestRejected(
+            f"terminal receipt {field} must be a bounded ISO-8601 string"
+        )
+    parsed = _aware_datetime(value, f"receipt {field}")
+    if parsed.isoformat() != value:
+        raise ScheduledManifestRejected(f"terminal receipt {field} must be canonical ISO-8601")
+    return parsed
+
+
+def _validate_terminal_paper_pnl(
+    pnl: object,
+    *,
+    lifecycle: object,
+    final_flat_observed_at: datetime,
+) -> None:
+    required = {
+        "classification",
+        "gross_realized_pnl",
+        "broker_fees",
+        "net_realized_pnl",
+        "open_filled_at",
+        "close_filled_at",
+        "unavailable_reason",
+    }
+    if not isinstance(pnl, dict) or set(pnl) != required:
+        raise ScheduledManifestRejected("terminal receipt PAPER P&L fields are invalid")
+
+    classification = pnl["classification"]
+    if classification == "ZERO_NO_FILL":
+        fees = _canonical_decimal_text(pnl["broker_fees"], "broker_fees", optional=True)
+        if (
+            lifecycle != "CANCELED_FLAT"
+            or pnl["gross_realized_pnl"] != "0"
+            or (fees is not None and fees < 0)
+            or pnl["net_realized_pnl"] is not None
+            or pnl["open_filled_at"] is not None
+            or pnl["close_filled_at"] is not None
+            or pnl["unavailable_reason"] is not None
+        ):
+            raise ScheduledManifestRejected("terminal ZERO_NO_FILL PAPER P&L is invalid")
+        return
+
+    if classification == "PAPER_REALIZED_PNL":
+        if lifecycle != "CLOSED_FLAT" or pnl["unavailable_reason"] is not None:
+            raise ScheduledManifestRejected("terminal realized PAPER P&L lifecycle is invalid")
+        gross = _canonical_decimal_text(pnl["gross_realized_pnl"], "gross_realized_pnl")
+        fees = _canonical_decimal_text(pnl["broker_fees"], "broker_fees", optional=True)
+        net = _canonical_decimal_text(pnl["net_realized_pnl"], "net_realized_pnl", optional=True)
+        if fees is not None and fees < 0:
+            raise ScheduledManifestRejected("terminal receipt broker_fees cannot be negative")
+        if (fees is None) != (net is None) or (fees is not None and net != gross - fees):
+            raise ScheduledManifestRejected("terminal receipt net PAPER P&L is inconsistent")
+        opened_at = _canonical_receipt_datetime(pnl["open_filled_at"], "open_filled_at")
+        closed_at = _canonical_receipt_datetime(pnl["close_filled_at"], "close_filled_at")
+        if closed_at < opened_at or final_flat_observed_at < closed_at:
+            raise ScheduledManifestRejected(
+                "terminal receipt PAPER fill timestamps are inconsistent"
+            )
+        return
+
+    if classification == "PAPER_PNL_UNAVAILABLE":
+        if any(
+            pnl[field] is not None
+            for field in (
+                "gross_realized_pnl",
+                "broker_fees",
+                "net_realized_pnl",
+                "open_filled_at",
+                "close_filled_at",
+            )
+        ):
+            raise ScheduledManifestRejected("unavailable PAPER P&L cannot contain guessed values")
+        reason = pnl["unavailable_reason"]
+        if not isinstance(reason, str) or reason not in PAPER_PNL_UNAVAILABLE_REASONS:
+            raise ScheduledManifestRejected("terminal receipt unavailable_reason is not allowed")
+        return
+
+    raise ScheduledManifestRejected("terminal receipt PAPER P&L classification is invalid")
+
+
 def _verified_terminal_receipt(
     receipt: object,
     *,
@@ -140,12 +276,28 @@ def _verified_terminal_receipt(
         raise ScheduledManifestRejected("terminal receipt fields do not match schema v1")
     if (
         receipt["schema"] != "ringdown.paper_receipt_bundle"
+        or type(receipt["schema_version"]) is not int
         or receipt["schema_version"] != 1
         or receipt["run_mode"] != "PAPER"
         or receipt["data_class"] != "INDICATIVE_DATA"
         or receipt["claims"] != ["PAPER_OPERATIONAL_OBSERVATION", "NOT_ALPHA_EVIDENCE"]
     ):
         raise ScheduledManifestRejected("terminal receipt boundary is invalid")
+    _require_sha256(receipt["capability_sha256"], "capability_sha256")
+    _require_sha256(receipt["open_request_sha256"], "open_request_sha256")
+    _require_sha256(receipt["open_order_sha256"], "open_order_sha256")
+    lifecycle = receipt["lifecycle_outcome"]
+    if lifecycle == "CANCELED_FLAT":
+        if receipt["close_request_sha256"] is not None or receipt["close_order_sha256"] is not None:
+            raise ScheduledManifestRejected(
+                "canceled-flat terminal receipt cannot contain closing digests"
+            )
+    elif lifecycle == "CLOSED_FLAT":
+        _require_sha256(receipt["close_request_sha256"], "close_request_sha256")
+        _require_sha256(receipt["close_order_sha256"], "close_order_sha256")
+    else:
+        raise ScheduledManifestRejected("terminal receipt lifecycle is invalid")
+    _require_sha256(receipt["receipt_sha256"], "receipt_sha256")
     unsigned = dict(receipt)
     receipt_sha256 = unsigned.pop("receipt_sha256")
     if receipt_sha256 != hashlib.sha256(_canonical_json(unsigned)).hexdigest():
@@ -158,24 +310,15 @@ def _verified_terminal_receipt(
         or receipt["lifecycle_outcome"] != state["lifecycle"]
     ):
         raise ScheduledManifestRejected("terminal receipt identity does not match event state")
-    _aware_datetime(receipt["final_flat_observed_at"], "receipt final_flat_observed_at")
-    pnl = receipt["paper_pnl"]
-    if not isinstance(pnl, dict) or set(pnl) != {
-        "classification",
-        "gross_realized_pnl",
-        "broker_fees",
-        "net_realized_pnl",
-        "open_filled_at",
-        "close_filled_at",
-        "unavailable_reason",
-    }:
-        raise ScheduledManifestRejected("terminal receipt PAPER P&L fields are invalid")
-    if pnl["classification"] not in {
-        "PAPER_REALIZED_PNL",
-        "ZERO_NO_FILL",
-        "PAPER_PNL_UNAVAILABLE",
-    }:
-        raise ScheduledManifestRejected("terminal receipt PAPER P&L classification is invalid")
+    final_flat_observed_at = _canonical_receipt_datetime(
+        receipt["final_flat_observed_at"],
+        "final_flat_observed_at",
+    )
+    _validate_terminal_paper_pnl(
+        receipt["paper_pnl"],
+        lifecycle=lifecycle,
+        final_flat_observed_at=final_flat_observed_at,
+    )
     return receipt
 
 
@@ -532,10 +675,19 @@ def _existing_state_result(
     store: FileScheduledEventStore,
     *,
     observed_at: datetime,
+    persist_invalid_state: bool = False,
 ) -> ScheduledRunResult | None:
     try:
         state = store.read(manifest.event_run_id)
     except ScheduledManifestRejected:
+        if persist_invalid_state:
+            store.write(
+                manifest=manifest,
+                lifecycle="MANUAL_RECONCILIATION",
+                updated_at=observed_at,
+                receipt=None,
+                failure_code="DURABLE_STATE_INVALID",
+            )
         raise ScheduledManualReconciliationRequired(
             "scheduled event state integrity is invalid; manual reconciliation required",
             error_code="DURABLE_STATE_INVALID",
@@ -573,6 +725,14 @@ def _existing_state_result(
     try:
         active_event_ids = store.active_event_ids(excluding=manifest.event_run_id)
     except ScheduledManifestRejected:
+        if persist_invalid_state:
+            store.write(
+                manifest=manifest,
+                lifecycle="MANUAL_RECONCILIATION",
+                updated_at=observed_at,
+                receipt=None,
+                failure_code="DURABLE_STATE_INVALID",
+            )
         raise ScheduledManualReconciliationRequired(
             "scheduled event state integrity is invalid; manual reconciliation required",
             error_code="DURABLE_STATE_INVALID",
@@ -640,7 +800,12 @@ async def _run_armed(
     observed_at: datetime,
 ) -> ScheduledRunResult:
     with store.run_lock():
-        existing = _existing_state_result(manifest, store, observed_at=observed_at)
+        existing = _existing_state_result(
+            manifest,
+            store,
+            observed_at=observed_at,
+            persist_invalid_state=True,
+        )
         if existing is not None:
             return existing
         manifest.require_due(observed_at)
@@ -702,24 +867,47 @@ async def _run_armed(
             raise ScheduledManualReconciliationRequired(
                 "scheduled event stopped: manual reconciliation required"
             ) from None
-        receipt = json.loads(bundle.to_json_bytes())
-        if not isinstance(receipt, dict):
-            raise AssertionError("paper receipt serialization must produce an object")
-        result = ScheduledRunResult(
-            event_run_id=manifest.event_run_id,
-            manifest_sha256=manifest.manifest_sha256,
-            disposition="EXECUTED_TO_TERMINAL",
-            lifecycle=bundle.lifecycle_outcome,
-            broker_mutation="BOUNDED_PAPER_PIPELINE",
-            observed_at=bundle.final_flat_observed_at,
-            receipt=receipt,
-        )
-        store.write(
-            manifest=manifest,
-            lifecycle=result.lifecycle,
-            updated_at=result.observed_at,
-            receipt=receipt,
-        )
+        try:
+            receipt = json.loads(
+                bundle.to_json_bytes(),
+                object_pairs_hook=_unique_object,
+                parse_constant=_reject_json_constant,
+            )
+            if not isinstance(receipt, dict):
+                raise ScheduledManifestRejected("paper receipt serialization must be an object")
+            result = ScheduledRunResult(
+                event_run_id=manifest.event_run_id,
+                manifest_sha256=manifest.manifest_sha256,
+                disposition="EXECUTED_TO_TERMINAL",
+                lifecycle=bundle.lifecycle_outcome,
+                broker_mutation="BOUNDED_PAPER_PIPELINE",
+                observed_at=bundle.final_flat_observed_at,
+                receipt=receipt,
+            )
+            store.write(
+                manifest=manifest,
+                lifecycle=result.lifecycle,
+                updated_at=result.observed_at,
+                receipt=receipt,
+            )
+        except (
+            AttributeError,
+            ScheduledManifestRejected,
+            TypeError,
+            UnicodeDecodeError,
+            ValueError,
+        ):
+            store.write(
+                manifest=manifest,
+                lifecycle="MANUAL_RECONCILIATION",
+                updated_at=clock(),
+                receipt=None,
+                failure_code="TERMINAL_RECEIPT_INVALID",
+            )
+            raise ScheduledManualReconciliationRequired(
+                "terminal PAPER receipt was invalid; manual reconciliation required",
+                error_code="TERMINAL_RECEIPT_INVALID",
+            ) from None
         return result
 
 
@@ -738,7 +926,18 @@ async def run_scheduled_event_command(
     if observed_at.tzinfo is None or observed_at.utcoffset() is None:
         raise ScheduledManifestRejected("runner clock must be timezone-aware")
     store = FileScheduledEventStore(state_dir)
-    existing = _existing_state_result(manifest, store, observed_at=observed_at)
+    try:
+        existing = _existing_state_result(manifest, store, observed_at=observed_at)
+    except ScheduledManualReconciliationRequired as error:
+        if dry_run or error.error_code != "DURABLE_STATE_INVALID":
+            raise
+        with store.run_lock():
+            existing = _existing_state_result(
+                manifest,
+                store,
+                observed_at=observed_at,
+                persist_invalid_state=True,
+            )
     if existing is not None:
         return existing
     try:
@@ -755,7 +954,12 @@ async def run_scheduled_event_command(
         if dry_run:
             raise stopped from None
         with store.run_lock():
-            raced = _existing_state_result(manifest, store, observed_at=observed_at)
+            raced = _existing_state_result(
+                manifest,
+                store,
+                observed_at=observed_at,
+                persist_invalid_state=True,
+            )
             if raced is not None:
                 return raced
             store.write(

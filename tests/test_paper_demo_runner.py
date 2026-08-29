@@ -425,6 +425,50 @@ def test_missing_or_contradictory_fill_economics_never_guesses_pnl(tmp_path: Pat
     assert "quantit" in bundle.pnl.unavailable_reason
 
 
+def test_unavailable_pnl_reason_sanitizes_invalid_broker_timestamp(tmp_path: Path) -> None:
+    opening = open_permit()
+    exit_permit = close_permit(opening)
+    from ringdown_market.execution.mcp import build_close_order_call, build_open_order_call
+
+    open_call = build_open_order_call(opening)
+    close_call = build_close_order_call(opening, exit_permit)
+    open_fill = order(
+        order_id="broker-open-123",
+        client_order_id=open_call.client_order_id,
+        status="filled",
+        filled_qty="1",
+        filled_avg_price="1.25",
+        filled_at="2026-08-29T16:59:50Z",
+    )
+    attacker_value = "broker-account-SENSITIVE"
+    close_fill = order(
+        order_id="broker-close-456",
+        client_order_id=close_call.client_order_id,
+        status="filled",
+        filled_qty="1",
+        filled_avg_price="-1.60",
+        filled_at=attacker_value,
+    )
+    session = RecordingSession(
+        [open_fill, open_fill, open_fill, close_fill, close_fill, [], open_fill, close_fill]
+    )
+
+    bundle = asyncio.run(
+        run_paper_demo(
+            prepared=prepared(session),
+            open_permit=opening,
+            close_permit=exit_permit,
+            approval=approval(opening),
+            attempt_store=FilePaperAttemptStore(tmp_path / "attempts"),
+            clock=lambda: NOW,
+        )
+    )
+
+    assert bundle.pnl.classification is PaperPnlClass.PAPER_PNL_UNAVAILABLE
+    assert bundle.pnl.unavailable_reason == "closing filled_at is invalid"
+    assert attacker_value not in bundle.to_json_bytes().decode("utf-8")
+
+
 def test_attempt_store_prevents_resubmission_after_restart(tmp_path: Path) -> None:
     opening = open_permit()
     from ringdown_market.execution.mcp import build_open_order_call

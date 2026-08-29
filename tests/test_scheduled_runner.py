@@ -663,6 +663,171 @@ def test_restart_after_close_attempt_reconciles_both_deterministic_orders_withou
     assert result.receipt["paper_pnl"]["gross_realized_pnl"] == "35"  # type: ignore[index]
 
 
+def test_oversized_finite_pnl_is_terminal_unavailable_not_pre_mutation_rejection(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    bootstrap_plan = paper_plan(RecordingSession())
+    open_call = build_open_order_call(bootstrap_plan.open_permit)
+    close_call = build_close_order_call(
+        bootstrap_plan.open_permit,
+        bootstrap_plan.close_permit,
+    )
+    open_fill = order(
+        order_id="broker-open-123",
+        client_order_id=open_call.client_order_id,
+        status="filled",
+        filled_qty="1",
+        filled_avg_price="1.25",
+        filled_at="2026-08-29T19:59:50Z",
+    )
+    close_fill = order(
+        order_id="broker-close-456",
+        client_order_id=close_call.client_order_id,
+        status="filled",
+        filled_qty="1",
+        filled_avg_price="-1E+200",
+        filled_at="2026-08-29T19:59:58Z",
+    )
+    session = RecordingSession(
+        [open_fill, open_fill, open_fill, close_fill, close_fill, [], open_fill, close_fill]
+    )
+    plan = PaperDemoPlan(
+        prepared=replace(bootstrap_plan.prepared, session=session),
+        open_permit=bootstrap_plan.open_permit,
+        close_permit=bootstrap_plan.close_permit,
+    )
+    module = types.ModuleType("test_oversized_pnl_plan")
+    module.build_plan = lambda: plan  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, module.__name__, module)
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_bytes(bound_manifest_bytes(plan))
+    state_dir = tmp_path / "state"
+
+    exit_code = cli_main(
+        [
+            "run-scheduled-event",
+            "--manifest",
+            str(manifest_path),
+            "--state-dir",
+            str(state_dir),
+            "--host-plan",
+            "test_oversized_pnl_plan:build_plan",
+        ],
+        clock=lambda: NOW,
+    )
+
+    output = json.loads(capsys.readouterr().out)
+    assert exit_code == 0
+    assert output["disposition"] == "EXECUTED_TO_TERMINAL"
+    assert output["lifecycle"] == "CLOSED_FLAT"
+    assert output["broker_mutation"] == "BOUNDED_PAPER_PIPELINE"
+    assert output["receipt"]["paper_pnl"] == {
+        "classification": "PAPER_PNL_UNAVAILABLE",
+        "gross_realized_pnl": None,
+        "broker_fees": None,
+        "net_realized_pnl": None,
+        "open_filled_at": None,
+        "close_filled_at": None,
+        "unavailable_reason": "paper P&L decimal text is out of bounds",
+    }
+    durable_state = json.loads(
+        FileScheduledEventStore(state_dir).state_path(plan.open_permit.event_run_id).read_bytes()
+    )
+    assert durable_state["lifecycle"] == "CLOSED_FLAT"
+    assert durable_state["receipt"] == output["receipt"]
+
+
+def test_post_pipeline_invalid_receipt_stops_durable_manual_without_echoing_content(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    plan = paper_plan(RecordingSession())
+    attacker_value = "broker-account-SENSITIVE"
+    receipt: dict[str, object] = {
+        "schema": "ringdown.paper_receipt_bundle",
+        "schema_version": 1,
+        "run_mode": "PAPER",
+        "data_class": "INDICATIVE_DATA",
+        "claims": ["PAPER_OPERATIONAL_OBSERVATION", "NOT_ALPHA_EVIDENCE"],
+        "event_run_id": plan.open_permit.event_run_id,
+        "open_permit_id": plan.open_permit.permit_id,
+        "close_permit_id": plan.close_permit.permit_id,
+        "capability_sha256": plan.prepared.observation.capability_sha256,
+        "open_request_sha256": attacker_value,
+        "close_request_sha256": None,
+        "open_order_sha256": "b" * 64,
+        "close_order_sha256": None,
+        "lifecycle_outcome": "CANCELED_FLAT",
+        "final_flat_observed_at": NOW.isoformat(),
+        "paper_pnl": {
+            "classification": "ZERO_NO_FILL",
+            "gross_realized_pnl": "0",
+            "broker_fees": None,
+            "net_realized_pnl": None,
+            "open_filled_at": None,
+            "close_filled_at": None,
+            "unavailable_reason": None,
+        },
+    }
+    receipt["receipt_sha256"] = hashlib.sha256(
+        json.dumps(receipt, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+    class InvalidBundle:
+        lifecycle_outcome = "CANCELED_FLAT"
+        final_flat_observed_at = NOW
+
+        def to_json_bytes(self) -> bytes:
+            return json.dumps(receipt, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+    pipeline_called = False
+
+    async def fake_run_paper_demo(**_: object) -> InvalidBundle:
+        nonlocal pipeline_called
+        pipeline_called = True
+        return InvalidBundle()
+
+    monkeypatch.setattr(scheduled_module, "run_paper_demo", fake_run_paper_demo)
+    module = types.ModuleType("test_invalid_terminal_receipt_plan")
+    module.build_plan = lambda: plan  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, module.__name__, module)
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_bytes(bound_manifest_bytes(plan))
+    state_dir = tmp_path / "state"
+
+    exit_code = cli_main(
+        [
+            "run-scheduled-event",
+            "--manifest",
+            str(manifest_path),
+            "--state-dir",
+            str(state_dir),
+            "--host-plan",
+            "test_invalid_terminal_receipt_plan:build_plan",
+        ],
+        clock=lambda: NOW,
+    )
+
+    output_text = capsys.readouterr().out
+    output = json.loads(output_text)
+    assert pipeline_called is True
+    assert exit_code == 3
+    assert output["disposition"] == "MANUAL_RECONCILIATION_REQUIRED"
+    assert output["lifecycle"] == "MANUAL_RECONCILIATION"
+    assert output["error_code"] == "TERMINAL_RECEIPT_INVALID"
+    assert output["broker_mutation"] == "NO_FURTHER_MUTATION"
+    assert attacker_value not in output_text
+    state_path = FileScheduledEventStore(state_dir).state_path(plan.open_permit.event_run_id)
+    durable_state = json.loads(state_path.read_bytes())
+    assert durable_state["lifecycle"] == "MANUAL_RECONCILIATION"
+    assert durable_state["failure_code"] == "TERMINAL_RECEIPT_INVALID"
+    assert durable_state["receipt"] is None
+    assert attacker_value not in state_path.read_text(encoding="utf-8")
+
+
 def test_installed_cli_exposes_one_shot_dry_run_command(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -826,6 +991,127 @@ def test_terminal_noop_rejects_tampered_receipt_even_with_rehashed_state(tmp_pat
         )
 
     assert plan_factory_called is False
+
+
+@pytest.mark.parametrize(
+    "receipt_field",
+    [
+        "schema_version.boolean",
+        "open_request_sha256",
+        "close_request_sha256",
+        "open_order_sha256",
+        "close_order_sha256",
+        "final_flat_observed_at.noncanonical",
+        "paper_pnl.gross_realized_pnl",
+        "paper_pnl.gross_realized_pnl_noncanonical",
+        "paper_pnl.broker_fees",
+        "paper_pnl.net_realized_pnl",
+        "paper_pnl.open_filled_at",
+        "paper_pnl.close_filled_at",
+        "paper_pnl.unavailable_reason",
+        "paper_pnl.unavailable_reason_allowlist",
+        "paper_pnl.malformed_nested_value",
+        "paper_pnl.extra_nested_content",
+    ],
+)
+def test_terminal_noop_rejects_rehashed_malformed_receipt_and_persists_manual_state(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    receipt_field: str,
+) -> None:
+    bootstrap_plan = paper_plan(RecordingSession())
+    open_call = build_open_order_call(bootstrap_plan.open_permit)
+    submitted = order(
+        order_id="broker-open-123",
+        client_order_id=open_call.client_order_id,
+        status="canceled",
+        filled_qty="0",
+    )
+    session = RecordingSession([submitted, submitted, submitted, [], submitted])
+    plan = PaperDemoPlan(
+        prepared=replace(bootstrap_plan.prepared, session=session),
+        open_permit=bootstrap_plan.open_permit,
+        close_permit=bootstrap_plan.close_permit,
+    )
+    raw_manifest = bound_manifest_bytes(plan)
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_bytes(raw_manifest)
+    state_dir = tmp_path / "state"
+    asyncio.run(
+        run_scheduled_event_command(
+            manifest_bytes=raw_manifest,
+            state_dir=state_dir,
+            plan_factory=lambda: plan,
+            clock=lambda: NOW,
+        )
+    )
+    state_path = FileScheduledEventStore(state_dir).state_path(plan.open_permit.event_run_id)
+    state = json.loads(state_path.read_bytes())
+    attacker_value = "broker-account-SENSITIVE"
+    receipt = state["receipt"]
+    if receipt_field == "schema_version.boolean":
+        receipt["schema_version"] = True
+    elif receipt_field == "final_flat_observed_at.noncanonical":
+        receipt["final_flat_observed_at"] = "2026-08-29T20:00:00Z"
+    elif receipt_field == "paper_pnl.gross_realized_pnl_noncanonical":
+        receipt["paper_pnl"]["gross_realized_pnl"] = "00"
+    elif receipt_field == "paper_pnl.unavailable_reason_allowlist":
+        receipt["paper_pnl"] = {
+            "classification": "PAPER_PNL_UNAVAILABLE",
+            "gross_realized_pnl": None,
+            "broker_fees": None,
+            "net_realized_pnl": None,
+            "open_filled_at": None,
+            "close_filled_at": None,
+            "unavailable_reason": attacker_value,
+        }
+    elif receipt_field == "paper_pnl.malformed_nested_value":
+        receipt["paper_pnl"]["gross_realized_pnl"] = {"account_id": attacker_value}
+    elif receipt_field == "paper_pnl.extra_nested_content":
+        receipt["paper_pnl"]["raw_broker"] = {"account_id": attacker_value}
+    elif receipt_field.startswith("paper_pnl."):
+        receipt["paper_pnl"][receipt_field.removeprefix("paper_pnl.")] = attacker_value
+    else:
+        receipt[receipt_field] = attacker_value
+    del receipt["receipt_sha256"]
+    receipt["receipt_sha256"] = hashlib.sha256(
+        json.dumps(receipt, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    del state["state_sha256"]
+    state["state_sha256"] = hashlib.sha256(
+        json.dumps(state, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    state_path.write_text(
+        json.dumps(state, sort_keys=True, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+
+    exit_code = cli_main(
+        [
+            "run-scheduled-event",
+            "--manifest",
+            str(manifest_path),
+            "--state-dir",
+            str(state_dir),
+            "--host-plan",
+            "must_not_import:build_plan",
+        ],
+        clock=lambda: NOW + timedelta(minutes=5),
+    )
+
+    output_text = capsys.readouterr().out
+    output = json.loads(output_text)
+    assert exit_code == 3
+    assert output["disposition"] == "MANUAL_RECONCILIATION_REQUIRED"
+    assert output["lifecycle"] == "MANUAL_RECONCILIATION"
+    assert output["error_code"] == "DURABLE_STATE_INVALID"
+    assert output["broker_mutation"] == "NO_FURTHER_MUTATION"
+    assert attacker_value not in output_text
+    durable_state = json.loads(state_path.read_bytes())
+    assert durable_state["lifecycle"] == "MANUAL_RECONCILIATION"
+    assert durable_state["failure_code"] == "DURABLE_STATE_INVALID"
+    assert durable_state["receipt"] is None
+    assert attacker_value not in state_path.read_text(encoding="utf-8")
 
 
 def test_cli_rejection_is_sanitized_and_never_loads_host_plan(
