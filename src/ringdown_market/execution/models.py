@@ -2,17 +2,22 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal
 from enum import StrEnum
+
+from ringdown_market.contracts.execution_policy import paper_execution_permit_id
 
 _OCC_SYMBOL = re.compile(
     r"^(?P<root>[A-Z]{1,6})(?P<year>\d{2})(?P<month>\d{2})(?P<day>\d{2})"
     r"(?P<option_type>[CP])(?P<strike>\d{8})$"
 )
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
+_BRIDGE_AUTHORIZATION = object()
 
 
 class RunMode(StrEnum):
@@ -122,10 +127,15 @@ class OptionLeg:
 class DebitVerticalPermit:
     """A short-lived capability authorizing one exact paper opening attempt."""
 
+    _bridge_authorization: object = field(repr=False, compare=False)
     permit_id: str
     event_run_id: str
     policy_sha256: str
     snapshot_sha256: str
+    decision_sha256: str
+    evidence_sha256: str
+    protocol_sha256: str
+    execution_protocol_sha256: str
     issued_at: datetime
     expires_at: datetime
     vertical_type: VerticalType
@@ -135,7 +145,15 @@ class DebitVerticalPermit:
     run_mode: RunMode = RunMode.PAPER
     data_class: DataClass = DataClass.INDICATIVE_DATA
 
+    @classmethod
+    def _from_frozen_decision(cls, **values: object) -> DebitVerticalPermit:
+        """Internal constructor used only by the validated research bridge and tests."""
+
+        return cls(_bridge_authorization=_BRIDGE_AUTHORIZATION, **values)  # type: ignore[arg-type]
+
     def __post_init__(self) -> None:
+        if self._bridge_authorization is not _BRIDGE_AUTHORIZATION:
+            raise ValueError("opening permits must come from the research decision bridge")
         if not self.permit_id.strip() or not self.event_run_id.strip():
             raise ValueError("permit_id and event_run_id must be non-empty")
         if self.run_mode is not RunMode.PAPER:
@@ -144,6 +162,10 @@ class DebitVerticalPermit:
             raise ValueError("data_class must be INDICATIVE_DATA")
         _require_sha256(self.policy_sha256, "policy_sha256")
         _require_sha256(self.snapshot_sha256, "snapshot_sha256")
+        _require_sha256(self.decision_sha256, "decision_sha256")
+        _require_sha256(self.evidence_sha256, "evidence_sha256")
+        _require_sha256(self.protocol_sha256, "protocol_sha256")
+        _require_sha256(self.execution_protocol_sha256, "execution_protocol_sha256")
         _require_aware(self.issued_at, "issued_at")
         _require_aware(self.expires_at, "expires_at")
         if self.expires_at <= self.issued_at:
@@ -190,6 +212,82 @@ class DebitVerticalPermit:
         """Maximum opening debit in paper-account dollars."""
 
         return self.limit_price * Decimal(100)
+
+
+def _decimal_text(value: Decimal) -> str:
+    return format(value.normalize(), "f")
+
+
+def debit_vertical_permit_payload(permit: DebitVerticalPermit) -> dict[str, object]:
+    """Return the single versioned serialization schema for an opening permit."""
+
+    return {
+        "schema": "ringdown.paper_execution_permit",
+        "schema_version": 1,
+        "permit_id": permit.permit_id,
+        "event_run_id": permit.event_run_id,
+        "decision_sha256": permit.decision_sha256,
+        "evidence_sha256": permit.evidence_sha256,
+        "input_snapshot_sha256": permit.snapshot_sha256,
+        "protocol_sha256": permit.protocol_sha256,
+        "execution_protocol_sha256": permit.execution_protocol_sha256,
+        "policy_sha256": permit.policy_sha256,
+        "issued_at": permit.issued_at.isoformat(),
+        "expires_at": permit.expires_at.isoformat(),
+        "vertical_type": permit.vertical_type.value,
+        "quantity": permit.quantity,
+        "limit_price": _decimal_text(permit.limit_price),
+        "run_mode": permit.run_mode.value,
+        "data_class": permit.data_class.value,
+        "legs": [
+            {
+                "symbol": leg.symbol,
+                "underlying": leg.underlying,
+                "expiry": leg.expiry.isoformat(),
+                "option_type": leg.option_type.value,
+                "strike": _decimal_text(leg.strike),
+                "side": leg.side.value,
+                "position_intent": leg.position_intent.value,
+                "ratio_qty": leg.ratio_qty,
+            }
+            for leg in permit.legs
+        ],
+    }
+
+
+def debit_vertical_permit_authorization_payload(
+    permit: DebitVerticalPermit,
+) -> dict[str, object]:
+    """Return every immutable permit term except its self-derived ID."""
+
+    payload = debit_vertical_permit_payload(permit)
+    del payload["permit_id"]
+    return payload
+
+
+def debit_vertical_permit_id(permit: DebitVerticalPermit) -> str:
+    """Derive the registered ID that binds lineage, timing, risk, and instrument terms."""
+
+    authorization = json.dumps(
+        debit_vertical_permit_authorization_payload(permit),
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    ).encode("utf-8")
+    return paper_execution_permit_id(authorization_sha256=hashlib.sha256(authorization).hexdigest())
+
+
+def debit_vertical_permit_bytes(permit: DebitVerticalPermit) -> bytes:
+    """Serialize an opening permit to deterministic immutable JSON bytes."""
+
+    return json.dumps(
+        debit_vertical_permit_payload(permit),
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    ).encode("utf-8")
 
 
 @dataclass(frozen=True, slots=True)

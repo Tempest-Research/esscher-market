@@ -2,12 +2,19 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Mapping
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
 import pytest
 
+from ringdown_market.contracts.execution_policy import (
+    ALPACA_MCP_PROTOCOL_SHA256,
+    PAPER_PERMIT_POLICY_SHA256,
+    RESEARCH_DECISION_PROTOCOL_SHA256,
+    paper_event_run_id,
+)
 from ringdown_market.execution.host_mcp import (
     HostMcpEnvironment,
     HostMcpPaperSessionFactory,
@@ -28,6 +35,7 @@ from ringdown_market.execution.models import (
     PositionIntent,
     RunMode,
     VerticalType,
+    debit_vertical_permit_id,
 )
 
 NOW = datetime(2026, 8, 28, 14, 0, tzinfo=UTC)
@@ -54,11 +62,16 @@ def option_leg(
 
 
 def bull_call_permit(**overrides: Any) -> DebitVerticalPermit:
+    decision_sha256 = "d" * 64
     values: dict[str, Any] = {
-        "permit_id": "permit-nvda-2026q2-01",
-        "event_run_id": "nvda-2026q2-bmo",
-        "policy_sha256": "a" * 64,
+        "permit_id": "UNBOUND",
+        "event_run_id": paper_event_run_id(decision_sha256),
+        "policy_sha256": PAPER_PERMIT_POLICY_SHA256,
         "snapshot_sha256": "b" * 64,
+        "decision_sha256": decision_sha256,
+        "evidence_sha256": "e" * 64,
+        "protocol_sha256": RESEARCH_DECISION_PROTOCOL_SHA256,
+        "execution_protocol_sha256": ALPACA_MCP_PROTOCOL_SHA256,
         "issued_at": NOW - timedelta(seconds=5),
         "expires_at": NOW + timedelta(seconds=30),
         "vertical_type": VerticalType.BULL_CALL,
@@ -80,7 +93,8 @@ def bull_call_permit(**overrides: Any) -> DebitVerticalPermit:
         ),
     }
     values.update(overrides)
-    return DebitVerticalPermit(**values)
+    candidate = DebitVerticalPermit._from_frozen_decision(**values)
+    return replace(candidate, permit_id=debit_vertical_permit_id(candidate))
 
 
 class RecordingSession:
@@ -273,6 +287,34 @@ def test_submits_once_then_reads_back_by_client_order_id() -> None:
     assert receipt.run_mode is RunMode.PAPER
     assert receipt.data_class is DataClass.INDICATIVE_DATA
     assert receipt.request_sha256 == call.request_sha256
+
+
+def test_one_broker_instance_consumes_an_opening_permit_at_most_once() -> None:
+    permit = bull_call_permit()
+    call = build_open_order_call(permit)
+    session = RecordingSession(
+        [
+            {
+                "id": "order-123",
+                "client_order_id": call.client_order_id,
+                "status": "accepted",
+            },
+            {
+                "id": "order-123",
+                "client_order_id": call.client_order_id,
+                "status": "new",
+            },
+        ]
+    )
+    broker = McpPaperBroker(session, clock=lambda: NOW)
+
+    asyncio.run(broker.submit_open(permit))
+    calls_after_first_submission = list(session.calls)
+
+    with pytest.raises(PermitNotExecutable, match="already consumed"):
+        asyncio.run(broker.submit_open(permit))
+
+    assert session.calls == calls_after_first_submission
 
 
 def test_transport_ambiguity_reads_back_without_resubmitting() -> None:

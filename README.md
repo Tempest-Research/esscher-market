@@ -29,6 +29,17 @@ Given a point-in-time event fixture and frozen latency profile, the harness prod
 
 Synthetic fixtures are contract tests only. They are never financial evidence.
 
+Given exact frozen decision, point-in-time evidence-manifest, and feature-input bytes, the pure contract bridge:
+
+- rejects duplicate, missing, unknown, mutable, or unsupported schema values;
+- verifies exact decision, evidence, input, protocol, and policy identities;
+- rejects post-cutoff or dependency-open evidence before any execution session exists;
+- rejects abstention, ineligible, Q-FAST-rejected, and Q-LATENCY-failed decisions;
+- maps the already-chosen supported debit vertical without rescoring or changing direction;
+- issues deterministic immutable `PAPER` permit bytes under the frozen paper-risk policy.
+
+See [the research-to-permit contract](docs/contracts/research-to-permit.md) for every copied, derived, and rejected field.
+
 Given an immutable opening permit and a separately authorized closing permit, the paper adapter:
 
 - compiles exact `place_option_order` multi-leg requests against Alpaca MCP `2.3.0`;
@@ -45,6 +56,7 @@ The MCP boundary is implemented and contract-tested with injected fake sessions.
 ## Boundaries
 
 - `PAPER_ONLY`
+- `FROZEN_DECISION_ONLY`
 - `INDICATIVE_DATA`
 - `OFFICIAL_ALPACA_MCP_ONLY`
 - `NO_CREDENTIALS`
@@ -58,6 +70,7 @@ The MCP boundary is implemented and contract-tested with injected fake sessions.
 - [Team onboarding](docs/TEAM_ONBOARDING.md) — required research and lane ownership.
 - [Source and claim policy](docs/SOURCE_AND_CLAIM_POLICY.md) — evidence metadata and permitted claims.
 - [Point-in-time evidence gate](docs/research/point-in-time-evidence-gate.md) — timing, provenance, residualization, denominator, and options-data contract.
+- [Research-to-permit contract](docs/contracts/research-to-permit.md) — exact schemas, identity mapping, rejection reasons, and frozen policy.
 - [Contributing](CONTRIBUTING.md) — branch, test, review, and safety gates.
 - [Changelog](CHANGELOG.md) — versioned behavior changes and release state.
 

@@ -1,5 +1,18 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Versioned, strict frozen-research-decision, point-in-time evidence-manifest, and feature-input contracts.
+- Pure deterministic mapping from one eligible research decision to one immutable PAPER debit-vertical permit.
+- Exact decision, evidence, input, protocol, and policy lineage in serialized permits and downstream MCP identity checks.
+
+### Safety
+
+- Unknown fields/states, hash or provenance mismatch, post-cutoff dependencies, abstention, failed research gates, unsupported strategy shape, and excess paper risk fail closed before any broker session exists.
+- Version impact is `minor`; the package stays at `0.2.0` while issue #11 consolidates the release-train bump to `0.3.0`.
+
 ## [0.2.0] - Unreleased
 
 ### Added

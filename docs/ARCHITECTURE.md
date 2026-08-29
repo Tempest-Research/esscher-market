@@ -26,6 +26,23 @@ Q-FAST reject-only gate
 deterministic JSON report + hashes
 ```
 
+### Research-to-permit contract
+
+```text
+frozen decision + exact evidence/input bytes
+        |
+        v
+strict hash, cutoff, provenance, gate, claim, shape, and risk validation
+        |
+        +--> invalid or ineligible: deterministic rejection
+        |
+        v
+immutable PAPER debit-vertical permit
+        |
+        v
+existing paper execution plane
+```
+
 ### Paper execution plane
 
 ```text
@@ -59,6 +76,8 @@ Current modules:
 - `alpha/evaluation.py`: eligible-path-observation and fill-relative evaluation;
 - `alpha/baselines.py`: deterministic frozen comparators, including abstention;
 - `alpha/qfast.py`: small-sample rejection and latency gates;
+- `contracts/execution_policy.py`: the immutable paper-risk and official MCP protocol registry;
+- `contracts/research_to_permit.py`: the pure frozen-decision, provenance, and feature-dependency bridge;
 - `execution/models.py`: immutable opening and closing permits for one debit vertical;
 - `execution/host_mcp.py`: the host identity, startup capability/account preflight, sanitized observation, bounded runtime allowlist, and typed transport failures;
 - `execution/mcp.py`: the single Alpaca MCP request, readback, cancellation, atomic-close, and event-flat reconciliation boundary;
@@ -100,7 +119,7 @@ implemented paper execution plane
 sanitized static public trace
 ```
 
-The real point-in-time manifest, evidence qualification, signal-to-permit bridge, host-specific MCP client construction, and static proof artifact remain separate reviewed slices. Missing or ambiguous information fails closed to abstention or reconciliation; it never selects another adapter.
+The real point-in-time event collection and static proof artifact remain separate reviewed slices. The implemented bridge accepts only exact frozen artifacts that already passed the registered research gates; it does not create evidence, rescore a signal, or open an execution session. The implemented host boundary constructs only a preflighted PAPER session for the same official adapter. Missing or ambiguous information fails closed to rejection or reconciliation; it never selects another adapter.
 
 ## Core evaluation
 
@@ -119,18 +138,22 @@ The residual return removes frozen market and sector components measured over th
 3. Exit is measured relative to the achieved entry, not an idealized cutoff.
 4. Candidate and baselines use the same panel, timing, and risk assumptions.
 5. Synthetic fixtures cannot be relabeled as historical evidence.
-6. Execution is permanently paper-account only and uses one pinned official Alpaca MCP adapter.
-7. Direct REST, CLI, and second-adapter fallbacks are prohibited.
-8. An ambiguous order submission is reconciled by deterministic client ID, never blindly retried.
-9. A filled spread closes as one reversed multi-leg order; partial fills never trigger sequential-leg repair.
-10. A terminal flat receipt requires broker position truth to contain neither event leg.
-11. Public artifacts are static, sanitized, and incapable of mutation.
+6. Only exact frozen decision, evidence-manifest, feature-input, protocol, and policy identities can produce an opening permit.
+7. `ABSTAIN`, `UNCERTAIN`, ineligible, Q-FAST-rejected, and Q-LATENCY-failed decisions cannot produce a permit.
+8. A permit ID binds every lineage, timing, risk, mode, instrument, and leg term; post-mapping mutation invalidates it.
+9. Execution is permanently paper-account only and uses one pinned official Alpaca MCP adapter.
+10. Direct REST, CLI, and second-adapter fallbacks are prohibited.
+11. An ambiguous order submission is reconciled by deterministic client ID, never blindly retried.
+12. A filled spread closes as one reversed multi-leg order; partial fills never trigger sequential-leg repair.
+13. A terminal flat receipt requires broker position truth to contain neither event leg.
+14. Public artifacts are static, sanitized, and incapable of mutation.
 
-Historical panel admission additionally requires per-feature source dependencies, typed publication timestamps, entitlement metadata, and a common outcome path. The current aggregate `DecisionSnapshot` timestamp checks do not establish those feature-level dependencies by themselves.
+Historical panel admission additionally requires per-feature source dependencies, typed publication timestamps, entitlement metadata, and a common outcome path. The aggregate `DecisionSnapshot` alone does not establish those dependencies; the bridge therefore also requires and validates the exact feature-input and evidence-manifest bytes before issuing a permit.
 
 ## Path ownership
 
 - `src/ringdown_market/alpha/`, evidence manifests, and replay fixtures: evidence lane.
+- `src/ringdown_market/contracts/`: shared frozen decision, policy, and protocol boundary.
 - `src/ringdown_market/execution/`: runtime/integration lane.
 - `web/` and public presentation assets: proof/submission lane.
 - `.github/`, packaging, shared contracts, and final integration: Ben.
