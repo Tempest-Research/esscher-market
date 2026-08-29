@@ -399,6 +399,17 @@ def _validate_event_list(
             "event_list",
             "unsupported event-list schema or version",
         )
+    selection_rule = _validate_selection_rule(selection_rule_bytes)
+    event_list_frozen_at = _timestamp(payload["frozen_at"], path="event_list.frozen_at")
+    selection_rule_frozen_at = _timestamp(
+        selection_rule["frozen_at"], path="selection_rule.frozen_at"
+    )
+    if event_list_frozen_at != selection_rule_frozen_at:
+        _reject(
+            ReplayEvidenceRejectionReason.POINT_IN_TIME_VIOLATION,
+            "event_list.frozen_at",
+            "event-list freeze must equal the ex-ante selection-rule freeze",
+        )
     expected_rule_sha = hashlib.sha256(selection_rule_bytes).hexdigest()
     if (
         _sha256(payload["selection_rule_sha256"], path="event_list.selection_rule_sha256")
@@ -466,7 +477,7 @@ def _validate_event_list(
             path=f"event_list.events[{index}].inclusion_or_exclusion_reason",
         )
     criteria = _strict_object(
-        _validate_selection_rule(selection_rule_bytes)["criteria"],
+        selection_rule["criteria"],
         path="selection_rule.criteria",
         fields=frozenset(
             {
@@ -540,6 +551,7 @@ def _validate_manifest(
     event_list_sha256: str,
     selection_rule_sha256: str,
     expected_event: Mapping[str, object],
+    ex_ante_freeze_at: datetime,
 ) -> ValidatedReplayEvidence:
     path = f"manifests[{index}]"
     manifest = _strict_object(_decode(raw, path=path), path=path, fields=_MANIFEST_FIELDS)
@@ -654,6 +666,7 @@ def _validate_manifest(
         )
     record_ids: set[str] = set()
     upper_bounds: list[datetime] = []
+    issuer_primary_records: list[tuple[int, Mapping[str, object]]] = []
     for record_index, item in enumerate(records):
         record_path = f"{path}.records[{record_index}]"
         record = _strict_object(item, path=record_path, fields=_RECORD_FIELDS)
@@ -685,18 +698,40 @@ def _validate_manifest(
                 f"{record_path}.field_status",
                 "material replay evidence must be present and conflict-free",
             )
+        if record["redistribution_status"] != "METADATA_AND_HASH_ONLY":
+            _reject(
+                ReplayEvidenceRejectionReason.CLAIM_BOUNDARY_MISMATCH,
+                f"{record_path}.redistribution_status",
+                "raw source bytes are not redistributed",
+            )
+        if record["source_kind"] == "ISSUER_PRIMARY":
+            issuer_primary_records.append((record_index, record))
         upper_bounds.append(published_upper)
+    if len(issuer_primary_records) != 1:
+        _reject(
+            ReplayEvidenceRejectionReason.MISSING_PROVENANCE,
+            f"{path}.records",
+            "exactly one ISSUER_PRIMARY record is required",
+        )
+    issuer_index, issuer_record = issuer_primary_records[0]
+    if issuer_record["source_url"] != expected_event["issuer_release_url"]:
+        _reject(
+            ReplayEvidenceRejectionReason.PROVENANCE_MISMATCH,
+            f"{path}.records[{issuer_index}].source_url",
+            "ISSUER_PRIMARY source must equal the frozen event issuer release URL",
+        )
     if latest_evidence_at != max(upper_bounds):
         _reject(
             ReplayEvidenceRejectionReason.PROVENANCE_MISMATCH,
             f"{path}.latest_evidence_at",
             "must equal the latest conservative source publication bound",
         )
-    if feature_snapshot_at > decision_cutoff or frozen_at > decision_cutoff:
+    if feature_snapshot_at != ex_ante_freeze_at or frozen_at != ex_ante_freeze_at:
         _reject(
             ReplayEvidenceRejectionReason.POINT_IN_TIME_VIOLATION,
-            path,
-            "snapshot and freeze timestamps must not exceed the cutoff",
+            f"{path}.feature_snapshot_at",
+            "snapshot and freeze timestamps must equal the ex-ante event-list "
+            "and selection-rule freeze",
         )
     if feature_snapshot_at != frozen_at:
         _reject(
@@ -788,7 +823,12 @@ def _validate_manifest(
                 "SEC acceptance is after the cutoff",
             )
     _text(manifest["entitlement_note"], path=f"{path}.entitlement_note")
-    _text(manifest["redistribution_status"], path=f"{path}.redistribution_status")
+    if manifest["redistribution_status"] != "METADATA_AND_HASH_ONLY":
+        _reject(
+            ReplayEvidenceRejectionReason.CLAIM_BOUNDARY_MISMATCH,
+            f"{path}.redistribution_status",
+            "raw source bytes are not redistributed",
+        )
     _text_list(manifest["limitations"], path=f"{path}.limitations")
     return ValidatedReplayEvidence(
         event_id=event_id, manifest_sha256=hashlib.sha256(raw).hexdigest()
@@ -803,10 +843,11 @@ def validate_replay_evidence_set(
     """Validate exact frozen event, rule, and v2 evidence bytes as one data-only set."""
 
     _validate_selection_rule(selection_rule_bytes)
-    _, event_ids, expected_events = _validate_event_list(
+    event_list_payload, event_ids, expected_events = _validate_event_list(
         event_list_bytes,
         selection_rule_bytes=selection_rule_bytes,
     )
+    ex_ante_freeze_at = _timestamp(event_list_payload["frozen_at"], path="event_list.frozen_at")
     event_list_sha256 = hashlib.sha256(event_list_bytes).hexdigest()
     selection_rule_sha256 = hashlib.sha256(selection_rule_bytes).hexdigest()
     by_id: dict[str, ValidatedReplayEvidence] = {}
@@ -832,6 +873,7 @@ def validate_replay_evidence_set(
             event_list_sha256=event_list_sha256,
             selection_rule_sha256=selection_rule_sha256,
             expected_event=expected,
+            ex_ante_freeze_at=ex_ante_freeze_at,
         )
     if set(by_id) != set(event_ids):
         missing = next(event_id for event_id in event_ids if event_id not in by_id)

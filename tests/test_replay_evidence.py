@@ -245,3 +245,89 @@ def test_material_event_context_conflict_fails_closed() -> None:
     )
 
     assert caught.path.endswith("missing_or_conflicting_evidence")
+
+
+def test_event_list_post_freeze_timestamp_fails_closed() -> None:
+    event_list, selection_rule, manifests = _bundle()
+    event_list = _mutate(
+        event_list,
+        lambda payload: payload.update({"frozen_at": "2026-08-29T20:09:22Z"}),
+    )
+    event_list, selection_rule, manifests = _rebind_bundle(event_list, selection_rule, manifests)
+
+    caught = _assert_rejected(
+        manifests,
+        ReplayEvidenceRejectionReason.POINT_IN_TIME_VIOLATION,
+        event_list_bytes=event_list,
+        selection_rule_bytes=selection_rule,
+    )
+
+    assert caught.path == "event_list.frozen_at"
+
+
+def test_manifest_post_freeze_snapshot_fails_closed() -> None:
+    _, _, manifests = _bundle()
+    manifests[0] = _mutate(
+        manifests[0],
+        lambda payload: payload.update(
+            {
+                "feature_snapshot_at": "2026-08-29T20:09:22Z",
+                "frozen_at": "2026-08-29T20:09:22Z",
+            }
+        ),
+    )
+
+    caught = _assert_rejected(manifests, ReplayEvidenceRejectionReason.POINT_IN_TIME_VIOLATION)
+
+    assert caught.path.endswith("feature_snapshot_at")
+
+
+def test_issuer_primary_source_must_match_frozen_event_url() -> None:
+    _, _, manifests = _bundle()
+    manifests[0] = _mutate(
+        manifests[0],
+        lambda payload: payload["records"][0].update(
+            {"source_url": "https://example.com/swapped-issuer-release"}
+        ),
+    )
+
+    caught = _assert_rejected(manifests, ReplayEvidenceRejectionReason.PROVENANCE_MISMATCH)
+
+    assert caught.path.endswith("records[0].source_url")
+
+
+def test_manifest_requires_exactly_one_issuer_primary_record() -> None:
+    _, _, manifests = _bundle()
+    manifests[0] = _mutate(
+        manifests[0],
+        lambda payload: payload["records"][1].update({"source_kind": "ISSUER_PRIMARY"}),
+    )
+
+    caught = _assert_rejected(manifests, ReplayEvidenceRejectionReason.MISSING_PROVENANCE)
+
+    assert caught.path.endswith("records")
+
+
+def test_manifest_redistribution_status_must_be_metadata_and_hash_only() -> None:
+    _, _, manifests = _bundle()
+    manifests[0] = _mutate(
+        manifests[0], lambda payload: payload.update({"redistribution_status": "FULL_CONTENT"})
+    )
+
+    caught = _assert_rejected(manifests, ReplayEvidenceRejectionReason.CLAIM_BOUNDARY_MISMATCH)
+
+    assert caught.path.endswith("redistribution_status")
+
+
+def test_record_redistribution_status_must_be_metadata_and_hash_only() -> None:
+    _, _, manifests = _bundle()
+    manifests[0] = _mutate(
+        manifests[0],
+        lambda payload: payload["records"][0].update(
+            {"redistribution_status": "FULL_CONTENT"}
+        ),
+    )
+
+    caught = _assert_rejected(manifests, ReplayEvidenceRejectionReason.CLAIM_BOUNDARY_MISMATCH)
+
+    assert caught.path.endswith("records[0].redistribution_status")
