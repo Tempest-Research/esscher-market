@@ -8,6 +8,11 @@ from typing import Any
 
 import pytest
 
+from ringdown_market.execution.host_mcp import (
+    HostMcpEnvironment,
+    HostMcpPaperSessionFactory,
+    HostMcpSessionIdentity,
+)
 from ringdown_market.execution.mcp import (
     BrokerResponseError,
     McpPaperBroker,
@@ -98,6 +103,37 @@ class TimeoutThenReadbackSession:
         if name == "place_option_order":
             raise TimeoutError("submission result was not observed")
         return self.readback
+
+
+class HostTimeoutThenReadbackSession:
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, dict[str, object]]] = []
+
+    async def list_tools(self) -> tuple[str, ...]:
+        return (
+            "cancel_order_by_id",
+            "get_account_info",
+            "get_all_positions",
+            "get_order_by_client_id",
+            "get_order_by_id",
+            "place_option_order",
+        )
+
+    async def call_tool(self, name: str, arguments: Mapping[str, object]) -> Mapping[str, object]:
+        self.calls.append((name, dict(arguments)))
+        if name == "get_account_info":
+            return {
+                "status": "ACTIVE",
+                "trading_blocked": False,
+                "account_blocked": False,
+            }
+        if name == "place_option_order":
+            raise TimeoutError("ambiguous host transport")
+        return {
+            "id": "paper-order-123",
+            "client_order_id": arguments["client_order_id"],
+            "status": "accepted",
+        }
 
 
 def test_compiles_exact_pinned_alpaca_mcp_multileg_order() -> None:
@@ -330,3 +366,22 @@ def test_rejects_tool_error_without_attempting_readback() -> None:
         asyncio.run(broker.submit_open(permit))
 
     assert [name for name, _ in session.calls] == ["place_option_order"]
+
+
+def test_host_factory_routes_ambiguous_submit_to_one_readback_without_retry() -> None:
+    host = HostTimeoutThenReadbackSession()
+    factory = HostMcpPaperSessionFactory(
+        HostMcpSessionIdentity(
+            environment=HostMcpEnvironment.PAPER,
+        ),
+        clock=lambda: NOW,
+    )
+    prepared = asyncio.run(factory.connect(host))
+    broker = prepared.broker(clock=lambda: NOW)
+
+    receipt = asyncio.run(broker.submit_open(bull_call_permit()))
+
+    names = [name for name, _ in host.calls]
+    assert receipt.broker_order_id == "paper-order-123"
+    assert names == ["get_account_info", "place_option_order", "get_order_by_client_id"]
+    assert names.count("place_option_order") == 1

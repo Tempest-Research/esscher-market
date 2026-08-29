@@ -2,7 +2,7 @@
 
 **Measure the move after the first reaction.**
 
-Esscher is a permanently paper-only scheduled-earnings research and controlled-execution system. It combines an offline alpha and latency evaluation harness with one bounded official Alpaca MCP adapter. The package does not load credentials or start an MCP session; its host must inject a normalized paper-account session.
+Esscher is a permanently paper-only scheduled-earnings research and controlled-execution system. It combines an offline alpha and latency evaluation harness with one bounded official Alpaca MCP adapter. The package does not load credentials or start an MCP server. Its host injects one normalized session plus a non-secret PAPER environment attestation.
 
 ## Name and compatibility
 
@@ -38,7 +38,9 @@ Given an immutable opening permit and a separately authorized closing permit, th
 - refuses automatic sequential-leg repair after a partial fill;
 - emits a terminal receipt only after broker position truth contains neither event leg.
 
-The MCP boundary is implemented and contract-tested with injected sessions. It is not evidence of a real paper fill, strategy profitability, or executable historical option pricing.
+Before exposing that session to the adapter, the host boundary checks the six required tools from the pinned official surface and reads sanitized account status through `get_account_info`. Missing tools, malformed responses, blocked accounts, and any environment other than PAPER fail closed before a mutation. Runtime calls are limited to the adapter's five official order and position tools; secret-like application arguments are rejected before reaching the host.
+
+The MCP boundary is implemented and contract-tested with injected fake sessions. No real broker call is part of the test suite. This is not evidence of a real paper fill, strategy profitability, or executable historical option pricing.
 
 ## Boundaries
 

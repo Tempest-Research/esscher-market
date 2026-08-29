@@ -1,0 +1,285 @@
+from __future__ import annotations
+
+import asyncio
+from collections.abc import Mapping
+from datetime import UTC, datetime
+from typing import Any
+
+import pytest
+
+from ringdown_market.execution.host_mcp import (
+    HostMcpAccountError,
+    HostMcpConfigurationError,
+    HostMcpEnvironment,
+    HostMcpMutationAmbiguous,
+    HostMcpPaperSessionFactory,
+    HostMcpSecretBoundaryError,
+    HostMcpSessionIdentity,
+    HostMcpUnavailable,
+)
+from ringdown_market.execution.mcp import (
+    ALPACA_MCP_COMMIT,
+    ALPACA_MCP_VERSION,
+    CANCEL_TOOL,
+    OPEN_TOOL,
+    ORDER_BY_ID_TOOL,
+    POSITIONS_TOOL,
+    READBACK_TOOL,
+)
+
+NOW = datetime(2026, 8, 29, 17, 0, tzinfo=UTC)
+REQUIRED_TOOLS = {
+    "get_account_info",
+    OPEN_TOOL,
+    READBACK_TOOL,
+    ORDER_BY_ID_TOOL,
+    CANCEL_TOOL,
+    POSITIONS_TOOL,
+}
+
+
+_DEFAULT_ACCOUNT = object()
+
+
+class FakeHostSession:
+    def __init__(
+        self,
+        *,
+        tools: object = tuple(sorted(REQUIRED_TOOLS)),
+        account: object = _DEFAULT_ACCOUNT,
+        failures: Mapping[str, Exception] | None = None,
+    ) -> None:
+        self.tools = tools
+        self.account = (
+            {
+                "id": "sensitive-account-id",
+                "account_number": "sensitive-account-number",
+                "status": "ACTIVE",
+                "trading_blocked": False,
+                "account_blocked": False,
+            }
+            if account is _DEFAULT_ACCOUNT
+            else account
+        )
+        self.failures = dict(failures or {})
+        self.calls: list[tuple[str, dict[str, object]]] = []
+        self.list_calls = 0
+
+    async def list_tools(self) -> object:
+        self.list_calls += 1
+        failure = self.failures.get("list_tools")
+        if failure is not None:
+            raise failure
+        return self.tools
+
+    async def call_tool(self, name: str, arguments: Mapping[str, object]) -> object:
+        self.calls.append((name, dict(arguments)))
+        failure = self.failures.get(name)
+        if failure is not None:
+            raise failure
+        if name == "get_account_info":
+            return self.account
+        return {"ok": True}
+
+
+def paper_identity() -> HostMcpSessionIdentity:
+    return HostMcpSessionIdentity(environment=HostMcpEnvironment.PAPER)
+
+
+def connect(
+    host: FakeHostSession,
+    *,
+    identity: HostMcpSessionIdentity | None = None,
+):
+    factory = HostMcpPaperSessionFactory(identity or paper_identity(), clock=lambda: NOW)
+    return asyncio.run(factory.connect(host))
+
+
+def test_session_identity_is_fixed_to_the_pinned_official_adapter() -> None:
+    identity = paper_identity()
+
+    assert identity.environment is HostMcpEnvironment.PAPER
+    assert identity.adapter == "ALPACA_MCP"
+    assert identity.adapter_version == ALPACA_MCP_VERSION
+    assert identity.adapter_commit == ALPACA_MCP_COMMIT
+    assert set(identity.__dataclass_fields__) == {
+        "environment",
+        "adapter",
+        "adapter_version",
+        "adapter_commit",
+    }
+
+
+def test_non_paper_identity_fails_before_any_host_call() -> None:
+    host = FakeHostSession()
+
+    with pytest.raises(HostMcpConfigurationError, match="paper environment"):
+        identity = HostMcpSessionIdentity(environment="LIVE")  # type: ignore[arg-type]
+        connect(host, identity=identity)
+
+    assert host.list_calls == 0
+    assert host.calls == []
+
+
+def test_missing_required_tool_fails_startup_without_account_or_mutation() -> None:
+    host = FakeHostSession(tools=tuple(sorted(REQUIRED_TOOLS - {READBACK_TOOL})))
+
+    with pytest.raises(HostMcpConfigurationError, match=READBACK_TOOL):
+        connect(host)
+
+    assert host.list_calls == 1
+    assert host.calls == []
+
+
+def test_capability_probe_accepts_tool_descriptors_and_ignores_extra_tools() -> None:
+    tools = [{"name": name} for name in sorted(REQUIRED_TOOLS | {"close_all_positions"})]
+    prepared = connect(FakeHostSession(tools=tools))
+
+    assert prepared.observation.required_tool_count == len(REQUIRED_TOOLS)
+    assert len(prepared.observation.capability_sha256) == 64
+
+
+def test_malformed_tool_listing_is_redacted() -> None:
+    host = FakeHostSession(tools=[{"name": "get_account_info"}, {"secret": "do-not-emit"}])
+
+    with pytest.raises(HostMcpConfigurationError) as captured:
+        connect(host)
+
+    assert "do-not-emit" not in str(captured.value)
+    assert host.calls == []
+
+
+def test_account_preflight_emits_only_sanitized_observation() -> None:
+    prepared = connect(FakeHostSession())
+    observation = prepared.observation
+
+    assert observation.account_status == "ACTIVE"
+    assert observation.account_blocked is False
+    assert observation.trading_blocked is False
+    assert observation.observed_at == NOW
+    assert "account" not in observation.__dataclass_fields__
+    assert "sensitive-account" not in repr(observation)
+
+
+def test_blocked_or_inactive_account_fails_before_runtime_calls() -> None:
+    host = FakeHostSession(
+        account={
+            "status": "ACTIVE",
+            "trading_blocked": True,
+            "account_blocked": False,
+            "account_number": "must-not-leak",
+        }
+    )
+
+    with pytest.raises(HostMcpAccountError, match="not eligible") as captured:
+        connect(host)
+
+    assert "must-not-leak" not in str(captured.value)
+    assert [name for name, _ in host.calls] == ["get_account_info"]
+
+
+@pytest.mark.parametrize(
+    "account",
+    [
+        [],
+        {"status": "ACTIVE", "trading_blocked": "false", "account_blocked": False},
+        {"status": "", "trading_blocked": False, "account_blocked": False},
+    ],
+)
+def test_malformed_account_response_fails_closed(account: object) -> None:
+    host = FakeHostSession(account=account)
+
+    with pytest.raises(HostMcpAccountError, match="malformed"):
+        connect(host)
+
+    assert [name for name, _ in host.calls] == ["get_account_info"]
+
+
+def test_preflight_timeout_is_typed_and_redacted() -> None:
+    host = FakeHostSession(failures={"list_tools": TimeoutError("token=do-not-emit")})
+
+    with pytest.raises(HostMcpUnavailable, match="capability listing timed out") as captured:
+        connect(host)
+
+    assert "do-not-emit" not in str(captured.value)
+    assert captured.value.__cause__ is None
+    assert host.calls == []
+
+
+def test_prepared_session_enforces_the_runtime_tool_allowlist() -> None:
+    host = FakeHostSession()
+    prepared = connect(host)
+
+    with pytest.raises(HostMcpConfigurationError, match="not allowed"):
+        asyncio.run(prepared.session.call_tool("close_all_positions", {}))
+
+    assert [name for name, _ in host.calls] == ["get_account_info"]
+
+
+def test_secret_like_runtime_arguments_are_rejected_before_host_call() -> None:
+    host = FakeHostSession()
+    prepared = connect(host)
+
+    with pytest.raises(HostMcpSecretBoundaryError, match="secret-like"):
+        asyncio.run(
+            prepared.session.call_tool(
+                OPEN_TOOL,
+                {"client_order_id": "rd-open-safe", "metadata": {"api_key": "do-not-emit"}},
+            )
+        )
+
+    assert [name for name, _ in host.calls] == ["get_account_info"]
+
+
+def test_mutation_timeout_is_typed_as_ambiguous_without_leaking_details() -> None:
+    host = FakeHostSession(failures={OPEN_TOOL: TimeoutError("secret broker detail")})
+    prepared = connect(host)
+
+    with pytest.raises(HostMcpMutationAmbiguous, match="read back") as captured:
+        asyncio.run(
+            prepared.session.call_tool(
+                OPEN_TOOL,
+                {"client_order_id": "rd-open-safe"},
+            )
+        )
+
+    assert "secret broker detail" not in str(captured.value)
+    assert captured.value.__cause__ is None
+    assert [name for name, _ in host.calls] == ["get_account_info", OPEN_TOOL]
+
+
+def test_read_only_runtime_timeout_is_unavailable_not_ambiguous() -> None:
+    host = FakeHostSession(failures={READBACK_TOOL: TimeoutError("private transport detail")})
+    prepared = connect(host)
+
+    with pytest.raises(HostMcpUnavailable, match="timed out") as captured:
+        asyncio.run(
+            prepared.session.call_tool(
+                READBACK_TOOL,
+                {"client_order_id": "rd-open-safe"},
+            )
+        )
+
+    assert "private transport detail" not in str(captured.value)
+    assert captured.value.__cause__ is None
+
+
+def test_read_only_capability_smoke_never_calls_a_mutating_tool() -> None:
+    host = FakeHostSession()
+    factory = HostMcpPaperSessionFactory(paper_identity(), clock=lambda: NOW)
+
+    observation = asyncio.run(factory.smoke(host))
+
+    assert observation.account_status == "ACTIVE"
+    assert [name for name, _ in host.calls] == ["get_account_info"]
+    assert not ({name for name, _ in host.calls} & {OPEN_TOOL, CANCEL_TOOL})
+
+
+def test_runtime_result_is_forwarded_without_copying_sensitive_account_data() -> None:
+    host = FakeHostSession()
+    prepared = connect(host)
+    response: Any = asyncio.run(
+        prepared.session.call_tool(READBACK_TOOL, {"client_order_id": "rd-open-safe"})
+    )
+
+    assert response == {"ok": True}
