@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="330" viewBox="0 0 960 330">
+  <rect width="960" height="330" fill="#ffffff"/>
+  <g font-family="Consolas, 'Courier New', monospace">
+    <text x="20" y="32" font-size="18" fill="#111111">AFTER_CLOSE: release at 16:05 ET, regular session closes 16:00 ET</text>
+    <line x1="40" y1="140" x2="910" y2="140" stroke="#444444" stroke-width="2"/>
+    <polygon points="910,134 926,140 910,146" fill="#444444"/>
+    <rect x="640" y="128" width="180" height="24" fill="#e0e7ff" stroke="#35507a"/>
+    <text x="730" y="144" font-size="11" fill="#35507a" text-anchor="middle">hold window</text>
+    <line x1="200" y1="130" x2="200" y2="150" stroke="#dc2626" stroke-width="2"/>
+    <text x="200" y="118" font-size="12" fill="#dc2626" text-anchor="middle">16:00</text>
+    <text x="200" y="170" font-size="12" fill="#dc2626" text-anchor="middle">regular session closes</text>
+    <line x1="360" y1="130" x2="360" y2="150" stroke="#2563eb" stroke-width="2"/>
+    <text x="360" y="118" font-size="12" fill="#2563eb" text-anchor="middle">16:05</text>
+    <text x="360" y="170" font-size="12" fill="#2563eb" text-anchor="middle">release public; cutoff follows</text>
+    <line x1="640" y1="130" x2="640" y2="150" stroke="#7c3aed" stroke-width="2"/>
+    <text x="640" y="118" font-size="12" fill="#7c3aed" text-anchor="middle">next eligible open</text>
+    <text x="640" y="170" font-size="12" fill="#7c3aed" text-anchor="middle">entry_at (first eligible observation)</text>
+    <line x1="820" y1="130" x2="820" y2="150" stroke="#7c3aed" stroke-width="2"/>
+    <text x="820" y="118" font-size="12" fill="#7c3aed" text-anchor="middle">exit_at</text>
+    <text x="820" y="170" font-size="12" fill="#7c3aed" text-anchor="middle">fill-relative exit</text>
+    <text x="420" y="210" font-size="12" fill="#dc2626" text-anchor="middle">session ended: no same-session entry</text>
+    <text x="40" y="240" font-size="12" fill="#333333">backdating the decision to the prior close is look-ahead</text>
+    <text x="40" y="262" font-size="12" fill="#333333">if the next day is a holiday, the calendar advances to the following eligible session</text>
+  </g>
+</svg>

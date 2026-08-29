@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="330" viewBox="0 0 960 330">
+  <rect width="960" height="330" fill="#ffffff"/>
+  <g font-family="Consolas, 'Courier New', monospace">
+    <text x="20" y="32" font-size="18" fill="#111111">BEFORE_OPEN: release at 08:00 ET, regular session opens 09:30 ET</text>
+    <line x1="40" y1="140" x2="910" y2="140" stroke="#444444" stroke-width="2"/>
+    <polygon points="910,134 926,140 910,146" fill="#444444"/>
+    <rect x="760" y="128" width="120" height="24" fill="#e0e7ff" stroke="#35507a"/>
+    <text x="820" y="144" font-size="11" fill="#35507a" text-anchor="middle">hold window</text>
+    <line x1="120" y1="130" x2="120" y2="150" stroke="#2563eb" stroke-width="2"/>
+    <text x="120" y="118" font-size="12" fill="#2563eb" text-anchor="middle">08:00</text>
+    <text x="120" y="170" font-size="12" fill="#2563eb" text-anchor="middle">release public</text>
+    <line x1="320" y1="130" x2="320" y2="150" stroke="#059669" stroke-width="2"/>
+    <text x="320" y="118" font-size="12" fill="#059669" text-anchor="middle">08:05</text>
+    <text x="320" y="170" font-size="12" fill="#059669" text-anchor="middle">cutoff + snapshot frozen</text>
+    <line x1="520" y1="130" x2="520" y2="150" stroke="#7c3aed" stroke-width="2"/>
+    <text x="520" y="118" font-size="12" fill="#7c3aed" text-anchor="middle">08:05:30</text>
+    <text x="520" y="170" font-size="12" fill="#7c3aed" text-anchor="middle">earliest modeled entry</text>
+    <line x1="760" y1="130" x2="760" y2="150" stroke="#7c3aed" stroke-width="2"/>
+    <text x="760" y="118" font-size="12" fill="#7c3aed" text-anchor="middle">09:30</text>
+    <text x="760" y="170" font-size="12" fill="#7c3aed" text-anchor="middle">core open / entry_at</text>
+    <line x1="880" y1="130" x2="880" y2="150" stroke="#7c3aed" stroke-width="2"/>
+    <text x="880" y="118" font-size="12" fill="#7c3aed" text-anchor="middle">exit_at</text>
+    <text x="880" y="170" font-size="12" fill="#7c3aed" text-anchor="middle">fill-relative exit</text>
+    <text x="40" y="210" font-size="12" fill="#333333">if premarket is not an admitted venue, entry waits for the 09:30 open</text>
+    <text x="40" y="232" font-size="12" fill="#333333">no evidence arriving after 08:05 can change the signal</text>
+    <text x="40" y="254" font-size="12" fill="#333333">source bytes, publication time, and hash are captured at retrieval</text>
+  </g>
+</svg>
