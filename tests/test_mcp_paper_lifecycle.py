@@ -88,7 +88,7 @@ def close_permit() -> ClosePermit:
         permit_id="permit-close-001",
         open_permit_id=opening.permit_id,
         event_run_id=opening.event_run_id,
-        policy_sha256="c" * 64,
+        policy_sha256=PAPER_PERMIT_POLICY_SHA256,
         snapshot_sha256=opening.snapshot_sha256,
         issued_at=NOW - timedelta(seconds=5),
         expires_at=NOW + timedelta(seconds=30),
@@ -155,6 +155,13 @@ def test_close_permit_requires_a_credit_limit() -> None:
             expires_at=NOW + timedelta(seconds=30),
             limit_price=Decimal("0.40"),
         )
+
+
+def test_rejects_close_permit_outside_registered_paper_policy() -> None:
+    unregistered = replace(close_permit(), policy_sha256="c" * 64)
+
+    with pytest.raises(ValueError, match="registered PAPER policy"):
+        build_close_order_call(open_permit(), unregistered)
 
 
 def test_compiles_atomic_reversed_multileg_close_order() -> None:

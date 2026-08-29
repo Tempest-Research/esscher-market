@@ -88,17 +88,19 @@ def open_permit() -> DebitVerticalPermit:
     return replace(candidate, permit_id=debit_vertical_permit_id(candidate))
 
 
-def close_permit(opening: DebitVerticalPermit) -> ClosePermit:
-    return ClosePermit(
-        permit_id="permit-close-001",
-        open_permit_id=opening.permit_id,
-        event_run_id=opening.event_run_id,
-        policy_sha256="c" * 64,
-        snapshot_sha256=opening.snapshot_sha256,
-        issued_at=NOW - timedelta(seconds=5),
-        expires_at=NOW + timedelta(seconds=30),
-        limit_price=Decimal("-0.40"),
-    )
+def close_permit(opening: DebitVerticalPermit, **changes: object) -> ClosePermit:
+    values: dict[str, object] = {
+        "permit_id": "permit-close-001",
+        "open_permit_id": opening.permit_id,
+        "event_run_id": opening.event_run_id,
+        "policy_sha256": PAPER_PERMIT_POLICY_SHA256,
+        "snapshot_sha256": opening.snapshot_sha256,
+        "issued_at": NOW - timedelta(seconds=5),
+        "expires_at": NOW + timedelta(seconds=30),
+        "limit_price": Decimal("-0.40"),
+    }
+    values.update(changes)
+    return ClosePermit(**values)  # type: ignore[arg-type]
 
 
 def approval(opening: DebitVerticalPermit, **changes: object) -> PaperDemoApproval:
@@ -241,6 +243,38 @@ def test_preflight_rejects_expired_permit_before_writing_approval() -> None:
 
     with pytest.raises(PaperDemoNotApproved, match="opening permit"):
         plan.approval_template_json_bytes(observed_at=NOW)
+
+
+def test_preflight_rejects_unregistered_close_policy_before_writing_approval() -> None:
+    opening = open_permit()
+    plan = PaperDemoPlan(
+        prepared=prepared(RecordingSession([])),
+        open_permit=opening,
+        close_permit=close_permit(opening, policy_sha256="c" * 64),
+    )
+
+    with pytest.raises(ValueError, match="registered PAPER policy"):
+        plan.approval_template_json_bytes(observed_at=NOW)
+
+
+def test_unregistered_close_policy_stops_before_any_mcp_tool(tmp_path: Path) -> None:
+    opening = open_permit()
+    session = RecordingSession([])
+
+    with pytest.raises(ValueError, match="registered PAPER policy"):
+        asyncio.run(
+            run_paper_demo(
+                prepared=prepared(session),
+                open_permit=opening,
+                close_permit=close_permit(opening, policy_sha256="c" * 64),
+                approval=approval(opening),
+                attempt_store=FilePaperAttemptStore(tmp_path / "attempts"),
+                clock=lambda: NOW,
+            )
+        )
+
+    assert session.calls == []
+    assert not (tmp_path / "attempts").exists()
 
 
 def test_expired_permit_does_not_consume_attempt_identity(tmp_path: Path) -> None:

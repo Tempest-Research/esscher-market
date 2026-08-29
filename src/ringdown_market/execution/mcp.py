@@ -261,6 +261,8 @@ def build_close_order_call(
 ) -> OpenOrderCall:
     """Compile one atomic reversed multi-leg close through the same MCP tool."""
 
+    if close_permit.policy_sha256 != PAPER_PERMIT_POLICY_SHA256:
+        raise ValueError("close permit does not match the registered PAPER policy")
     if close_permit.open_permit_id != open_permit.permit_id:
         raise ValueError("close permit does not reference the opening permit")
     if close_permit.event_run_id != open_permit.event_run_id:
