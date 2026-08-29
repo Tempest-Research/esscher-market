@@ -23,6 +23,6 @@
     <text x="730" y="260" font-size="12" fill="#7c3aed" text-anchor="middle">entry_at</text>
     <circle cx="870" cy="235" r="5" fill="#7c3aed"/>
     <text x="870" y="260" font-size="12" fill="#7c3aed" text-anchor="middle">exit_at</text>
-    <text x="650" y="300" font-size="12" fill="#dc2626">no evidence after decision_cutoff may enter the decision</text>
+    <text x="170" y="300" font-size="12" fill="#dc2626">no evidence after decision_cutoff may enter the decision</text>
   </g>
 </svg>
