@@ -8,6 +8,7 @@ import json
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict
 from datetime import datetime
+from importlib.metadata import version
 from pathlib import Path
 from typing import Any
 
@@ -216,6 +217,11 @@ def build_report(raw_bytes: bytes) -> dict[str, object]:
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="ringdown")
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {version('ringdown-market')}",
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
     evaluate = subparsers.add_parser("evaluate", help="evaluate a frozen event panel")
     evaluate.add_argument("--input", type=Path, required=True)

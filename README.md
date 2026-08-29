@@ -2,7 +2,7 @@
 
 **Measure the move after the first reaction.**
 
-Ringdown is a paper-only scheduled-earnings research system. This repository starts with an offline alpha and latency evaluation harness. It does not place orders, load credentials, or call external services.
+Ringdown is a paper-only scheduled-earnings research and controlled-execution system. It combines an offline alpha and latency evaluation harness with one bounded official Alpaca MCP adapter. The package does not load credentials or start an MCP session; its host must inject a normalized paper-account session.
 
 ## Current slice
 
@@ -16,13 +16,24 @@ Given a point-in-time event fixture and frozen latency profile, the harness prod
 
 Synthetic fixtures are contract tests only. They are never financial evidence.
 
+Given an immutable opening permit and a separately authorized closing permit, the paper adapter:
+
+- compiles exact `place_option_order` multi-leg requests against Alpaca MCP `2.3.0`;
+- uses deterministic client-order IDs and request hashes;
+- submits once, then reconciles ambiguous transport outcomes by broker readback;
+- cancels an unfilled opening order or closes a filled vertical atomically as one reversed multi-leg order;
+- refuses automatic sequential-leg repair after a partial fill;
+- emits a terminal receipt only after broker position truth contains neither event leg.
+
+The MCP boundary is implemented and contract-tested with injected sessions. It is not evidence of a real paper fill, strategy profitability, or executable historical option pricing.
+
 ## Boundaries
 
-- `PAPER`
-- `OFFLINE_ONLY`
-- `NO_BROKER_MUTATION`
+- `PAPER_ONLY`
+- `INDICATIVE_DATA`
+- `OFFICIAL_ALPACA_MCP_ONLY`
 - `NO_CREDENTIALS`
-- `NO_NETWORK_CALLS`
+- `NO_DIRECT_REST_OR_CLI_FALLBACK`
 - `NO_ALPHA_CLAIM`
 - `NO_EXECUTABLE_OPTIONS_CLAIM`
 
@@ -33,6 +44,7 @@ Synthetic fixtures are contract tests only. They are never financial evidence.
 - [Source and claim policy](docs/SOURCE_AND_CLAIM_POLICY.md) — evidence metadata and permitted claims.
 - [Point-in-time evidence gate](docs/research/point-in-time-evidence-gate.md) — timing, provenance, residualization, denominator, and options-data contract.
 - [Contributing](CONTRIBUTING.md) — branch, test, review, and safety gates.
+- [Changelog](CHANGELOG.md) — versioned behavior changes and release state.
 
 ## Development
 
@@ -41,6 +53,8 @@ uv sync --extra dev
 uv run ruff check .
 uv run ruff format --check .
 uv run pytest
+uv build
+uv run ringdown --version
 ```
 
 Run the labeled synthetic contract fixture:

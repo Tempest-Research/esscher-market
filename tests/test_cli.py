@@ -1,4 +1,5 @@
 import json
+from importlib.metadata import version
 from pathlib import Path
 
 import pytest
@@ -6,6 +7,14 @@ import pytest
 from ringdown_market.cli import build_report, main
 
 FIXTURE = Path(__file__).parent / "fixtures" / "synthetic_contract_panel.json"
+
+
+def test_cli_reports_the_installed_package_version(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as exit_info:
+        main(["--version"])
+
+    assert exit_info.value.code == 0
+    assert capsys.readouterr().out.strip() == f"ringdown {version('ringdown-market')}"
 
 
 def test_cli_writes_a_deterministic_explicitly_limited_report(tmp_path: Path) -> None:

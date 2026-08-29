@@ -23,6 +23,8 @@ List the official documentation, pinned source revision, or event manifest used 
 - [ ] `uv run ruff check .`
 - [ ] `uv run ruff format --check .`
 - [ ] `uv run pytest`
+- [ ] `uv build`
+- [ ] Built wheel installed outside the checkout; version and primary CLI smoke passed
 
 Paste the exact command and observed summary:
 
