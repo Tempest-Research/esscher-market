@@ -16,7 +16,7 @@ _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
 
 class RunMode(StrEnum):
-    """The only account mode legal for Ringdown execution."""
+    """The only account mode legal for Esscher execution."""
 
     PAPER = "PAPER"
 

@@ -1,6 +1,6 @@
 # Contributing
 
-Ringdown is a paper-only research system with strict evidence and broker boundaries. A contribution is complete when another teammate can reproduce it and explain why it is safe.
+Esscher is a permanently paper-only research system with strict evidence and broker boundaries. A contribution is complete when another teammate can reproduce it and explain why it is safe.
 
 Read [team onboarding](docs/TEAM_ONBOARDING.md), [architecture](docs/ARCHITECTURE.md), and the [source and claim policy](docs/SOURCE_AND_CLAIM_POLICY.md) before a first pull request.
 

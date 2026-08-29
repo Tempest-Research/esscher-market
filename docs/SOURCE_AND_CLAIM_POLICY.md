@@ -97,7 +97,7 @@ If a field cannot be safely published, render an explicit redaction or unavailab
 
 ## Submission policy
 
-The Ringdown submission policy is:
+The Esscher submission policy is:
 
 - close all positions and cancel all open orders before submission;
 - require no minimum number of live trades;
