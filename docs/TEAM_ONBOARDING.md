@@ -1,6 +1,7 @@
 # Team onboarding
 
-Read this before opening a Ringdown pull request. The purpose is not ceremony. It prevents three contributors and their automation tools from producing three incompatible systems.
+Read this before opening a Ringdown pull request. It defines the shared system
+boundaries and research rules.
 
 ## Current competition facts
 
@@ -13,7 +14,11 @@ The official event pages were verified on 28 August 2026. They stated that:
 - the paper account ID is required for judging;
 - judging includes P&L, implementation, originality, and presentation.
 
-The preserved page did not settle whether positions must be flat at submission, whether a minimum trade count exists, or whether AI assistance requires disclosure. Treat those as unconfirmed until an organizer publishes an answer. Paper performance is simulated, not evidence of strategy profitability outside that environment.
+Ringdown's submission policy is to close all positions and cancel all open
+orders before submission. Ringdown does not impose a minimum number of live
+trades; the research panel requires at least 20 untouched eligible events for
+Q-FAST. Paper performance is simulated, not evidence of strategy profitability
+outside that environment.
 
 Official event pages:
 
@@ -28,7 +33,7 @@ Official event pages:
 4. [Contributing](../CONTRIBUTING.md): branch, test, review, and safety rules.
 5. The relevant source files and tests for the lane being changed.
 
-Before a first PR, each contributor must be able to explain, without reading generated prose:
+Before a first PR, each contributor must be able to explain:
 
 1. Why information published after `decision_cutoff` is forbidden.
 2. Why an abstention stays in the eligible-event denominator.
@@ -51,7 +56,7 @@ Read these official sources before changing execution code:
 - [Options trading](https://docs.alpaca.markets/us/docs/options-trading)
 - [Options Level 3 and multi-leg orders](https://docs.alpaca.markets/us/docs/options-level-3-trading)
 
-Prove exact tool names, argument shapes, response identity, and account mode from source or a sanitized capability receipt. Do not infer them from another team's code or an AI answer.
+Prove exact tool names, argument shapes, response identity, and account mode from source or a sanitized capability receipt. Do not infer them from another team's code or unverified material.
 
 ### Evidence, strategy, and evaluation
 
@@ -78,21 +83,6 @@ Every scene must visibly distinguish:
 - engineering evidence from alpha or profitability evidence.
 
 Do not invent a broker receipt to complete a screen. Show an explicit unavailable or simulated state instead.
-
-## Rules for automation-assisted work
-
-Automation may help inspect, draft, test, or review. The human contributor still owns every line and claim.
-
-- Never put credentials, private account IDs, private datasets, or unpublished team material into a model prompt.
-- Read the real file and relevant tests before proposing a change.
-- Ground external API behavior in an official URL or pinned source revision.
-- Treat generated code and summaries as untrusted until the diff and execution output are checked.
-- Never fabricate commands, test output, datasets, citations, fills, or receipts.
-- Never copy code, assets, copywriting, or fixtures from competing submissions.
-- Do not add dependencies unless the PR explains why the standard library or existing stack is insufficient.
-- Do not perform broad refactors while delivering a lane task.
-- Remove local agent instruction files and generated work logs from the commit.
-- Before review, explain the change's purpose, data flow, invariant, failure mode, and trade-off.
 
 ## Ownership
 
