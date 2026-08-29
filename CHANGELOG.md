@@ -7,10 +7,13 @@
 - Versioned, strict frozen-research-decision, point-in-time evidence-manifest, and feature-input contracts.
 - Pure deterministic mapping from one eligible research decision to one immutable PAPER debit-vertical permit.
 - Exact decision, evidence, input, protocol, and policy lineage in serialized permits and downstream MCP identity checks.
+- Inert paper-demo orchestration with exact permit/capability approval, durable submit-once recovery markers, and a bounded official-MCP mutation envelope.
+- Sanitized deterministic terminal receipt bundles with broker-observed `ZERO_NO_FILL`, exact gross `PAPER_REALIZED_PNL`, or explicit `PAPER_PNL_UNAVAILABLE` classification.
 
 ### Safety
 
 - Unknown fields/states, hash or provenance mismatch, post-cutoff dependencies, abstention, failed research gates, unsupported strategy shape, and excess paper risk fail closed before any broker session exists.
+- Partial or contradictory package fills stop for reconciliation; missing fees remain explicit and raw broker/account identities never enter the receipt bundle.
 - Version impact is `minor`; the package stays at `0.2.0` while issue #11 consolidates the release-train bump to `0.3.0`.
 
 ## [0.2.0] - Unreleased

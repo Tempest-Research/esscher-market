@@ -53,6 +53,8 @@ Before exposing that session to the adapter, the host boundary checks the six re
 
 The MCP boundary is implemented and contract-tested with injected fake sessions. No real broker call is part of the test suite. This is not evidence of a real paper fill, strategy profitability, or executable historical option pricing.
 
+The inert paper-demo runner adds a separate short-lived approval bound to the exact permit and host capability proof, durable submit-once markers for restart recovery, exact broker fill-economics classification, and a deterministic sanitized terminal bundle. See [the PAPER demonstration runbook](docs/PAPER_DEMO_RUNBOOK.md). No demonstration has been run by the test suite or by this repository state.
+
 ## Boundaries
 
 - `PAPER_ONLY`
@@ -71,6 +73,7 @@ The MCP boundary is implemented and contract-tested with injected fake sessions.
 - [Source and claim policy](docs/SOURCE_AND_CLAIM_POLICY.md) — evidence metadata and permitted claims.
 - [Point-in-time evidence gate](docs/research/point-in-time-evidence-gate.md) — timing, provenance, residualization, denominator, and options-data contract.
 - [Research-to-permit contract](docs/contracts/research-to-permit.md) — exact schemas, identity mapping, rejection reasons, and frozen policy.
+- [PAPER demonstration runbook](docs/PAPER_DEMO_RUNBOOK.md) — read-only preflight, exact approval, bounded mutation envelope, recovery, and receipt interpretation.
 - [Contributing](CONTRIBUTING.md) — branch, test, review, and safety gates.
 - [Changelog](CHANGELOG.md) — versioned behavior changes and release state.
 

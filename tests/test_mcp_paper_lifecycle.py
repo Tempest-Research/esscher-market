@@ -266,16 +266,19 @@ def test_closes_filled_spread_atomically_then_verifies_flat() -> None:
                 "id": receipt.broker_order_id,
                 "client_order_id": receipt.client_order_id,
                 "status": "filled",
+                "filled_qty": "1",
             },
             {
                 "id": "close-order-456",
                 "client_order_id": close_call.client_order_id,
                 "status": "filled",
+                "filled_qty": "1",
             },
             {
                 "id": "close-order-456",
                 "client_order_id": close_call.client_order_id,
                 "status": "filled",
+                "filled_qty": "1",
             },
             [],
         ]

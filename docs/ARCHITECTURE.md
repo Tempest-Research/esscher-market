@@ -81,11 +81,12 @@ Current modules:
 - `execution/models.py`: immutable opening and closing permits for one debit vertical;
 - `execution/host_mcp.py`: the host identity, startup capability/account preflight, sanitized observation, bounded runtime allowlist, and typed transport failures;
 - `execution/mcp.py`: the single Alpaca MCP request, readback, cancellation, atomic-close, and event-flat reconciliation boundary;
+- `execution/paper_demo.py`: exact approval, durable submit-once recovery, fill-economics classification, and sanitized terminal receipt bundle;
 - `cli.py`: labeled input parsing, deterministic report generation, and package-version output.
 
 The execution boundary is pinned to Alpaca MCP `2.3.0` at commit `872abbf28dab6cdde7d341fc13ac139b8002d1d9`. The package does not load credentials or instantiate an MCP server. A host must inject one normalized session and attest its PAPER environment from host-owned MCP configuration. The factory verifies the six required tools from the official surface, reads only sanitized account eligibility, then exposes only the adapter's five runtime tools. Its prepared-session object constructs the existing `McpPaperBroker`; no alternate production broker path is introduced. A timed-out mutation is typed as ambiguous so the adapter reads back its deterministic client-order ID instead of submitting again.
 
-The adapter and host boundary are contract-tested with injected fake sessions. The repository does not yet contain a sanitized real paper-account receipt, executable historical option prices, or evidence of alpha or profitability.
+The adapter, host boundary, and inert paper-demo runner are contract-tested with injected fake sessions and clocks. The runner cannot mutate without a current approval bound to the exact permit and capability observation. Its durable attempt markers force readback rather than resubmission after restart, and its receipt hashes raw broker order identities instead of exposing them. The repository does not yet contain a sanitized real paper-account receipt, executable historical option prices, or evidence of alpha or profitability.
 
 ## Product and machine-interface naming
 
