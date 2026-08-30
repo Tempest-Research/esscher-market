@@ -580,3 +580,34 @@ def test_close_only_transition_trigger() -> None:
         next_control_state(ControlState.ACTIVE, ControlTrigger.CLOSE_ONLY_EQUITY_THRESHOLD)
         is ControlState.CLOSE_ONLY
     )
+
+
+# ---------------------------------------------------------------------------
+# NOT_RUN and evidence-mode ledger truth
+# ---------------------------------------------------------------------------
+
+
+def test_not_run_is_recorded_and_queryable(tmp_path) -> None:
+    ledger = RiskLedger(tmp_path / "risk.sqlite3")
+    assert ledger.not_run_reason("KR-2026Q2-EARNINGS") is None
+    ledger.record_not_run(event_id="KR-2026Q2-EARNINGS", reason="NO_EXPRESSION", now=NOW)
+    assert ledger.not_run_reason("KR-2026Q2-EARNINGS") == "NO_EXPRESSION"
+    ledger.close()
+
+
+def test_evidence_mode_is_recorded_with_candidate(tmp_path) -> None:
+    ledger = RiskLedger(tmp_path / "risk.sqlite3")
+    ledger.record_candidate(
+        event_id="KR-2026Q2-EARNINGS",
+        candidate_id="EARNINGS_RESIDUAL_CONTINUATION_V1",
+        policy_sha256=_H,
+        decision_sha256=_H,
+        expression_sha256=_H,
+        evidence_mode="RECORDED_PAPER",
+        now=NOW,
+    )
+    row = ledger._conn.execute(
+        "SELECT evidence_mode FROM candidates WHERE event_id='KR-2026Q2-EARNINGS'"
+    ).fetchone()
+    assert row["evidence_mode"] == "RECORDED_PAPER"
+    ledger.close()
