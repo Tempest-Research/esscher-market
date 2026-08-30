@@ -17,6 +17,7 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 
+from ringdown_market.contracts.source_matrix import CONDITIONS
 from ringdown_market.sourcedata.compiler import (
     EARNINGS_CANDIDATE,
     MACRO_CANDIDATE,
@@ -43,6 +44,7 @@ from ringdown_market.sourcedata.receipts import (
     corporate_action_receipt_bytes,
     source_receipt_bytes,
 )
+from ringdown_market.sourcedata.rights_gate import evaluate_capture_rights
 
 HOST_AUTHORIZATION_VARIABLE = "ESSCHER_CAPTURE_AUTHORIZED"
 HOST_AUTHORIZATION_VALUE = "yes"
@@ -122,6 +124,20 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="request the live read-only boundary (not pinned in this slice)",
     )
+    parser.add_argument(
+        "--source-matrix",
+        type=Path,
+        default=None,
+        help="optional alternate source-matrix path (defaults to the packaged frozen matrix)",
+    )
+    parser.add_argument(
+        "--condition-satisfied",
+        dest="conditions_satisfied",
+        action="append",
+        default=[],
+        metavar="CONDITION",
+        help="declare one frozen source-matrix condition as satisfied for this capture",
+    )
     return parser
 
 
@@ -154,6 +170,43 @@ def main(argv: Sequence[str] | None = None) -> int:
             ),
             file=sys.stderr,
         )
+        return 2
+    matrix_bytes: bytes | None = None
+    if args.source_matrix is not None:
+        if not args.source_matrix.is_file():
+            print(
+                str(
+                    CollectorRejected(
+                        CollectorReason.SOURCE_MATRIX_MISSING,
+                        "source_matrix",
+                        f"source matrix path does not exist: {args.source_matrix}",
+                    )
+                ),
+                file=sys.stderr,
+            )
+            return 2
+        matrix_bytes = args.source_matrix.read_bytes()
+    satisfied: set[str] = set()
+    for condition in args.conditions_satisfied:
+        if condition not in CONDITIONS:
+            print(
+                str(
+                    CollectorRejected(
+                        CollectorReason.SOURCE_RIGHTS_LIMITATION_UNMET,
+                        "condition_satisfied",
+                        f"unknown source-matrix condition '{condition}'",
+                    )
+                ),
+                file=sys.stderr,
+            )
+            return 2
+        satisfied.add(condition)
+    try:
+        rights_report = evaluate_capture_rights(
+            matrix_bytes=matrix_bytes, satisfied_conditions=frozenset(satisfied)
+        )
+    except CollectorRejected as error:
+        print(str(error), file=sys.stderr)
         return 2
     fixture = load_fixture(args.fixture)
     candidate = MACRO_CANDIDATE if args.event_id.startswith("BLS-") else EARNINGS_CANDIDATE
@@ -201,6 +254,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "snapshot_sha256": joined.snapshot_sha256,
         "feature_receipt_sha256": joined.feature_receipt_sha256,
         "candidate_manifest_sha256": joined.candidate_manifest_sha256,
+        "source_matrix_sha256": rights_report.source_matrix_sha256,
     }
     output_dir.joinpath("strategy_snapshot.json").write_bytes(compiled.strategy_snapshot_bytes)
     output_dir.joinpath("feature_receipt.json").write_bytes(compiled.feature_receipt_bytes)

@@ -16,15 +16,18 @@ from ringdown_market.sourcedata.compiler import (
     derive_clocks,
 )
 from ringdown_market.sourcedata.reasons import CollectorReason, CollectorRejected
+from ringdown_market.sourcedata.rights_gate import CaptureRightsReport, evaluate_capture_rights
 
 __all__ = [
     "PRODUCER_BUILD_SHA256",
     "CaptureClocks",
     "CaptureConfiguration",
+    "CaptureRightsReport",
     "CollectorReason",
     "CollectorRejected",
     "CompiledSnapshot",
     "compile_strategy_snapshot",
     "compiled_strategy_input",
     "derive_clocks",
+    "evaluate_capture_rights",
 ]

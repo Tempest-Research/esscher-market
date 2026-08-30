@@ -50,6 +50,18 @@ class fails closed with `FEATURE_DEPENDENCY_MISSING`; an unregistered class
 fails with `UNPERMITTED_SOURCE_CLASS`; unverified entitlement fails with
 `SOURCE_RIGHTS_UNVERIFIED`.
 
+Before any capture, the capture command also runs the source-rights gate from
+issue #41 ([source matrix contract](contracts/source-matrix.md)): every
+required class must map to a non-blocked source in the frozen matrix
+(`esscher.source_matrix/v1`), and every condition on the chosen source must be
+declared satisfied by the host. A blocked class fails with
+`SOURCE_RIGHTS_BLOCKED`, an unmet condition with
+`SOURCE_RIGHTS_LIMITATION_UNMET`, a missing or drifted matrix with
+`SOURCE_MATRIX_MISSING` or `SOURCE_MATRIX_DRIFT`, and the capture identity
+binds the matrix digest. Consensus and news remain `BLOCKED` in the matrix
+without harming this slice: consensus features report `UNAVAILABLE` and no v1
+feature consumes news.
+
 Provenance fields stay separate: publisher time (`published_at`) and its
 precision, retrieval time (`retrieved_at`), content identity
 (`content_sha256`), entitlement, and redistribution status. SEC acceptance
