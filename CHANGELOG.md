@@ -4,6 +4,10 @@
 
 ### Added
 
+- A canonical accepted event-strategy V1 policy with deterministic bytes/hash, strict parsing,
+	separate earnings and macro cohorts, frozen features, baselines, partitions, and promotion gates.
+- Immutable candidate-manifest, strategy-snapshot, feature-receipt, reasoner-exchange, and
+	direction-only decision contracts with a labeled synthetic development bundle.
 - Four pre-outcome scheduled-earnings replay manifests bound to one frozen event list and selection rule.
 - A strict data-only evidence-manifest v2 validator with event-context provenance and point-in-time gates.
 - Versioned, strict frozen-research-decision, point-in-time evidence-manifest, and feature-input contracts.
@@ -17,6 +21,11 @@
 
 ### Safety
 
+- Candidate snapshots must match an exact retained manifest record; unknown sources, clock drift,
+  post-cutoff evidence, missing conditional features, and reasoner-supplied execution fields fail
+  closed before downstream trade construction.
+- Gate A remains `UNVERIFIED`, and the accepted strategy policy grants no expression, exit, risk,
+  permit, order, account, or broker authority.
 - Unknown fields/states, hash or provenance mismatch, post-cutoff dependencies, abstention, failed research gates, unsupported strategy shape, and excess paper risk fail closed before any broker session exists.
 - Evidence-manifest v2 remains ineligible for permit compilation and carries no post-cutoff path or outcome value.
 - Partial or contradictory package fills stop for reconciliation; missing fees remain explicit and raw broker/account identities never enter the receipt bundle.
