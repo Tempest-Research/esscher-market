@@ -29,6 +29,14 @@ Given a point-in-time event fixture and frozen latency profile, the harness prod
 
 Synthetic fixtures are contract tests only. They are never financial evidence.
 
+The accepted event-strategy research policy now freezes the systematic earnings-primary and
+macro-challenger candidates, complete-denominator universe rules, separate cohort clocks,
+permitted source classes, deterministic features and confirmation vetoes, reasoner schema,
+baselines, chronological partitions, and promotion thresholds. Exact canonical policy bytes and
+typed candidate-manifest, snapshot, feature, reasoner-exchange, and direction-only decision
+contracts live under `ringdown_market.strategy`. Gate A facts remain explicitly `UNVERIFIED`, so
+the policy grants no expression, risk, permit, order, or broker authority.
+
 Given exact frozen decision, point-in-time evidence-manifest, and feature-input bytes, the pure contract bridge:
 
 - rejects duplicate, missing, unknown, mutable, or unsupported schema values;
@@ -92,6 +100,7 @@ The page requires no server, JavaScript, network access, credential, or broker s
 - [Team onboarding](docs/TEAM_ONBOARDING.md) — required research and lane ownership.
 - [Source and claim policy](docs/SOURCE_AND_CLAIM_POLICY.md) — evidence metadata and permitted claims.
 - [Point-in-time evidence gate](docs/research/point-in-time-evidence-gate.md) — timing, provenance, residualization, denominator, and options-data contract.
+- [Accepted strategy contract](docs/STRATEGY_V1.md) — exact candidates, clocks, features, baselines, thresholds, authority, and unresolved gates.
 - [Research-to-permit contract](docs/contracts/research-to-permit.md) — exact schemas, identity mapping, rejection reasons, and frozen policy.
 - [PAPER demonstration runbook](docs/PAPER_DEMO_RUNBOOK.md) — read-only preflight, exact approval, bounded mutation envelope, recovery, and receipt interpretation.
 - [Scheduled-event runbook](docs/SCHEDULED_EVENT_RUNBOOK.md) — one-shot manifest, dry run, armed invocation, restart reconciliation, and stop conditions.

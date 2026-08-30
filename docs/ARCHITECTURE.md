@@ -76,6 +76,8 @@ Current modules:
 - `alpha/evaluation.py`: eligible-path-observation and fill-relative evaluation;
 - `alpha/baselines.py`: deterministic frozen comparators, including abstention;
 - `alpha/qfast.py`: small-sample rejection and latency gates;
+- `strategy/`: the canonical accepted research policy plus strict candidate-manifest, snapshot,
+  feature, reasoner-exchange, and direction-only decision contracts;
 - `contracts/execution_policy.py`: the immutable paper-risk and official MCP protocol registry;
 - `contracts/research_to_permit.py`: the pure frozen-decision, provenance, and feature-dependency bridge;
 - `execution/models.py`: immutable opening and closing permits for one debit vertical;
@@ -124,6 +126,13 @@ sanitized static public trace
 
 The real point-in-time event collection is frozen, and the static proof renderer now projects one v2 evidence manifest plus three separate scheduled lifecycle contract fixtures. No merged artifact causally joins that v2 event to a decision, permit, or terminal receipt, so the page renders those links as missing instead of splicing unrelated values. A future real causally joined public trace remains a separate reviewed artifact. The implemented bridge accepts only exact frozen artifacts that already passed the registered research gates; it does not create evidence, rescore a signal, or open an execution session. The implemented host boundary constructs only a preflighted PAPER session for the same official adapter. Missing or ambiguous information fails closed to rejection or reconciliation; it never selects another adapter.
 
+The strategy policy and its new contracts are implemented, but the real candidate collector,
+provider-backed reasoner call, expression compiler, and account reservation ledger are not. The
+new validated-decision contract ends at `UP`, `DOWN`, or `UNCERTAIN`. The older
+`ringdown.frozen_research_decision/v1` bridge still embeds a synthetic debit-vertical package and
+is retained only as inert compatibility infrastructure; it is not the production interface for the
+accepted strategy.
+
 ## Core evaluation
 
 For event `i`, Esscher evaluates:
@@ -152,12 +161,17 @@ The residual return removes frozen market and sector components measured over th
 14. Public artifacts are static, sanitized, and incapable of mutation.
 15. Each scheduled invocation handles one exact `event_run_id`; non-terminal restart reconciles deterministic broker identity, terminal repeats are no-ops, and a second active event is rejected.
 16. Local scheduled state is an atomic integrity-checked restart cursor; broker order and position readback remains authority, and ambiguous or partial truth stops for manual reconciliation.
+17. Every strategy snapshot binds exact candidate-manifest bytes, and its event, issuer, security,
+    ticker, cohort, eligibility, and freeze must match one retained manifest record.
+18. A validated strategy decision has direction-only authority; contract, quantity, price, risk,
+    account, permit, order, and exit fields are not part of its schema.
 
 Historical panel admission additionally requires per-feature source dependencies, typed publication timestamps, entitlement metadata, and a common outcome path. The aggregate `DecisionSnapshot` alone does not establish those dependencies; the bridge therefore also requires and validates the exact feature-input and evidence-manifest bytes before issuing a permit.
 
 ## Path ownership
 
 - `src/ringdown_market/alpha/`, evidence manifests, and replay fixtures: evidence lane.
+- `src/ringdown_market/strategy/`: strategy-contract lane.
 - `src/ringdown_market/contracts/`: shared frozen decision, policy, and protocol boundary.
 - `src/ringdown_market/execution/`: runtime/integration lane.
 - `web/` and public presentation assets: proof/submission lane.

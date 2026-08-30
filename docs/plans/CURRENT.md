@@ -83,7 +83,15 @@ The dependency gates are:
 
 ### 3.6 Parameters still requiring evidence
 
-The exact competition constants, source vendors and rights, observation and exit clocks, LLM provider/configuration, risk budgets, option DTE/delta/width rules, and evidence thresholds remain unresolved. Numerical values in issues or dated drafts are hypotheses until Gate A, unit tests, and frozen validation support them.
+Issue #26 freezes owner-selected research observation clocks, feature definitions, deterministic
+confirmation thresholds, sample floors, baselines, and chronological partitions in the accepted V1
+policy. These are preregistered hypotheses, not evidence of alpha, and may change only through a new
+policy identity and prospective reset.
+
+The exact competition constants, source vendors and rights, LLM provider/model identity, final
+trade-entry and exit clocks, risk budgets, and option DTE/delta/width rules remain unresolved.
+Gate A facts are recorded as `UNVERIFIED`; expression, exit, and risk remain `UNSELECTED`. No
+implementation may fill those values from a dated draft or legacy demo constant.
 
 ## 4. The LLM's task
 
@@ -123,13 +131,27 @@ Its output is a strict decision record:
 {
   "decision": "UP | DOWN | UNCERTAIN",
   "evidence_ids": ["source-id"],
-  "strongest_falsifier_evidence_id": "source-id | null",
+  "contradictions": [
+    {
+      "evidence_ids": ["source-id-a", "source-id-b"],
+      "summary": "bounded contradiction"
+    }
+  ],
   "unknowns": ["stable reason code"],
+  "strongest_falsifier": {
+    "evidence_id": "source-id",
+    "summary": "bounded falsifier"
+  },
   "summary": "bounded rationale"
 }
 ```
 
 The LLM chooses direction or abstention. It does not choose an arbitrary symbol, contract, strike, expiry, quantity, limit price, account, risk budget, or exit.
+
+The accepted policy derives stable hashes for the provider-neutral route, prompt contract, and
+output schema. Each exchange additionally binds the exact evidence packet, request/response bytes,
+provider/model identity, decoding configuration, and eight-second deadline. Issue #28 may integrate
+a provider, but it may not alter those policy-owned semantics in place.
 
 ## 5. What “the LLM makes a trade” means
 
