@@ -1,0 +1,48 @@
+{
+  "schema": "esscher.confirmation_panel_selection_rule",
+  "schema_version": 1,
+  "rule_id": "ESSCHER_CONFIRMATION_PANEL_V1",
+  "frozen_at": "2026-08-30T14:12:39Z",
+  "policy_version": "esscher-strategy-v1",
+  "decision_cutoff_policy": "OBSERVATION_WINDOW_END",
+  "criteria": {
+    "scheduled_bmo_or_amc_earnings_required": true,
+    "us_listed_optionable_common_equity_required": true,
+    "minimum_price_usd": "10.00",
+    "exact_publication_instant_required": true,
+    "source_retrieved_no_later_than_decision_cutoff": true,
+    "regular_us_equity_session_required": true,
+    "post_cutoff_source_paths_forbidden_at_freeze": true,
+    "outcome_values_forbidden_at_freeze": true,
+    "development_events_excluded": true,
+    "no_event_added_or_removed_by_realized_result": true
+  },
+  "excluded_development_event_ids": [
+    "KR-2026Q2-EARNINGS",
+    "GIS-2027Q1-EARNINGS",
+    "MU-2026Q4-EARNINGS",
+    "NKE-2027Q1-EARNINGS"
+  ],
+  "allowed_timing_buckets": [
+    "BEFORE_OPEN",
+    "AFTER_CLOSE"
+  ],
+  "panel_size": {
+    "minimum_eligible_events": 20,
+    "maximum_eligible_events": 30
+  },
+  "latency_profiles": {
+    "zero": 0,
+    "p95": 950
+  },
+  "required_latency_profile": "p95",
+  "abstention_rule": "UNCERTAIN remains in the eligible-event denominator with zero signed return",
+  "baseline_rule": "all frozen baselines run at equal risk on the same panel, timing, and residual convention",
+  "claim_boundary": [
+    "POINT_IN_TIME_EVENT_PANEL_CANDIDATE",
+    "NOT_ALPHA_EVIDENCE",
+    "NO_OUTCOME_VALUES",
+    "NO_BROKER_EXECUTION",
+    "INDICATIVE_DATA"
+  ]
+}
