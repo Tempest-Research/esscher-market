@@ -62,6 +62,15 @@ binds the matrix digest. Consensus and news remain `BLOCKED` in the matrix
 without harming this slice: consensus features report `UNAVAILABLE` and no v1
 feature consumes news.
 
+After the rights gate, the capture command runs the lineage gate from issue
+#42 ([security lineage contract](contracts/security-lineage.md)): the event
+chain must resolve as-of the cutoff against an active listing under the
+frozen lineage (`esscher.security_lineage/v1`), identity is CIK-rooted, and
+splits on optionable chains require OCC option adjustments. Missing chains,
+delisted listings, reused symbols, and conflicted records fail with
+`LINEAGE_MISSING`, `SYMBOL_REUSE_DETECTED`, or `LINEAGE_CONFLICT`, and the
+capture writes `lineage_receipts.jsonl` and binds the lineage digest.
+
 Provenance fields stay separate: publisher time (`published_at`) and its
 precision, retrieval time (`retrieved_at`), content identity
 (`content_sha256`), entitlement, and redistribution status. SEC acceptance

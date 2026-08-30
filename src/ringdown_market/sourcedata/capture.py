@@ -39,6 +39,10 @@ from ringdown_market.sourcedata.fakes import (
     load_macro_fixture,
 )
 from ringdown_market.sourcedata.feasibility import feasibility_manifest_bytes
+from ringdown_market.sourcedata.lineage_gate import (
+    evaluate_lineage,
+    lineage_receipt_bytes,
+)
 from ringdown_market.sourcedata.reasons import CollectorReason, CollectorRejected
 from ringdown_market.sourcedata.receipts import (
     corporate_action_receipt_bytes,
@@ -131,6 +135,12 @@ def _build_parser() -> argparse.ArgumentParser:
         help="optional alternate source-matrix path (defaults to the packaged frozen matrix)",
     )
     parser.add_argument(
+        "--lineage",
+        type=Path,
+        default=None,
+        help="optional alternate security-lineage path (defaults to the packaged frozen lineage)",
+    )
+    parser.add_argument(
         "--condition-satisfied",
         dest="conditions_satisfied",
         action="append",
@@ -208,6 +218,26 @@ def main(argv: Sequence[str] | None = None) -> int:
     except CollectorRejected as error:
         print(str(error), file=sys.stderr)
         return 2
+    lineage_bytes: bytes | None = None
+    if args.lineage is not None:
+        if not args.lineage.is_file():
+            print(
+                str(
+                    CollectorRejected(
+                        CollectorReason.LINEAGE_MISSING,
+                        "lineage",
+                        f"security lineage path does not exist: {args.lineage}",
+                    )
+                ),
+                file=sys.stderr,
+            )
+            return 2
+        lineage_bytes = args.lineage.read_bytes()
+    try:
+        lineage_report = evaluate_lineage(event_id=args.event_id, lineage_bytes=lineage_bytes)
+    except CollectorRejected as error:
+        print(str(error), file=sys.stderr)
+        return 2
     fixture = load_fixture(args.fixture)
     candidate = MACRO_CANDIDATE if args.event_id.startswith("BLS-") else EARNINGS_CANDIDATE
     if candidate == MACRO_CANDIDATE:
@@ -255,6 +285,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "feature_receipt_sha256": joined.feature_receipt_sha256,
         "candidate_manifest_sha256": joined.candidate_manifest_sha256,
         "source_matrix_sha256": rights_report.source_matrix_sha256,
+        "security_lineage_sha256": lineage_report.security_lineage_sha256,
     }
     output_dir.joinpath("strategy_snapshot.json").write_bytes(compiled.strategy_snapshot_bytes)
     output_dir.joinpath("feature_receipt.json").write_bytes(compiled.feature_receipt_bytes)
@@ -270,6 +301,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         corporate_action_receipt_bytes(receipt) + b"\n" for receipt in compiled.action_receipts
     )
     output_dir.joinpath("corporate_action_receipts.jsonl").write_bytes(action_receipts)
+    output_dir.joinpath("lineage_receipts.jsonl").write_bytes(
+        lineage_receipt_bytes(lineage_report.resolution) + b"\n"
+    )
     output_dir.joinpath("capture_identity.json").write_bytes(
         json.dumps(joined_identity, sort_keys=True, indent=1).encode("utf-8") + b"\n"
     )

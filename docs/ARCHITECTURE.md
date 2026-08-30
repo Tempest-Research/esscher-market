@@ -86,6 +86,10 @@ Current modules:
         pure fail-closed Gate A evaluator;
 - `contracts/source_matrix.py`: strict source-rights and point-in-time feasibility matrix deciding
         every required source category before collector implementation;
+- `contracts/security_lineage.py`: strict CIK-rooted point-in-time security master and
+        corporate-action lineage with fail-closed identity resolution;
+- `sourcedata/lineage_gate.py`: the capture-boundary gate failing closed on missing, delisted,
+        reused, or conflicted lineage;
 - `sourcedata/rights_gate.py`: the capture-boundary gate failing closed on blocked, drifted, or
         condition-unmet source classes;
 >>>>>>> e4e1b64 (data: decide source rights and point-in-time feasibility (#41))
@@ -177,7 +181,6 @@ The residual return removes frozen market and sector components measured over th
     account, permit, order, and exit fields are not part of its schema.
 17. Gate A organizer facts and account capabilities are separate hash-bound artifacts; unknown
         entry-relevant truth yields `ENTRY_DISABLED`, and committed receipts contain no raw account ID.
-<<<<<<< HEAD
 =======
 <<<<<<< HEAD
 19. Gate A organizer facts and account capabilities are separate hash-bound artifacts; unknown
@@ -185,7 +188,11 @@ The residual return removes frozen market and sector components measured over th
 20. Source rights ambiguity always yields `BLOCKED`; no paid plan is selected without a recorded
     human approval; a capture proceeds only when every required source class maps to a non-blocked
     matrix source whose conditions are declared satisfied.
+<<<<<<< HEAD
 >>>>>>> d0134c6
+21. Security identity is CIK-rooted and never ticker-rooted; a capture proceeds only when the
+    event chain resolves as-of the cutoff against an active listing, and missing, reused, or
+    conflicted lineage fails closed with a stable reason code.
 
 Historical panel admission additionally requires per-feature source dependencies, typed publication timestamps, entitlement metadata, and a common outcome path. The aggregate `DecisionSnapshot` alone does not establish those dependencies; the bridge therefore also requires and validates the exact feature-input and evidence-manifest bytes before issuing a permit.
 

@@ -108,10 +108,11 @@ The page requires no server, JavaScript, network access, credential, or broker s
 - [Accepted strategy contract](docs/STRATEGY_V1.md) — exact candidates, clocks, features, baselines, thresholds, authority, and unresolved gates.
 - [Gate A contract](docs/contracts/gate-a.md) — organizer facts, capability receipt, unresolved rules, and entry-disable semantics.
 =======
-<<<<<<< HEAD
 - [Gate A contract](docs/contracts/gate-a.md) — organizer facts, capability receipt, unresolved rules, and entry-disable semantics.
 - [Source matrix contract](docs/contracts/source-matrix.md) — source rights, point-in-time feasibility verdicts, golden bundles, and the capture rights gate.
+<<<<<<< HEAD
 >>>>>>> d0134c6
+- [Security lineage contract](docs/contracts/security-lineage.md) — CIK-rooted point-in-time identity, corporate-action lineage, option adjustments, and the capture lineage gate.
 - [Research-to-permit contract](docs/contracts/research-to-permit.md) — exact schemas, identity mapping, rejection reasons, and frozen policy.
 - [PAPER demonstration runbook](docs/PAPER_DEMO_RUNBOOK.md) — read-only preflight, exact approval, bounded mutation envelope, recovery, and receipt interpretation.
 - [Scheduled-event runbook](docs/SCHEDULED_EVENT_RUNBOOK.md) — one-shot manifest, dry run, armed invocation, restart reconciliation, and stop conditions.

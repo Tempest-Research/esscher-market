@@ -45,6 +45,12 @@
 - A fail-closed capture-boundary rights gate requiring every required earnings source class to map
 	to a non-blocked matrix source with all conditions declared satisfied before any snapshot.
 >>>>>>> d0134c6
+- A CIK-rooted point-in-time security master and corporate-action lineage contract covering issuer,
+	security, listing, and event identities, symbol changes, mergers, spinoffs, splits, dividends,
+	and OCC-anchored option adjustments, with four byte-pinned development-partition evidence
+	receipts and an OCC access-boundary receipt.
+- A fail-closed capture-boundary lineage gate rejecting missing, delisted, reused, or conflicted
+	lineage with stable reason codes and binding the lineage digest into the capture identity.
 - Four pre-outcome scheduled-earnings replay manifests bound to one frozen event list and selection rule.
 - A strict data-only evidence-manifest v2 validator with event-context provenance and point-in-time gates.
 - Versioned, strict frozen-research-decision, point-in-time evidence-manifest, and feature-input contracts.
@@ -86,7 +92,6 @@
 - Unknown or stale mark, cost, leverage, flattening, entitlement, endpoint, option-level,
   multi-leg, account-freshness, reset, balance, or MCP-tool truth yields `ENTRY_DISABLED`; no raw
   account identifier or credential is accepted.
-<<<<<<< HEAD
 =======
 <<<<<<< HEAD
 - Unknown or stale mark, cost, leverage, flattening, entitlement, endpoint, option-level,
@@ -96,7 +101,10 @@
   blocked; missing, drifted, or condition-unmet source matrices fail closed before any snapshot.
 - Licensed market-data probe bytes are never committed; Alpaca golden bundles retain only
   sanitized endpoint paths, statuses, byte counts, and SHA-256 receipts.
+<<<<<<< HEAD
 >>>>>>> d0134c6
+- Security identity is never ticker-rooted; reused symbols, delisted listings, conflicting
+  lineage, and splits without OCC option adjustments fail closed before any snapshot.
 - Unknown fields/states, hash or provenance mismatch, post-cutoff dependencies, abstention, failed research gates, unsupported strategy shape, and excess paper risk fail closed before any broker session exists.
 - Source-health audits return deterministic findings for malformed `redistribution_status` values and incomplete `published_at_interval` objects instead of raising.
 - Evidence-manifest v2 remains ineligible for permit compilation and carries no post-cutoff path or outcome value.

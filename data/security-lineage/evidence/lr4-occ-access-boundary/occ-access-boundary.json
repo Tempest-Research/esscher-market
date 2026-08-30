@@ -1,0 +1,20 @@
+[
+ {
+  "attempt_id": "OCC_INFOMEMO_ROOT",
+  "attempted_at": "2026-08-30T22:47:02+00:00",
+  "status": 403,
+  "url": "https://infomemo.theocc.com/"
+ },
+ {
+  "attempt_id": "OCC_INFOMEMO_SEARCH_PAGE",
+  "attempted_at": "2026-08-30T22:47:02+00:00",
+  "status": 403,
+  "url": "https://www.theocc.com/about/publications/infomemos-search.jsp"
+ },
+ {
+  "attempt_id": "OCC_INFOMEMO_API",
+  "attempted_at": "2026-08-30T22:47:02+00:00",
+  "status": 403,
+  "url": "https://infomemo.theocc.com/api/InfoMemos/GetInfoMemos"
+ }
+]
