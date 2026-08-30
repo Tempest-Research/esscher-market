@@ -1,6 +1,6 @@
 # Independent quant-firm synthesis
 
-**Status:** research synthesis and proposed decision; not implementation authority until promoted into [`../CURRENT.md`](../CURRENT.md)
+**Status:** accepted research synthesis; its promotion decisions were incorporated into [`../CURRENT.md`](../CURRENT.md) after Ben's explicit approval on 30 August 2026
 **Date:** 30 August 2026
 **Execution boundary:** Alpaca PAPER only
 **Repository basis before this synthesis:** `468d11f423ab710632595a586312e121f00430e9`
@@ -173,9 +173,9 @@ For the winning directional policy, compare shares, one long option, and a defin
 
 Only after policy and package gates pass may the frozen strategy create a one-use PAPER permit. Completion requires a strategy-generated candidate through decision, risk reservation, Alpaca PAPER order, broker readback, monitored exit, both legs/positions confirmed flat, and an attributable Passport. A manual smoke order proves infrastructure only.
 
-## 9. Promotion proposal
+## 9. Promotion record
 
-Promote the following into `CURRENT.md` after Ben accepts the strategy decision:
+Ben accepted the strategy recommendation on 30 August 2026. The following were promoted into `CURRENT.md`:
 
 1. no discretionary hand-picking;
 2. earnings residual continuation as primary research candidate;

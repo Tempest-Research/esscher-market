@@ -38,21 +38,52 @@ The following boundaries survive all current plan variants:
 - Production cannot train, retune, rewrite prompts, change thresholds, or promote its own research policy.
 - Demo and submission surfaces are proof outputs. They are not substitutes for a strategy or a working PAPER lifecycle.
 
-## 3. What remains under active research
+## 3. Accepted strategy decision
 
-The firm-simulation reports and Ben's external research are being used to settle these decisions before policy constants are treated as final:
+Ben accepted the recommendation in [`reviews/2026-08-30-independent-quant-firm-synthesis.md`](reviews/2026-08-30-independent-quant-firm-synthesis.md) on 30 August 2026. The following decisions now govern implementation.
 
-- the hackathon's actual scoring function, capital, horizon, mark source, costs, allowed assets, leverage, and intervention rules;
-- whether the core should be scheduled-earnings residual direction, a broader event-reaction strategy, or another evidence-supported family;
-- systematic universe selection, an ex-ante discretionary shortlist, or a hybrid;
-- equities, options, or a gated combination as the trade expression;
-- concentration required to maximize terminal PnL versus diversification required to maximize the probability of a strong finish;
-- exact observation, entry, holding, exit, and flattening rules;
-- exact historical data vendors and permissible retention/redistribution;
-- the hosted LLM provider and operating parameters; and
-- the evidence threshold required before strategy-generated PAPER mutation.
+### 3.1 Primary strategy and challenger
 
-Until those questions are reconciled, existing numerical constants in issues or dated drafts are hypotheses and safety candidates—not proven optima.
+- The primary research candidate is **systematic post-earnings residual continuation in liquid U.S. common stocks**. BMO and AMC events remain distinct cohorts with separate observation clocks, targets, and reporting.
+- Discretionary ticker insertion is prohibited. Eligibility, rejection, ranking, and abstention come from a frozen point-in-time universe and deterministic policy. A human may veto corrupt data or invoke a kill switch, but may not insert a preferred ticker after observing an outcome.
+- **Scheduled macro-release SPY continuation** remains a named challenger and operational proving lane, not approved alpha. It may replace earnings only if the earnings data contract is infeasible, a preregistered after-cost underlying study is positive, the LLM beats price-only and deterministic-parser baselines, and the result survives chronological holdout or prospective evidence.
+
+### 3.2 Direction before expression
+
+- Validate the directional policy on the underlying with shares before attributing value to an option structure.
+- Compare cash/no trade, shares, one long option, and a defined-risk debit vertical on the same eligible events, decision timestamps, exit clock, and frozen operational-loss budget.
+- Promote an option expression only if legitimate quote data, current package geometry, liquidity, lifecycle controls, and after-cost evidence justify the extra model. A competition-required option fill proves eligibility and operation, not superior expectancy.
+
+### 3.3 LLM authority
+
+The LLM emits `UP`, `DOWN`, or `UNCERTAIN` from one immutable evidence packet. A deterministic market-confirmation rule may veto or reject `UP` or `DOWN`; it may not convert `UNCERTAIN` into a trade. Deterministic code retains universe, timestamp, arithmetic, data-health, expression, quantity, risk, permit, lifecycle, exit, and reconciliation authority.
+
+### 3.4 System-wide evidence controls
+
+Every strategy lane must use:
+
+- a hash-linked **Trade Passport** covering candidates, abstentions, rejections, decisions, reservations, orders, fills, closes, and reconciliation;
+- explicit evidence modes—live paper, recorded paper, historical replay, and synthetic mock—with separate data-quality labels;
+- broker PAPER PnL and conservative quote-side shadow PnL as separate truth surfaces;
+- an exposure-aware order reducer that preserves unknown, partial-fill, incident, and non-flat states;
+- risk reservation before submission and release only after fill/cancel reconciliation;
+- broker truth at startup, after disconnect, after every fill, and before declaring flat;
+- an explicit `NOT RUN` ledger; and
+- a deterministic Passport verifier over an append-only evidence chain.
+
+### 3.5 Proof path
+
+The dependency gates are:
+
+1. **Gate A — competition and account contract:** verify scoring, horizon, costs, permitted instruments, drawdown rules, data entitlement, PAPER-only account state, and required broker capabilities.
+2. **Gate B — data feasibility:** prove legitimate point-in-time manifests for earnings and macro candidates before comparing them.
+3. **Gate C — underlying signal tournament:** compare cash, price-only, deterministic-parser, LLM, and placebo controls under frozen clocks, costs, and chronological partitions.
+4. **Gate D — expression comparison:** compare shares, one long option, and a debit vertical for the winning direction under the same events and operational budget.
+5. **Gate E — autonomous PAPER lifecycle:** after every prior gate and explicit approval, produce one strategy-generated open-to-flat Alpaca PAPER Passport with broker-confirmed flatness.
+
+### 3.6 Parameters still requiring evidence
+
+The exact competition constants, source vendors and rights, observation and exit clocks, LLM provider/configuration, risk budgets, option DTE/delta/width rules, and evidence thresholds remain unresolved. Numerical values in issues or dated drafts are hypotheses until Gate A, unit tests, and frozen validation support them.
 
 ## 4. The LLM's task
 
@@ -216,27 +247,21 @@ Raw licensed payloads must not be committed when rights prohibit redistribution.
 
 ### 8.1 Universe selection
 
-The current default is systematic ex-ante selection because it gives an honest denominator and prevents selecting winners after observing returns. It does not guarantee alpha.
+Systematic ex-ante selection is mandatory. It provides the honest denominator needed to measure eligibility, abstention, data failure, package failure, and strategy performance; it does not guarantee alpha.
 
-A hand-picked or hybrid universe remains legitimate only when:
+- Freeze the eligible universe and all exclusion reasons before outcomes.
+- Apply the same eligibility and ranking rule in historical, untouched, prospective, and PAPER evaluation.
+- Preserve every considered, excluded, rejected, and abstained candidate.
+- Permit human intervention only to reject corrupt evidence, enter close-only recovery, or invoke a kill switch—not to add a preferred symbol after observing an outcome.
+- Report complete-denominator results rather than showcased winners.
 
-- the shortlist is frozen before the relevant event or outcome;
-- the selection rationale uses information available at freeze time;
-- every considered and excluded candidate remains recorded;
-- the same rule is applied in historical, prospective, and PAPER evaluation; and
-- reported PnL includes the complete selected denominator rather than showcased winners.
+### 8.2 Direction before trade expression
 
-The research comparison must measure systematic, discretionary-ex-ante, and hybrid methods under the same capital, latency, cost, and marking rules.
-
-### 8.2 Equities versus options
-
-This remains an empirical decision:
-
-- Equities offer simpler data, tighter execution truth, easier historical validation, and lower variance.
-- Long options or defined-risk spreads offer convexity and greater possible terminal PnL, but add IV, skew, spread, quote, multiplier, expiry, assignment, and fill-model risk.
-- Historical underlying direction cannot be reported as historical option PnL.
-- Options become the core only if legitimate quote data and prospective/PAPER results justify the additional complexity.
-- If a hybrid wins, the underlying decision remains common while deterministic code selects the permitted expression under the frozen policy.
+- Shares are the first validation surface because they isolate directional quality from volatility, strike, expiry, spread, assignment, and fill-model effects.
+- Cash/no trade, shares, one long option, and a defined-risk debit vertical are compared only after the underlying policy is frozen.
+- Historical underlying direction is never reported as historical option PnL.
+- An option expression is promoted only when legitimate quote data and after-cost historical/prospective evidence justify the additional model.
+- Production uses one approved frozen expression policy; deterministic code selects the permitted instrument/package or emits `NO_PACKAGE`.
 
 ## 9. Quantitative validation
 
@@ -288,21 +313,20 @@ A high paper-fill PnL that disappears under conservative marks is labelled paper
 
 This is dependency order for the complete architecture, not a sequence of reduced products.
 
-1. Capture the competition contract and unresolved rules.
-2. Run source, entitlement, timestamp, feed, and marking feasibility checks.
-3. Freeze the strategy hypothesis, universe method, information cutoff, target, baselines, partitions, amendment rule, and claim boundary.
-4. Define direction-only evidence, feature, reasoner, decision, package, risk, permit, lifecycle, reconciliation, evaluation, and release contracts.
-5. Build the security master, calendar, issuer/SEC/news, fundamental, market/sector, and option-data pipelines.
-6. Build deterministic features and baselines.
-7. Build the provider-neutral research/decision LLM adapter and strict validator.
-8. Build the survivorship-safe historical panel, walk-forward evaluation, untouched manifest, and prospective signal ledger.
-9. Reconcile the strategy choice using all independent reports and measured feasibility.
-10. Build deterministic instrument/package selection for the approved expression.
-11. Build account risk, durable reservations, idempotent permits, and entry/close controls.
-12. Build the monitored order/position lifecycle and reconciliation worker.
-13. Prove an offline causal slice from source bytes to a final-flat fake-broker receipt.
-14. Run a full-stack prospective shadow ledger.
-15. After explicit approval and every gate, record one strategy-generated Alpaca PAPER open-to-flat lifecycle.
+1. Complete Gate A and freeze the competition/account contract without inventing inaccessible rules.
+2. Complete Gate B for both earnings and macro candidates; block any lane without a legitimate point-in-time data manifest.
+3. Freeze each candidate's universe, information cutoff, target, clocks, baselines, chronological partitions, amendment rule, and claim boundary.
+4. Define evidence, feature, reasoner, decision, expression, risk, permit, lifecycle, Passport, reconciliation, evaluation, and release contracts.
+5. Build the security master, earnings calendar, issuer/SEC/news, macro-release, fundamental, market/sector, and option-observation pipelines required by those manifests.
+6. Build deterministic features, price-only and parser baselines, placebo controls, the provider-neutral LLM adapter, and strict validator.
+7. Complete Gate C using survivorship-safe historical panels, untouched manifests, and prospective signal ledgers; promote one frozen directional policy or report no winner.
+8. Complete Gate D for the winning policy; promote one expression only if its executable after-cost evidence supports it.
+9. Build deterministic selection for the promoted expression, including explicit `NO_PACKAGE` outcomes.
+10. Build account risk, durable reservations, idempotent permits, entry/close controls, and the append-only Trade Passport.
+11. Build the monitored order/position lifecycle, exposure-aware reducer, and reconciliation worker using the promoted policy's frozen exit clock.
+12. Prove an offline causal slice from source bytes to a final-flat fake-broker Passport.
+13. Run the full-stack prospective shadow ledger with explicit evidence modes, `NOT RUN`, broker/shadow PnL separation, and complete-denominator reporting.
+14. Complete Gate E only after explicit approval: record one strategy-generated Alpaca PAPER open-to-flat lifecycle and broker-confirmed flatness.
 
 Parallelism is allowed only across independent ownership boundaries. Shared contracts and hotspot files have one owner.
 
@@ -313,15 +337,15 @@ The live issues currently map approximately as follows:
 - #26 — strategy policy;
 - #27 — point-in-time data collector;
 - #28 — generated direction decision;
-- #29 — deterministic option package;
+- #29 — expression comparison and deterministic compiler;
 - #30 — account risk and durable reservations;
-- #31 — monitored lifecycle and close;
+- #31 — monitored lifecycle and frozen-policy close;
 - #3 — historical confirmation panel;
 - #32 — prospective shadow ledger;
 - #9 — final approved PAPER lifecycle;
 - #33 — integrated tracker.
 
-Their bodies preserve an earlier fixed scheduled-earnings/debit-vertical design and use “v1” terminology. They remain the live execution tracker, but any policy constant that conflicts with this current plan or the pending research reconciliation must be resolved explicitly rather than guessed. The dated issue-plan snapshot in `archive/` exists so changes can be reviewed rather than silently overwritten.
+Issues #26–#33 were reconciled with this accepted decision on 30 August 2026. The older issue-plan copy in `archive/` remains unchanged as the historical snapshot. Linked legacy gates such as #3 and #9 must consume the promoted policy and may not revive a hard-coded instrument, hold time, or illustrative risk constant that conflicts with this plan.
 
 ## 13. Acceptance proof
 
@@ -331,13 +355,14 @@ Esscher is not complete until one independently readable trace exists:
 permitted source bytes
   -> frozen point-in-time snapshot
   -> deterministic features and baselines
-  -> LLM-generated UP/DOWN decision
-  -> deterministic package and risk approval
+  -> LLM-generated UP/DOWN decision (UNCERTAIN ends as NO_TRADE)
+  -> deterministic promoted expression and risk approval
   -> one-use PAPER permit
   -> broker order and fill observations
   -> monitored position and deterministic exit
   -> final-flat broker reconciliation
-  -> attributable PAPER PnL or explicit PnL unavailable
+  -> attributable Trade Passport
+  -> PAPER PnL and quote-side shadow PnL, or explicit PnL unavailable
 ```
 
 The trace must prove:
