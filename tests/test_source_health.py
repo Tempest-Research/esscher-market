@@ -361,6 +361,47 @@ def test_publication_precision_conflicts(
     assert (SourceHealthCode.PUBLICATION_PRECISION_CONFLICT.value, pointer) in codes
 
 
+@pytest.mark.parametrize(
+    ("interval", "expected_pointers"),
+    [
+        ({}, ("/records/1/published_at_interval/start", "/records/1/published_at_interval/end")),
+        ({"start": "2026-01-01T00:00:00Z"}, ("/records/1/published_at_interval/end",)),
+        ({"end": "2026-01-01T00:00:00Z"}, ("/records/1/published_at_interval/start",)),
+    ],
+)
+def test_empty_or_partial_publication_interval_is_reported(
+    interval: dict[str, str], expected_pointers: tuple[str, ...]
+) -> None:
+    def mutate(payload: dict[str, object]) -> None:
+        payload["records"][1].update({"published_at": None, "published_at_interval": interval})
+
+    raw = _mutated(mutate)
+    report = check_manifest(raw)
+    assert report.status is SourceHealthStatus.FINDINGS
+    assert canonical_report_bytes(check_manifest(raw)) == canonical_report_bytes(report)
+    codes = _codes(report)
+
+    for pointer in expected_pointers:
+        assert (SourceHealthCode.FIELD_MISSING.value, pointer) in codes
+
+
+def test_malformed_publication_interval_members_are_reported() -> None:
+    def mutate(payload: dict[str, object]) -> None:
+        payload["records"][1].update(
+            {"published_at": None, "published_at_interval": {"start": [], "end": {}}}
+        )
+
+    codes = _codes(check_manifest(_mutated(mutate)))
+    assert (
+        SourceHealthCode.FIELD_MALFORMED.value,
+        "/records/1/published_at_interval~1start",
+    ) in codes
+    assert (
+        SourceHealthCode.FIELD_MALFORMED.value,
+        "/records/1/published_at_interval~1end",
+    ) in codes
+
+
 def test_unresolved_field_status_is_reported() -> None:
     def mutate(payload: dict[str, object]) -> None:
         payload["records"][0]["field_status"] = "CONFLICTING"
@@ -505,6 +546,32 @@ def test_revision_identity_missing(mutate: Callable[[dict[str, object]], None]) 
 def test_classification_missing(mutate: Callable[[dict[str, object]], None]) -> None:
     codes = _codes(check_manifest(_mutated(mutate)))
     assert any(code == SourceHealthCode.CLASSIFICATION_MISSING.value for code, _ in codes)
+
+
+@pytest.mark.parametrize(
+    ("mutate", "pointer"),
+    [
+        (lambda p: p.update({"redistribution_status": []}), "/redistribution_status"),
+        (lambda p: p.update({"redistribution_status": {}}), "/redistribution_status"),
+        (
+            lambda p: p["records"][0].update({"redistribution_status": []}),
+            "/records/0/redistribution_status",
+        ),
+        (
+            lambda p: p["records"][0].update({"redistribution_status": {}}),
+            "/records/0/redistribution_status",
+        ),
+    ],
+)
+def test_non_text_redistribution_status_is_malformed(
+    mutate: Callable[[dict[str, object]], None], pointer: str
+) -> None:
+    raw = _mutated(mutate)
+    report = check_manifest(raw)
+    assert report.status is SourceHealthStatus.FINDINGS
+    assert canonical_report_bytes(check_manifest(raw)) == canonical_report_bytes(report)
+    codes = _codes(report)
+    assert (SourceHealthCode.FIELD_MALFORMED.value, pointer) in codes
 
 
 def test_empty_limitations_list_is_malformed() -> None:

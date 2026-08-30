@@ -647,7 +647,7 @@ def _interval_upper_bound(
         fields=_PUBLICATION_INTERVAL_FIELDS,
         collector=collector,
     )
-    if window is None:
+    if window is None or "start" not in window or "end" not in window:
         return None
     start = _timestamp_field(
         window["start"],
@@ -785,12 +785,19 @@ def _record_findings(
         )
 
     redistribution = record.get("redistribution_status")
-    if "redistribution_status" in record and redistribution not in _REDISTRIBUTION_VOCABULARY:
-        collector.error(
-            SourceHealthCode.CLASSIFICATION_MISSING,
-            _join(pointer, "redistribution_status"),
-            "redistribution status is not one of the registered states",
-        )
+    if "redistribution_status" in record:
+        if not isinstance(redistribution, str):
+            collector.error(
+                SourceHealthCode.FIELD_MALFORMED,
+                _join(pointer, "redistribution_status"),
+                "redistribution status must be text",
+            )
+        elif redistribution not in _REDISTRIBUTION_VOCABULARY:
+            collector.error(
+                SourceHealthCode.CLASSIFICATION_MISSING,
+                _join(pointer, "redistribution_status"),
+                "redistribution status is not one of the registered states",
+            )
 
     if "limitations" in record:
         _string_list(
@@ -1176,7 +1183,13 @@ def _classification_findings(manifest: Mapping[str, object], *, collector: _Coll
         )
     if "redistribution_status" in manifest:
         status = manifest["redistribution_status"]
-        if status not in _REDISTRIBUTION_VOCABULARY:
+        if not isinstance(status, str):
+            collector.error(
+                SourceHealthCode.FIELD_MALFORMED,
+                "/redistribution_status",
+                "redistribution status must be text",
+            )
+        elif status not in _REDISTRIBUTION_VOCABULARY:
             collector.error(
                 SourceHealthCode.CLASSIFICATION_MISSING,
                 "/redistribution_status",
