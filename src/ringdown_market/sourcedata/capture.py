@@ -185,7 +185,16 @@ def main(argv: Sequence[str] | None = None) -> int:
             file=sys.stderr,
         )
         return 2
-    if args.output_dir.joinpath("capture.json").is_symlink():
+    output_names = (
+        "strategy_snapshot.json",
+        "feature_receipt.json",
+        "candidate_manifest.json",
+        "data_feasibility_manifest.json",
+        "source_receipts.jsonl",
+        "corporate_action_receipts.jsonl",
+        "capture_identity.json",
+    )
+    if any(output_dir.joinpath(name).is_symlink() for name in output_names):
         print(
             str(
                 CollectorRejected(

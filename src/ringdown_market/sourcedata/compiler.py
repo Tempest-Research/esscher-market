@@ -801,7 +801,7 @@ def compile_strategy_snapshot(
         strategy_snapshot_sha256=sha256_bytes(snapshot_bytes),
         producer_build_sha256=PRODUCER_BUILD_SHA256,
         created_at=configuration.capture_at,
-        feature_snapshot_at=clocks.observation_window_end_at,
+        feature_snapshot_at=configuration.capture_at,
         features=features,
     )
     receipt_bytes = feature_receipt_bytes(receipt)
@@ -1329,7 +1329,7 @@ def compile_macro_snapshot(
         strategy_snapshot_sha256=sha256_bytes(snapshot_bytes),
         producer_build_sha256=PRODUCER_BUILD_SHA256,
         created_at=configuration.capture_at,
-        feature_snapshot_at=clocks.observation_window_end_at,
+        feature_snapshot_at=configuration.capture_at,
         features=features,
     )
     receipt_bytes = feature_receipt_bytes(receipt)
