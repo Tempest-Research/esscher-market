@@ -23,10 +23,12 @@ Official event pages:
 ## Required reading for everyone
 
 1. [README](../README.md): what exists today and what does not.
-2. [Architecture](ARCHITECTURE.md): system boundaries and data flow.
-3. [Source and claim policy](SOURCE_AND_CLAIM_POLICY.md): what counts as evidence.
-4. [Contributing](../CONTRIBUTING.md): branch, test, review, and safety rules.
-5. The relevant source files and tests for the lane being changed.
+2. [Current plan](plans/CURRENT.md): the integrated end-state architecture, open strategy decisions, and implementation authority.
+3. [Plan archive](plans/README.md): dated drafts, independent research, architecture reviews, provenance, and status labels.
+4. [Architecture](ARCHITECTURE.md): implemented system boundaries and data flow.
+5. [Source and claim policy](SOURCE_AND_CLAIM_POLICY.md): what counts as evidence.
+6. [Contributing](../CONTRIBUTING.md): branch, test, review, and safety rules.
+7. The relevant source files and tests for the lane being changed.
 
 Before a first PR, each contributor must be able to explain:
 
