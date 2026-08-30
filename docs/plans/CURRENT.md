@@ -2,7 +2,7 @@
 
 **Status:** current team plan and decision boundary
 **Updated:** 2026-08-30
-**Repository basis:** `Tempest-Research/esscher-market` at `7fca3946f0730e96b6754c463d3aff22b52ccd06`
+**Repository basis:** `Tempest-Research/esscher-market` at `8e4b335e963511d9d333b6a4a4569c86aabe1125`
 **Execution boundary:** Alpaca PAPER only
 
 Read this file before the dated drafts, research memos, reviews, or issue-plan snapshot in this directory. Those documents preserve useful alternatives and evidence, but they do not independently authorize implementation choices.
@@ -50,8 +50,8 @@ Ben accepted the recommendation in [`reviews/2026-08-30-independent-quant-firm-s
 
 ### 3.2 Direction before expression
 
-- Validate the directional policy on the underlying with shares before attributing value to an option structure.
-- Compare cash/no trade, shares, one long option, and a defined-risk debit vertical on the same eligible events, decision timestamps, exit clock, and frozen operational-loss budget.
+- Validate the directional policy first on signed underlying returns before attributing value to an option structure. This research control measures the economic direction; it does not authorize an executable uncovered short-share position.
+- Compare cash/no trade, a bounded eligible share expression, one long option, and a defined-risk debit vertical on the same eligible events, decision timestamps, exit clock, and frozen operational-loss budget. If no bounded share expression exists for a direction, retain the signed underlying series as a research baseline and emit `NO_PACKAGE` for share execution.
 - Promote an option expression only if legitimate quote data, current package geometry, liquidity, lifecycle controls, and after-cost evidence justify the extra model. A competition-required option fill proves eligibility and operation, not superior expectancy.
 
 ### 3.3 LLM authority
@@ -83,7 +83,7 @@ The dependency gates are:
 
 ### 3.6 Parameters still requiring evidence
 
-The exact competition constants, source vendors and rights, observation and exit clocks, LLM provider/configuration, risk budgets, option DTE/delta/width rules, and evidence thresholds remain unresolved. Numerical values in issues or dated drafts are hypotheses until Gate A, unit tests, and frozen validation support them.
+The exact competition constants, source vendors and rights, promoted observation and exit clocks, LLM provider/configuration, activated risk budgets, option DTE/delta/width rules, and evidence thresholds remain unresolved. Numerical values in issues, dated drafts, or section 9.3 are hypotheses or non-enabling upper-ceiling candidates until Gate A, the owning contract, unit tests, and frozen validation support an approved policy receipt. Missing, contradictory, or less permissive organizer/account facts override those candidates and keep entries disabled.
 
 ## 4. The LLM's task
 
@@ -292,9 +292,12 @@ Report coverage, abstention, rejection, data failures, package failures, costs, 
 
 The current research inputs describe materially different strategies: an intraday reaction lane and a multi-day post-earnings continuation lane. They may share evidence contracts, but they do not share one target, execution budget, or risk model. Gate C must preregister and compare them rather than silently blend them.
 
-- BMO and AMC remain separate cohorts.
-- Entry-clock candidates are the first regular-session auction, 09:35, 09:45, 10:00, and the regular-session close.
-- Exit-clock candidates are same-day close, D+1 close, D+5, D+10, and D+20.
+- BMO and AMC remain separate cohorts with independent manifests, partitions, ledgers, metrics, and promotion decisions. Results are never pooled to rescue a failing cohort.
+- `S0` is defined from the primary listing's pinned exchange calendar. An immutable pre-outcome calendar record assigns the cohort, and its label must agree with `max_public_at`: BMO is after 00:00 exchange-local on the `S0` date and before the `S0` opening auction; AMC is after the regular close of `S-1` and before 00:00 exchange-local on the `S0` date, with `S0` the next regular session. A missing or contradictory label, a timestamp outside those mutually exclusive windows, holiday ambiguity, or evidence not finalized before a candidate entry produces `MISSED_CLOCK` or exclusion under the frozen amendment rule; it never silently relabels or rolls cohorts.
+- `S+k` means the kth subsequent full regular session after `S0`, not a calendar day. Every timestamp and daylight-saving conversion uses the pinned exchange calendar and timezone rules.
+- The intraday reaction lane permits only `S0` auction, 09:35, 09:45, or 10:00 entries paired with the `S0` regular-session close. The `S0` close cannot pair with itself.
+- The multi-day continuation lane permits only an `S0` regular-session-close entry paired with the `S+1`, `S+5`, `S+10`, or `S+20` regular-session close.
+- Gate C preregisters the allowed matrix above separately for BMO and AMC and rejects all other entry/exit cross-products. Each candidate uses only evidence public and finalized before its entry clock.
 - The trial budget, selection metric, chronological partitions, transaction-cost model, and untouched confirmation set are frozen before outcome inspection.
 - Promote one target/clock policy only when it is stable across neighbouring clocks and survives after-cost chronological evaluation. Otherwise report no winner.
 - If the edge requires sub-second reaction to public news, reject that lane. A hosted LLM and Alpaca PAPER are not a high-frequency execution stack.
@@ -318,32 +321,32 @@ Each release binds the strategy, data, feature, prompt/model, expression, risk, 
 
 ### 9.3 PAPER commissioning risk envelope
 
-Until a larger evidence-backed policy is approved, autonomous PAPER commissioning uses these ceilings:
+Gate A and #30 own activation of every risk value. Until verified competition/account facts and an approved risk-policy receipt exist, the only valid runtime state is `ENTRY_DISABLED`; missing values are not interpreted as zero or as permission. The following values are provisional upper-ceiling candidates for design, simulation, and tests. They cannot enable entry. An activated value is always the minimum of the approved Gate A/risk-policy value, the applicable verified organizer/account limit, and the candidate ceiling below:
 
-- maximum approved loss per event is `0.25%` of reconciled net liquidation value;
-- maximum aggregate open worst-case loss is `1.00%`;
-- maximum one-sector or correlated event-bucket risk is `0.50%`;
-- pending entry orders reserve their full potential loss before submission;
-- one event position may be open during broker commissioning; after lifecycle/fault tests pass, the maximum is four within the aggregate cap;
+- event loss ceiling candidate: at most `0.25%` of reconciled net liquidation value;
+- aggregate open bounded-loss ceiling candidate: at most `1.00%`;
+- one-sector or correlated event-bucket ceiling candidate: at most `0.50%`;
+- pending entry orders reserve their full bounded potential loss before submission;
+- concurrent-position ceiling candidate: one during broker commissioning, and at most four only after lifecycle/fault tests pass and a later approved receipt activates that value within the aggregate cap;
 - no leverage, averaging down, discretionary size increase, or risk-limit change during an active release;
-- a `1.00%` session loss disables new entries and cancels pending entries after reconciliation;
-- a `3.00%` high-water drawdown freezes the strategy once positions and orders are reconciled;
+- session-loss lockout candidate: at most `1.00%`, after which new entries are disabled and pending entries are cancelled after reconciliation;
+- high-water drawdown freeze candidate: at most `3.00%`, activated only after positions and orders are reconciled; and
 - an operational discrepancy enters `ENTRY_DISABLED`/`CLOSE_ONLY` independently of strategy PnL.
 
-Sizing uses worst-case loss rather than cash outlay alone:
+Sizing requires an activated bounded-loss value rather than cash outlay or a stress scenario alone:
 
 ```text
 R_event = min(
-  0.25% * reconciled_NLV,
-  remaining_portfolio_risk,
-  remaining_sector_risk,
+  activated_event_loss_budget,
+  remaining_activated_portfolio_budget,
+  remaining_activated_bucket_budget,
   liquidity_capacity,
 )
 
 quantity = floor(R_event / worst_case_loss_per_unit)
 ```
 
-For a long option or ordinary long debit vertical, worst-case package loss is the executable debit times the contract multiplier and quantity, plus modelled fees and operational reserves. For shares, quantity uses the maximum of the validated exit distance, adverse event-move stress, and overnight-gap stress, with separate notional and liquidity caps. If one indivisible package exceeds the budget, emit `NO_PACKAGE`; never enlarge the budget to force a trade. Kelly sizing is prohibited until a sufficiently large untouched/prospective sample supports a conservative estimate and a separately approved cap.
+For a long option or ordinary long debit vertical, worst-case package loss is the executable debit times the contract multiplier and quantity, plus modelled fees and operational reserves. A long-share PAPER expression treats the full executable purchase notional plus fees as the bounded maximum loss; adverse event-move and overnight-gap stresses remain additional reporting and concentration controls, not substitutes for that bound. Historical direction testing may score `DOWN` as the negative underlying return, but that signed research series grants no short-sale authority. Uncovered short shares are prohibited during commissioning because their loss is unbounded; a `DOWN` decision therefore emits `NO_PACKAGE` unless Gate D has promoted a separately validated bounded-loss long put or debit put spread and all capability gates pass. If one indivisible package exceeds the activated budget, emit `NO_PACKAGE`; never enlarge the budget to force a trade. Kelly sizing is prohibited until a sufficiently large untouched/prospective sample supports a conservative estimate and a separately approved cap.
 
 ### 9.4 Exit, stop, and emergency policy
 
@@ -364,22 +367,29 @@ Current Alpaca US documentation states that single-leg options support `market`,
 - do not use native single-option stops until the pinned adapter and PAPER contract tests prove exact behaviour;
 - manage debit-vertical exits deterministically from fresh two-sided leg quotes;
 - compute conservative closing value from executable quote sides, not midpoint;
-- close verticals as atomic multi-leg packages with bounded repricing;
+- close verticals as atomic multi-leg packages with bounded repricing only if the pinned adapter capability receipt and PAPER lifecycle tests prove the required submit, cancel, partial-fill, readback, and reconciliation semantics; otherwise the expression is ineligible and produces `NO_PACKAGE`;
 - never leg out except through an explicit reconciled emergency procedure;
 - close before the frozen expiry/assignment boundary and poll REST state where streaming does not cover assignment.
 
-Emergency flattening has one owner and one state machine:
+Emergency flattening has one owner and one state machine with explicit non-flat incident outcomes:
 
 ```text
 ENTRY_DISABLED
   -> CANCEL_PENDING_ENTRIES
   -> RECONCILE
-  -> CLOSE_ONLY
-  -> FLATTENING
-  -> BROKER_CONFIRMED_FLAT
+      -> EXPOSURE_KNOWN
+          -> CLOSE_ONLY
+          -> FLATTENING
+          -> RECONCILE_CLOSE
+              -> BROKER_CONFIRMED_FLAT
+              -> RETRYABLE_CLOSE_FAILURE -> RECONCILE
+              -> MANUAL_REQUIRED_NON_FLAT
+      -> BROKER_STATE_UNKNOWN
+          -> RETRYABLE_RECONCILIATION -> RECONCILE
+          -> MANUAL_REQUIRED_UNKNOWN
 ```
 
-Unknown broker state is reconciled before a new close is submitted; blind flattening may invert a position.
+Retry counts, deadlines, and idempotency keys are frozen policy. Rejected or partial closes, broker outage, contradictory exposure, assignment/expiry events, and exhausted retries enter the appropriate `MANUAL_REQUIRED` state with entries disabled and close/manual authority retained. `MANUAL_REQUIRED` is an incident outcome, not flatness or lifecycle success: the Passport remains explicitly non-flat or unknown, reservations remain conservative, and final PnL/terminal-success receipts are prohibited. Only a fresh broker readback proving no applicable open orders or exposure may enter `BROKER_CONFIRMED_FLAT`, release reservations, and finalize PnL. Unknown broker state is reconciled before a new close is submitted; blind flattening may invert a position.
 
 ### 9.5 Feature and RSI policy
 
@@ -465,7 +475,7 @@ Parallelism is allowed only across independent ownership boundaries. Shared cont
 
 ## 12. Relationship to GitHub issues
 
-The live issues currently map approximately as follows:
+The live issues currently map as follows. Issues #26–#33 own parent outcomes; #40–#50 split implementation-critical contracts and sequencing beneath them:
 
 - #26 — strategy policy;
 - #27 — point-in-time data collector;
@@ -473,12 +483,23 @@ The live issues currently map approximately as follows:
 - #29 — expression comparison and deterministic compiler;
 - #30 — account risk and durable reservations;
 - #31 — monitored lifecycle and frozen-policy close;
-- #3 — historical confirmation panel;
 - #32 — prospective shadow ledger;
-- #9 — final approved PAPER lifecycle;
-- #33 — integrated tracker.
+- #33 — integrated tracker and frozen-release programme;
+- #40 — changing competition/account/entitlement/capability facts for Gate A; unknown exposure or eligibility facts keep entry disabled;
+- #41 — source rights and point-in-time feasibility before collector implementation;
+- #42 — point-in-time security-master and corporate-action lineage;
+- #43 — deterministic feature receipts between frozen snapshots and every decision arm;
+- #44 — the early post-freeze prospective signal ledger, deliberately started once the decision pipeline exists and without waiting for broker infrastructure;
+- #45 — immutable strategy promotion, rejection, revocation, and production loading;
+- #46 — PAPER-only least-privilege and hostile-input attestation;
+- #47 — end-to-end deadline budgets and operational-health receipts;
+- #48 — restart-safe frozen-release orchestration from due candidate to reconciled outcome;
+- #49 — option assignment, exercise, expiry, and broker-driven position events, or `NOT_APPLICABLE` if shares win Gate D;
+- #50 — later full-stack shadow evaluation through expression, risk, hypothetical lifecycle, and conservative PnL. It consumes #44 and does not replace the early signal ledger;
+- #3 — historical confirmation panel consuming the frozen policy; and
+- #9 — final explicitly approved PAPER lifecycle after every prerequisite gate.
 
-Issues #26–#33 were reconciled with this accepted decision on 30 August 2026. The older issue-plan copy in `archive/` remains unchanged as the historical snapshot. Linked legacy gates such as #3 and #9 must consume the promoted policy and may not revive a hard-coded instrument, hold time, or illustrative risk constant that conflicts with this plan.
+The accepted earnings-primary, macro-challenger, direction-before-expression, bounded-LLM-authority, and PAPER-only decisions are reconciled across #26–#33. Their data feasibility, promoted clocks, expression, activated risk values, lifecycle, and evidence thresholds remain blocked until the owning #40–#50 contracts close; this plan does not mark those assumptions complete. The older issue-plan copy in `archive/` remains unchanged as the historical snapshot. Linked legacy gates such as #3 and #9 must consume the promoted policy and may not revive a hard-coded instrument, hold time, or illustrative risk constant that conflicts with this plan.
 
 ## 13. Acceptance proof
 
