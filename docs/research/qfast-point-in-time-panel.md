@@ -1,11 +1,29 @@
 # Q-FAST point-in-time panel pipeline
 
-**Status: DRAFT infrastructure — panel assembly is blocked.** The panel
-compiler, manifest contracts, validation tests, and synthetic fixtures are in
-place, but no confirmatory panel may be assembled or evaluated until issues
-#26, #27, and #28 merge and a host-measured p95 latency profile plus the
-required data entitlement exist. This note is the lane contract for that
-assembly step.
+**Status: DRAFT — data layer frozen, assembly blocked.** The panel compiler,
+manifest contracts, validation tests, synthetic fixtures, the frozen 23-event
+universe with primary-source provenance, and the synchronized market-window
+provenance are in place. Panel assembly and evaluation remain fail-closed
+until issues #26, #27, and #28 merge and a host-measured p95 latency profile
+exists. This note is the lane contract for that assembly step.
+
+## Data layer state
+
+- Universe frozen ex-ante: candidate enumeration committed
+  (`data/qfast-panel/universe-freeze-v1.json`) before any evidence or price
+  lookup; the git timestamp is the ordering proof.
+- 23 eligible events (15 BEFORE_OPEN, 8 AFTER_CLOSE, 8 sectors) with EDGAR
+  primary provenance; validated by `validate_panel_universe`.
+- 5 preserved exclusions with reasons (in-session or session-open-boundary
+  calls); 12 candidates produced no in-window primary source; the four P0
+  contract-development events remain permanently excluded.
+- Synchronized 82-bar one-minute windows (issuer/SPY/sector, fully adjusted)
+  for every eligible event; raw bars remain host-side
+  (`METADATA_AND_HASH_ONLY`); validated by `validate_market_window_set`.
+- Historical evidence manifests use schema
+  `ringdown.historical_evidence_manifest` v1: retrieval legitimately
+  postdates the cutoff because EDGAR accession preserves the exact historical
+  version; every publication bound still precedes the decision cutoff.
 
 ## Purpose
 
@@ -35,11 +53,14 @@ because its realized outcome helps the candidate.
 
 | Artifact | Schema | Location |
 | --- | --- | --- |
-| Selection rule | `ringdown.qfast_panel_selection_rule` v1 | [data/qfast-panel/selection-rule-v1.json](../../data/qfast-panel/selection-rule-v1.json) |
+| Selection rule | `ringdown.earnings_replay_selection_rule` v1 | [data/qfast-panel/universe/selection-rule-v1.json](../../data/qfast-panel/universe/selection-rule-v1.json) |
+| Frozen event list | `ringdown.frozen_earnings_event_list` v1 | [data/qfast-panel/universe/event-list-v1.json](../../data/qfast-panel/universe/event-list-v1.json) |
+| Historical evidence manifests | `ringdown.historical_evidence_manifest` v1 | [data/qfast-panel/universe/events/](../../data/qfast-panel/universe/events/) |
+| Market-window provenance | `ringdown.panel_market_window_provenance` v1 | [data/qfast-panel/market-windows/](../../data/qfast-panel/market-windows/) |
 | Panel manifest | `ringdown.qfast_panel_manifest` v1 | produced when assembly unblocks |
 | Panel bundle | `ringdown.qfast_panel_bundle` v1 | produced when assembly unblocks |
 | Panel report | `ringdown.qfast_panel_report` v1 | produced by `ringdown assemble-panel` |
-| Synthetic fixtures | all four schemas | [tests/fixtures/](../../tests/fixtures/) |
+| Synthetic fixtures | panel schemas | [tests/fixtures/](../../tests/fixtures/) |
 
 The selection rule carries only ex-ante criteria: source requirements,
 point-in-time retrieval rules, synchronized-window requirement, abstention

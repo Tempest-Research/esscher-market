@@ -1,0 +1,52 @@
+{
+  "schema": "ringdown.panel_market_window_provenance",
+  "schema_version": 1,
+  "event_id": "MSFT-20260729-EARNINGS",
+  "entry_session_id": "XNAS-2026-07-30",
+  "entry_session_date": "2026-07-30",
+  "timeframe": "1Min",
+  "adjustment": "all",
+  "window_start": "2026-07-30T13:30:00Z",
+  "window_end": "2026-07-30T14:51:00Z",
+  "symbols": {
+    "issuer": "MSFT",
+    "market": "SPY",
+    "sector": "XLK"
+  },
+  "retrieved_at": "2026-08-30T15:52:54Z",
+  "redistribution_status": "METADATA_AND_HASH_ONLY",
+  "entitlement_note": "Host-subscription historical bars retrieved read-only from the configured market-data endpoint; raw bytes remain host-side and are bound by SHA-256 only.",
+  "limitations": [
+    "INDICATIVE_DATA",
+    "NOT_ALPHA_EVIDENCE",
+    "NO_OUTCOME_VALUES",
+    "NO_BROKER_EXECUTION"
+  ],
+  "bars": {
+    "issuer": {
+      "symbol": "MSFT",
+      "status": "PRESENT",
+      "bar_count": 82,
+      "first_bar_at": "2026-07-30T13:30:00Z",
+      "last_bar_at": "2026-07-30T14:51:00Z",
+      "content_sha256": "cfa3905a1d102b9d38a4d308bdcc05a42703f138548065817dc1cc0be46401e6"
+    },
+    "market": {
+      "symbol": "SPY",
+      "status": "PRESENT",
+      "bar_count": 82,
+      "first_bar_at": "2026-07-30T13:30:00Z",
+      "last_bar_at": "2026-07-30T14:51:00Z",
+      "content_sha256": "8d24572967da943170cf68b98e821f0d8b3c79db1bbd637814e3920bfb4b9fb7"
+    },
+    "sector": {
+      "symbol": "XLK",
+      "status": "PRESENT",
+      "bar_count": 82,
+      "first_bar_at": "2026-07-30T13:30:00Z",
+      "last_bar_at": "2026-07-30T14:51:00Z",
+      "content_sha256": "22b213a3e872896bbd1eb6fb039e09aba7782fc0cc2ee48a386381d7257e95f3"
+    }
+  },
+  "status": "COMPLETE"
+}
