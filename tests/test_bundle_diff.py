@@ -1,3 +1,4 @@
+import hashlib
 import json
 from pathlib import Path
 from shutil import copyfile
@@ -14,6 +15,13 @@ from ringdown_market.audit import (
     write_report,
 )
 from ringdown_market.cli import build_report
+from ringdown_market.contracts.research_to_permit import (
+    PAPER_PERMIT_POLICY_SHA256,
+    PAPER_PERMIT_POLICY_VERSION,
+    RESEARCH_DECISION_PROTOCOL_SHA256,
+    map_frozen_decision_to_permit,
+)
+from ringdown_market.execution.models import debit_vertical_permit_bytes
 
 ROOT = Path(__file__).parents[1]
 DATA = ROOT / "data" / "earnings-replays"
@@ -80,6 +88,30 @@ def _mutated(raw: bytes, mutation) -> bytes:
 
 def _evaluation_bytes() -> bytes:
     return _json_bytes(build_report(EVALUATION_INPUT.read_bytes()))
+
+
+def _permit_bytes() -> bytes:
+    fixture = json.loads(DECISION_FIXTURE.read_text(encoding="utf-8"))
+    decision = dict(fixture["decision_template"])
+    decision.update(
+        {
+            "protocol_sha256": RESEARCH_DECISION_PROTOCOL_SHA256,
+            "policy_version": PAPER_PERMIT_POLICY_VERSION,
+            "policy_sha256": PAPER_PERMIT_POLICY_SHA256,
+        }
+    )
+    evidence_bytes = _json_bytes(fixture["evidence_manifest"], sort_keys=True)
+    input_bytes = _json_bytes(fixture["input_snapshot"], sort_keys=True)
+    decision["evidence_manifest_sha256"] = hashlib.sha256(evidence_bytes).hexdigest()
+    decision["input_snapshot_sha256"] = hashlib.sha256(input_bytes).hexdigest()
+    decision_bytes = _json_bytes(decision, sort_keys=True)
+    permit = map_frozen_decision_to_permit(
+        decision_bytes,
+        evidence_manifest_bytes=evidence_bytes,
+        input_snapshot_bytes=input_bytes,
+        policy_version=PAPER_PERMIT_POLICY_VERSION,
+    )
+    return debit_vertical_permit_bytes(permit)
 
 
 def _categories(report: dict[str, object]) -> set[str]:
@@ -151,6 +183,7 @@ def test_set_like_list_order_is_semantically_equal() -> None:
     ("category", "mutation"),
     [
         ("HASH", lambda payload: payload.update({"input_sha256": "0" * 64})),
+        ("HASH", lambda payload: payload.update({"protocol_sha256": "f" * 64})),
         (
             "LATENCY",
             lambda payload: payload["latency_profiles"]["p95"].update(
@@ -281,6 +314,50 @@ def test_records_are_keyed_by_evidence_id() -> None:
     report = compare_artifacts(left, right)
 
     assert any("/records/record:" in delta["path"] for delta in report["deltas"])
+
+
+def test_permit_policy_and_protocol_hash_changes_are_hash_deltas() -> None:
+    left = _permit_bytes()
+    right = _mutated(
+        left,
+        lambda payload: (
+            payload.update({"policy_sha256": "0" * 64}),
+            payload.update({"protocol_sha256": "f" * 64}),
+        ),
+    )
+
+    report = compare_artifacts(left, right)
+
+    hash_paths = {delta["path"] for delta in report["deltas"] if delta["category"] == "HASH"}
+    assert "/policy_sha256" in hash_paths
+    assert "/protocol_sha256" in hash_paths
+    assert report["left"]["artifacts"][0]["schema"] == "ringdown.paper_execution_permit"
+
+
+def test_selection_rule_and_event_list_hash_changes_are_hash_deltas() -> None:
+    list_left = EVENT_LIST.read_bytes()
+    list_right = _mutated(
+        list_left, lambda payload: payload.update({"selection_rule_sha256": "0" * 64})
+    )
+
+    list_report = compare_artifacts(list_left, list_right)
+
+    assert any(
+        delta["category"] == "HASH" and delta["path"].endswith("/selection_rule_sha256")
+        for delta in list_report["deltas"]
+    )
+
+    manifest_left = EVIDENCE.read_bytes()
+    manifest_right = _mutated(
+        manifest_left, lambda payload: payload.update({"event_list_sha256": "f" * 64})
+    )
+
+    manifest_report = compare_artifacts(manifest_left, manifest_right)
+
+    assert any(
+        delta["category"] == "HASH" and delta["path"].endswith("/event_list_sha256")
+        for delta in manifest_report["deltas"]
+    )
 
 
 def test_scalar_claim_and_feature_source_reference_changes_are_classified() -> None:
