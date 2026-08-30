@@ -18,6 +18,14 @@
 - One-shot scheduled `PAPER` event execution with strict manifest/due-window identity, atomic restart state, deterministic broker reconciliation, terminal no-ops, overlap rejection, and mutation-free dry run.
 - Synthetic contract fixtures for terminal-flat, rejected-before-mutation, and manual-reconciliation scheduled outcomes.
 - A deterministic self-contained offline evidence-to-receipt trace with visible JSON-pointer attribution, terminal, rejected, and manual-reconciliation contract views.
+- A read-only point-in-time strategy snapshot collector that compiles canonical snapshots and
+	feature receipts from permitted primary evidence and synchronized equity market data, bound to
+	the accepted event-policy hash and joined through the frozen strategy-input contract.
+- Deterministic fake evidence and market-data adapters with one frozen synthetic fixture,
+	canonical source and corporate-action receipts, a frozen decimal beta estimator, and an inert
+	capture command that requires explicit host authorization and never carries credentials.
+- A strategy data-pipeline document fixing exact source classes, clocks, adjustment, entitlement,
+	and recovery rules for the collector lane.
 
 ### Safety
 
