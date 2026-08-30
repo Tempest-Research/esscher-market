@@ -12,7 +12,7 @@ exists. This note is the lane contract for that assembly step.
 - Universe frozen ex-ante: candidate enumeration committed
   (`data/qfast-panel/universe-freeze-v1.json`) before any evidence or price
   lookup; the git timestamp is the ordering proof.
-- 23 eligible events (15 BEFORE_OPEN, 8 AFTER_CLOSE, 8 sectors) with EDGAR
+- 23 eligible events (15 BEFORE_OPEN, 8 AFTER_CLOSE, 7 sectors) with EDGAR
   primary provenance; validated by `validate_panel_universe`.
 - 5 preserved exclusions with reasons (in-session or session-open-boundary
   calls); 12 candidates produced no in-window primary source; the four P0
