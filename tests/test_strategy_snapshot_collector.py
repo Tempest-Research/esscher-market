@@ -717,6 +717,12 @@ def test_capture_command_writes_canonical_artifacts(tmp_path: Path, monkeypatch)
             "2026-09-11T13:35:10Z",
             "--output-dir",
             str(tmp_path),
+            "--condition-satisfied",
+            "HUMAN_VERIFIED_CAPTURE",
+            "--condition-satisfied",
+            "PER_RECORD_PRIMARY_PROVENANCE",
+            "--condition-satisfied",
+            "GATE_A_EQUITY_ENTITLEMENT_RECEIPT",
         ]
     )
     assert exit_code == 0
@@ -731,6 +737,76 @@ def test_capture_command_writes_canonical_artifacts(tmp_path: Path, monkeypatch)
     } <= names
     snapshot_bytes = (tmp_path / "strategy_snapshot.json").read_bytes()
     assert snapshot_bytes == compiled_strategy_input_bytes(snapshot_bytes, tmp_path)
+
+
+def test_capture_command_fails_closed_without_source_rights_conditions(
+    tmp_path: Path, monkeypatch
+) -> None:
+    from ringdown_market.sourcedata.capture import main
+
+    monkeypatch.setenv("ESSCHER_CAPTURE_AUTHORIZED", "yes")
+    exit_code = main(
+        [
+            "--event-id",
+            EVENT_ID,
+            "--capture-at",
+            "2026-09-11T13:35:10Z",
+            "--output-dir",
+            str(tmp_path),
+        ]
+    )
+    assert exit_code == 2
+    assert not (tmp_path / "strategy_snapshot.json").exists()
+
+
+def test_capture_command_rejects_unknown_source_rights_condition(
+    tmp_path: Path, monkeypatch, capsys
+) -> None:
+    from ringdown_market.sourcedata.capture import main
+
+    monkeypatch.setenv("ESSCHER_CAPTURE_AUTHORIZED", "yes")
+    exit_code = main(
+        [
+            "--event-id",
+            EVENT_ID,
+            "--capture-at",
+            "2026-09-11T13:35:10Z",
+            "--output-dir",
+            str(tmp_path),
+            "--condition-satisfied",
+            "NOT_A_FROZEN_CONDITION",
+        ]
+    )
+    assert exit_code == 2
+    assert "NOT_A_FROZEN_CONDITION" in capsys.readouterr().err
+
+
+def test_capture_identity_binds_source_matrix_digest(tmp_path: Path, monkeypatch) -> None:
+    import json
+
+    from ringdown_market.contracts.source_matrix import SOURCE_MATRIX_V1_SHA256
+    from ringdown_market.sourcedata.capture import main
+
+    monkeypatch.setenv("ESSCHER_CAPTURE_AUTHORIZED", "yes")
+    exit_code = main(
+        [
+            "--event-id",
+            EVENT_ID,
+            "--capture-at",
+            "2026-09-11T13:35:10Z",
+            "--output-dir",
+            str(tmp_path),
+            "--condition-satisfied",
+            "HUMAN_VERIFIED_CAPTURE",
+            "--condition-satisfied",
+            "PER_RECORD_PRIMARY_PROVENANCE",
+            "--condition-satisfied",
+            "GATE_A_EQUITY_ENTITLEMENT_RECEIPT",
+        ]
+    )
+    assert exit_code == 0
+    identity = json.loads((tmp_path / "capture_identity.json").read_text())
+    assert identity["source_matrix_sha256"] == SOURCE_MATRIX_V1_SHA256
 
 
 def compiled_strategy_input_bytes(snapshot_bytes: bytes, tmp_path: Path) -> bytes:
@@ -887,6 +963,12 @@ def test_macro_capture_command_writes_canonical_artifacts(tmp_path: Path, monkey
             "2026-09-09T14:15:10Z",
             "--output-dir",
             str(tmp_path),
+            "--condition-satisfied",
+            "HUMAN_VERIFIED_CAPTURE",
+            "--condition-satisfied",
+            "PER_RECORD_PRIMARY_PROVENANCE",
+            "--condition-satisfied",
+            "GATE_A_EQUITY_ENTITLEMENT_RECEIPT",
         ]
     )
     assert exit_code == 0
@@ -1022,6 +1104,12 @@ def test_capture_command_writes_feasibility_manifest(tmp_path: Path, monkeypatch
             "2026-09-11T13:35:10Z",
             "--output-dir",
             str(tmp_path),
+            "--condition-satisfied",
+            "HUMAN_VERIFIED_CAPTURE",
+            "--condition-satisfied",
+            "PER_RECORD_PRIMARY_PROVENANCE",
+            "--condition-satisfied",
+            "GATE_A_EQUITY_ENTITLEMENT_RECEIPT",
         ]
     )
     assert exit_code == 0

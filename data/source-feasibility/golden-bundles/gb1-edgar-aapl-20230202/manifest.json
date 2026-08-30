@@ -1,0 +1,69 @@
+{
+ "schema": "esscher.feasibility_bundle",
+ "schema_version": 1,
+ "bundle_id": "GB1_EDGAR_AAPL_20230202",
+ "title": "EDGAR issuer/SEC bytes and earnings-calendar-revision capture for one development-partition event",
+ "matrix_categories": [
+  "ISSUER_SEC_BYTES",
+  "EARNINGS_CALENDAR_REVISIONS",
+  "FUNDAMENTALS"
+ ],
+ "data_class": "SOURCE_FEASIBILITY_PROBE",
+ "claims": [
+  "DEV_ONLY",
+  "NOT_ALPHA_EVIDENCE",
+  "NO_BROKER_EXECUTION",
+  "NOT_HISTORICAL_DATA"
+ ],
+ "partition": "DEVELOPMENT",
+ "event_id": "AAPL-20230202-EARNINGS",
+ "event_date": "2023-02-02",
+ "reproducibility": "IMMUTABLE_ACCESSION_BYTES",
+ "capture_note": "The four artifacts under immutable EDGAR accession paths re-download byte-identically; the full-text-search receipt records the discovery query and is receipt-only because search responses are not guaranteed immutable.",
+ "artifacts": [
+  {
+   "file": "artifacts/edgar-0000320193-23-000005.txt",
+   "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019323000005/0000320193-23-000005.txt",
+   "retrieved_at": "2026-08-30T21:41:41Z",
+   "sha256": "6366fd10365eb5660667d9fa1900b8e0e6e93f9c04190b72da5499ed8946ee6f",
+   "bytes": 464814,
+   "redistribution": "PUBLIC_DOMAIN_REDISTRIBUTABLE"
+  },
+  {
+   "file": "artifacts/edgar-0000320193-23-000005-index.json",
+   "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019323000005/index.json",
+   "retrieved_at": "2026-08-30T21:41:56Z",
+   "sha256": "f3d38c296aa3f60e46b3379e2f5bfcb14080c4962b0cfc207b8d32775043794b",
+   "bytes": 1995,
+   "redistribution": "PUBLIC_DOMAIN_REDISTRIBUTABLE"
+  },
+  {
+   "file": "artifacts/edgar-0000320193-23-000005-exhibit-991.htm",
+   "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019323000005/a8-kex991q1202312312022.htm",
+   "retrieved_at": "2026-08-30T21:41:41Z",
+   "sha256": "bd4ec2fc162fadc3188a9942a1300ff2dbdf5dd1328699084e768a7a52e2a950",
+   "bytes": 141392,
+   "redistribution": "PUBLIC_DOMAIN_REDISTRIBUTABLE"
+  },
+  {
+   "file": "artifacts/edgar-full-text-search-receipt.json",
+   "url": "https://efts.sec.gov/LATEST/search-index?q=%22Apple+reports+first+quarter+results%22&dateRange=custom&startdt=2023-02-02&enddt=2023-02-03&forms=8-K",
+   "retrieved_at": "2026-08-30T21:41:42Z",
+   "sha256": "df431ce4bd80f1322f589692ab992ef858e777cc05ca7c1a328f7d6484be32ec",
+   "bytes": 1768,
+   "redistribution": "PUBLIC_DOMAIN_REDISTRIBUTABLE"
+  }
+ ],
+ "retrieval_agent": "declared-user-agent HTTPS GET (SEC fair-access policy)",
+ "provenance_facts": {
+  "accession_number": "0000320193-23-000005",
+  "cik": "0000320193",
+  "form": "8-K",
+  "items": [
+   "2.02",
+   "9.01"
+  ],
+  "file_date": "2023-02-02",
+  "timing_bucket": "AMC"
+ }
+}
