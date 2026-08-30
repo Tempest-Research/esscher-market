@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from types import MappingProxyType
 from typing import Final
@@ -24,13 +24,20 @@ from ringdown_market.sourcedata.betas import (
     estimate_betas,
     select_beta_window,
 )
+from ringdown_market.sourcedata.decimal_math import log_return
 from ringdown_market.sourcedata.evidence import EvidenceEntry, EvidencePacket, build_evidence_packet
-from ringdown_market.sourcedata.features import FeatureBuildInput, build_earnings_features
+from ringdown_market.sourcedata.features import (
+    FeatureBuildInput,
+    MacroFeatureBuildInput,
+    build_earnings_features,
+    build_macro_features,
+)
 from ringdown_market.sourcedata.interfaces import (
     CorporateAction,
     DailyBar,
     EvidenceSource,
     IssuerRelease,
+    MacroReleaseSource,
     MarketDataSource,
     QuoteSample,
     SessionRecord,
@@ -60,6 +67,7 @@ from ringdown_market.strategy.models import (
     EventCategory,
     EvidenceRole,
     FeatureReceipt,
+    ReleaseFamily,
     StrategyInput,
     StrategySnapshot,
     TimingBucket,
@@ -67,6 +75,7 @@ from ringdown_market.strategy.models import (
 from ringdown_market.strategy.policy import StrategyPolicy, load_strategy_policy
 
 EARNINGS_CANDIDATE: Final = "EARNINGS_RESIDUAL_CONTINUATION_V1"
+MACRO_CANDIDATE: Final = "MACRO_SPY_CONTINUATION_CHALLENGER_V1"
 MARKET_PROXY: Final = "SPY"
 TRADING_TIMEZONE: Final = ZoneInfo("America/New_York")
 _PRODUCER_LABEL: Final = {
@@ -77,6 +86,13 @@ _PRODUCER_LABEL: Final = {
 PRODUCER_BUILD_SHA256: Final = sha256_bytes(canonical_json_bytes(_PRODUCER_LABEL))
 MARKET_TRADE_CLASS: Final = "LICENSED_SIP_EQUITY_TRADES"
 MARKET_QUOTE_CLASS: Final = "LICENSED_SIP_EQUITY_QUOTES"
+SPY_TRADE_CLASS: Final = "LICENSED_SIP_SPY_TRADES"
+SPY_QUOTE_CLASS: Final = "LICENSED_SIP_SPY_QUOTES"
+BLS_CALENDAR_CLASS: Final = "OFFICIAL_BLS_RELEASE_CALENDAR"
+BLS_RELEASE_CLASS: Final = "OFFICIAL_BLS_RELEASE"
+BLS_REVISION_CLASS: Final = "OFFICIAL_BLS_REVISION_TABLE"
+JOLTS_ANCHOR_LOOKBACK_MINUTES: Final = 5
+NORMALIZATION_PRIOR_SESSIONS: Final = 60
 MARKET_LIMITATIONS: Final = ("LICENSED_MARKET_DATA", "NO_REDISTRIBUTION")
 RELATIVE_VOLUME_PRIOR_SESSIONS: Final = 20
 
@@ -156,14 +172,16 @@ class CompiledSnapshot:
     snapshot: StrategySnapshot
     feature_receipt: FeatureReceipt
     evidence_packet: EvidencePacket
-    betas: FrozenBeta
+    betas: FrozenBeta | None
     window: SynchronizedWindow
     source_receipts: tuple[SourceReceipt, ...]
     action_receipts: tuple[CorporateActionReceipt, ...]
 
 
-def _policy_clock(policy: StrategyPolicy, cohort_id: str) -> Mapping[str, object]:
-    candidate = policy.candidate(EARNINGS_CANDIDATE)
+def _policy_clock(
+    policy: StrategyPolicy, candidate_id: str, cohort_id: str
+) -> Mapping[str, object]:
+    candidate = policy.candidate(candidate_id)
     clocks = candidate["clocks"]
     matches = tuple(clock for clock in clocks if clock.get("cohort_id") == cohort_id)
     if len(matches) != 1:
@@ -194,6 +212,7 @@ def derive_clocks(
     *,
     cohort_id: str,
     reaction_session: SessionRecord,
+    candidate_id: str = EARNINGS_CANDIDATE,
 ) -> CaptureClocks:
     """Realize the frozen cohort clocks for one full regular session."""
 
@@ -216,7 +235,7 @@ def derive_clocks(
             f"session.{reaction_session.session_id}",
             "reaction session must run 09:30-16:00 America/New_York",
         )
-    clock = _policy_clock(policy, cohort_id)
+    clock = _policy_clock(policy, candidate_id, cohort_id)
     return CaptureClocks(
         session=reaction_session,
         observation_window_start_at=_local_time_to_utc(
@@ -848,3 +867,473 @@ def _actions_provenance(
         ),
         limitations=("CORPORATE_ACTION_RECORDS",),
     )
+
+
+def _macro_reference_period(schedule, scheduled_at: datetime, cohort_id: str) -> str:
+    matches = tuple(
+        entry
+        for entry in schedule
+        if entry.release_family == cohort_id and entry.scheduled_at == scheduled_at
+    )
+    if not matches:
+        raise CollectorRejected(
+            CollectorReason.SCHEDULE_NOT_FROZEN,
+            f"schedule.{cohort_id}",
+            "no frozen official schedule entry matches this event",
+        )
+    if len(matches) > 1:
+        raise CollectorRejected(
+            CollectorReason.SCHEDULE_NOT_FROZEN,
+            f"schedule.{cohort_id}",
+            "conflicting frozen schedule entries match this event",
+        )
+    return matches[0].reference_period
+
+
+def _macro_release_session(
+    evidence_sessions, *, scheduled_at: datetime, exchange_mic: str
+) -> SessionRecord:
+    release_date = scheduled_at.astimezone(TRADING_TIMEZONE).date()
+    matches = tuple(
+        session
+        for session in evidence_sessions(exchange_mic, release_date, release_date)
+        if session.session_date == release_date
+    )
+    if not matches:
+        raise CollectorRejected(
+            CollectorReason.NON_FULL_REGULAR_SESSION,
+            f"session.{release_date.isoformat()}",
+            "no session exists on the release date",
+        )
+    session = matches[0]
+    if not session.full_regular:
+        raise CollectorRejected(
+            CollectorReason.NON_FULL_REGULAR_SESSION,
+            f"session.{session.session_id}",
+            "macro reaction session must be a full regular session",
+        )
+    return session
+
+
+def _macro_window_quotes(
+    quotes: Sequence[QuoteSample],
+    *,
+    symbol: str,
+    window_start_at: datetime,
+    window_end_at: datetime,
+) -> tuple[QuoteSample, ...]:
+    return tuple(
+        quote
+        for quote in quotes
+        if quote.symbol == symbol and window_start_at <= quote.observed_at <= window_end_at
+    )
+
+
+def _midpoint(quote: QuoteSample) -> Decimal:
+    return (quote.bid + quote.ask) / 2
+
+
+def _macro_anchor_mid(
+    quotes: Sequence[QuoteSample],
+    *,
+    symbol: str,
+    cohort_id: str,
+    window_start_at: datetime,
+    window_end_at: datetime,
+) -> Decimal:
+    if cohort_id == "BLS_JOLTS":
+        anchor_start = window_start_at - timedelta(minutes=JOLTS_ANCHOR_LOOKBACK_MINUTES)
+        anchor_quotes = tuple(
+            quote
+            for quote in quotes
+            if quote.symbol == symbol and anchor_start <= quote.observed_at < window_start_at
+        )
+        if not anchor_quotes:
+            raise CollectorRejected(
+                CollectorReason.MARKET_WINDOW_MISSING,
+                "spy.anchor",
+                "no SPY anchor quote exists in the pre-release anchor window",
+            )
+        mids = tuple(_midpoint(quote) for quote in anchor_quotes)
+        ordered = sorted(mids)
+        count = len(ordered)
+        if count % 2 == 1:
+            return ordered[count // 2]
+        return (ordered[count // 2 - 1] + ordered[count // 2]) / 2
+    window_quotes = _macro_window_quotes(
+        quotes, symbol=symbol, window_start_at=window_start_at, window_end_at=window_end_at
+    )
+    if not window_quotes:
+        raise CollectorRejected(
+            CollectorReason.MARKET_WINDOW_MISSING,
+            "spy.anchor",
+            "no SPY window quote exists at or after the window start",
+        )
+    return _midpoint(min(window_quotes, key=lambda quote: quote.observed_at))
+
+
+def _revisions_provenance(revisions, configuration) -> SourceProvenance:
+    payload = [
+        {
+            "release_family": revision.release_family,
+            "revised_reference_period": revision.revised_reference_period,
+            "field_id": revision.field_id,
+            "initial_value": str(revision.initial_value),
+            "revised_value": str(revision.revised_value),
+            "content_sha256": revision.provenance.content_sha256,
+        }
+        for revision in sorted(
+            revisions,
+            key=lambda item: (item.revised_reference_period, item.field_id),
+        )
+    ]
+    publishers = {revision.provenance.publisher for revision in revisions}
+    if len(publishers) > 1:
+        raise CollectorRejected(
+            CollectorReason.REVISION_FIELD_CONFLICTING,
+            "revisions.publisher",
+            "revision records name conflicting publishers",
+        )
+    retrieved_at = max(
+        (revision.provenance.retrieved_at for revision in revisions),
+        default=configuration.capture_at,
+    )
+    published_at = max((revision.published_at for revision in revisions), default=None)
+    first_release_family = revisions[0].release_family if revisions else "BLS_JOLTS"
+    return SourceProvenance(
+        source_class=BLS_REVISION_CLASS,
+        publisher=next(iter(publishers)) if publishers else "SYNTHETIC_BLS_PUBLIC_RELEASE",
+        content_sha256=sha256_bytes(canonical_json_bytes(payload)),
+        published_at=published_at,
+        published_at_precision="SECOND" if published_at is not None else "UNKNOWN",
+        retrieved_at=retrieved_at,
+        entitlement=_worst_entitlement(
+            [revision.provenance.entitlement for revision in revisions] or ["PUBLIC"]
+        ),
+        redistribution_status=_worst_redistribution(
+            [revision.provenance.redistribution_status for revision in revisions]
+            or ["REDISTRIBUTABLE"]
+        ),
+        limitations=(f"{first_release_family}_REVISIONS",),
+    )
+
+
+def compile_macro_snapshot(
+    configuration: CaptureConfiguration,
+    evidence_sessions,
+    macro: MacroReleaseSource,
+    market: MarketDataSource,
+) -> CompiledSnapshot:
+    """Compile one deterministic macro-challenger snapshot bundle or fail closed."""
+
+    policy = load_strategy_policy()
+    manifest = parse_candidate_manifest(configuration.candidate_manifest_bytes)
+    if manifest.policy_sha256 != policy.sha256:
+        raise CollectorRejected(
+            CollectorReason.POLICY_HASH_MISMATCH,
+            "candidate_manifest.policy_sha256",
+            "manifest does not bind the registered strategy policy",
+        )
+    if manifest.candidate_id != MACRO_CANDIDATE:
+        raise CollectorRejected(
+            CollectorReason.UNSUPPORTED_INPUT,
+            "candidate_manifest.candidate_id",
+            "macro compiler supports only the macro challenger candidate",
+        )
+    record = manifest.record(configuration.event_id)
+    if record.eligibility is not EligibilityState.ELIGIBLE:
+        raise CollectorRejected(
+            CollectorReason.EVENT_NOT_CONFIRMED,
+            f"candidate.{record.event_id}",
+            "event is not eligible in the frozen manifest",
+        )
+    cohort_id = record.cohort_id
+    if cohort_id not in {"BLS_JOLTS", "BLS_EMPLOYMENT_SITUATION"}:
+        raise CollectorRejected(
+            CollectorReason.UNSUPPORTED_INPUT,
+            f"cohort.{cohort_id}",
+            "macro cohort is not registered",
+        )
+    release_family = ReleaseFamily(cohort_id)
+
+    schedule = macro.release_schedule(cohort_id)
+    reference_period = _macro_reference_period(schedule, record.scheduled_at, cohort_id)
+    reaction_session = _macro_release_session(
+        evidence_sessions,
+        scheduled_at=record.scheduled_at,
+        exchange_mic="XNYS",
+    )
+    clocks = derive_clocks(
+        policy,
+        cohort_id=cohort_id,
+        reaction_session=reaction_session,
+        candidate_id=MACRO_CANDIDATE,
+    )
+    if configuration.capture_at > clocks.decision_cutoff_at:
+        raise CollectorRejected(
+            CollectorReason.RETRIEVED_AFTER_CUTOFF,
+            "capture_at",
+            "capture clock exceeds the decision cutoff",
+        )
+
+    release = macro.release(cohort_id, reference_period, 1)
+    if release is None:
+        raise CollectorRejected(
+            CollectorReason.OFFICIAL_RELEASE_MISSING,
+            f"release.{cohort_id}.{reference_period}",
+            "the first vintage of the official release is missing",
+        )
+    if release.published_at > clocks.evidence_cutoff_at:
+        raise CollectorRejected(
+            CollectorReason.OFFICIAL_RELEASE_LATE,
+            f"release.{cohort_id}.{reference_period}",
+            "official release publication exceeds the evidence cutoff",
+        )
+    revisions = tuple(macro.revisions(cohort_id, clocks.evidence_cutoff_at))
+
+    window_quotes = market.window_quotes(MARKET_PROXY, reaction_session.session_id)
+    window_trades = market.window_trades(MARKET_PROXY, reaction_session.session_id)
+    window = build_synchronized_window(
+        {MARKET_PROXY: window_trades},
+        {MARKET_PROXY: window_quotes},
+        session_id=reaction_session.session_id,
+        symbols=(MARKET_PROXY,),
+        window_start_at=clocks.observation_window_start_at,
+        window_end_at=clocks.observation_window_end_at,
+        require_quotes=True,
+    )
+    in_window_quotes = _macro_window_quotes(
+        window_quotes,
+        symbol=MARKET_PROXY,
+        window_start_at=clocks.observation_window_start_at,
+        window_end_at=clocks.observation_window_end_at,
+    )
+    if not in_window_quotes:
+        raise CollectorRejected(
+            CollectorReason.MARKET_WINDOW_MISSING,
+            "spy.window",
+            "no SPY quote exists inside the observation window",
+        )
+    anchor_mid = _macro_anchor_mid(
+        window_quotes,
+        symbol=MARKET_PROXY,
+        cohort_id=cohort_id,
+        window_start_at=clocks.observation_window_start_at,
+        window_end_at=clocks.observation_window_end_at,
+    )
+    end_mid = _midpoint(max(in_window_quotes, key=lambda quote: quote.observed_at))
+    mids = tuple(_midpoint(quote) for quote in in_window_quotes)
+    window_high = max(mids)
+    window_low = min(mids)
+    spy_window = window.symbol(MARKET_PROXY)
+
+    prior_sessions = tuple(
+        session
+        for session in evidence_sessions(
+            "XNYS",
+            date.fromordinal(reaction_session.session_date.toordinal() - 120),
+            date.fromordinal(reaction_session.session_date.toordinal() - 1),
+        )
+        if session.full_regular and session.session_date < reaction_session.session_date
+    )
+    ordered_prior = sorted(prior_sessions, key=lambda item: item.session_date)
+    normalization_sessions = ordered_prior[-NORMALIZATION_PRIOR_SESSIONS:]
+    normalization_returns: list[Decimal] = []
+    for session in normalization_sessions:
+        session_trades = tuple(
+            trade
+            for trade in market.window_trades(MARKET_PROXY, session.session_id)
+            if trade.sale_condition == "REGULAR_CONTINUOUS"
+            and clocks.observation_window_start_at.replace(
+                year=session.session_date.year,
+                month=session.session_date.month,
+                day=session.session_date.day,
+            )
+            <= trade.observed_at
+            <= clocks.observation_window_end_at.replace(
+                year=session.session_date.year,
+                month=session.session_date.month,
+                day=session.session_date.day,
+            )
+        )
+        if len(session_trades) < 2:
+            continue
+        ordered_trades = sorted(session_trades, key=lambda trade: trade.observed_at)
+        normalization_returns.append(log_return(ordered_trades[0].price, ordered_trades[-1].price))
+    volume_sessions = ordered_prior[-RELATIVE_VOLUME_PRIOR_SESSIONS:]
+    prior_window_volumes: list[int] = []
+    for session in volume_sessions:
+        session_trades = tuple(
+            trade
+            for trade in market.window_trades(MARKET_PROXY, session.session_id)
+            if trade.sale_condition == "REGULAR_CONTINUOUS"
+        )
+        if session_trades:
+            prior_window_volumes.append(sum(trade.size for trade in session_trades))
+
+    spy_bars = tuple(
+        market.daily_bars(
+            MARKET_PROXY,
+            date.fromordinal(reaction_session.session_date.toordinal() - 40),
+            date.fromordinal(reaction_session.session_date.toordinal() - 1),
+        )
+    )
+    spy_series = adjust_series(spy_bars, (), ticker=MARKET_PROXY, receipts_by_action={})
+    spy_returns = daily_log_returns(spy_series)
+    spy_daily_returns = tuple(
+        spy_returns[session.session_date]
+        for session in ordered_prior
+        if session.session_date in spy_returns
+    )
+
+    entries = [
+        EvidenceEntry(
+            evidence_id="bls-calendar",
+            role=EvidenceRole.MACRO_PRIMARY,
+            receipt=SourceReceipt.from_provenance(
+                "source-bls-calendar",
+                _macro_reference_provenance(schedule, cohort_id, record.scheduled_at),
+            ),
+        ),
+        EvidenceEntry(
+            evidence_id="bls-release",
+            role=EvidenceRole.MACRO_PRIMARY,
+            receipt=SourceReceipt.from_provenance(
+                f"source-bls-release-{reference_period.lower()}", release.provenance
+            ),
+        ),
+        EvidenceEntry(
+            evidence_id="bls-revision-table",
+            role=EvidenceRole.MACRO_PRIMARY,
+            receipt=SourceReceipt.from_provenance(
+                "source-bls-revision-table",
+                _revisions_provenance(revisions, configuration),
+            ),
+        ),
+        EvidenceEntry(
+            evidence_id="spy-trades",
+            role=EvidenceRole.MARKET_PROXY,
+            receipt=SourceReceipt.from_provenance(
+                "source-spy-trades",
+                _market_provenance(
+                    configuration,
+                    source_class=SPY_TRADE_CLASS,
+                    content_sha256=_trade_content_sha256(tuple(window_trades)),
+                    observed_precision="SECOND",
+                ),
+            ),
+        ),
+        EvidenceEntry(
+            evidence_id="spy-quotes",
+            role=EvidenceRole.LIQUIDITY_VOLATILITY,
+            receipt=SourceReceipt.from_provenance(
+                "source-spy-quotes",
+                _market_provenance(
+                    configuration,
+                    source_class=SPY_QUOTE_CLASS,
+                    content_sha256=_quote_content_sha256(tuple(window_quotes)),
+                    observed_precision="MILLISECOND",
+                ),
+            ),
+        ),
+    ]
+    candidate_policy = policy.candidate(MACRO_CANDIDATE)
+    evidence_policy = candidate_policy["evidence"]
+    packet = build_evidence_packet(
+        entries,
+        evidence_cutoff_at=clocks.evidence_cutoff_at,
+        permitted_source_classes=tuple(evidence_policy["permitted_source_classes"]),
+        required_source_classes=tuple(evidence_policy["required_source_classes"]),
+    )
+
+    feature_inputs = MacroFeatureBuildInput(
+        release=release,
+        revisions=revisions,
+        cohort_id=cohort_id,
+        anchor_mid=anchor_mid,
+        end_mid=end_mid,
+        window_vwap=spy_window.window_vwap,
+        window_high=window_high,
+        window_low=window_low,
+        window_volume=spy_window.window_volume,
+        prior_window_volumes=tuple(prior_window_volumes),
+        normalization_returns=tuple(normalization_returns),
+        spy_daily_returns=spy_daily_returns,
+        spy_quotes=tuple(window_quotes),
+        spy_symbol=MARKET_PROXY,
+        window_end_at=clocks.observation_window_end_at,
+        quote_entitlement_verified=configuration.market_entitlement == "ENTITLED",
+        evidence=packet,
+    )
+    features = build_macro_features(feature_inputs)
+
+    reasoner = policy.data["reasoner"]
+    tolerated = tuple(sorted(reasoner["tolerated_unknown_codes"]))
+    critical = tuple(sorted(reasoner["critical_unknown_codes"]))
+    snapshot = StrategySnapshot(
+        event_id=record.event_id,
+        candidate_id=manifest.candidate_id,
+        cohort_id=cohort_id,
+        event_category=EventCategory.SCHEDULED_MACRO_RELEASE,
+        issuer=record.issuer,
+        security_id=record.security_id,
+        ticker=record.ticker,
+        policy_sha256=policy.sha256,
+        candidate_manifest_sha256=sha256_bytes(configuration.candidate_manifest_bytes),
+        producer_build_sha256=PRODUCER_BUILD_SHA256,
+        created_at=configuration.capture_at,
+        universe_frozen_at=manifest.frozen_at,
+        timing_bucket=TimingBucket.SCHEDULED_RELEASE,
+        release_family=release_family,
+        event_published_at=release.published_at,
+        reaction_session_id=reaction_session.session_id,
+        reaction_session_open_at=reaction_session.open_at,
+        reaction_session_close_at=reaction_session.close_at,
+        observation_window_start_at=clocks.observation_window_start_at,
+        observation_window_end_at=clocks.observation_window_end_at,
+        evidence_cutoff_at=clocks.evidence_cutoff_at,
+        decision_cutoff_at=clocks.decision_cutoff_at,
+        candidate_entry_deadline_at=clocks.candidate_entry_deadline_at,
+        evidence_packet_sha256=packet.packet_sha256,
+        evidence_refs=packet.refs,
+        eligibility=EligibilityState.ELIGIBLE,
+        eligibility_reason_codes=(),
+        data_health=DataHealthState.VALID,
+        health_reason_codes=(),
+        allowed_unknown_codes=tuple(sorted((*tolerated, *critical))),
+        critical_unknown_codes=critical,
+    )
+    snapshot_bytes = strategy_snapshot_bytes(snapshot)
+    receipt = FeatureReceipt(
+        event_id=record.event_id,
+        candidate_id=manifest.candidate_id,
+        cohort_id=cohort_id,
+        policy_sha256=policy.sha256,
+        strategy_snapshot_sha256=sha256_bytes(snapshot_bytes),
+        producer_build_sha256=PRODUCER_BUILD_SHA256,
+        created_at=configuration.capture_at,
+        feature_snapshot_at=clocks.observation_window_end_at,
+        features=features,
+    )
+    receipt_bytes = feature_receipt_bytes(receipt)
+    return CompiledSnapshot(
+        candidate_manifest_bytes=configuration.candidate_manifest_bytes,
+        strategy_snapshot_bytes=snapshot_bytes,
+        feature_receipt_bytes=receipt_bytes,
+        snapshot=snapshot,
+        feature_receipt=receipt,
+        evidence_packet=packet,
+        betas=None,
+        window=window,
+        source_receipts=packet.receipts,
+        action_receipts=(),
+    )
+
+
+def _macro_reference_provenance(schedule, cohort_id: str, scheduled_at: datetime):
+    matches = tuple(
+        entry
+        for entry in schedule
+        if entry.release_family == cohort_id and entry.scheduled_at == scheduled_at
+    )
+    return matches[0].provenance

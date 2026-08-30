@@ -17,6 +17,9 @@ from ringdown_market.sourcedata.interfaces import (
     DailyBar,
     GuidanceStatement,
     IssuerRelease,
+    MacroRelease,
+    MacroRevision,
+    MacroScheduleEntry,
     QuarterFact,
     QuoteSample,
     SecurityMasterRecord,
@@ -39,6 +42,13 @@ FIXTURE_PATH = (
     / "fixtures"
     / "sourcedata"
     / "synthetic_snapshot_inputs_v1.json"
+)
+MACRO_FIXTURE_PATH = (
+    Path(__file__).parents[3]
+    / "tests"
+    / "fixtures"
+    / "sourcedata"
+    / "synthetic_macro_snapshot_inputs_v1.json"
 )
 
 
@@ -310,3 +320,203 @@ class FixtureMarketDataSource:
         return tuple(
             quote for quote in self._quotes.get(symbol, ()) if quote.session_id == session_id
         )
+
+
+def load_macro_fixture(path: Path | None = None) -> dict[str, object]:
+    """Load the frozen synthetic macro fixture exactly once per path."""
+
+    fixture_path = path or MACRO_FIXTURE_PATH
+    payload = json.loads(fixture_path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise CollectorRejected(
+            CollectorReason.UNSUPPORTED_INPUT,
+            "macro_fixture",
+            "fixture root must be an object",
+        )
+    return payload
+
+
+def build_macro_candidate_manifest(fixture: Mapping[str, object]) -> bytes:
+    """Serialize the frozen macro manifest to canonical bytes."""
+
+    payload = fixture["candidate_manifest"]
+    assert isinstance(payload, dict)
+    policy = load_strategy_policy()
+    records = tuple(
+        CandidateRecord(
+            event_id=str(record["event_id"]),
+            issuer=str(record["issuer"]),
+            security_id=str(record["security_id"]),
+            ticker=str(record["ticker"]),
+            cohort_id=str(record["cohort_id"]),
+            scheduled_at=_timestamp(str(record["scheduled_at"])),
+            eligibility=EligibilityState(str(record["eligibility"])),
+            reason_codes=tuple(str(code) for code in record["reason_codes"]),  # type: ignore[union-attr]
+        )
+        for record in sorted(
+            payload["records"],  # type: ignore[arg-type]
+            key=lambda item: str(item["event_id"]),
+        )
+    )
+    manifest = CandidateManifest(
+        manifest_id=str(payload["manifest_id"]),
+        candidate_id=str(payload["candidate_id"]),
+        policy_sha256=policy.sha256,
+        selection_rule_id=str(payload["selection_rule_id"]),
+        producer_build_sha256=str(payload["producer_build_sha256"]),
+        frozen_at=_timestamp(str(payload["frozen_at"])),
+        records=records,
+    )
+    return candidate_manifest_bytes(manifest)
+
+
+class FixtureMacroEvidenceSource:
+    """Read-only calendar adapter replaying the frozen macro fixture sessions."""
+
+    def __init__(self, fixture: Mapping[str, object]) -> None:
+        self._sessions = tuple(
+            SessionRecord(
+                exchange_mic=str(record["exchange_mic"]),
+                session_id=str(record["session_id"]),
+                session_date=_date(str(record["session_date"])),
+                open_at=_timestamp(str(record["open_at"])),
+                close_at=_timestamp(str(record["close_at"])),
+                full_regular=bool(record["full_regular"]),
+                provenance=_provenance(record["provenance"]),  # type: ignore[arg-type]
+            )
+            for record in fixture["sessions"]  # type: ignore[union-attr]
+        )
+
+    def sessions(self, exchange_mic: str, start: date, end: date) -> Sequence[SessionRecord]:
+        return tuple(
+            session
+            for session in self._sessions
+            if session.exchange_mic == exchange_mic and start <= session.session_date <= end
+        )
+
+
+class FixtureMacroReleaseSource:
+    """Read-only official macro release adapter replaying the frozen fixture."""
+
+    def __init__(self, fixture: Mapping[str, object]) -> None:
+        self._schedule = tuple(
+            MacroScheduleEntry(
+                release_family=str(entry["release_family"]),
+                reference_period=str(entry["reference_period"]),
+                scheduled_at=_timestamp(str(entry["scheduled_at"])),
+                provenance=_provenance(entry["provenance"]),  # type: ignore[arg-type]
+            )
+            for entry in fixture["release_schedule"]  # type: ignore[union-attr]
+        )
+        release_payload = fixture["release"]
+        assert isinstance(release_payload, dict)
+        self._release = MacroRelease(
+            release_family=str(release_payload["release_family"]),
+            reference_period=str(release_payload["reference_period"]),
+            vintage_index=int(release_payload["vintage_index"]),  # type: ignore[arg-type]
+            published_at=_timestamp(str(release_payload["published_at"])),
+            fields={
+                str(field_id): Decimal(str(value))
+                for field_id, value in release_payload["fields"].items()  # type: ignore[union-attr]
+            },
+            provenance=_provenance(release_payload["provenance"]),  # type: ignore[arg-type]
+        )
+        self._revisions = tuple(
+            MacroRevision(
+                release_family=str(revision["release_family"]),
+                revised_reference_period=str(revision["revised_reference_period"]),
+                field_id=str(revision["field_id"]),
+                initial_value=Decimal(str(revision["initial_value"])),
+                revised_value=Decimal(str(revision["revised_value"])),
+                published_at=_timestamp(str(revision["published_at"])),
+                provenance=_provenance(revision["provenance"]),  # type: ignore[arg-type]
+            )
+            for revision in fixture["revisions"]  # type: ignore[union-attr]
+        )
+
+    def release_schedule(self, release_family: str) -> Sequence[MacroScheduleEntry]:
+        return tuple(entry for entry in self._schedule if entry.release_family == release_family)
+
+    def release(
+        self, release_family: str, reference_period: str, vintage_index: int
+    ) -> MacroRelease | None:
+        release = self._release
+        if (
+            release.release_family == release_family
+            and release.reference_period == reference_period
+            and release.vintage_index == vintage_index
+        ):
+            return release
+        return None
+
+    def revisions(self, release_family: str, published_before: datetime) -> Sequence[MacroRevision]:
+        return tuple(
+            revision
+            for revision in self._revisions
+            if revision.release_family == release_family
+            and revision.published_at <= published_before
+        )
+
+
+class FixtureMacroMarketDataSource:
+    """Read-only SPY market adapter replaying the frozen macro fixture."""
+
+    def __init__(self, fixture: Mapping[str, object]) -> None:
+        self._bars = tuple(
+            DailyBar(
+                symbol=str(bar["symbol"]),
+                session_id=str(bar["session_id"]),
+                session_date=_date(str(bar["session_date"])),
+                close=Decimal(str(bar["close"])),
+                volume=int(bar["volume"]),  # type: ignore[arg-type]
+                valid=bool(bar["valid"]),
+            )
+            for bar in fixture["spy_daily_bars"]  # type: ignore[union-attr]
+        )
+        trades: list[Trade] = []
+        reaction_trades = fixture["spy_reaction_trades"]
+        assert isinstance(reaction_trades, list)
+        trades.extend(self._trade(trade) for trade in reaction_trades)
+        prior_trades = fixture["spy_prior_window_trades"]
+        assert isinstance(prior_trades, dict)
+        for session_trades in prior_trades.values():
+            trades.extend(self._trade(trade) for trade in session_trades)  # type: ignore[union-attr]
+        self._trades = tuple(trades)
+        quotes: list[QuoteSample] = []
+        anchor_quotes = fixture["spy_anchor_quotes"]
+        assert isinstance(anchor_quotes, list)
+        quotes.extend(self._quote(quote) for quote in anchor_quotes)
+        window_quotes = fixture["spy_window_quotes"]
+        assert isinstance(window_quotes, list)
+        quotes.extend(self._quote(quote) for quote in window_quotes)
+        self._quotes = tuple(quotes)
+
+    @staticmethod
+    def _trade(trade: Mapping[str, object]) -> Trade:
+        return Trade(
+            symbol=str(trade["symbol"]),
+            session_id=str(trade["session_id"]),
+            observed_at=_timestamp(str(trade["observed_at"])),
+            price=Decimal(str(trade["price"])),
+            size=int(trade["size"]),  # type: ignore[arg-type]
+            sale_condition=str(trade["sale_condition"]),
+        )
+
+    @staticmethod
+    def _quote(quote: Mapping[str, object]) -> QuoteSample:
+        return QuoteSample(
+            symbol=str(quote["symbol"]),
+            session_id=str(quote["session_id"]),
+            observed_at=_timestamp(str(quote["observed_at"])),
+            bid=Decimal(str(quote["bid"])),
+            ask=Decimal(str(quote["ask"])),
+        )
+
+    def daily_bars(self, symbol: str, start: date, end: date) -> Sequence[DailyBar]:
+        return tuple(bar for bar in self._bars if start <= bar.session_date <= end)
+
+    def window_trades(self, symbol: str, session_id: str) -> Sequence[Trade]:
+        return tuple(trade for trade in self._trades if trade.session_id == session_id)
+
+    def window_quotes(self, symbol: str, session_id: str) -> Sequence[QuoteSample]:
+        return tuple(quote for quote in self._quotes if quote.session_id == session_id)

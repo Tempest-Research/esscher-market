@@ -1,9 +1,11 @@
-"""Deterministic construction of the frozen earnings-candidate features.
+"""Deterministic construction of the frozen candidate features.
 
 Every feature is built only from point-in-time evidence and synchronized
 market observations at or before the registered clocks. Missing consensus is
 reported as UNAVAILABLE and never imputed; missing required dependencies fail
-closed with stable reason codes.
+closed with stable reason codes. Both the earnings primary candidate and the
+macro challenger are supported; revised macro values never replace the base
+release fields silently.
 """
 
 from __future__ import annotations
@@ -16,10 +18,16 @@ from decimal import Decimal
 from ringdown_market.sourcedata.betas import FrozenBeta, residualize
 from ringdown_market.sourcedata.decimal_math import collector_context, decimal_sqrt, log_return
 from ringdown_market.sourcedata.evidence import EvidencePacket, source_refs_for
-from ringdown_market.sourcedata.interfaces import IssuerRelease, QuoteSample
+from ringdown_market.sourcedata.interfaces import (
+    IssuerRelease,
+    MacroRelease,
+    MacroRevision,
+    QuoteSample,
+)
 from ringdown_market.sourcedata.reasons import CollectorReason, CollectorRejected
 from ringdown_market.sourcedata.windows import SynchronizedWindow, quote_spread_basis_points
 from ringdown_market.strategy.models import (
+    FeatureComponent,
     FeatureStatus,
     FeatureValue,
     FeatureValueType,
@@ -506,6 +514,418 @@ def build_earnings_features(inputs: FeatureBuildInput) -> tuple[FeatureValue, ..
         _build_realized_volatility(inputs),
         _build_residual_momentum(inputs),
         _build_vwap_distance(inputs),
+    )
+    ordered = tuple(sorted(features, key=lambda item: item.feature_id))
+    for feature in ordered:
+        if (
+            feature.status is FeatureStatus.PRESENT
+            and isinstance(feature.value, Decimal)
+            and not feature.value.is_finite()
+        ):
+            raise CollectorRejected(
+                CollectorReason.NON_FINITE_FEATURE,
+                f"features.{feature.feature_id}",
+                "feature value must be finite",
+            )
+    return ordered
+
+
+MACRO_COHORT_JOLTS = "BLS_JOLTS"
+MACRO_COHORT_EMPLOYMENT = "BLS_EMPLOYMENT_SITUATION"
+MACRO_FIELD_FEATURES: Mapping[str, Mapping[str, str]] = {
+    MACRO_COHORT_JOLTS: {
+        "job_openings": "macro.jolts.job_openings.v1",
+        "hires": "macro.jolts.hires.v1",
+        "quits": "macro.jolts.quits.v1",
+        "layoffs_and_discharges": "macro.jolts.layoffs_and_discharges.v1",
+        "total_separations": "macro.jolts.total_separations.v1",
+    },
+    MACRO_COHORT_EMPLOYMENT: {
+        "nonfarm_payrolls": "macro.employment.nonfarm_payrolls.v1",
+        "unemployment_rate": "macro.employment.unemployment_rate.v1",
+        "average_hourly_earnings_mom": "macro.employment.average_hourly_earnings_mom.v1",
+        "participation_rate": "macro.employment.participation_rate.v1",
+    },
+}
+MACRO_FIELD_UNITS: Mapping[str, str] = {
+    "job_openings": "COUNT",
+    "hires": "COUNT",
+    "quits": "COUNT",
+    "layoffs_and_discharges": "COUNT",
+    "total_separations": "COUNT",
+    "nonfarm_payrolls": "COUNT",
+    "unemployment_rate": "PERCENTAGE_POINTS",
+    "average_hourly_earnings_mom": "RATIO",
+    "participation_rate": "PERCENTAGE_POINTS",
+}
+FEATURE_MACRO_CONSENSUS_VECTOR = "macro.consensus_surprise_vector.v1"
+FEATURE_MACRO_REVISION_VECTOR = "macro.revision_vector.v1"
+FEATURE_SPY_EVENT_LOG_RETURN = "market.spy_event_log_return.v1"
+FEATURE_SPY_EVENT_ZSCORE = "market.spy_event_zscore_60.v1"
+FEATURE_SPY_EVENT_VOLUME_RATIO = "market.spy_event_volume_ratio_20.v1"
+FEATURE_SPY_EVENT_VWAP_DISTANCE = "market.spy_event_vwap_distance_bps.v1"
+FEATURE_SPY_EVENT_RANGE = "market.spy_event_range_bps.v1"
+FEATURE_SPY_EVENT_REVERSAL = "market.spy_event_reversal_bps.v1"
+FEATURE_SPY_NBBO_SPREAD = "market.spy_nbbo_spread_bps.v1"
+FEATURE_SPY_QUOTE_AGE = "market.spy_quote_age_ms.v1"
+FEATURE_SPY_REALIZED_VOL = "market.spy_realized_volatility_20d.v1"
+MACRO_BLS_SOURCE_CLASSES = ("OFFICIAL_BLS_RELEASE", "OFFICIAL_BLS_REVISION_TABLE")
+MACRO_SPY_TRADE_CLASSES = ("LICENSED_SIP_SPY_TRADES",)
+MACRO_SPY_QUOTE_CLASSES = ("LICENSED_SIP_SPY_QUOTES",)
+ZSCORE_MIN_SESSIONS = 45
+ZSCORE_SCALE_FLOOR = Decimal("0.0005")
+ZSCORE_MAD_MULTIPLIER = Decimal("1.4826")
+
+
+@dataclass(frozen=True, slots=True)
+class MacroFeatureBuildInput:
+    """All point-in-time inputs required by the macro-challenger feature set."""
+
+    release: MacroRelease
+    revisions: tuple[MacroRevision, ...]
+    cohort_id: str
+    anchor_mid: Decimal
+    end_mid: Decimal
+    window_vwap: Decimal
+    window_high: Decimal
+    window_low: Decimal
+    window_volume: int
+    prior_window_volumes: tuple[int, ...]
+    normalization_returns: tuple[Decimal, ...]
+    spy_daily_returns: tuple[Decimal, ...]
+    spy_quotes: Sequence[QuoteSample]
+    spy_symbol: str
+    window_end_at: datetime
+    quote_entitlement_verified: bool
+    evidence: EvidencePacket
+
+
+def _median_decimal(values: Sequence[Decimal]) -> Decimal:
+    ordered = sorted(values)
+    count = len(ordered)
+    if count % 2 == 1:
+        return ordered[count // 2]
+    with collector_context():
+        return (ordered[count // 2 - 1] + ordered[count // 2]) / 2
+
+
+def _macro_unavailable(feature_id: str, unit: str) -> FeatureValue:
+    return FeatureValue(
+        feature_id=feature_id,
+        status=FeatureStatus.UNAVAILABLE,
+        value=None,
+        value_type=FeatureValueType.DECIMAL_STRING_MAP,
+        unit=unit,
+        observed_at=None,
+        source_refs=(),
+    )
+
+
+def _macro_not_applicable(feature_id: str, unit: str) -> FeatureValue:
+    return FeatureValue(
+        feature_id=feature_id,
+        status=FeatureStatus.NOT_APPLICABLE,
+        value=None,
+        value_type=FeatureValueType.DECIMAL_STRING,
+        unit=unit,
+        observed_at=None,
+        source_refs=(),
+    )
+
+
+def _build_macro_components(inputs: MacroFeatureBuildInput) -> list[FeatureValue]:
+    features: list[FeatureValue] = []
+    bls_refs = source_refs_for(inputs.evidence, source_classes=MACRO_BLS_SOURCE_CLASSES)
+    for cohort_id, field_map in sorted(MACRO_FIELD_FEATURES.items()):
+        for field_id, feature_id in sorted(field_map.items()):
+            unit = MACRO_FIELD_UNITS[field_id]
+            if cohort_id != inputs.cohort_id:
+                features.append(_macro_not_applicable(feature_id, unit))
+                continue
+            value = inputs.release.fields.get(field_id)
+            if value is None:
+                raise CollectorRejected(
+                    CollectorReason.REQUIRED_COMPONENT_MISSING,
+                    f"release.{inputs.release.reference_period}.{field_id}",
+                    "required macro component is missing from the official release",
+                )
+            features.append(
+                FeatureValue(
+                    feature_id=feature_id,
+                    status=FeatureStatus.PRESENT,
+                    value=value,
+                    value_type=FeatureValueType.DECIMAL_STRING,
+                    unit=unit,
+                    observed_at=inputs.release.published_at,
+                    source_refs=bls_refs,
+                )
+            )
+    return features
+
+
+def _build_revision_vector(inputs: MacroFeatureBuildInput) -> FeatureValue:
+    bls_refs = source_refs_for(inputs.evidence, source_classes=MACRO_BLS_SOURCE_CLASSES)
+    components = []
+    seen: set[str] = set()
+    for revision in sorted(
+        inputs.revisions,
+        key=lambda item: (item.revised_reference_period, item.field_id),
+    ):
+        component_id = f"{revision.revised_reference_period}.{revision.field_id}"
+        if component_id in seen:
+            raise CollectorRejected(
+                CollectorReason.REVISION_FIELD_CONFLICTING,
+                f"revisions.{component_id}",
+                "conflicting revisions for one macro field",
+            )
+        seen.add(component_id)
+        unit = MACRO_FIELD_UNITS.get(revision.field_id, "COUNT")
+        with collector_context():
+            delta = revision.revised_value - revision.initial_value
+        components.append(
+            FeatureComponent(
+                component_id=component_id,
+                status=FeatureStatus.PRESENT,
+                value=delta,
+                unit=unit,
+                source_refs=bls_refs,
+            )
+        )
+    if not components:
+        raise CollectorRejected(
+            CollectorReason.REVISION_FIELD_MISSING,
+            "revisions",
+            "official revision table is required for the macro candidate",
+        )
+    return FeatureValue(
+        feature_id=FEATURE_MACRO_REVISION_VECTOR,
+        status=FeatureStatus.PRESENT,
+        value=None,
+        value_type=FeatureValueType.DECIMAL_STRING_MAP,
+        unit="DECIMAL_VECTOR",
+        observed_at=inputs.window_end_at,
+        source_refs=bls_refs,
+        components=tuple(sorted(components, key=lambda item: item.component_id)),
+    )
+
+
+def _build_spy_log_return(inputs: MacroFeatureBuildInput) -> FeatureValue:
+    with collector_context():
+        value = log_return(inputs.anchor_mid, inputs.end_mid)
+    return FeatureValue(
+        feature_id=FEATURE_SPY_EVENT_LOG_RETURN,
+        status=FeatureStatus.PRESENT,
+        value=value,
+        value_type=FeatureValueType.DECIMAL_STRING,
+        unit="LOG_RETURN",
+        observed_at=inputs.window_end_at,
+        source_refs=source_refs_for(inputs.evidence, source_classes=MACRO_SPY_QUOTE_CLASSES),
+    )
+
+
+def _build_spy_zscore(inputs: MacroFeatureBuildInput, event_return: Decimal) -> FeatureValue:
+    history = inputs.normalization_returns
+    if len(history) < ZSCORE_MIN_SESSIONS:
+        raise CollectorRejected(
+            CollectorReason.INSUFFICIENT_NORMALIZATION_HISTORY,
+            "normalization_history",
+            f"at least {ZSCORE_MIN_SESSIONS} prior sessions are required",
+        )
+    median = _median_decimal(history)
+    with collector_context():
+        deviations = tuple(abs(item - median) for item in history)
+        mad = _median_decimal(deviations)
+        scale = max(ZSCORE_MAD_MULTIPLIER * mad, ZSCORE_SCALE_FLOOR)
+        value = (event_return - median) / scale
+    return FeatureValue(
+        feature_id=FEATURE_SPY_EVENT_ZSCORE,
+        status=FeatureStatus.PRESENT,
+        value=value,
+        value_type=FeatureValueType.DECIMAL_STRING,
+        unit="Z_SCORE",
+        observed_at=inputs.window_end_at,
+        source_refs=source_refs_for(inputs.evidence, source_classes=MACRO_SPY_QUOTE_CLASSES),
+    )
+
+
+def _build_spy_volume_ratio(inputs: MacroFeatureBuildInput) -> FeatureValue:
+    prior = tuple(volume for volume in inputs.prior_window_volumes if volume > 0)
+    if len(prior) < RELATIVE_VOLUME_MIN_MATCHING:
+        raise CollectorRejected(
+            CollectorReason.MARKET_WINDOW_MISSING,
+            "spy_prior_window_volumes",
+            f"at least {RELATIVE_VOLUME_MIN_MATCHING} prior window volumes are required",
+        )
+    with collector_context():
+        value = Decimal(inputs.window_volume) / _median_decimal(
+            tuple(Decimal(volume) for volume in prior)
+        )
+    return FeatureValue(
+        feature_id=FEATURE_SPY_EVENT_VOLUME_RATIO,
+        status=FeatureStatus.PRESENT,
+        value=value,
+        value_type=FeatureValueType.DECIMAL_STRING,
+        unit="RATIO",
+        observed_at=inputs.window_end_at,
+        source_refs=source_refs_for(inputs.evidence, source_classes=MACRO_SPY_TRADE_CLASSES),
+    )
+
+
+def _build_spy_vwap_distance(inputs: MacroFeatureBuildInput) -> FeatureValue:
+    with collector_context():
+        if inputs.window_vwap <= 0:
+            raise CollectorRejected(
+                CollectorReason.NON_FINITE_FEATURE,
+                "spy_event_vwap_distance",
+                "window VWAP must be positive",
+            )
+        value = (inputs.end_mid / inputs.window_vwap - 1) * 10000
+    return FeatureValue(
+        feature_id=FEATURE_SPY_EVENT_VWAP_DISTANCE,
+        status=FeatureStatus.PRESENT,
+        value=value,
+        value_type=FeatureValueType.DECIMAL_STRING,
+        unit="BASIS_POINTS",
+        observed_at=inputs.window_end_at,
+        source_refs=source_refs_for(inputs.evidence, source_classes=MACRO_SPY_TRADE_CLASSES),
+    )
+
+
+def _build_spy_range(inputs: MacroFeatureBuildInput) -> FeatureValue:
+    with collector_context():
+        value = (inputs.window_high - inputs.window_low) / inputs.window_vwap * 10000
+    return FeatureValue(
+        feature_id=FEATURE_SPY_EVENT_RANGE,
+        status=FeatureStatus.PRESENT,
+        value=value,
+        value_type=FeatureValueType.DECIMAL_STRING,
+        unit="BASIS_POINTS",
+        observed_at=inputs.window_end_at,
+        source_refs=source_refs_for(inputs.evidence, source_classes=MACRO_SPY_QUOTE_CLASSES),
+    )
+
+
+def _build_spy_reversal(inputs: MacroFeatureBuildInput, event_return: Decimal) -> FeatureValue:
+    with collector_context():
+        if event_return > 0:
+            value = (inputs.end_mid - inputs.window_high) / inputs.window_high * 10000
+        elif event_return < 0:
+            value = (inputs.end_mid - inputs.window_low) / inputs.window_low * 10000
+        else:
+            value = Decimal(0)
+    return FeatureValue(
+        feature_id=FEATURE_SPY_EVENT_REVERSAL,
+        status=FeatureStatus.PRESENT,
+        value=value,
+        value_type=FeatureValueType.DECIMAL_STRING,
+        unit="BASIS_POINTS",
+        observed_at=inputs.window_end_at,
+        source_refs=source_refs_for(inputs.evidence, source_classes=MACRO_SPY_QUOTE_CLASSES),
+    )
+
+
+def _build_spy_nbbo_spread(inputs: MacroFeatureBuildInput) -> FeatureValue:
+    if not inputs.quote_entitlement_verified:
+        raise CollectorRejected(
+            CollectorReason.FEATURE_DEPENDENCY_MISSING,
+            "spy_nbbo_spread",
+            "verified SIP quote entitlement is required",
+        )
+    value = quote_spread_basis_points(
+        inputs.spy_quotes,
+        symbol=inputs.spy_symbol,
+        window_end_at=inputs.window_end_at,
+    )
+    return FeatureValue(
+        feature_id=FEATURE_SPY_NBBO_SPREAD,
+        status=FeatureStatus.PRESENT,
+        value=value,
+        value_type=FeatureValueType.DECIMAL_STRING,
+        unit="BASIS_POINTS",
+        observed_at=inputs.window_end_at,
+        source_refs=source_refs_for(inputs.evidence, source_classes=MACRO_SPY_QUOTE_CLASSES),
+    )
+
+
+def _build_spy_quote_age(inputs: MacroFeatureBuildInput) -> FeatureValue:
+    if not inputs.quote_entitlement_verified:
+        raise CollectorRejected(
+            CollectorReason.FEATURE_DEPENDENCY_MISSING,
+            "spy_quote_age",
+            "verified SIP quote entitlement is required",
+        )
+    eligible = tuple(
+        quote
+        for quote in inputs.spy_quotes
+        if quote.symbol == inputs.spy_symbol and quote.observed_at <= inputs.window_end_at
+    )
+    if not eligible:
+        raise CollectorRejected(
+            CollectorReason.MARKET_OBSERVATION_STALE,
+            "spy_quote_age",
+            "no SPY quote observation exists at or before the window end",
+        )
+    latest = max(eligible, key=lambda item: item.observed_at)
+    age_ms = int((inputs.window_end_at - latest.observed_at).total_seconds() * 1000)
+    return FeatureValue(
+        feature_id=FEATURE_SPY_QUOTE_AGE,
+        status=FeatureStatus.PRESENT,
+        value=age_ms,
+        value_type=FeatureValueType.INTEGER,
+        unit="MILLISECONDS",
+        observed_at=inputs.window_end_at,
+        source_refs=source_refs_for(inputs.evidence, source_classes=MACRO_SPY_QUOTE_CLASSES),
+    )
+
+
+def _build_spy_realized_volatility(inputs: MacroFeatureBuildInput) -> FeatureValue:
+    returns = inputs.spy_daily_returns
+    if len(returns) < VOLATILITY_SESSIONS:
+        raise CollectorRejected(
+            CollectorReason.FEATURE_DEPENDENCY_MISSING,
+            "spy_realized_volatility",
+            f"exactly {VOLATILITY_SESSIONS} prior daily returns are required",
+        )
+    recent = returns[-VOLATILITY_SESSIONS:]
+    with collector_context():
+        volatility = _sample_standard_deviation(recent) * decimal_sqrt(Decimal(252))
+    return FeatureValue(
+        feature_id=FEATURE_SPY_REALIZED_VOL,
+        status=FeatureStatus.PRESENT,
+        value=volatility,
+        value_type=FeatureValueType.DECIMAL_STRING,
+        unit="ANNUALIZED_LOG_RETURN_VOLATILITY",
+        observed_at=inputs.window_end_at,
+        source_refs=source_refs_for(inputs.evidence, source_classes=MACRO_SPY_TRADE_CLASSES),
+    )
+
+
+def build_macro_features(inputs: MacroFeatureBuildInput) -> tuple[FeatureValue, ...]:
+    """Build the complete sorted macro-challenger feature set."""
+
+    if inputs.cohort_id not in MACRO_FIELD_FEATURES:
+        raise CollectorRejected(
+            CollectorReason.UNSUPPORTED_INPUT,
+            f"cohort.{inputs.cohort_id}",
+            "macro cohort is not registered",
+        )
+    log_return_feature = _build_spy_log_return(inputs)
+    assert isinstance(log_return_feature.value, Decimal)
+    features = tuple(
+        [
+            *_build_macro_components(inputs),
+            _macro_unavailable(FEATURE_MACRO_CONSENSUS_VECTOR, "DECIMAL_VECTOR"),
+            _build_revision_vector(inputs),
+            log_return_feature,
+            _build_spy_zscore(inputs, log_return_feature.value),
+            _build_spy_volume_ratio(inputs),
+            _build_spy_vwap_distance(inputs),
+            _build_spy_range(inputs),
+            _build_spy_reversal(inputs, log_return_feature.value),
+            _build_spy_nbbo_spread(inputs),
+            _build_spy_quote_age(inputs),
+            _build_spy_realized_volatility(inputs),
+        ]
     )
     ordered = tuple(sorted(features, key=lambda item: item.feature_id))
     for feature in ordered:

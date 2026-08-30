@@ -7,7 +7,7 @@ account, position, trading, or mutation surface exists in this package.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
@@ -314,4 +314,88 @@ class MarketDataSource(Protocol):
 
     def window_quotes(self, symbol: str, session_id: str) -> Sequence[QuoteSample]:
         """Return consolidated quote samples for one session."""
+        ...
+
+
+@dataclass(frozen=True, slots=True)
+class MacroScheduleEntry:
+    """One official macro-release schedule observation for one reference period."""
+
+    release_family: str
+    reference_period: str
+    scheduled_at: datetime
+    provenance: SourceProvenance
+
+    def __post_init__(self) -> None:
+        if not self.release_family or not self.reference_period:
+            raise ValueError("release_family and reference_period must be non-empty text")
+        require_utc(self.scheduled_at, "scheduled_at")
+
+
+@dataclass(frozen=True, slots=True)
+class MacroRelease:
+    """One official macro release vintage with its reported fields.
+
+    ``vintage_index`` is 1 for the first publication of a reference period and
+    increments on each official re-publication. Fields carry the values exactly
+    as reported by this vintage; revised values never replace them silently.
+    """
+
+    release_family: str
+    reference_period: str
+    vintage_index: int
+    published_at: datetime
+    fields: Mapping[str, Decimal]
+    provenance: SourceProvenance
+
+    def __post_init__(self) -> None:
+        if not self.release_family or not self.reference_period:
+            raise ValueError("release_family and reference_period must be non-empty text")
+        if self.vintage_index < 1:
+            raise ValueError("vintage_index must be a positive integer")
+        require_utc(self.published_at, "published_at")
+        for field_id, value in self.fields.items():
+            if not field_id:
+                raise ValueError("field identifiers must be non-empty text")
+            if not value.is_finite():
+                raise ValueError("macro release fields must be finite decimals")
+
+
+@dataclass(frozen=True, slots=True)
+class MacroRevision:
+    """One official revision of a previously published macro field."""
+
+    release_family: str
+    revised_reference_period: str
+    field_id: str
+    initial_value: Decimal
+    revised_value: Decimal
+    published_at: datetime
+    provenance: SourceProvenance
+
+    def __post_init__(self) -> None:
+        if not self.release_family or not self.revised_reference_period or not self.field_id:
+            raise ValueError("revision identifiers must be non-empty text")
+        for value in (self.initial_value, self.revised_value):
+            if not value.is_finite():
+                raise ValueError("revision values must be finite decimals")
+        require_utc(self.published_at, "published_at")
+
+
+@runtime_checkable
+class MacroReleaseSource(Protocol):
+    """Read-only boundary for official macro releases, schedules, and revisions."""
+
+    def release_schedule(self, release_family: str) -> Sequence[MacroScheduleEntry]:
+        """Return the official schedule observations for one release family."""
+        ...
+
+    def release(
+        self, release_family: str, reference_period: str, vintage_index: int
+    ) -> MacroRelease | None:
+        """Return one exact release vintage, if published."""
+        ...
+
+    def revisions(self, release_family: str, published_before: datetime) -> Sequence[MacroRevision]:
+        """Return official revisions published strictly before one instant."""
         ...

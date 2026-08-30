@@ -18,16 +18,24 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from ringdown_market.sourcedata.compiler import (
+    EARNINGS_CANDIDATE,
+    MACRO_CANDIDATE,
     CaptureConfiguration,
     CompiledSnapshot,
+    compile_macro_snapshot,
     compile_strategy_snapshot,
     compiled_strategy_input,
 )
 from ringdown_market.sourcedata.fakes import (
     FixtureEvidenceSource,
+    FixtureMacroEvidenceSource,
+    FixtureMacroMarketDataSource,
+    FixtureMacroReleaseSource,
     FixtureMarketDataSource,
     build_candidate_manifest,
+    build_macro_candidate_manifest,
     load_fixture,
+    load_macro_fixture,
 )
 from ringdown_market.sourcedata.reasons import CollectorReason, CollectorRejected
 from ringdown_market.sourcedata.receipts import (
@@ -39,10 +47,10 @@ HOST_AUTHORIZATION_VARIABLE = "ESSCHER_CAPTURE_AUTHORIZED"
 HOST_AUTHORIZATION_VALUE = "yes"
 
 
-def _configuration(args: argparse.Namespace, fixture) -> CaptureConfiguration:
+def _configuration(args: argparse.Namespace, fixture, manifest_builder) -> CaptureConfiguration:
     capture_at = datetime.fromisoformat(args.capture_at.replace("Z", "+00:00")).astimezone(UTC)
     return CaptureConfiguration(
-        candidate_manifest_bytes=build_candidate_manifest(fixture),
+        candidate_manifest_bytes=manifest_builder(fixture),
         event_id=args.event_id,
         capture_at=capture_at,
         market_publisher=str(fixture["market_publisher"]),
@@ -51,9 +59,15 @@ def _configuration(args: argparse.Namespace, fixture) -> CaptureConfiguration:
     )
 
 
-def run_capture(configuration: CaptureConfiguration) -> CompiledSnapshot:
+def run_capture(configuration: CaptureConfiguration, candidate: str) -> CompiledSnapshot:
     """Run one offline capture over the frozen synthetic adapters."""
 
+    if candidate == MACRO_CANDIDATE:
+        fixture = load_macro_fixture()
+        evidence = FixtureMacroEvidenceSource(fixture)
+        macro = FixtureMacroReleaseSource(fixture)
+        market = FixtureMacroMarketDataSource(fixture)
+        return compile_macro_snapshot(configuration, evidence.sessions, macro, market)
     fixture = load_fixture()
     evidence = FixtureEvidenceSource(fixture)
     market = FixtureMarketDataSource(fixture)
@@ -122,9 +136,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 2
     fixture = load_fixture(args.fixture)
+    candidate = MACRO_CANDIDATE if args.event_id.startswith("BLS-") else EARNINGS_CANDIDATE
+    if candidate == MACRO_CANDIDATE:
+        fixture = load_macro_fixture(args.fixture)
+        manifest_builder = build_macro_candidate_manifest
+    else:
+        manifest_builder = build_candidate_manifest
     try:
-        configuration = _configuration(args, fixture)
-        compiled = run_capture(configuration)
+        configuration = _configuration(args, fixture, manifest_builder)
+        compiled = run_capture(configuration, candidate)
         joined = compiled_strategy_input(compiled)
     except CollectorRejected as error:
         print(str(error), file=sys.stderr)

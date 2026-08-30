@@ -42,7 +42,7 @@ from ringdown_market.sourcedata.receipts import (
     source_receipt_bytes,
 )
 from ringdown_market.sourcedata.windows import build_synchronized_window
-from ringdown_market.strategy.models import FeatureStatus, TimingBucket
+from ringdown_market.strategy.models import FeatureStatus, ReleaseFamily, TimingBucket
 
 EVENT_ID = "KR-2026Q2-EARNINGS"
 PACKAGE_ROOT = Path(__file__).parents[1] / "src" / "ringdown_market" / "sourcedata"
@@ -737,3 +737,160 @@ def compiled_strategy_input_bytes(snapshot_bytes: bytes, tmp_path: Path) -> byte
     from ringdown_market.strategy.contracts import parse_strategy_snapshot, strategy_snapshot_bytes
 
     return strategy_snapshot_bytes(parse_strategy_snapshot(snapshot_bytes))
+
+
+MACRO_EVENT_ID = "BLS-JOLTS-2026-07"
+
+
+def _macro_fixture():
+    from ringdown_market.sourcedata.fakes import load_macro_fixture
+
+    return load_macro_fixture()
+
+
+def _macro_configuration(fixture, capture_at: str = "2026-09-09T14:15:10Z"):
+    from ringdown_market.sourcedata.fakes import build_macro_candidate_manifest
+
+    return CaptureConfiguration(
+        candidate_manifest_bytes=build_macro_candidate_manifest(fixture),
+        event_id=MACRO_EVENT_ID,
+        capture_at=_at(capture_at),
+        market_publisher=str(fixture["market_publisher"]),
+        market_entitlement=str(fixture["market_entitlement"]),
+        market_redistribution=str(fixture["market_redistribution"]),
+    )
+
+
+def _compile_macro(fixture=None, capture_at: str = "2026-09-09T14:15:10Z"):
+    from ringdown_market.sourcedata.compiler import compile_macro_snapshot
+    from ringdown_market.sourcedata.fakes import (
+        FixtureMacroEvidenceSource,
+        FixtureMacroMarketDataSource,
+        FixtureMacroReleaseSource,
+    )
+
+    fixture = fixture if fixture is not None else _macro_fixture()
+    evidence = FixtureMacroEvidenceSource(fixture)
+    macro = FixtureMacroReleaseSource(fixture)
+    market = FixtureMacroMarketDataSource(fixture)
+    return compile_macro_snapshot(
+        _macro_configuration(fixture, capture_at), evidence.sessions, macro, market
+    )
+
+
+def _rejects_macro(fixture, reason: CollectorReason, capture_at: str = "2026-09-09T14:15:10Z"):
+    from ringdown_market.sourcedata.compiler import compile_macro_snapshot
+    from ringdown_market.sourcedata.fakes import (
+        FixtureMacroEvidenceSource,
+        FixtureMacroMarketDataSource,
+        FixtureMacroReleaseSource,
+    )
+
+    evidence = FixtureMacroEvidenceSource(fixture)
+    macro = FixtureMacroReleaseSource(fixture)
+    market = FixtureMacroMarketDataSource(fixture)
+    with pytest.raises(CollectorRejected) as caught:
+        compile_macro_snapshot(
+            _macro_configuration(fixture, capture_at), evidence.sessions, macro, market
+        )
+    assert caught.value.reason is reason
+    return caught.value
+
+
+@pytest.fixture(scope="module")
+def compiled_macro_snapshot():
+    return _compile_macro()
+
+
+def test_macro_identical_inputs_produce_byte_identical_snapshots(compiled_macro_snapshot) -> None:
+    rerun = _compile_macro()
+    assert rerun.strategy_snapshot_bytes == compiled_macro_snapshot.strategy_snapshot_bytes
+    assert rerun.feature_receipt_bytes == compiled_macro_snapshot.feature_receipt_bytes
+    assert (
+        rerun.evidence_packet.packet_sha256 == compiled_macro_snapshot.evidence_packet.packet_sha256
+    )
+
+
+def test_macro_snapshot_passes_the_frozen_strategy_contract(compiled_macro_snapshot) -> None:
+    from ringdown_market.strategy.models import EventCategory, TimingBucket
+
+    joined = compiled_strategy_input(compiled_macro_snapshot)
+    assert joined.snapshot.event_id == MACRO_EVENT_ID
+    assert joined.snapshot.event_category is EventCategory.SCHEDULED_MACRO_RELEASE
+    assert joined.snapshot.timing_bucket is TimingBucket.SCHEDULED_RELEASE
+    assert joined.snapshot.release_family is ReleaseFamily.BLS_JOLTS
+    assert joined.feature_receipt.feature_snapshot_at <= joined.snapshot.decision_cutoff_at
+
+
+def test_macro_snapshot_carries_all_policy_features(compiled_macro_snapshot) -> None:
+    features = compiled_macro_snapshot.feature_receipt.features
+    assert len(features) == 20
+    by_id = {feature.feature_id: feature for feature in features}
+    assert by_id["macro.jolts.job_openings.v1"].status is FeatureStatus.PRESENT
+    assert by_id["macro.employment.nonfarm_payrolls.v1"].status is FeatureStatus.NOT_APPLICABLE
+    assert by_id["macro.consensus_surprise_vector.v1"].status is FeatureStatus.UNAVAILABLE
+    assert by_id["macro.revision_vector.v1"].status is FeatureStatus.PRESENT
+    revision = by_id["macro.revision_vector.v1"]
+    assert len(revision.components) == 1
+    assert revision.components[0].component_id == "2026-06.job_openings"
+
+
+def test_macro_base_fields_use_first_vintage_not_revised_values(compiled_macro_snapshot) -> None:
+    features = compiled_macro_snapshot.feature_receipt.features
+    by_id = {feature.feature_id: feature for feature in features}
+    assert by_id["macro.jolts.job_openings.v1"].value == Decimal("7200000")
+
+
+def test_macro_release_missing_fails_closed() -> None:
+    fixture = copy.deepcopy(_macro_fixture())
+    fixture["release"]["reference_period"] = "2099-01"
+    _rejects_macro(fixture, CollectorReason.OFFICIAL_RELEASE_MISSING)
+
+
+def test_macro_release_late_fails_closed() -> None:
+    fixture = copy.deepcopy(_macro_fixture())
+    fixture["release"]["published_at"] = "2026-09-09T14:15:16Z"
+    _rejects_macro(fixture, CollectorReason.OFFICIAL_RELEASE_LATE)
+
+
+def test_macro_schedule_not_frozen_fails_closed() -> None:
+    fixture = copy.deepcopy(_macro_fixture())
+    fixture["candidate_manifest"]["records"][0]["scheduled_at"] = "2026-09-09T15:00:00Z"
+    _rejects_macro(fixture, CollectorReason.SCHEDULE_NOT_FROZEN)
+
+
+def test_macro_revision_conflict_fails_closed() -> None:
+    fixture = copy.deepcopy(_macro_fixture())
+    conflicting = copy.deepcopy(fixture["revisions"][0])
+    conflicting["revised_value"] = "9999999"
+    fixture["revisions"].append(conflicting)
+    _rejects_macro(fixture, CollectorReason.REVISION_FIELD_CONFLICTING)
+
+
+def test_macro_insufficient_normalization_history_fails_closed() -> None:
+    fixture = copy.deepcopy(_macro_fixture())
+    prior = fixture["spy_prior_window_trades"]
+    keep = sorted(prior.keys())[-40:]
+    fixture["spy_prior_window_trades"] = {key: prior[key] for key in keep}
+    _rejects_macro(fixture, CollectorReason.INSUFFICIENT_NORMALIZATION_HISTORY)
+
+
+def test_macro_capture_command_writes_canonical_artifacts(tmp_path: Path, monkeypatch) -> None:
+    from ringdown_market.sourcedata.capture import main
+
+    monkeypatch.setenv("ESSCHER_CAPTURE_AUTHORIZED", "yes")
+    exit_code = main(
+        [
+            "--event-id",
+            MACRO_EVENT_ID,
+            "--capture-at",
+            "2026-09-09T14:15:10Z",
+            "--output-dir",
+            str(tmp_path),
+        ]
+    )
+    assert exit_code == 0
+    names = {item.name for item in tmp_path.iterdir()}
+    assert {"strategy_snapshot.json", "feature_receipt.json", "candidate_manifest.json"} <= names
+    snapshot_bytes = (tmp_path / "strategy_snapshot.json").read_bytes()
+    assert snapshot_bytes == compiled_strategy_input_bytes(snapshot_bytes, tmp_path)
