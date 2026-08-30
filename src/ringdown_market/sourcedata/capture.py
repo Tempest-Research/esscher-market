@@ -37,6 +37,7 @@ from ringdown_market.sourcedata.fakes import (
     load_fixture,
     load_macro_fixture,
 )
+from ringdown_market.sourcedata.feasibility import feasibility_manifest_bytes
 from ringdown_market.sourcedata.reasons import CollectorReason, CollectorRejected
 from ringdown_market.sourcedata.receipts import (
     corporate_action_receipt_bytes,
@@ -72,6 +73,25 @@ def run_capture(configuration: CaptureConfiguration, candidate: str) -> Compiled
     evidence = FixtureEvidenceSource(fixture)
     market = FixtureMarketDataSource(fixture)
     return compile_strategy_snapshot(configuration, evidence, market)
+
+
+def _build_feasibility(candidate: str, fixture, compiled, capture_at):
+    """Build the candidate-specific Gate B feasibility manifest."""
+
+    from ringdown_market.sourcedata.fakes import load_feasibility_declarations
+    from ringdown_market.sourcedata.feasibility import build_feasibility_for_candidate
+    from ringdown_market.strategy.policy import load_strategy_policy
+
+    fallback = MACRO_CANDIDATE if candidate == EARNINGS_CANDIDATE else None
+    return build_feasibility_for_candidate(
+        policy=load_strategy_policy(),
+        candidate_id=candidate,
+        declarations=load_feasibility_declarations(fixture),
+        source_receipts=compiled.source_receipts,
+        evaluated_at=capture_at,
+        producer_build_sha256=compiled.snapshot.producer_build_sha256,
+        fallback_candidate_id=fallback,
+    )
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -146,6 +166,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         configuration = _configuration(args, fixture, manifest_builder)
         compiled = run_capture(configuration, candidate)
         joined = compiled_strategy_input(compiled)
+        feasibility_manifest = _build_feasibility(
+            candidate, fixture, compiled, configuration.capture_at
+        )
     except CollectorRejected as error:
         print(str(error), file=sys.stderr)
         return 2
@@ -182,6 +205,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     output_dir.joinpath("strategy_snapshot.json").write_bytes(compiled.strategy_snapshot_bytes)
     output_dir.joinpath("feature_receipt.json").write_bytes(compiled.feature_receipt_bytes)
     output_dir.joinpath("candidate_manifest.json").write_bytes(compiled.candidate_manifest_bytes)
+    output_dir.joinpath("data_feasibility_manifest.json").write_bytes(
+        feasibility_manifest_bytes(feasibility_manifest)
+    )
     receipts = b"".join(
         source_receipt_bytes(receipt) + b"\n" for receipt in compiled.source_receipts
     )

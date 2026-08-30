@@ -336,6 +336,37 @@ def load_macro_fixture(path: Path | None = None) -> dict[str, object]:
     return payload
 
 
+def load_feasibility_declarations(fixture: Mapping[str, object]):
+    """Load the declared feasibility source families from one fixture."""
+
+    from ringdown_market.sourcedata.feasibility import SourceFeasibilityDeclaration
+
+    feasibility = fixture.get("feasibility", [])
+    if not isinstance(feasibility, list):
+        raise CollectorRejected(
+            CollectorReason.UNSUPPORTED_INPUT,
+            "feasibility",
+            "fixture feasibility section must be a list",
+        )
+    return tuple(
+        SourceFeasibilityDeclaration(
+            source_family=str(entry["source_family"]),
+            endpoint=str(entry["endpoint"]),
+            publisher_clock=str(entry["publisher_clock"]),
+            timestamp_precision=str(entry["timestamp_precision"]),
+            retrieval=str(entry["retrieval"]),
+            revision_behavior=str(entry["revision_behavior"]),
+            identifiers=str(entry["identifiers"]),
+            entitlement=str(entry["entitlement"]),
+            redistribution=str(entry["redistribution"]),
+            feed_adjustment_policy=str(entry["feed_adjustment_policy"]),
+            historical_coverage=str(entry["historical_coverage"]),
+            known_gaps=tuple(str(gap) for gap in entry["known_gaps"]),  # type: ignore[union-attr]
+        )
+        for entry in feasibility
+    )
+
+
 def build_macro_candidate_manifest(fixture: Mapping[str, object]) -> bytes:
     """Serialize the frozen macro manifest to canonical bytes."""
 

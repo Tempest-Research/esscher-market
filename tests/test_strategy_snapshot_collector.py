@@ -894,3 +894,135 @@ def test_macro_capture_command_writes_canonical_artifacts(tmp_path: Path, monkey
     assert {"strategy_snapshot.json", "feature_receipt.json", "candidate_manifest.json"} <= names
     snapshot_bytes = (tmp_path / "strategy_snapshot.json").read_bytes()
     assert snapshot_bytes == compiled_strategy_input_bytes(snapshot_bytes, tmp_path)
+
+
+def _earnings_feasibility():
+    from ringdown_market.sourcedata.fakes import load_feasibility_declarations
+    from ringdown_market.sourcedata.feasibility import build_feasibility_for_candidate
+    from ringdown_market.strategy.policy import load_strategy_policy
+
+    fixture = load_fixture()
+    compiled = _compile(fixture)
+    return build_feasibility_for_candidate(
+        policy=load_strategy_policy(),
+        candidate_id="EARNINGS_RESIDUAL_CONTINUATION_V1",
+        declarations=load_feasibility_declarations(fixture),
+        source_receipts=compiled.source_receipts,
+        evaluated_at=_at("2026-09-11T13:35:10Z"),
+        producer_build_sha256=compiled.snapshot.producer_build_sha256,
+        fallback_candidate_id="MACRO_SPY_CONTINUATION_CHALLENGER_V1",
+    )
+
+
+def test_earnings_feasibility_is_feasible_with_bound_receipts() -> None:
+    from ringdown_market.sourcedata.feasibility import VERDICT_FEASIBLE
+
+    manifest = _earnings_feasibility()
+    assert manifest.verdict is VERDICT_FEASIBLE
+    assert manifest.verdict_reasons == ()
+    assert manifest.fallback_candidate_id is None
+    assert len(manifest.sources) == 5
+    for source in manifest.sources:
+        assert len(source.sample_receipt_sha256) == 64
+
+
+def test_feasibility_manifest_is_byte_identical_across_rebuilds() -> None:
+    from ringdown_market.sourcedata.feasibility import feasibility_manifest_bytes
+
+    first = feasibility_manifest_bytes(_earnings_feasibility())
+    second = feasibility_manifest_bytes(_earnings_feasibility())
+    assert first == second
+
+
+def test_feasibility_manifest_round_trip_and_tamper_rejection() -> None:
+    from ringdown_market.sourcedata.feasibility import (
+        feasibility_manifest_bytes,
+        parse_feasibility_manifest,
+    )
+
+    manifest = _earnings_feasibility()
+    raw = feasibility_manifest_bytes(manifest)
+    assert parse_feasibility_manifest(raw).candidate_id == manifest.candidate_id
+    tampered = raw.replace(b"FEASIBLE", b"feasiBLE")
+    with pytest.raises(CollectorRejected):
+        parse_feasibility_manifest(tampered)
+
+
+def test_missing_required_source_makes_earnings_infeasible_with_macro_fallback() -> None:
+    from ringdown_market.sourcedata.fakes import load_feasibility_declarations
+    from ringdown_market.sourcedata.feasibility import (
+        VERDICT_INFEASIBLE,
+        build_feasibility_for_candidate,
+    )
+    from ringdown_market.strategy.policy import load_strategy_policy
+
+    fixture = load_fixture()
+    compiled = _compile(fixture)
+    declarations = tuple(
+        declaration
+        for declaration in load_feasibility_declarations(fixture)
+        if declaration.source_family != "CORPORATE_ACTION_RECORD"
+    )
+    manifest = build_feasibility_for_candidate(
+        policy=load_strategy_policy(),
+        candidate_id="EARNINGS_RESIDUAL_CONTINUATION_V1",
+        declarations=declarations,
+        source_receipts=compiled.source_receipts,
+        evaluated_at=_at("2026-09-11T13:35:10Z"),
+        producer_build_sha256=compiled.snapshot.producer_build_sha256,
+        fallback_candidate_id="MACRO_SPY_CONTINUATION_CHALLENGER_V1",
+    )
+    assert manifest.verdict is VERDICT_INFEASIBLE
+    assert manifest.verdict_reasons == ("MISSING_REQUIRED_SOURCE",)
+    assert manifest.fallback_candidate_id == "MACRO_SPY_CONTINUATION_CHALLENGER_V1"
+    assert "NO_TRADE_AUTHORIZATION" in _feasibility_claims()
+
+
+def _feasibility_claims():
+    from ringdown_market.sourcedata.feasibility import FEASIBILITY_CLAIMS
+
+    return FEASIBILITY_CLAIMS
+
+
+def test_unverified_rights_make_candidate_infeasible() -> None:
+    from ringdown_market.sourcedata.fakes import load_feasibility_declarations
+    from ringdown_market.sourcedata.feasibility import (
+        VERDICT_INFEASIBLE,
+        build_feasibility_for_candidate,
+    )
+    from ringdown_market.strategy.policy import load_strategy_policy
+
+    fixture = copy.deepcopy(load_fixture())
+    for entry in fixture["feasibility"]:
+        if entry["source_family"] == "ISSUER_INVESTOR_RELATIONS":
+            entry["entitlement"] = "UNVERIFIED"
+    compiled = _compile(load_fixture())
+    manifest = build_feasibility_for_candidate(
+        policy=load_strategy_policy(),
+        candidate_id="EARNINGS_RESIDUAL_CONTINUATION_V1",
+        declarations=load_feasibility_declarations(fixture),
+        source_receipts=compiled.source_receipts,
+        evaluated_at=_at("2026-09-11T13:35:10Z"),
+        producer_build_sha256=compiled.snapshot.producer_build_sha256,
+        fallback_candidate_id="MACRO_SPY_CONTINUATION_CHALLENGER_V1",
+    )
+    assert manifest.verdict is VERDICT_INFEASIBLE
+    assert manifest.verdict_reasons == ("SOURCE_RIGHTS_UNVERIFIED",)
+
+
+def test_capture_command_writes_feasibility_manifest(tmp_path: Path, monkeypatch) -> None:
+    from ringdown_market.sourcedata.capture import main
+
+    monkeypatch.setenv("ESSCHER_CAPTURE_AUTHORIZED", "yes")
+    exit_code = main(
+        [
+            "--event-id",
+            EVENT_ID,
+            "--capture-at",
+            "2026-09-11T13:35:10Z",
+            "--output-dir",
+            str(tmp_path),
+        ]
+    )
+    assert exit_code == 0
+    assert (tmp_path / "data_feasibility_manifest.json").exists()

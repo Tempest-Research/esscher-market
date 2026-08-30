@@ -10268,6 +10268,80 @@
  },
  "data_class": "SYNTHETIC_CONTRACT_FIXTURE",
  "event_id": "KR-2026Q2-EARNINGS",
+ "feasibility": [
+  {
+   "endpoint": "synthetic official exchange calendar feed",
+   "entitlement": "ENTITLED",
+   "feed_adjustment_policy": "none",
+   "historical_coverage": "full XNYS calendar 2025-01-02 through 2026-09-11",
+   "identifiers": "content_sha256 plus source identifiers",
+   "known_gaps": [],
+   "publisher_clock": "America/New_York official source clock",
+   "redistribution": "NON_REDISTRIBUTABLE",
+   "retrieval": "point-in-time read-only retrieval at capture clock",
+   "revision_behavior": "frozen; no revisions after publication",
+   "source_family": "OFFICIAL_EXCHANGE_CALENDAR",
+   "timestamp_precision": "SECOND"
+  },
+  {
+   "endpoint": "synthetic point-in-time security master",
+   "entitlement": "ENTITLED",
+   "feed_adjustment_policy": "none",
+   "historical_coverage": "frozen master at universe freeze",
+   "identifiers": "content_sha256 plus source identifiers",
+   "known_gaps": [],
+   "publisher_clock": "America/New_York official source clock",
+   "redistribution": "NON_REDISTRIBUTABLE",
+   "retrieval": "point-in-time read-only retrieval at capture clock",
+   "revision_behavior": "frozen; no revisions after publication",
+   "source_family": "POINT_IN_TIME_SECURITY_MASTER",
+   "timestamp_precision": "SECOND"
+  },
+  {
+   "endpoint": "synthetic issuer investor-relations releases",
+   "entitlement": "ENTITLED",
+   "feed_adjustment_policy": "none",
+   "historical_coverage": "per-event primary earnings and guidance releases",
+   "identifiers": "content_sha256 plus source identifiers",
+   "known_gaps": [
+    "point-in-time consensus not licensed"
+   ],
+   "publisher_clock": "America/New_York official source clock",
+   "redistribution": "NON_REDISTRIBUTABLE",
+   "retrieval": "point-in-time read-only retrieval at capture clock",
+   "revision_behavior": "frozen; no revisions after publication",
+   "source_family": "ISSUER_INVESTOR_RELATIONS",
+   "timestamp_precision": "SECOND"
+  },
+  {
+   "endpoint": "synthetic licensed SIP consolidated trades",
+   "entitlement": "ENTITLED",
+   "feed_adjustment_policy": "split-adjusted price-only bars; dividends do not adjust returns",
+   "historical_coverage": "reaction session plus 20 prior opening windows",
+   "identifiers": "content_sha256 plus source identifiers",
+   "known_gaps": [],
+   "publisher_clock": "America/New_York official source clock",
+   "redistribution": "NON_REDISTRIBUTABLE",
+   "retrieval": "point-in-time read-only retrieval at capture clock",
+   "revision_behavior": "frozen; no revisions after publication",
+   "source_family": "LICENSED_SIP_EQUITY_TRADES",
+   "timestamp_precision": "SECOND"
+  },
+  {
+   "endpoint": "synthetic corporate action records",
+   "entitlement": "ENTITLED",
+   "feed_adjustment_policy": "none",
+   "historical_coverage": "splits, dividends, and symbol changes through the reaction date",
+   "identifiers": "content_sha256 plus source identifiers",
+   "known_gaps": [],
+   "publisher_clock": "America/New_York official source clock",
+   "redistribution": "NON_REDISTRIBUTABLE",
+   "retrieval": "point-in-time read-only retrieval at capture clock",
+   "revision_behavior": "frozen; no revisions after publication",
+   "source_family": "CORPORATE_ACTION_RECORD",
+   "timestamp_precision": "SECOND"
+  }
+ ],
  "issuer_release": {
   "current_guidance": {
    "eps_high": "4.70",
