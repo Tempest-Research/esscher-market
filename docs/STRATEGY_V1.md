@@ -74,7 +74,8 @@ The market proxy is SPY. The point-in-time GICS sector map is fixed to XLC, XLY,
 An AMC snapshot binds `prior_eligible_session_close_at` as the preceding 16:00 ET
 regular-session boundary. Its declared publication time must be at or after that bound and strictly
 before the next reaction-session open; the contract does not infer an eligible prior close from a
-calendar date.
+calendar date. The bound must also share the retained candidate schedule's ET date, so a Friday
+close can bind a Monday reaction session without accepting a Friday pre-open BMO release as AMC.
 
 The opening auction, non-regular conditions, corrections, extended hours, forward-filled observations, and post-cutoff dependencies are inadmissible. The start observation may be no more than 15 seconds late, the end observation no more than 15 seconds old, and issuer/SPY/sector endpoints no more than five seconds apart.
 
@@ -116,7 +117,7 @@ The exact 13 feature IDs are:
 12. `market.pre_event_residual_momentum_20d.v1`
 13. `market.distance_from_opening_vwap_bps.v1`
 
-Every feature record exists with `PRESENT`, `UNAVAILABLE`, `NOT_APPLICABLE`, or `CONFLICTING` status. Decimal values are canonical decimal strings. Every `PRESENT` feature and every `PRESENT` vector component must cite at least one `source_refs` evidence ID; blank provenance is rejected. Consensus features are optional only when explicitly unavailable; at least one frozen EPS surprise path is required. `NOT_GIVEN` is a valid guidance value, not an imputation. Required market features, dependencies, quote entitlement, numeric finiteness, and corporate-action state fail closed.
+Every feature record exists with `PRESENT`, `UNAVAILABLE`, `NOT_APPLICABLE`, or `CONFLICTING` status. Decimal values are canonical decimal strings. Every `PRESENT` feature and every `PRESENT` vector component must cite at least one known `source_refs` evidence ID; blank provenance is rejected. A cited source's collector-proven `available_at` must be at or before the parent feature's `observed_at`, so no feature is usable before its evidence was available. Consensus features are optional only when explicitly unavailable; at least one frozen EPS surprise path is required. `NOT_GIVEN` is a valid guidance value, not an imputation. Required market features, dependencies, quote entitlement, numeric finiteness, and corporate-action state fail closed.
 
 ## 5. Macro SPY challenger
 

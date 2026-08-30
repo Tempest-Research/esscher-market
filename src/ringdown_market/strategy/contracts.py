@@ -1167,9 +1167,10 @@ def _validate_input_against_policy(value: StrategyInput, policy: object) -> None
             "candidate_manifest.records.cohort_id",
             "candidate manifest contains an unregistered cohort",
         )
-    _validate_snapshot_clock(snapshot, policy)
+    clock = _validate_snapshot_clock(snapshot, policy)
     candidate_policy = _policy_candidate(policy, snapshot.candidate_id)
     evidence_policy = candidate_policy.get("evidence")
+    _validate_amc_prior_session_binding(snapshot, manifest, clock)
     _validate_macro_release_binding(snapshot, manifest, candidate_policy)
     if not isinstance(evidence_policy, Mapping):
         _reject(
@@ -1961,7 +1962,7 @@ def _clock_seconds(value: object, *, path: str) -> int:
     return parsed.hour * 3600 + parsed.minute * 60 + parsed.second
 
 
-def _validate_snapshot_clock(snapshot: StrategySnapshot, policy: object) -> None:
+def _validate_snapshot_clock(snapshot: StrategySnapshot, policy: object) -> Mapping[str, object]:
     candidate = _policy_candidate(policy, snapshot.candidate_id)
     clocks = candidate.get("clocks")
     if not isinstance(clocks, tuple):
@@ -2094,6 +2095,54 @@ def _validate_snapshot_clock(snapshot: StrategySnapshot, policy: object) -> None
             StrategyContractReason.POLICY_MISMATCH,
             "strategy_snapshot.prior_eligible_session_close_at",
             "only AMC snapshots may bind a prior eligible-session close",
+        )
+    return clock
+
+
+def _validate_amc_prior_session_binding(
+    snapshot: StrategySnapshot,
+    manifest: CandidateManifest,
+    clock: Mapping[str, object],
+) -> None:
+    if snapshot.cohort_id != "AMC":
+        return
+    prior_close = snapshot.prior_eligible_session_close_at
+    if prior_close is None:
+        _reject(
+            StrategyContractReason.POLICY_MISMATCH,
+            "strategy_snapshot.prior_eligible_session_close_at",
+            "AMC requires a prior eligible-session close boundary",
+        )
+    timezone_name = clock.get("timezone")
+    if not isinstance(timezone_name, str):
+        _reject(
+            StrategyContractReason.POLICY_MISMATCH,
+            "policy.candidate.clocks.timezone",
+            "AMC clock timezone must be text",
+        )
+    try:
+        local_timezone = ZoneInfo(timezone_name)
+    except ZoneInfoNotFoundError as error:
+        _reject(
+            StrategyContractReason.POLICY_MISMATCH,
+            "policy.candidate.clocks.timezone",
+            str(error),
+        )
+    try:
+        scheduled_at = manifest.record(snapshot.event_id).scheduled_at
+    except ValueError as error:
+        _reject(
+            StrategyContractReason.IDENTITY_MISMATCH,
+            "candidate_manifest.records",
+            str(error),
+        )
+    prior_close_date = prior_close.astimezone(local_timezone).date()
+    scheduled_date = scheduled_at.astimezone(local_timezone).date()
+    if prior_close_date != scheduled_date:
+        _reject(
+            StrategyContractReason.POLICY_MISMATCH,
+            "strategy_snapshot.prior_eligible_session_close_at",
+            "AMC prior close must share the retained candidate schedule's ET date",
         )
 
 

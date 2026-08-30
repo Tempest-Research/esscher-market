@@ -71,6 +71,14 @@ def _at(value: str) -> datetime:
     return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(UTC)
 
 
+_AMC_DEFAULT_FROZEN_AT = _at("2026-09-09T20:15:00Z")
+_AMC_DEFAULT_SCHEDULED_AT = _at("2026-09-10T20:00:00Z")
+_AMC_DEFAULT_PUBLISHED_AT = _at("2026-09-10T20:05:00Z")
+_AMC_DEFAULT_PRIOR_CLOSE_AT = _at("2026-09-10T20:00:00Z")
+_AMC_DEFAULT_REACTION_OPEN_AT = _at("2026-09-11T13:30:00Z")
+_AMC_DEFAULT_REACTION_CLOSE_AT = _at("2026-09-11T20:00:00Z")
+
+
 def _candidate_manifest() -> CandidateManifest:
     policy = load_strategy_policy()
     return CandidateManifest(
@@ -105,7 +113,11 @@ def _candidate_manifest() -> CandidateManifest:
     )
 
 
-def _amc_candidate_manifest() -> CandidateManifest:
+def _amc_candidate_manifest(
+    *,
+    frozen_at: datetime = _AMC_DEFAULT_FROZEN_AT,
+    scheduled_at: datetime = _AMC_DEFAULT_SCHEDULED_AT,
+) -> CandidateManifest:
     policy = load_strategy_policy()
     return CandidateManifest(
         manifest_id="amc-candidates-2026-09-10",
@@ -113,7 +125,7 @@ def _amc_candidate_manifest() -> CandidateManifest:
         policy_sha256=policy.sha256,
         selection_rule_id="earnings-universe-v1",
         producer_build_sha256=HASH_A,
-        frozen_at=_at("2026-09-09T20:15:00Z"),
+        frozen_at=frozen_at,
         records=(
             CandidateRecord(
                 event_id="KR-2026Q2-AMC-EARNINGS",
@@ -121,7 +133,7 @@ def _amc_candidate_manifest() -> CandidateManifest:
                 security_id="CIK-0000056873",
                 ticker="KR",
                 cohort_id="AMC",
-                scheduled_at=_at("2026-09-10T20:00:00Z"),
+                scheduled_at=scheduled_at,
                 eligibility=EligibilityState.ELIGIBLE,
                 reason_codes=(),
             ),
@@ -214,19 +226,31 @@ def _strategy_snapshot(manifest: CandidateManifest) -> StrategySnapshot:
     )
 
 
-def _amc_strategy_snapshot(manifest: CandidateManifest) -> StrategySnapshot:
+def _amc_strategy_snapshot(
+    manifest: CandidateManifest,
+    *,
+    published_at: datetime = _AMC_DEFAULT_PUBLISHED_AT,
+    prior_eligible_session_close_at: datetime = _AMC_DEFAULT_PRIOR_CLOSE_AT,
+    reaction_session_open_at: datetime = _AMC_DEFAULT_REACTION_OPEN_AT,
+    reaction_session_close_at: datetime = _AMC_DEFAULT_REACTION_CLOSE_AT,
+) -> StrategySnapshot:
     policy = load_strategy_policy()
     reasoner = policy.data["reasoner"]
     tolerated = tuple(reasoner["tolerated_unknown_codes"])
     critical = tuple(reasoner["critical_unknown_codes"])
-    published_at = _at("2026-09-10T20:05:00Z")
+    observation_window_end_at = reaction_session_open_at + timedelta(minutes=5)
+    evidence_cutoff_at = observation_window_end_at + timedelta(seconds=15)
+    decision_cutoff_at = evidence_cutoff_at + timedelta(seconds=50)
+    candidate_entry_deadline_at = decision_cutoff_at + timedelta(seconds=55)
     evidence_refs = tuple(
         replace(
             item,
             published_at=published_at,
-            available_at=_at("2026-09-10T20:05:05Z"),
+            available_at=published_at + timedelta(seconds=5),
         )
         if item.evidence_id == "earnings-release"
+        else replace(item, available_at=observation_window_end_at)
+        if item.evidence_id == "market-snapshot"
         else item
         for item in _evidence_refs()
     )
@@ -241,19 +265,19 @@ def _amc_strategy_snapshot(manifest: CandidateManifest) -> StrategySnapshot:
         policy_sha256=policy.sha256,
         candidate_manifest_sha256=candidate_manifest_sha256(manifest),
         producer_build_sha256=HASH_B,
-        created_at=_at("2026-09-11T13:35:15Z"),
+        created_at=evidence_cutoff_at,
         universe_frozen_at=manifest.frozen_at,
         timing_bucket=TimingBucket.AFTER_CLOSE,
         release_family=None,
         event_published_at=published_at,
-        reaction_session_id="XNYS-2026-09-11",
-        reaction_session_open_at=_at("2026-09-11T13:30:00Z"),
-        reaction_session_close_at=_at("2026-09-11T20:00:00Z"),
-        observation_window_start_at=_at("2026-09-11T13:30:00Z"),
-        observation_window_end_at=_at("2026-09-11T13:35:00Z"),
-        evidence_cutoff_at=_at("2026-09-11T13:35:15Z"),
-        decision_cutoff_at=_at("2026-09-11T13:36:05Z"),
-        candidate_entry_deadline_at=_at("2026-09-11T13:37:00Z"),
+        reaction_session_id=f"XNYS-{reaction_session_open_at.date().isoformat()}",
+        reaction_session_open_at=reaction_session_open_at,
+        reaction_session_close_at=reaction_session_close_at,
+        observation_window_start_at=reaction_session_open_at,
+        observation_window_end_at=observation_window_end_at,
+        evidence_cutoff_at=evidence_cutoff_at,
+        decision_cutoff_at=decision_cutoff_at,
+        candidate_entry_deadline_at=candidate_entry_deadline_at,
         evidence_packet_sha256=HASH_C,
         evidence_refs=evidence_refs,
         eligibility=EligibilityState.ELIGIBLE,
@@ -262,12 +286,13 @@ def _amc_strategy_snapshot(manifest: CandidateManifest) -> StrategySnapshot:
         health_reason_codes=(),
         allowed_unknown_codes=tuple(sorted((*tolerated, *critical))),
         critical_unknown_codes=tuple(sorted(critical)),
-        prior_eligible_session_close_at=_at("2026-09-10T20:00:00Z"),
+        prior_eligible_session_close_at=prior_eligible_session_close_at,
     )
 
 
 def _feature_receipt(snapshot: StrategySnapshot) -> FeatureReceipt:
     policy = load_strategy_policy()
+    feature_observed_at = snapshot.observation_window_end_at
     features: list[FeatureValue] = []
     for spec in sorted(policy.features(EARNINGS_CANDIDATE), key=lambda item: item["feature_id"]):
         value_type = FeatureValueType(spec["value_type"])
@@ -289,7 +314,7 @@ def _feature_receipt(snapshot: StrategySnapshot) -> FeatureReceipt:
                 value=value,
                 value_type=value_type,
                 unit=spec["unit"],
-                observed_at=_at("2026-09-11T13:35:00Z"),
+                observed_at=feature_observed_at,
                 source_refs=(source_ref,),
             )
         )
@@ -300,8 +325,8 @@ def _feature_receipt(snapshot: StrategySnapshot) -> FeatureReceipt:
         policy_sha256=snapshot.policy_sha256,
         strategy_snapshot_sha256=strategy_snapshot_sha256(snapshot),
         producer_build_sha256=HASH_C,
-        created_at=_at("2026-09-11T13:35:15Z"),
-        feature_snapshot_at=_at("2026-09-11T13:35:15Z"),
+        created_at=snapshot.evidence_cutoff_at,
+        feature_snapshot_at=snapshot.evidence_cutoff_at,
         features=tuple(features),
     )
 
@@ -688,6 +713,43 @@ def test_strategy_input_accepts_amc_release_at_the_bound_prior_session_close() -
     assert strategy_input.snapshot.prior_eligible_session_close_at == _at("2026-09-10T20:00:00Z")
 
 
+def test_strategy_input_accepts_friday_amc_close_for_monday_reaction() -> None:
+    manifest = _amc_candidate_manifest(
+        frozen_at=_at("2026-09-10T20:15:00Z"),
+        scheduled_at=_at("2026-09-11T20:00:00Z"),
+    )
+    snapshot = _amc_strategy_snapshot(
+        manifest,
+        published_at=_at("2026-09-11T20:00:00Z"),
+        prior_eligible_session_close_at=_at("2026-09-11T20:00:00Z"),
+        reaction_session_open_at=_at("2026-09-14T13:30:00Z"),
+        reaction_session_close_at=_at("2026-09-14T20:00:00Z"),
+    )
+
+    strategy_input = _rebuild_strategy_input(manifest, snapshot, _feature_receipt(snapshot))
+
+    assert strategy_input.snapshot.reaction_session_id == "XNYS-2026-09-14"
+
+
+def test_strategy_input_rejects_bmo_as_amc_with_stale_prior_session_boundary() -> None:
+    manifest = _amc_candidate_manifest(
+        frozen_at=_at("2026-09-10T20:15:00Z"),
+        scheduled_at=_at("2026-09-11T20:00:00Z"),
+    )
+    snapshot = _amc_strategy_snapshot(
+        manifest,
+        published_at=_at("2026-09-11T12:00:00Z"),
+        prior_eligible_session_close_at=_at("2026-09-10T20:00:00Z"),
+        reaction_session_open_at=_at("2026-09-14T13:30:00Z"),
+        reaction_session_close_at=_at("2026-09-14T20:00:00Z"),
+    )
+
+    with pytest.raises(StrategyContractRejected) as caught:
+        _rebuild_strategy_input(manifest, snapshot, _feature_receipt(snapshot))
+
+    assert caught.value.reason is StrategyContractReason.POLICY_MISMATCH
+
+
 def test_strategy_input_rejects_amc_without_bound_prior_session_close() -> None:
     manifest = _amc_candidate_manifest()
     snapshot = replace(
@@ -812,6 +874,60 @@ def test_present_feature_components_require_evidence_source_refs() -> None:
         parse_feature_receipt(canonical_json_bytes(payload))
 
     assert caught.value.reason is StrategyContractReason.INVALID_DOCUMENT
+
+
+def test_strategy_input_rejects_present_feature_with_late_cited_evidence() -> None:
+    manifest = _candidate_manifest()
+    snapshot = _strategy_snapshot(manifest)
+    snapshot = replace(
+        snapshot,
+        evidence_refs=tuple(
+            replace(
+                item,
+                available_at=snapshot.observation_window_end_at + timedelta(seconds=1),
+            )
+            if item.evidence_id == "earnings-release"
+            else item
+            for item in snapshot.evidence_refs
+        ),
+    )
+
+    with pytest.raises(StrategyContractRejected) as caught:
+        _rebuild_strategy_input(manifest, snapshot, _feature_receipt(snapshot))
+
+    assert caught.value.reason is StrategyContractReason.IDENTITY_MISMATCH
+
+
+def test_strategy_input_rejects_present_component_with_late_cited_evidence() -> None:
+    strategy_input = _macro_strategy_input(vwap_distance=Decimal("5"))
+    snapshot = replace(
+        strategy_input.snapshot,
+        evidence_refs=tuple(
+            replace(item, available_at=_at("2026-09-01T14:00:02Z"))
+            if item.evidence_id == "bls-revisions"
+            else item
+            for item in strategy_input.snapshot.evidence_refs
+        ),
+    )
+    vector_feature = next(
+        feature for feature in strategy_input.feature_receipt.features if feature.components
+    )
+    features = tuple(
+        replace(
+            feature,
+            source_refs=("bls-release",),
+            components=(replace(feature.components[0], source_refs=("bls-revisions",)),),
+        )
+        if feature.feature_id == vector_feature.feature_id
+        else feature
+        for feature in strategy_input.feature_receipt.features
+    )
+    receipt = replace(strategy_input.feature_receipt, features=features)
+
+    with pytest.raises(StrategyContractRejected) as caught:
+        _rebuild_strategy_input(strategy_input.candidate_manifest, snapshot, receipt)
+
+    assert caught.value.reason is StrategyContractReason.IDENTITY_MISMATCH
 
 
 def test_strategy_input_rejects_uniformly_shifted_market_session() -> None:

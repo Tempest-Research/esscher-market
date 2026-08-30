@@ -596,7 +596,8 @@ class StrategyInput:
             raise ValueError("feature snapshot exceeds decision cutoff")
         if receipt.created_at > snapshot.decision_cutoff_at:
             raise ValueError("feature receipt was created after decision cutoff")
-        known_evidence = set(snapshot.evidence_ids)
+        evidence_by_id = {item.evidence_id: item for item in snapshot.evidence_refs}
+        known_evidence = set(evidence_by_id)
         for feature in receipt.features:
             if not set(feature.source_refs) <= known_evidence:
                 raise ValueError(f"feature {feature.feature_id} has an unknown source reference")
@@ -605,12 +606,31 @@ class StrategyInput:
                 and feature.observed_at > snapshot.evidence_cutoff_at
             ):
                 raise ValueError(f"feature {feature.feature_id} was observed after evidence cutoff")
+            if feature.status is FeatureStatus.PRESENT:
+                assert feature.observed_at is not None
+                if any(
+                    evidence_by_id[source_ref].available_at > feature.observed_at
+                    for source_ref in feature.source_refs
+                ):
+                    raise ValueError(
+                        f"feature {feature.feature_id} cites evidence unavailable when observed"
+                    )
             for component in feature.components:
                 if not set(component.source_refs) <= known_evidence:
                     raise ValueError(
                         "feature component "
                         f"{component.component_id} has an unknown source reference"
                     )
+                if component.status is FeatureStatus.PRESENT:
+                    assert feature.observed_at is not None
+                    if any(
+                        evidence_by_id[source_ref].available_at > feature.observed_at
+                        for source_ref in component.source_refs
+                    ):
+                        raise ValueError(
+                            "feature component "
+                            f"{component.component_id} cites evidence unavailable when observed"
+                        )
 
     @property
     def feature_by_id(self) -> dict[str, FeatureValue]:
