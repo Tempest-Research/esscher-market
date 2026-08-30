@@ -2,22 +2,29 @@
 
 The comparison layer copies values from already-produced artifacts. It never
 reruns research, contacts a source, starts a broker session, or infers a
-financial conclusion from a changed value.
+financial conclusion from a changed value. Complete replay bundles are checked
+through the existing replay-evidence contract before comparison.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import os
 import stat
 import sys
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import StrEnum
 from pathlib import Path
 from typing import Final
+
+from ringdown_market.contracts.replay_evidence import (
+    ReplayEvidenceRejected,
+    validate_replay_evidence_set,
+)
 
 
 class BundleDiffErrorReason(StrEnum):
@@ -29,6 +36,7 @@ class BundleDiffErrorReason(StrEnum):
     UNEXPECTED_TOP_LEVEL_SHAPE = "UNEXPECTED_TOP_LEVEL_SHAPE"
     UNKNOWN_ARTIFACT_TYPE = "UNKNOWN_ARTIFACT_TYPE"
     UNSUPPORTED_SCHEMA_VERSION = "UNSUPPORTED_SCHEMA_VERSION"
+    CONTRACT_VALIDATION_FAILED = "CONTRACT_VALIDATION_FAILED"
     INPUT_NOT_FOUND = "INPUT_NOT_FOUND"
     INPUT_KIND_MISMATCH = "INPUT_KIND_MISMATCH"
     EMPTY_BUNDLE = "EMPTY_BUNDLE"
@@ -53,6 +61,19 @@ _JSON_SUFFIX: Final = ".json"
 _REPORT_SCHEMA: Final = "ringdown.evidence_bundle_diff_report"
 _REPORT_VERSION: Final = 1
 _MAX_JSON_DEPTH: Final = 128
+_SHA256_CHARS: Final = frozenset("0123456789abcdef")
+_LEGACY_REPORT_PROJECT: Final = "Ring" + "down"
+
+STATUS_CONTRACT_VALIDATED: Final = "CONTRACT_VALIDATED"
+STATUS_PARTIALLY_CONTRACT_VALIDATED: Final = "PARTIALLY_CONTRACT_VALIDATED"
+STATUS_SCHEMA_RECOGNIZED: Final = "STRICT_JSON_SCHEMA_RECOGNIZED"
+_VALIDATION_STATUSES: Final = frozenset(
+    {
+        STATUS_CONTRACT_VALIDATED,
+        STATUS_PARTIALLY_CONTRACT_VALIDATED,
+        STATUS_SCHEMA_RECOGNIZED,
+    }
+)
 
 # This registry is deliberately closed. A new artifact schema must be
 # registered before it can appear in an audit report.
@@ -79,8 +100,34 @@ _KNOWN_SCHEMA_VERSIONS: Final[dict[str, frozenset[int]]] = {
     "ringdown.scheduled_run_result": frozenset({1}),
     "ringdown.synthetic_contract_panel": frozenset({1}),
 }
-_LABEL_LIST_KEYS: Final[frozenset[str]] = frozenset(
-    {"claim_boundary", "claims", "data_qualifiers", "limitations"}
+_IDENTITY_FIELDS: Final[dict[str, str]] = {
+    "ringdown.point_in_time_evidence_manifest": "event_id",
+    "ringdown.frozen_earnings_event_list": "list_id",
+    "ringdown.earnings_replay_selection_rule": "rule_id",
+    "ringdown.frozen_research_decision": "event_id",
+    "ringdown.feature_input_snapshot": "event_id",
+    "ringdown.scheduled_event_manifest": "event_run_id",
+    "ringdown.scheduled_event_state": "event_run_id",
+    "ringdown.scheduled_run_error": "event_run_id",
+    "ringdown.scheduled_run_result": "event_run_id",
+    "ringdown.paper_execution_permit": "permit_id",
+    "ringdown.paper_demo_approval": "permit_id",
+    "ringdown.paper_receipt_bundle": "event_run_id",
+}
+_KEYED_LISTS: Final[dict[str, str]] = {
+    "records": "evidence_id",
+    "feature_dependencies": "feature_id",
+}
+_SET_LIKE_LIST_KEYS: Final[frozenset[str]] = frozenset(
+    {
+        "claim_boundary",
+        "claims",
+        "data_qualifiers",
+        "limitations",
+        "missing_or_conflicting_evidence",
+        "reject_reasons",
+        "source_refs",
+    }
 )
 _TIME_KEYS: Final[frozenset[str]] = frozenset(
     {
@@ -88,12 +135,15 @@ _TIME_KEYS: Final[frozenset[str]] = frozenset(
         "approved_at",
         "close_filled_at",
         "decision_cutoff",
+        "entry_session_policy",
+        "event_category",
         "expires_at",
         "feature_computed_at",
         "feature_snapshot_at",
         "final_flat_observed_at",
         "frozen_at",
         "not_before",
+        "observation_type",
         "observed_at",
         "open_filled_at",
         "published_at",
@@ -101,12 +151,9 @@ _TIME_KEYS: Final[frozenset[str]] = frozenset(
         "published_date_or_interval",
         "published_at_type",
         "retrieved_at",
-        "event_category",
-        "entry_session_policy",
-        "observation_type",
         "scheduled_event_at",
-        "session_id",
         "session_close_at",
+        "session_id",
         "session_open_at",
         "source_max_public_at",
         "source_observed_at",
@@ -124,16 +171,15 @@ _PROVENANCE_KEYS: Final[frozenset[str]] = frozenset(
         "field_source_refs",
         "field_status",
         "hash_representation",
+        "issuer_release_url",
+        "missing_or_conflicting_evidence",
+        "published_at_precision",
         "publisher",
         "redistribution_note",
         "redistribution_status",
         "source_kind",
         "source_refs",
-        "source_timezone",
         "source_url",
-        "issuer_release_url",
-        "published_at_precision",
-        "published_at_type",
     }
 )
 _INCLUSION_KEYS: Final[frozenset[str]] = frozenset(
@@ -158,8 +204,9 @@ _VERDICT_KEYS: Final[frozenset[str]] = frozenset(
         "eligibility",
         "lifecycle",
         "lifecycle_outcome",
-        "strongest_baseline",
+        "qfast_status",
         "status",
+        "strongest_baseline",
         "verdict",
     }
 )
@@ -167,15 +214,18 @@ _LATENCY_KEYS: Final[frozenset[str]] = frozenset(
     {
         "actual_latency_ms",
         "latency_gate",
+        "latency_mode",
         "latency_ms",
         "latency_profiles",
-        "latency_mode",
         "qlatency_status",
+        "requested_latency_ms",
         "required_latency_profile",
         "required_profile",
-        "requested_latency_ms",
     }
 )
+_REPORT_CLAIMS: Final = ["COMPARISON_ONLY", "NOT_ALPHA_EVIDENCE", "NO_BROKER_EXECUTION"]
+_REPORT_DATA_CLASS: Final = "OFFLINE_ARTIFACT_COMPARISON"
+_NON_SEMANTIC_CATEGORIES: Final = frozenset({"IDENTITY", "ARTIFACT"})
 
 
 class _DuplicateKey(ValueError):
@@ -186,6 +236,41 @@ class _DuplicateKey(ValueError):
 
 class _NonFiniteNumber(ValueError):
     pass
+
+
+def _sha256(value: bytes) -> str:
+    return hashlib.sha256(value).hexdigest()
+
+
+def _is_sha256(value: object) -> bool:
+    return (
+        isinstance(value, str)
+        and len(value) == 64
+        and all(character in _SHA256_CHARS for character in value)
+    )
+
+
+def _canonical_json(value: object) -> bytes:
+    try:
+        return json.dumps(
+            value,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            allow_nan=False,
+        ).encode("utf-8")
+    except (TypeError, UnicodeEncodeError, ValueError) as error:
+        raise BundleDiffError(
+            BundleDiffErrorReason.INVALID_DOCUMENT,
+            "report",
+            f"value cannot be represented as strict JSON: {error}",
+        ) from error
+
+
+def canonical_report_bytes(report: Mapping[str, object]) -> bytes:
+    """Serialize a report using the stable canonical JSON representation."""
+
+    return _canonical_json(dict(report)) + b"\n"
 
 
 def _unique_object(pairs: Sequence[tuple[str, object]]) -> dict[str, object]:
@@ -215,29 +300,6 @@ def _key_from_path(path: str) -> str:
         return ""
     value = path.rsplit("/", 1)[-1]
     return value.replace("~1", "/").replace("~0", "~")
-
-
-def _canonical_json(value: object) -> bytes:
-    try:
-        return json.dumps(
-            value,
-            sort_keys=True,
-            separators=(",", ":"),
-            ensure_ascii=False,
-            allow_nan=False,
-        ).encode("utf-8")
-    except (TypeError, UnicodeEncodeError, ValueError) as error:
-        raise BundleDiffError(
-            BundleDiffErrorReason.INVALID_DOCUMENT,
-            "report",
-            f"value cannot be represented as strict JSON: {error}",
-        ) from error
-
-
-def canonical_report_bytes(report: Mapping[str, object]) -> bytes:
-    """Serialize a report using the stable canonical JSON representation."""
-
-    return _canonical_json(dict(report)) + b"\n"
 
 
 def _validate_json_value(value: object, *, path: str, depth: int = 0) -> None:
@@ -273,6 +335,60 @@ def _validate_json_value(value: object, *, path: str, depth: int = 0) -> None:
     elif isinstance(value, list):
         for index, item in enumerate(value):
             _validate_json_value(item, path=_join_path(path, index), depth=depth + 1)
+
+
+def _validate_string_list(value: object, *, path: str) -> None:
+    if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
+        raise BundleDiffError(
+            BundleDiffErrorReason.INVALID_DOCUMENT,
+            path,
+            "must be a list of strings",
+        )
+    if len(set(value)) != len(value):
+        raise BundleDiffError(
+            BundleDiffErrorReason.INVALID_DOCUMENT,
+            path,
+            "list values must be unique",
+        )
+
+
+def _validate_semantic_fields(value: object, *, path: str) -> None:
+    if isinstance(value, Mapping):
+        for key in sorted(value):
+            item = value[key]
+            child_path = _join_path(path, key)
+            if key in _SET_LIKE_LIST_KEYS or key == "event_ids":
+                _validate_string_list(item, path=child_path)
+            elif (
+                key
+                in {
+                    "claim",
+                    "event_id",
+                    "fixture_class",
+                    "data_class",
+                    "artifact_class",
+                }
+                and item is not None
+                and not isinstance(item, str)
+            ):
+                raise BundleDiffError(
+                    BundleDiffErrorReason.INVALID_DOCUMENT,
+                    child_path,
+                    "must be text",
+                )
+            elif key == "field_source_refs":
+                if not isinstance(item, Mapping):
+                    raise BundleDiffError(
+                        BundleDiffErrorReason.INVALID_DOCUMENT,
+                        child_path,
+                        "must be an object",
+                    )
+                for field, refs in item.items():
+                    _validate_string_list(refs, path=_join_path(child_path, field))
+            _validate_semantic_fields(item, path=child_path)
+    elif isinstance(value, list):
+        for index, item in enumerate(value):
+            _validate_semantic_fields(item, path=_join_path(path, index))
 
 
 def _parse_json(raw: bytes, *, path: str) -> dict[str, object]:
@@ -324,60 +440,6 @@ def _parse_json(raw: bytes, *, path: str) -> dict[str, object]:
             "JSON nesting exceeds the supported depth",
         ) from error
     return value
-
-
-def _validate_string_list(value: object, *, path: str) -> None:
-    if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
-        raise BundleDiffError(
-            BundleDiffErrorReason.INVALID_DOCUMENT,
-            path,
-            "must be a list of strings",
-        )
-    if len(set(value)) != len(value):
-        raise BundleDiffError(
-            BundleDiffErrorReason.INVALID_DOCUMENT,
-            path,
-            "list values must be unique",
-        )
-
-
-def _validate_semantic_fields(value: object, *, path: str) -> None:
-    if isinstance(value, Mapping):
-        for key in sorted(value):
-            item = value[key]
-            child_path = _join_path(path, key)
-            if key in _LABEL_LIST_KEYS or key in {"event_ids", "source_refs"}:
-                _validate_string_list(item, path=child_path)
-            elif (
-                key
-                in {
-                    "claim",
-                    "event_id",
-                    "fixture_class",
-                    "data_class",
-                    "artifact_class",
-                }
-                and item is not None
-                and not isinstance(item, str)
-            ):
-                raise BundleDiffError(
-                    BundleDiffErrorReason.INVALID_DOCUMENT,
-                    child_path,
-                    "must be text",
-                )
-            elif key == "field_source_refs":
-                if not isinstance(item, Mapping):
-                    raise BundleDiffError(
-                        BundleDiffErrorReason.INVALID_DOCUMENT,
-                        child_path,
-                        "must be an object",
-                    )
-                for field, refs in item.items():
-                    _validate_string_list(refs, path=_join_path(child_path, field))
-            _validate_semantic_fields(item, path=child_path)
-    elif isinstance(value, list):
-        for index, item in enumerate(value):
-            _validate_semantic_fields(item, path=_join_path(path, index))
 
 
 def _schema_nodes(value: object, *, path: str = "") -> list[tuple[str, str, int]]:
@@ -476,6 +538,20 @@ def _classification(
     return data_class, fixture_class
 
 
+def _require_special_keys(
+    value: Mapping[str, object],
+    *,
+    required: frozenset[str],
+    path: str,
+) -> None:
+    if set(value) != required:
+        raise BundleDiffError(
+            BundleDiffErrorReason.UNKNOWN_ARTIFACT_TYPE,
+            path,
+            "special artifact fields do not match the registered shape",
+        )
+
+
 def _optional_special_version(value: Mapping[str, object], *, path: str) -> None:
     if "schema_version" not in value:
         return
@@ -494,167 +570,312 @@ def _optional_special_version(value: Mapping[str, object], *, path: str) -> None
         )
 
 
-def _require_special_keys(
-    value: Mapping[str, object],
-    *,
-    required: frozenset[str],
-    path: str,
-) -> None:
-    if set(value) != required:
-        raise BundleDiffError(
-            BundleDiffErrorReason.UNKNOWN_ARTIFACT_TYPE,
-            path,
-            "special artifact fields do not match the registered shape",
-        )
-
-
-def _validate_diff_report(value: Mapping[str, object], *, path: str) -> None:
-    _require_special_keys(
-        value,
-        required=frozenset({"schema", "schema_version", "left", "right", "identical", "deltas"}),
-        path=path,
-    )
-    for side in ("left", "right"):
-        side_value = value[side]
-        if not isinstance(side_value, Mapping):
-            raise BundleDiffError(
-                BundleDiffErrorReason.INVALID_DOCUMENT,
-                f"{path}/{side}",
-                "report side must be an object",
-            )
-        _require_special_keys(
-            side_value,
-            required=frozenset({"kind", "event_ids", "artifacts"}),
-            path=f"{path}/{side}",
-        )
-        if side_value["kind"] not in {"artifact", "bundle"}:
-            raise BundleDiffError(
-                BundleDiffErrorReason.INVALID_DOCUMENT,
-                f"{path}/{side}/kind",
-                "report side kind is invalid",
-            )
-        _validate_string_list(side_value["event_ids"], path=f"{path}/{side}/event_ids")
-        artifacts = side_value["artifacts"]
-        if not isinstance(artifacts, list) or not artifacts:
-            raise BundleDiffError(
-                BundleDiffErrorReason.INVALID_DOCUMENT,
-                f"{path}/{side}/artifacts",
-                "report side must contain artifacts",
-            )
-        for index, artifact in enumerate(artifacts):
-            artifact_path = f"{path}/{side}/artifacts/{index}"
-            if not isinstance(artifact, Mapping):
-                raise BundleDiffError(
-                    BundleDiffErrorReason.INVALID_DOCUMENT,
-                    artifact_path,
-                    "artifact metadata must be an object",
-                )
-            _require_special_keys(
-                artifact,
-                required=frozenset(
-                    {
-                        "path",
-                        "artifact_type",
-                        "schema",
-                        "schema_version",
-                        "data_class",
-                        "fixture_class",
-                    }
-                ),
-                path=artifact_path,
-            )
-            for field in ("path", "artifact_type", "schema"):
-                if not isinstance(artifact[field], str):
-                    raise BundleDiffError(
-                        BundleDiffErrorReason.INVALID_DOCUMENT,
-                        f"{artifact_path}/{field}",
-                        "artifact metadata field must be text",
-                    )
-            if not artifact["path"] or any(
-                part in {".", ".."} for part in Path(artifact["path"]).parts
-            ):
-                raise BundleDiffError(
-                    BundleDiffErrorReason.INVALID_DOCUMENT,
-                    f"{artifact_path}/path",
-                    "artifact metadata path must be a non-empty normalized relative path",
-                )
-            if artifact["artifact_type"] not in {
-                artifact["schema"],
-                f"{artifact['schema']}.fixture",
-            }:
-                raise BundleDiffError(
-                    BundleDiffErrorReason.INVALID_DOCUMENT,
-                    f"{artifact_path}/artifact_type",
-                    "artifact metadata type does not match its schema",
-                )
-            if type(artifact["schema_version"]) is not int:
-                raise BundleDiffError(
-                    BundleDiffErrorReason.INVALID_DOCUMENT,
-                    f"{artifact_path}/schema_version",
-                    "artifact schema_version must be an integer",
-                )
-            for field in ("data_class", "fixture_class"):
-                if artifact[field] is not None and not isinstance(artifact[field], str):
-                    raise BundleDiffError(
-                        BundleDiffErrorReason.INVALID_DOCUMENT,
-                        f"{artifact_path}/{field}",
-                        "nullable artifact metadata field must be text or null",
-                    )
-    if type(value["identical"]) is not bool or not isinstance(value["deltas"], list):
+def _nonnegative_int(value: object, *, path: str) -> int:
+    if type(value) is not int or value < 0:
         raise BundleDiffError(
             BundleDiffErrorReason.INVALID_DOCUMENT,
             path,
-            "report identical must be boolean and deltas must be a list",
+            "must be a non-negative integer",
         )
-    delta_fields = frozenset(
-        {"category", "path", "change", "left_present", "right_present", "left", "right"}
+    return value
+
+
+def _optional_nonnegative_int(value: object, *, path: str) -> int | None:
+    if value is None:
+        return None
+    return _nonnegative_int(value, path=path)
+
+
+def _finite_number(value: object, *, path: str) -> float:
+    if type(value) not in {int, float} or not math.isfinite(value):
+        raise BundleDiffError(
+            BundleDiffErrorReason.INVALID_DOCUMENT,
+            path,
+            "must be a finite number",
+        )
+    return float(value)
+
+
+def _optional_finite_number(value: object, *, path: str) -> float | None:
+    if value is None:
+        return None
+    return _finite_number(value, path=path)
+
+
+def _validate_qfast_profile(
+    value: Mapping[str, object],
+    *,
+    event_count: int,
+    path: str,
+) -> str:
+    _require_special_keys(
+        value,
+        required=frozenset(
+            {
+                "status",
+                "claim",
+                "event_count",
+                "metrics",
+                "strongest_baseline",
+                "candidate_advantage",
+                "leave_best_out_mean",
+                "reject_reasons",
+            }
+        ),
+        path=path,
     )
-    for index, delta in enumerate(value["deltas"]):
-        delta_path = f"{path}/deltas/{index}"
-        if not isinstance(delta, Mapping):
+    status = value["status"]
+    if status not in {"INSUFFICIENT_DATA", "REJECTED", "NOT_REJECTED_SMALL_SAMPLE"}:
+        raise BundleDiffError(
+            BundleDiffErrorReason.INVALID_DOCUMENT,
+            f"{path}/status",
+            "unsupported Q-FAST status",
+        )
+    if value["claim"] != "NOT_ALPHA_EVIDENCE":
+        raise BundleDiffError(
+            BundleDiffErrorReason.INVALID_DOCUMENT,
+            f"{path}/claim",
+            "invalid Q-FAST claim boundary",
+        )
+    if _nonnegative_int(value["event_count"], path=f"{path}/event_count") != event_count:
+        raise BundleDiffError(
+            BundleDiffErrorReason.INVALID_DOCUMENT,
+            f"{path}/event_count",
+            "top-level event count mismatch",
+        )
+    metrics = value["metrics"]
+    if not isinstance(metrics, Mapping):
+        raise BundleDiffError(
+            BundleDiffErrorReason.INVALID_DOCUMENT,
+            f"{path}/metrics",
+            "must be an object",
+        )
+    if event_count and "ringdown" not in metrics:
+        raise BundleDiffError(
+            BundleDiffErrorReason.INVALID_DOCUMENT,
+            f"{path}/metrics",
+            "candidate method ringdown is missing",
+        )
+    for method in sorted(metrics):
+        raw_metrics = metrics[method]
+        if not method or not isinstance(raw_metrics, Mapping):
             raise BundleDiffError(
                 BundleDiffErrorReason.INVALID_DOCUMENT,
-                delta_path,
-                "delta must be an object",
+                f"{path}/metrics",
+                "method metrics must be non-empty named objects",
             )
-        _require_special_keys(delta, required=delta_fields, path=delta_path)
-        for field in ("category", "path", "change"):
-            if not isinstance(delta[field], str):
-                raise BundleDiffError(
-                    BundleDiffErrorReason.INVALID_DOCUMENT,
-                    f"{delta_path}/{field}",
-                    "delta field must be text",
-                )
-            if not delta[field]:
-                raise BundleDiffError(
-                    BundleDiffErrorReason.INVALID_DOCUMENT,
-                    f"{delta_path}/{field}",
-                    "delta text fields must be non-empty",
-                )
-        for field in ("left_present", "right_present"):
-            if type(delta[field]) is not bool:
-                raise BundleDiffError(
-                    BundleDiffErrorReason.INVALID_DOCUMENT,
-                    f"{delta_path}/{field}",
-                    "delta presence field must be boolean",
-                )
-        if (not delta["left_present"] and delta["left"] is not None) or (
-            not delta["right_present"] and delta["right"] is not None
+        method_path = f"{path}/metrics/{_escape_pointer_part(method)}"
+        _require_special_keys(
+            raw_metrics,
+            required=frozenset(
+                {
+                    "eligible_events",
+                    "admitted_events",
+                    "coverage",
+                    "mean_all",
+                    "median_all",
+                    "mean_admitted",
+                    "median_admitted",
+                }
+            ),
+            path=method_path,
+        )
+        eligible = _nonnegative_int(
+            raw_metrics["eligible_events"], path=f"{method_path}/eligible_events"
+        )
+        admitted = _nonnegative_int(
+            raw_metrics["admitted_events"], path=f"{method_path}/admitted_events"
+        )
+        if eligible != event_count or admitted > eligible:
+            raise BundleDiffError(
+                BundleDiffErrorReason.INVALID_DOCUMENT,
+                method_path,
+                "invalid event counts",
+            )
+        coverage = _finite_number(raw_metrics["coverage"], path=f"{method_path}/coverage")
+        expected_coverage = admitted / eligible if eligible else 0.0
+        if not 0 <= coverage <= 1 or coverage != expected_coverage:
+            raise BundleDiffError(
+                BundleDiffErrorReason.INVALID_DOCUMENT,
+                f"{method_path}/coverage",
+                "coverage disagrees with the event counts",
+            )
+        _finite_number(raw_metrics["mean_all"], path=f"{method_path}/mean_all")
+        _finite_number(raw_metrics["median_all"], path=f"{method_path}/median_all")
+        _optional_finite_number(raw_metrics["mean_admitted"], path=f"{method_path}/mean_admitted")
+        _optional_finite_number(
+            raw_metrics["median_admitted"], path=f"{method_path}/median_admitted"
+        )
+    strongest = value["strongest_baseline"]
+    if strongest is not None and (
+        not isinstance(strongest, str) or strongest not in metrics or strongest == "ringdown"
+    ):
+        raise BundleDiffError(
+            BundleDiffErrorReason.INVALID_DOCUMENT,
+            f"{path}/strongest_baseline",
+            "unknown baseline method",
+        )
+    _optional_finite_number(value["candidate_advantage"], path=f"{path}/candidate_advantage")
+    _optional_finite_number(value["leave_best_out_mean"], path=f"{path}/leave_best_out_mean")
+    _validate_string_list(value["reject_reasons"], path=f"{path}/reject_reasons")
+    return status
+
+
+def _validate_qfast_report(value: Mapping[str, object], *, path: str) -> None:
+    _require_special_keys(
+        value,
+        required=frozenset(
+            {
+                "schema_version",
+                "project",
+                "product_name",
+                "mode",
+                "data_class",
+                "claims",
+                "limitations",
+                "input_sha256",
+                "protocol_sha256",
+                "event_count",
+                "latency_profiles",
+                "latency_gate",
+            }
+        ),
+        path=path,
+    )
+    if value["project"] != _LEGACY_REPORT_PROJECT or value["product_name"] != "Esscher":
+        raise BundleDiffError(
+            BundleDiffErrorReason.INVALID_DOCUMENT,
+            f"{path}/project",
+            "evaluation report product identity is invalid",
+        )
+    if value["data_class"] not in {"SYNTHETIC_CONTRACT_FIXTURE", "POINT_IN_TIME_EVENT_PANEL"}:
+        raise BundleDiffError(
+            BundleDiffErrorReason.INVALID_DOCUMENT,
+            f"{path}/data_class",
+            "evaluation report data class is unsupported",
+        )
+    if value["claims"] != ["NO_BROKER_EXECUTION", "NOT_ALPHA_EVIDENCE"]:
+        raise BundleDiffError(
+            BundleDiffErrorReason.INVALID_DOCUMENT,
+            f"{path}/claims",
+            "evaluation report claim boundary is invalid",
+        )
+    _validate_string_list(value["limitations"], path=f"{path}/limitations")
+    for field in ("input_sha256", "protocol_sha256"):
+        if not _is_sha256(value[field]):
+            raise BundleDiffError(
+                BundleDiffErrorReason.INVALID_DOCUMENT,
+                f"{path}/{field}",
+                "must be a lowercase SHA-256 digest",
+            )
+    event_count = _nonnegative_int(value["event_count"], path=f"{path}/event_count")
+    profiles = value["latency_profiles"]
+    if not isinstance(profiles, Mapping) or not profiles:
+        raise BundleDiffError(
+            BundleDiffErrorReason.INVALID_DOCUMENT,
+            f"{path}/latency_profiles",
+            "must be a non-empty object",
+        )
+    profile_statuses: dict[str, str] = {}
+    for name in sorted(profiles):
+        profile = profiles[name]
+        if not name or not isinstance(profile, Mapping):
+            raise BundleDiffError(
+                BundleDiffErrorReason.INVALID_DOCUMENT,
+                f"{path}/latency_profiles",
+                "profiles must be non-empty named objects",
+            )
+        profile_path = f"{path}/latency_profiles/{_escape_pointer_part(name)}"
+        _require_special_keys(
+            profile,
+            required=frozenset({"requested_latency_ms", "actual_latency_ms", "qfast"}),
+            path=profile_path,
+        )
+        _nonnegative_int(
+            profile["requested_latency_ms"], path=f"{profile_path}/requested_latency_ms"
+        )
+        actual = profile["actual_latency_ms"]
+        if not isinstance(actual, Mapping):
+            raise BundleDiffError(
+                BundleDiffErrorReason.INVALID_DOCUMENT,
+                f"{profile_path}/actual_latency_ms",
+                "must be an object",
+            )
+        _require_special_keys(
+            actual,
+            required=frozenset({"minimum", "maximum"}),
+            path=f"{profile_path}/actual_latency_ms",
+        )
+        minimum = _optional_nonnegative_int(
+            actual["minimum"], path=f"{profile_path}/actual_latency_ms/minimum"
+        )
+        maximum = _optional_nonnegative_int(
+            actual["maximum"], path=f"{profile_path}/actual_latency_ms/maximum"
+        )
+        if (minimum is None) != (maximum is None) or (
+            minimum is not None and maximum is not None and minimum > maximum
         ):
             raise BundleDiffError(
                 BundleDiffErrorReason.INVALID_DOCUMENT,
-                delta_path,
-                "absent delta values must be represented as null",
+                f"{profile_path}/actual_latency_ms",
+                "latency range is invalid",
             )
-    if value["identical"] != (len(value["deltas"]) == 0):
+        if (event_count == 0) != (minimum is None):
+            raise BundleDiffError(
+                BundleDiffErrorReason.INVALID_DOCUMENT,
+                f"{profile_path}/actual_latency_ms",
+                "latency observations disagree with the event count",
+            )
+        qfast = profile["qfast"]
+        if not isinstance(qfast, Mapping):
+            raise BundleDiffError(
+                BundleDiffErrorReason.INVALID_DOCUMENT,
+                f"{profile_path}/qfast",
+                "must be an object",
+            )
+        profile_statuses[name] = _validate_qfast_profile(
+            qfast, event_count=event_count, path=f"{profile_path}/qfast"
+        )
+    gate = value["latency_gate"]
+    if not isinstance(gate, Mapping):
         raise BundleDiffError(
             BundleDiffErrorReason.INVALID_DOCUMENT,
-            f"{path}/identical",
-            "identical must agree with whether deltas are present",
+            f"{path}/latency_gate",
+            "must be an object",
+        )
+    _require_special_keys(
+        gate,
+        required=frozenset({"status", "required_profile", "qfast_status"}),
+        path=f"{path}/latency_gate",
+    )
+    required_profile = gate["required_profile"]
+    if not isinstance(required_profile, str) or required_profile not in profile_statuses:
+        raise BundleDiffError(
+            BundleDiffErrorReason.INVALID_DOCUMENT,
+            f"{path}/latency_gate/required_profile",
+            "required profile is unavailable",
+        )
+    qfast_status = gate["qfast_status"]
+    if qfast_status != profile_statuses[required_profile]:
+        raise BundleDiffError(
+            BundleDiffErrorReason.INVALID_DOCUMENT,
+            f"{path}/latency_gate/qfast_status",
+            "gate status disagrees with the required profile",
+        )
+    expected_gate_status = {
+        "INSUFFICIENT_DATA": "INSUFFICIENT_DATA",
+        "REJECTED": "SHADOW_ONLY",
+        "NOT_REJECTED_SMALL_SAMPLE": "NOT_REJECTED_SMALL_SAMPLE",
+    }[qfast_status]
+    if gate["status"] != expected_gate_status:
+        raise BundleDiffError(
+            BundleDiffErrorReason.INVALID_DOCUMENT,
+            f"{path}/latency_gate/status",
+            "gate status is inconsistent with Q-FAST semantics",
         )
 
 
-def _evaluation_report(value: Mapping[str, object], *, path: str) -> bool:
+def _is_evaluation_report(value: Mapping[str, object]) -> bool:
     required = {
         "schema_version",
         "project",
@@ -669,28 +890,46 @@ def _evaluation_report(value: Mapping[str, object], *, path: str) -> bool:
         "latency_profiles",
         "latency_gate",
     }
-    if set(value) != required:
-        return False
-    version = value["schema_version"]
-    if type(version) is not int:
-        raise BundleDiffError(
-            BundleDiffErrorReason.INVALID_DOCUMENT,
-            f"{path}/schema_version",
-            "schema_version must be an integer",
-        )
-    if version != 1:
-        raise BundleDiffError(
-            BundleDiffErrorReason.UNSUPPORTED_SCHEMA_VERSION,
-            f"{path}/schema_version",
-            "evaluation reports support schema version 1 only",
-        )
-    if value["mode"] != "OFFLINE_RESEARCH":
-        return False
-    if not isinstance(value["latency_profiles"], Mapping) or not isinstance(
-        value["latency_gate"], Mapping
-    ):
-        return False
-    return all(isinstance(value[field], str) for field in ("project", "product_name"))
+    return (
+        required <= set(value) and "schema" not in value and value.get("mode") == "OFFLINE_RESEARCH"
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class _ArtifactIdentity:
+    artifact_type: str
+    schema: str
+    schema_version: int
+    data_class: str | None
+    fixture_class: str | None
+    identity: str | None
+    validation_status: str
+
+
+@dataclass(frozen=True, slots=True)
+class _LoadedArtifact:
+    relative_path: str
+    payload: dict[str, object]
+    identity: _ArtifactIdentity
+    raw_bytes: bytes
+
+    @property
+    def raw_sha256(self) -> str:
+        return _sha256(self.raw_bytes)
+
+    @property
+    def canonical_sha256(self) -> str:
+        return _sha256(_canonical_json(self.payload))
+
+    @property
+    def pairing_key(self) -> tuple[str, str]:
+        return (self.identity.schema, self.identity.identity or self.canonical_sha256)
+
+
+@dataclass(frozen=True, slots=True)
+class _LoadedInput:
+    kind: str
+    artifacts: tuple[_LoadedArtifact, ...]
 
 
 def _identity(value: dict[str, object], *, path: str) -> _ArtifactIdentity:
@@ -704,7 +943,23 @@ def _identity(value: dict[str, object], *, path: str) -> _ArtifactIdentity:
         if direct_schema == _REPORT_SCHEMA:
             _validate_diff_report(value, path=path)
         data_class, fixture_class = _classification(value)
-        return _ArtifactIdentity(direct_schema, direct_schema, version, data_class, fixture_class)
+        identity_field = _IDENTITY_FIELDS.get(direct_schema)
+        identity_value = value.get(identity_field) if identity_field else None
+        if identity_value is not None and not isinstance(identity_value, str):
+            raise BundleDiffError(
+                BundleDiffErrorReason.INVALID_DOCUMENT,
+                _join_path(path, identity_field),
+                "artifact identity field must be text",
+            )
+        return _ArtifactIdentity(
+            direct_schema,
+            direct_schema,
+            version,
+            data_class,
+            fixture_class,
+            identity_value,
+            STATUS_SCHEMA_RECOGNIZED,
+        )
 
     artifact = value.get("artifact", _MISSING)
     if artifact is not _MISSING:
@@ -742,6 +997,8 @@ def _identity(value: dict[str, object], *, path: str) -> _ArtifactIdentity:
             nested_version,
             data_class,
             fixture_class,
+            None,
+            STATUS_SCHEMA_RECOGNIZED,
         )
 
     fixture_class = _synthetic_class(value)
@@ -772,6 +1029,8 @@ def _identity(value: dict[str, object], *, path: str) -> _ArtifactIdentity:
             1,
             data_class,
             fixture_class,
+            None,
+            STATUS_SCHEMA_RECOGNIZED,
         )
 
     if (
@@ -797,9 +1056,12 @@ def _identity(value: dict[str, object], *, path: str) -> _ArtifactIdentity:
             1,
             data_class,
             fixture_class,
+            None,
+            STATUS_SCHEMA_RECOGNIZED,
         )
 
-    if _evaluation_report(value, path=path):
+    if _is_evaluation_report(value):
+        _validate_qfast_report(value, path=path)
         data_class, fixture_class = _classification(value)
         return _ArtifactIdentity(
             "ringdown.evaluation_report",
@@ -807,6 +1069,8 @@ def _identity(value: dict[str, object], *, path: str) -> _ArtifactIdentity:
             1,
             data_class,
             fixture_class,
+            None,
+            STATUS_CONTRACT_VALIDATED,
         )
 
     if nodes:
@@ -822,26 +1086,58 @@ def _identity(value: dict[str, object], *, path: str) -> _ArtifactIdentity:
     )
 
 
-@dataclass(frozen=True, slots=True)
-class _ArtifactIdentity:
-    artifact_type: str
-    schema: str
-    schema_version: int
-    data_class: str | None
-    fixture_class: str | None
-
-
-@dataclass(frozen=True, slots=True)
-class _LoadedArtifact:
-    relative_path: str
-    payload: dict[str, object]
-    identity: _ArtifactIdentity
-
-
-@dataclass(frozen=True, slots=True)
-class _LoadedInput:
-    kind: str
-    artifacts: tuple[_LoadedArtifact, ...]
+def _validated_replay_bundle(
+    artifacts: tuple[_LoadedArtifact, ...],
+    *,
+    display_path: str,
+) -> tuple[_LoadedArtifact, ...]:
+    rules = [
+        artifact
+        for artifact in artifacts
+        if artifact.identity.schema == "ringdown.earnings_replay_selection_rule"
+    ]
+    event_lists = [
+        artifact
+        for artifact in artifacts
+        if artifact.identity.schema == "ringdown.frozen_earnings_event_list"
+    ]
+    manifests = [
+        artifact
+        for artifact in artifacts
+        if artifact.identity.schema == "ringdown.point_in_time_evidence_manifest"
+        and artifact.identity.schema_version == 2
+    ]
+    if len(rules) != 1 or len(event_lists) != 1 or not manifests:
+        return artifacts
+    try:
+        validated = validate_replay_evidence_set(
+            event_lists[0].raw_bytes,
+            rules[0].raw_bytes,
+            [artifact.raw_bytes for artifact in manifests],
+        )
+    except ReplayEvidenceRejected as error:
+        raise BundleDiffError(
+            BundleDiffErrorReason.CONTRACT_VALIDATION_FAILED,
+            display_path,
+            f"replay contract rejected the bundle: {error}",
+        ) from error
+    validated_ids = {item.event_id for item in validated}
+    contract_member_ids = {id(artifact) for artifact in rules} | {
+        id(artifact) for artifact in event_lists
+    }
+    return tuple(
+        replace(
+            artifact,
+            identity=replace(artifact.identity, validation_status=STATUS_CONTRACT_VALIDATED),
+        )
+        if id(artifact) in contract_member_ids
+        or (
+            artifact.identity.schema == "ringdown.point_in_time_evidence_manifest"
+            and artifact.identity.identity in validated_ids
+        )
+        else artifact
+        for artifact in artifacts
+    )
 
 
 def _is_reparse_point(path: Path) -> bool:
@@ -1028,8 +1324,10 @@ def _load_directory(root: Path, *, display_path: str) -> _LoadedInput:
                 member_path,
                 "artifact nesting exceeds the supported depth",
             ) from error
-        loaded.append(_LoadedArtifact(relative_text, payload, identity))
-    return _LoadedInput("bundle", tuple(loaded))
+        loaded.append(_LoadedArtifact(relative_text, payload, identity, raw))
+    return _LoadedInput(
+        "bundle", _validated_replay_bundle(tuple(loaded), display_path=display_path)
+    )
 
 
 def _load_input(value: bytes | os.PathLike[str] | str, *, display_path: str) -> _LoadedInput:
@@ -1045,7 +1343,7 @@ def _load_input(value: bytes | os.PathLike[str] | str, *, display_path: str) -> 
             ) from error
         return _LoadedInput(
             "artifact",
-            (_LoadedArtifact("artifact.json", payload, identity),),
+            (_LoadedArtifact("artifact.json", payload, identity, value),),
         )
     if not isinstance(value, (str, os.PathLike)):
         raise BundleDiffError(
@@ -1081,7 +1379,7 @@ def _load_input(value: bytes | os.PathLike[str] | str, *, display_path: str) -> 
         ) from error
     return _LoadedInput(
         "artifact",
-        (_LoadedArtifact("artifact.json", payload, identity),),
+        (_LoadedArtifact("artifact.json", payload, identity, raw),),
     )
 
 
@@ -1094,7 +1392,7 @@ def _category(path: str) -> str:
         return "CLASSIFICATION"
     if key in {"event_id", "event_ids"} or key.startswith("event:"):
         return "EVENT_ID"
-    if key == "claim" or key in _LABEL_LIST_KEYS:
+    if key == "claim" or key in _SET_LIKE_LIST_KEYS - {"missing_or_conflicting_evidence"}:
         return "LIMITATION" if key == "limitations" else "CLAIM"
     if "sha256" in key or key.endswith("_hash") or key == "hash":
         return "HASH"
@@ -1115,6 +1413,8 @@ def _category(path: str) -> str:
         return "VERDICT"
     if key in _LATENCY_KEYS or "/latency_profiles/" in path_lower:
         return "LATENCY"
+    if key.startswith(("record:", "feature:")) or "/records/" in path_lower:
+        return "PROVENANCE"
     if key in _PROVENANCE_KEYS or any(
         term in path_lower for term in ("source", "provenance", "entitlement", "redistribution")
     ):
@@ -1142,19 +1442,42 @@ def _delta(
     }
 
 
-def _compare_labels(
+def _compare_set_like(
+    left: list[object],
+    right: list[object],
+    path: str,
+    deltas: list[dict[str, object]],
+) -> bool:
+    if not all(isinstance(item, str) for item in left) or not all(
+        isinstance(item, str) for item in right
+    ):
+        return False
+    category = _category(path)
+    left_values = {item for item in left if isinstance(item, str)}
+    right_values = {item for item in right if isinstance(item, str)}
+    for item in sorted(left_values - right_values):
+        deltas.append(_delta(category, _join_path(path, item), "REMOVED", item, _MISSING))
+    for item in sorted(right_values - left_values):
+        deltas.append(_delta(category, _join_path(path, item), "ADDED", _MISSING, item))
+    return True
+
+
+def _compare_event_id_list(
     left: list[str],
     right: list[str],
     path: str,
     deltas: list[dict[str, object]],
 ) -> None:
-    category = "LIMITATION" if _key_from_path(path).casefold() == "limitations" else "CLAIM"
-    left_values = set(left)
-    right_values = set(right)
-    for item in sorted(left_values - right_values):
-        deltas.append(_delta(category, _join_path(path, item), "REMOVED", item, _MISSING))
-    for item in sorted(right_values - left_values):
-        deltas.append(_delta(category, _join_path(path, item), "ADDED", _MISSING, item))
+    for event_id in sorted(set(left) - set(right)):
+        deltas.append(
+            _delta("EVENT_ID", _join_path(path, f"event:{event_id}"), "REMOVED", event_id, _MISSING)
+        )
+    for event_id in sorted(set(right) - set(left)):
+        deltas.append(
+            _delta("EVENT_ID", _join_path(path, f"event:{event_id}"), "ADDED", _MISSING, event_id)
+        )
+    if set(left) == set(right) and left != right:
+        deltas.append(_delta("EVENT_ID", path, "CHANGED", left, right))
 
 
 def _event_identifier(value: object) -> str | None:
@@ -1208,43 +1531,48 @@ def _event_collection(
     return True
 
 
-def _event_id_list(
-    left: list[str],
-    right: list[str],
+def _keyed_collection(
+    left: list[object],
+    right: list[object],
     path: str,
     deltas: list[dict[str, object]],
-) -> None:
-    for event_id in sorted(set(left) - set(right)):
-        deltas.append(
-            _delta("EVENT_ID", _join_path(path, f"event:{event_id}"), "REMOVED", event_id, _MISSING)
-        )
-    for event_id in sorted(set(right) - set(left)):
-        deltas.append(
-            _delta("EVENT_ID", _join_path(path, f"event:{event_id}"), "ADDED", _MISSING, event_id)
-        )
-    if set(left) == set(right) and left != right:
-        deltas.append(_delta("EVENT_ID", path, "CHANGED", left, right))
-
-
-def _collect_event_ids(value: object) -> tuple[str, ...]:
-    found: set[str] = set()
-
-    def visit(item: object) -> None:
-        if isinstance(item, Mapping):
-            event_id = item.get("event_id")
-            if isinstance(event_id, str) and event_id:
-                found.add(event_id)
-            event_ids = item.get("event_ids")
-            if isinstance(event_ids, list):
-                found.update(event_id for event_id in event_ids if isinstance(event_id, str))
-            for child in item.values():
-                visit(child)
-        elif isinstance(item, list):
-            for child in item:
-                visit(child)
-
-    visit(value)
-    return tuple(sorted(found))
+    *,
+    identifier: str,
+    prefix: str,
+) -> bool:
+    left_map: dict[str, object] = {}
+    right_map: dict[str, object] = {}
+    for side, values, target in (("left", left, left_map), ("right", right, right_map)):
+        for index, value in enumerate(values):
+            if not isinstance(value, Mapping):
+                return False
+            item_id = value.get(identifier)
+            if not isinstance(item_id, str) or not item_id:
+                return False
+            if item_id in target:
+                raise BundleDiffError(
+                    BundleDiffErrorReason.INVALID_DOCUMENT,
+                    f"{path}/{index}",
+                    f"duplicate {identifier} {item_id!r} in {side} collection",
+                )
+            target[item_id] = value
+    for item_id in sorted(set(left_map) | set(right_map)):
+        left_value = left_map.get(item_id, _MISSING)
+        right_value = right_map.get(item_id, _MISSING)
+        item_path = _join_path(path, f"{prefix}:{item_id}")
+        if left_value is _MISSING or right_value is _MISSING:
+            deltas.append(
+                _delta(
+                    _category(item_path),
+                    item_path,
+                    "ADDED" if right_value is not _MISSING else "REMOVED",
+                    left_value,
+                    right_value,
+                )
+            )
+        else:
+            _compare_values(left_value, right_value, item_path, deltas)
+    return True
 
 
 def _json_values_equal(left: object, right: object) -> bool:
@@ -1260,6 +1588,8 @@ def _compare_values(
     right: object,
     path: str,
     deltas: list[dict[str, object]],
+    *,
+    set_like_lists: bool = False,
 ) -> None:
     if left is _MISSING or right is _MISSING:
         if left is right:
@@ -1275,21 +1605,41 @@ def _compare_values(
         )
         return
     key = _key_from_path(path).casefold()
-    if key in _LABEL_LIST_KEYS:
-        _compare_labels(left, right, path, deltas)
-        return
     if key == "event_ids":
-        _event_id_list(left, right, path, deltas)
+        _compare_event_id_list(left, right, path, deltas)
+        return
+    if (
+        key in _SET_LIKE_LIST_KEYS
+        and isinstance(left, list)
+        and isinstance(right, list)
+        and _compare_set_like(left, right, path, deltas)
+    ):
         return
     if isinstance(left, Mapping) and isinstance(right, Mapping):
         for child_key in sorted(set(left) | set(right)):
             child_path = _join_path(path, child_key)
             _compare_values(
-                left.get(child_key, _MISSING), right.get(child_key, _MISSING), child_path, deltas
+                left.get(child_key, _MISSING),
+                right.get(child_key, _MISSING),
+                child_path,
+                deltas,
+                set_like_lists=key == "field_source_refs",
             )
         return
     if isinstance(left, list) and isinstance(right, list):
         if key == "events" and _event_collection(left, right, path, deltas):
+            return
+        keyed = _KEYED_LISTS.get(key)
+        if keyed is not None and _keyed_collection(
+            left,
+            right,
+            path,
+            deltas,
+            identifier=keyed,
+            prefix="record" if key == "records" else "feature",
+        ):
+            return
+        if set_like_lists and _compare_set_like(left, right, path, deltas):
             return
         for index in range(max(len(left), len(right))):
             child_path = _join_path(path, index)
@@ -1330,7 +1680,66 @@ def _artifact_metadata(artifact: _LoadedArtifact) -> dict[str, object]:
         "schema_version": artifact.identity.schema_version,
         "data_class": artifact.identity.data_class,
         "fixture_class": artifact.identity.fixture_class,
+        "identity": artifact.identity.identity,
+        "raw_sha256": artifact.raw_sha256,
+        "canonical_sha256": artifact.canonical_sha256,
+        "validation_status": artifact.identity.validation_status,
     }
+
+
+def _collect_event_ids(value: object) -> tuple[str, ...]:
+    found: set[str] = set()
+
+    def visit(item: object) -> None:
+        if isinstance(item, Mapping):
+            event_id = item.get("event_id")
+            if isinstance(event_id, str) and event_id:
+                found.add(event_id)
+            event_ids = item.get("event_ids")
+            if isinstance(event_ids, list):
+                found.update(event_id for event_id in event_ids if isinstance(event_id, str))
+            for child in item.values():
+                visit(child)
+        elif isinstance(item, list):
+            for child in item:
+                visit(child)
+
+    visit(value)
+    return tuple(sorted(found))
+
+
+def _pair_artifacts(
+    left: tuple[_LoadedArtifact, ...],
+    right: tuple[_LoadedArtifact, ...],
+) -> tuple[
+    list[tuple[_LoadedArtifact, _LoadedArtifact]], list[_LoadedArtifact], list[_LoadedArtifact]
+]:
+    left_by_path = {artifact.relative_path: artifact for artifact in left}
+    right_by_path = {artifact.relative_path: artifact for artifact in right}
+    common_paths = sorted(set(left_by_path) & set(right_by_path))
+    pairs = [(left_by_path[name], right_by_path[name]) for name in common_paths]
+    unmatched_left = [left_by_path[name] for name in sorted(set(left_by_path) - set(common_paths))]
+    unmatched_right = [
+        right_by_path[name] for name in sorted(set(right_by_path) - set(common_paths))
+    ]
+
+    left_counts: dict[tuple[str, str], int] = {}
+    right_counts: dict[tuple[str, str], int] = {}
+    for artifact in unmatched_left:
+        left_counts[artifact.pairing_key] = left_counts.get(artifact.pairing_key, 0) + 1
+    for artifact in unmatched_right:
+        right_counts[artifact.pairing_key] = right_counts.get(artifact.pairing_key, 0) + 1
+    right_by_key = {artifact.pairing_key: artifact for artifact in unmatched_right}
+    matched_keys = {
+        key for key, count in left_counts.items() if count == 1 and right_counts.get(key) == 1
+    }
+    for artifact in unmatched_left:
+        if artifact.pairing_key in matched_keys:
+            pairs.append((artifact, right_by_key[artifact.pairing_key]))
+    pairs.sort(key=lambda pair: (pair[0].relative_path, pair[1].relative_path))
+    removed = [item for item in unmatched_left if item.pairing_key not in matched_keys]
+    added = [item for item in unmatched_right if item.pairing_key not in matched_keys]
+    return pairs, removed, added
 
 
 def _has_explicit_schema(value: Mapping[str, object]) -> bool:
@@ -1338,10 +1747,10 @@ def _has_explicit_schema(value: Mapping[str, object]) -> bool:
     return "schema" in value or (isinstance(artifact, Mapping) and "schema" in artifact)
 
 
-def _compare_artifact_values(
+def _compare_artifact_pair(
     left: _LoadedArtifact,
     right: _LoadedArtifact,
-    path: str,
+    base_path: str,
     deltas: list[dict[str, object]],
 ) -> None:
     if left.identity.artifact_type != right.identity.artifact_type and not (
@@ -1350,13 +1759,56 @@ def _compare_artifact_values(
         deltas.append(
             _delta(
                 "SCHEMA",
-                _join_path(path, "@artifact_type"),
+                _join_path(base_path, "@artifact_type"),
                 "CHANGED",
                 left.identity.artifact_type,
                 right.identity.artifact_type,
             )
         )
-    _compare_values(left.payload, right.payload, path, deltas)
+    if left.raw_sha256 != right.raw_sha256:
+        deltas.append(
+            _delta(
+                "IDENTITY",
+                _join_path(base_path, "@raw_bytes_sha256"),
+                "CHANGED",
+                left.raw_sha256,
+                right.raw_sha256,
+            )
+        )
+    _compare_values(left.payload, right.payload, base_path, deltas)
+
+
+def _side_descriptor(loaded: _LoadedInput, event_ids: tuple[str, ...]) -> dict[str, object]:
+    if loaded.kind == "artifact":
+        only = loaded.artifacts[0]
+        raw_sha256 = only.raw_sha256
+        canonical_sha256 = only.canonical_sha256
+    else:
+        raw_sha256 = _sha256(
+            _canonical_json(
+                {artifact.relative_path: artifact.raw_sha256 for artifact in loaded.artifacts}
+            )
+        )
+        canonical_sha256 = _sha256(
+            _canonical_json(
+                {artifact.relative_path: artifact.payload for artifact in loaded.artifacts}
+            )
+        )
+    statuses = {artifact.identity.validation_status for artifact in loaded.artifacts}
+    if statuses == {STATUS_CONTRACT_VALIDATED}:
+        validation_status = STATUS_CONTRACT_VALIDATED
+    elif STATUS_CONTRACT_VALIDATED in statuses:
+        validation_status = STATUS_PARTIALLY_CONTRACT_VALIDATED
+    else:
+        validation_status = STATUS_SCHEMA_RECOGNIZED
+    return {
+        "kind": loaded.kind,
+        "validation_status": validation_status,
+        "raw_sha256": raw_sha256,
+        "canonical_sha256": canonical_sha256,
+        "event_ids": list(event_ids),
+        "artifacts": [_artifact_metadata(artifact) for artifact in loaded.artifacts],
+    }
 
 
 def _compare_loaded(left: _LoadedInput, right: _LoadedInput) -> dict[str, object]:
@@ -1368,48 +1820,67 @@ def _compare_loaded(left: _LoadedInput, right: _LoadedInput) -> dict[str, object
         )
     deltas: list[dict[str, object]] = []
     if left.kind == "artifact":
-        left_artifact = left.artifacts[0]
-        right_artifact = right.artifacts[0]
-        _compare_artifact_values(left_artifact, right_artifact, "", deltas)
-        left_event_ids = _collect_event_ids(left_artifact.payload)
-        right_event_ids = _collect_event_ids(right_artifact.payload)
+        pairs = [(left.artifacts[0], right.artifacts[0])]
+        removed: list[_LoadedArtifact] = []
+        added: list[_LoadedArtifact] = []
     else:
-        left_by_path = {artifact.relative_path: artifact for artifact in left.artifacts}
-        right_by_path = {artifact.relative_path: artifact for artifact in right.artifacts}
-        for relative_path in sorted(set(left_by_path) | set(right_by_path)):
-            left_artifact = left_by_path.get(relative_path)
-            right_artifact = right_by_path.get(relative_path)
-            file_path = f"/files/{_escape_pointer_part(relative_path)}"
-            if left_artifact is None or right_artifact is None:
-                deltas.append(
-                    _delta(
-                        "FILE",
-                        file_path,
-                        "ADDED" if right_artifact is not None else "REMOVED",
-                        _MISSING if left_artifact is None else _artifact_metadata(left_artifact),
-                        _MISSING if right_artifact is None else _artifact_metadata(right_artifact),
-                    )
+        pairs, removed, added = _pair_artifacts(left.artifacts, right.artifacts)
+
+    for old, new in pairs:
+        if left.kind == "bundle" and old.relative_path != new.relative_path:
+            deltas.append(
+                _delta(
+                    "ARTIFACT",
+                    "/files",
+                    "RENAMED",
+                    old.relative_path,
+                    new.relative_path,
                 )
-                continue
-            _compare_artifact_values(left_artifact, right_artifact, file_path, deltas)
-        left_event_ids = tuple(
-            sorted(
-                {
-                    event_id
-                    for artifact in left.artifacts
-                    for event_id in _collect_event_ids(artifact.payload)
-                }
+            )
+            base_path = (
+                f"/files/{_escape_pointer_part(old.relative_path)}"
+                f" -> {_escape_pointer_part(new.relative_path)}"
+            )
+        elif left.kind == "bundle":
+            base_path = f"/files/{_escape_pointer_part(old.relative_path)}"
+        else:
+            base_path = ""
+        _compare_artifact_pair(old, new, base_path, deltas)
+
+    for artifact in removed:
+        deltas.append(
+            _delta(
+                "FILE",
+                f"/files/{_escape_pointer_part(artifact.relative_path)}",
+                "REMOVED",
+                _artifact_metadata(artifact),
+                _MISSING,
             )
         )
-        right_event_ids = tuple(
-            sorted(
-                {
-                    event_id
-                    for artifact in right.artifacts
-                    for event_id in _collect_event_ids(artifact.payload)
-                }
+    for artifact in added:
+        deltas.append(
+            _delta(
+                "FILE",
+                f"/files/{_escape_pointer_part(artifact.relative_path)}",
+                "ADDED",
+                _MISSING,
+                _artifact_metadata(artifact),
             )
         )
+
+    left_event_ids = _collect_event_ids(
+        {artifact.relative_path: artifact.payload for artifact in left.artifacts}
+    )
+    right_event_ids = _collect_event_ids(
+        {artifact.relative_path: artifact.payload for artifact in right.artifacts}
+    )
+    left_has_event_list = any(
+        isinstance(artifact.payload.get("event_ids"), list) for artifact in left.artifacts
+    )
+    right_has_event_list = any(
+        isinstance(artifact.payload.get("event_ids"), list) for artifact in right.artifacts
+    )
+    if not left_has_event_list and not right_has_event_list:
         for event_id in sorted(set(left_event_ids) - set(right_event_ids)):
             deltas.append(
                 _delta(
@@ -1432,22 +1903,268 @@ def _compare_loaded(left: _LoadedInput, right: _LoadedInput) -> dict[str, object
             )
 
     sorted_deltas = _sort_deltas(deltas)
+    semantically_equal = all(
+        str(delta["category"]) in _NON_SEMANTIC_CATEGORIES for delta in sorted_deltas
+    )
     return {
         "schema": _REPORT_SCHEMA,
         "schema_version": _REPORT_VERSION,
-        "left": {
-            "kind": left.kind,
-            "event_ids": list(left_event_ids),
-            "artifacts": [_artifact_metadata(artifact) for artifact in left.artifacts],
-        },
-        "right": {
-            "kind": right.kind,
-            "event_ids": list(right_event_ids),
-            "artifacts": [_artifact_metadata(artifact) for artifact in right.artifacts],
-        },
+        "data_class": _REPORT_DATA_CLASS,
+        "claims": list(_REPORT_CLAIMS),
+        "left": _side_descriptor(left, left_event_ids),
+        "right": _side_descriptor(right, right_event_ids),
         "identical": not sorted_deltas,
+        "semantically_equal": semantically_equal,
         "deltas": sorted_deltas,
     }
+
+
+def _validate_diff_report(value: Mapping[str, object], *, path: str) -> None:
+    _require_special_keys(
+        value,
+        required=frozenset(
+            {
+                "schema",
+                "schema_version",
+                "data_class",
+                "claims",
+                "left",
+                "right",
+                "identical",
+                "semantically_equal",
+                "deltas",
+            }
+        ),
+        path=path,
+    )
+    if value["data_class"] != _REPORT_DATA_CLASS:
+        raise BundleDiffError(
+            BundleDiffErrorReason.INVALID_DOCUMENT,
+            f"{path}/data_class",
+            "report data class is invalid",
+        )
+    if value["claims"] != _REPORT_CLAIMS:
+        raise BundleDiffError(
+            BundleDiffErrorReason.INVALID_DOCUMENT,
+            f"{path}/claims",
+            "report claim boundary is invalid",
+        )
+    for side in ("left", "right"):
+        side_value = value[side]
+        if not isinstance(side_value, Mapping):
+            raise BundleDiffError(
+                BundleDiffErrorReason.INVALID_DOCUMENT,
+                f"{path}/{side}",
+                "report side must be an object",
+            )
+        _require_special_keys(
+            side_value,
+            required=frozenset(
+                {
+                    "kind",
+                    "validation_status",
+                    "raw_sha256",
+                    "canonical_sha256",
+                    "event_ids",
+                    "artifacts",
+                }
+            ),
+            path=f"{path}/{side}",
+        )
+        if side_value["kind"] not in {"artifact", "bundle"}:
+            raise BundleDiffError(
+                BundleDiffErrorReason.INVALID_DOCUMENT,
+                f"{path}/{side}/kind",
+                "report side kind is invalid",
+            )
+        if side_value["validation_status"] not in _VALIDATION_STATUSES:
+            raise BundleDiffError(
+                BundleDiffErrorReason.INVALID_DOCUMENT,
+                f"{path}/{side}/validation_status",
+                "validation status is invalid",
+            )
+        for field in ("raw_sha256", "canonical_sha256"):
+            if not _is_sha256(side_value[field]):
+                raise BundleDiffError(
+                    BundleDiffErrorReason.INVALID_DOCUMENT,
+                    f"{path}/{side}/{field}",
+                    "must be a lowercase SHA-256 digest",
+                )
+        _validate_string_list(side_value["event_ids"], path=f"{path}/{side}/event_ids")
+        artifacts = side_value["artifacts"]
+        if not isinstance(artifacts, list) or not artifacts:
+            raise BundleDiffError(
+                BundleDiffErrorReason.INVALID_DOCUMENT,
+                f"{path}/{side}/artifacts",
+                "report side must contain artifacts",
+            )
+        for index, artifact in enumerate(artifacts):
+            artifact_path = f"{path}/{side}/artifacts/{index}"
+            if not isinstance(artifact, Mapping):
+                raise BundleDiffError(
+                    BundleDiffErrorReason.INVALID_DOCUMENT,
+                    artifact_path,
+                    "artifact metadata must be an object",
+                )
+            _require_special_keys(
+                artifact,
+                required=frozenset(
+                    {
+                        "path",
+                        "artifact_type",
+                        "schema",
+                        "schema_version",
+                        "data_class",
+                        "fixture_class",
+                        "identity",
+                        "raw_sha256",
+                        "canonical_sha256",
+                        "validation_status",
+                    }
+                ),
+                path=artifact_path,
+            )
+            for field in ("path", "artifact_type", "schema"):
+                if not isinstance(artifact[field], str):
+                    raise BundleDiffError(
+                        BundleDiffErrorReason.INVALID_DOCUMENT,
+                        f"{artifact_path}/{field}",
+                        "artifact metadata field must be text",
+                    )
+            if not artifact["path"] or any(
+                part in {".", ".."} for part in Path(artifact["path"]).parts
+            ):
+                raise BundleDiffError(
+                    BundleDiffErrorReason.INVALID_DOCUMENT,
+                    f"{artifact_path}/path",
+                    "artifact metadata path must be a non-empty normalized relative path",
+                )
+            if artifact["artifact_type"] not in {
+                artifact["schema"],
+                f"{artifact['schema']}.fixture",
+            }:
+                raise BundleDiffError(
+                    BundleDiffErrorReason.INVALID_DOCUMENT,
+                    f"{artifact_path}/artifact_type",
+                    "artifact metadata type does not match its schema",
+                )
+            if type(artifact["schema_version"]) is not int:
+                raise BundleDiffError(
+                    BundleDiffErrorReason.INVALID_DOCUMENT,
+                    f"{artifact_path}/schema_version",
+                    "artifact schema_version must be an integer",
+                )
+            for field in ("data_class", "fixture_class", "identity"):
+                if artifact[field] is not None and not isinstance(artifact[field], str):
+                    raise BundleDiffError(
+                        BundleDiffErrorReason.INVALID_DOCUMENT,
+                        f"{artifact_path}/{field}",
+                        "nullable artifact metadata field must be text or null",
+                    )
+            for field in ("raw_sha256", "canonical_sha256"):
+                if not _is_sha256(artifact[field]):
+                    raise BundleDiffError(
+                        BundleDiffErrorReason.INVALID_DOCUMENT,
+                        f"{artifact_path}/{field}",
+                        "must be a lowercase SHA-256 digest",
+                    )
+            if artifact["validation_status"] not in _VALIDATION_STATUSES:
+                raise BundleDiffError(
+                    BundleDiffErrorReason.INVALID_DOCUMENT,
+                    f"{artifact_path}/validation_status",
+                    "validation status is invalid",
+                )
+    if (
+        type(value["identical"]) is not bool
+        or type(value["semantically_equal"]) is not bool
+        or not isinstance(value["deltas"], list)
+    ):
+        raise BundleDiffError(
+            BundleDiffErrorReason.INVALID_DOCUMENT,
+            path,
+            "report flags must be boolean and deltas must be a list",
+        )
+    allowed_categories = {
+        "SCHEMA",
+        "CLASSIFICATION",
+        "EVENT_ID",
+        "CLAIM",
+        "LIMITATION",
+        "HASH",
+        "TIMING",
+        "LATENCY",
+        "VERDICT",
+        "PROVENANCE",
+        "INCLUSION",
+        "FIELD",
+        "IDENTITY",
+        "ARTIFACT",
+        "FILE",
+    }
+    allowed_changes = {"ADDED", "REMOVED", "CHANGED", "RENAMED"}
+    delta_fields = frozenset(
+        {"category", "path", "change", "left_present", "right_present", "left", "right"}
+    )
+    for index, delta in enumerate(value["deltas"]):
+        delta_path = f"{path}/deltas/{index}"
+        if not isinstance(delta, Mapping):
+            raise BundleDiffError(
+                BundleDiffErrorReason.INVALID_DOCUMENT,
+                delta_path,
+                "delta must be an object",
+            )
+        _require_special_keys(delta, required=delta_fields, path=delta_path)
+        for field in ("category", "path", "change"):
+            if not isinstance(delta[field], str) or not delta[field]:
+                raise BundleDiffError(
+                    BundleDiffErrorReason.INVALID_DOCUMENT,
+                    f"{delta_path}/{field}",
+                    "delta text fields must be non-empty text",
+                )
+        if delta["category"] not in allowed_categories:
+            raise BundleDiffError(
+                BundleDiffErrorReason.INVALID_DOCUMENT,
+                f"{delta_path}/category",
+                "delta category is invalid",
+            )
+        if delta["change"] not in allowed_changes:
+            raise BundleDiffError(
+                BundleDiffErrorReason.INVALID_DOCUMENT,
+                f"{delta_path}/change",
+                "delta change kind is invalid",
+            )
+        for field in ("left_present", "right_present"):
+            if type(delta[field]) is not bool:
+                raise BundleDiffError(
+                    BundleDiffErrorReason.INVALID_DOCUMENT,
+                    f"{delta_path}/{field}",
+                    "delta presence field must be boolean",
+                )
+        if (not delta["left_present"] and delta["left"] is not None) or (
+            not delta["right_present"] and delta["right"] is not None
+        ):
+            raise BundleDiffError(
+                BundleDiffErrorReason.INVALID_DOCUMENT,
+                delta_path,
+                "absent delta values must be represented as null",
+            )
+    if value["identical"] != (len(value["deltas"]) == 0):
+        raise BundleDiffError(
+            BundleDiffErrorReason.INVALID_DOCUMENT,
+            f"{path}/identical",
+            "identical must agree with whether deltas are present",
+        )
+    semantic_deltas = [
+        delta
+        for delta in value["deltas"]
+        if isinstance(delta, Mapping) and delta.get("category") not in _NON_SEMANTIC_CATEGORIES
+    ]
+    if value["semantically_equal"] != (len(semantic_deltas) == 0):
+        raise BundleDiffError(
+            BundleDiffErrorReason.INVALID_DOCUMENT,
+            f"{path}/semantically_equal",
+            "semantically_equal must agree with the semantic deltas",
+        )
 
 
 def compare_artifacts(left: bytes, right: bytes) -> dict[str, object]:
@@ -1475,7 +2192,7 @@ def compare(
     left: bytes | os.PathLike[str] | str,
     right: bytes | os.PathLike[str] | str,
 ) -> dict[str, object]:
-    """Compare either two artifact bytes or two filesystem inputs."""
+    """Compare either two immutable artifact bytes or two filesystem inputs."""
 
     if type(left) is bytes and type(right) is bytes:
         return compare_artifacts(left, right)

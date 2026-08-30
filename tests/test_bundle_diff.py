@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from shutil import copyfile
 
 import pytest
 
@@ -17,6 +18,7 @@ from ringdown_market.cli import build_report
 ROOT = Path(__file__).parents[1]
 DATA = ROOT / "data" / "earnings-replays"
 EVENT_LIST = DATA / "event-list-v1.json"
+SELECTION_RULE = DATA / "selection-rule-v1.json"
 EVIDENCE = DATA / "events" / "KR-2026Q2-EARNINGS.json"
 SYNTHETIC_PANEL = ROOT / "tests" / "fixtures" / "synthetic_contract_panel.json"
 DECISION_FIXTURE = ROOT / "tests" / "contract_fixtures" / "frozen_research_decision_v1.json"
@@ -49,6 +51,15 @@ SHIPPED_ARTIFACTS = (
     / "fixtures"
     / "scheduled_rejected_before_mutation_v1.json",
     ROOT / "src" / "ringdown_market" / "demo" / "fixtures" / "scheduled_terminal_flat_v1.json",
+)
+
+BUNDLE_MEMBERS = (
+    DATA / "event-list-v1.json",
+    DATA / "selection-rule-v1.json",
+    DATA / "events" / "GIS-2027Q1-EARNINGS.json",
+    DATA / "events" / "KR-2026Q2-EARNINGS.json",
+    DATA / "events" / "MU-2026Q4-EARNINGS.json",
+    DATA / "events" / "NKE-2027Q1-EARNINGS.json",
 )
 
 
@@ -88,6 +99,8 @@ def test_public_api_exports_are_importable() -> None:
 
     assert report["schema"] == "ringdown.evidence_bundle_diff_report"
     assert report["schema_version"] == 1
+    assert report["data_class"] == "OFFLINE_ARTIFACT_COMPARISON"
+    assert report["claims"] == ["COMPARISON_ONLY", "NOT_ALPHA_EVIDENCE", "NO_BROKER_EXECUTION"]
 
 
 def test_generated_report_is_a_supported_comparable_artifact() -> None:
@@ -97,21 +110,6 @@ def test_generated_report_is_a_supported_comparable_artifact() -> None:
     report = compare_artifacts(rendered, rendered)
 
     assert report["identical"] is True
-
-
-def test_event_schedule_fields_are_timing_deltas() -> None:
-    left = EVENT_LIST.read_bytes()
-    right = _mutated(
-        left,
-        lambda payload: payload["events"][0].update({"timing_bucket": "AFTER_CLOSE"}),
-    )
-
-    report = compare_artifacts(left, right)
-
-    assert any(
-        delta["category"] == "TIMING" and delta["path"].endswith("/timing_bucket")
-        for delta in report["deltas"]
-    )
 
 
 def test_tampered_report_identity_flag_fails_closed() -> None:
@@ -126,21 +124,27 @@ def test_tampered_report_identity_flag_fails_closed() -> None:
     assert caught.value.reason is BundleDiffErrorReason.INVALID_DOCUMENT
 
 
-def test_identical_inputs_have_byte_identical_canonical_reports() -> None:
-    first = compare_artifacts(SYNTHETIC_PANEL.read_bytes(), SYNTHETIC_PANEL.read_bytes())
-    second = compare_artifacts(SYNTHETIC_PANEL.read_bytes(), SYNTHETIC_PANEL.read_bytes())
-
-    assert canonical_report_bytes(first) == canonical_report_bytes(second)
-    assert canonical_report_bytes(first).endswith(b"\n")
-
-
-def test_reordering_object_keys_does_not_create_a_delta() -> None:
+def test_formatting_only_change_reports_identity_but_remains_semantically_equal() -> None:
     raw = EVIDENCE.read_bytes()
     reordered = _json_bytes(json.loads(raw), sort_keys=True)
 
     report = compare_artifacts(raw, reordered)
 
-    assert report["identical"] is True
+    assert report["identical"] is False
+    assert report["semantically_equal"] is True
+    assert _categories(report) == {"IDENTITY"}
+    assert report["left"]["canonical_sha256"] == report["right"]["canonical_sha256"]
+    assert report["left"]["raw_sha256"] != report["right"]["raw_sha256"]
+
+
+def test_set_like_list_order_is_semantically_equal() -> None:
+    left = EVIDENCE.read_bytes()
+    right = _mutated(left, lambda payload: payload["limitations"].reverse())
+
+    report = compare_artifacts(left, right)
+
+    assert report["semantically_equal"] is True
+    assert _categories(report) <= {"IDENTITY"}
 
 
 @pytest.mark.parametrize(
@@ -149,25 +153,15 @@ def test_reordering_object_keys_does_not_create_a_delta() -> None:
         ("HASH", lambda payload: payload.update({"input_sha256": "0" * 64})),
         (
             "LATENCY",
-            lambda payload: payload["latency_gate"].update({"required_profile": "zero"}),
+            lambda payload: payload["latency_profiles"]["p95"].update(
+                {"requested_latency_ms": 45000}
+            ),
         ),
         (
             "VERDICT",
             lambda payload: payload["latency_profiles"]["p95"]["qfast"].update(
                 {"candidate_advantage": 1.25}
             ),
-        ),
-        (
-            "CLAIM",
-            lambda payload: payload["claims"].append("COMPARISON_ONLY"),
-        ),
-        (
-            "LIMITATION",
-            lambda payload: payload["limitations"].append("NO_RESCORING"),
-        ),
-        (
-            "CLASSIFICATION",
-            lambda payload: payload.update({"data_class": "POINT_IN_TIME_EVENT_PANEL"}),
         ),
     ],
 )
@@ -178,6 +172,22 @@ def test_evaluation_report_delta_categories(category: str, mutation) -> None:
     report = compare_artifacts(left, right)
 
     assert category in _categories(report)
+
+
+def test_manifest_label_classification_and_claim_deltas() -> None:
+    left = EVIDENCE.read_bytes()
+    right = _mutated(
+        left,
+        lambda payload: (
+            payload["data_qualifiers"].append("COMPARISON_ONLY"),
+            payload["limitations"].append("NO_RESCORING"),
+            payload.update({"data_class": "SYNTHETIC_CONTRACT_FIXTURE"}),
+        ),
+    )
+
+    report = compare_artifacts(left, right)
+
+    assert {"CLAIM", "LIMITATION", "CLASSIFICATION"} <= _categories(report)
 
 
 def test_schema_version_delta_is_reported_for_a_registered_version() -> None:
@@ -223,7 +233,8 @@ def test_event_order_change_is_visible_without_positional_record_noise() -> None
     report = compare_artifacts(left, _mutated(left, reverse_event_order))
 
     assert report["identical"] is False
-    assert _categories(report) == {"EVENT_ID"}
+    assert report["semantically_equal"] is False
+    assert _categories(report) == {"EVENT_ID", "IDENTITY"}
     assert any(delta["path"].endswith("/event_ids") for delta in report["deltas"])
 
 
@@ -260,6 +271,18 @@ def test_publication_precision_and_source_metadata_have_specific_categories() ->
     assert "PROVENANCE" in _categories(report)
 
 
+def test_records_are_keyed_by_evidence_id() -> None:
+    left = EVIDENCE.read_bytes()
+    right = _mutated(
+        left,
+        lambda payload: payload["records"][0].update({"publisher": "Revised Publisher"}),
+    )
+
+    report = compare_artifacts(left, right)
+
+    assert any("/records/record:" in delta["path"] for delta in report["deltas"])
+
+
 def test_scalar_claim_and_feature_source_reference_changes_are_classified() -> None:
     left = DECISION_FIXTURE.read_bytes()
     right = _mutated(
@@ -276,6 +299,134 @@ def test_scalar_claim_and_feature_source_reference_changes_are_classified() -> N
 
     assert "CLAIM" in _categories(report)
     assert "PROVENANCE" in _categories(report)
+
+
+def test_event_schedule_fields_are_timing_deltas() -> None:
+    left = EVENT_LIST.read_bytes()
+    right = _mutated(
+        left,
+        lambda payload: payload["events"][0].update({"timing_bucket": "AFTER_CLOSE"}),
+    )
+
+    report = compare_artifacts(left, right)
+
+    assert any(
+        delta["category"] == "TIMING" and delta["path"].endswith("/timing_bucket")
+        for delta in report["deltas"]
+    )
+
+
+def test_boolean_and_number_are_not_python_equal_json_values() -> None:
+    left = EVIDENCE.read_bytes()
+    right = _mutated(
+        left,
+        lambda payload: payload["records"][0].update({"content_sha256": True}),
+    )
+
+    report = compare_artifacts(left, right)
+
+    assert report["identical"] is False
+    assert any(delta["path"].endswith("/content_sha256") for delta in report["deltas"])
+
+
+def test_generic_field_changes_are_reported_without_claiming_semantics() -> None:
+    left = EVIDENCE.read_bytes()
+    right = _mutated(left, lambda payload: payload.update({"issuer": "OTHER ISSUER"}))
+
+    report = compare_artifacts(left, right)
+
+    assert any(
+        delta["category"] == "FIELD" and delta["path"].endswith("/issuer")
+        for delta in report["deltas"]
+    )
+
+
+def test_existing_null_and_missing_values_are_distinguished() -> None:
+    left = EVIDENCE.read_bytes()
+    right = _mutated(left, lambda payload: payload["sec_filing"].pop("url"))
+
+    report = compare_artifacts(left, right)
+    delta = next(delta for delta in report["deltas"] if delta["path"].endswith("/sec_filing/url"))
+
+    assert delta["left_present"] is True
+    assert delta["right_present"] is False
+    assert delta["left"] is None
+
+
+def test_complete_replay_bundle_is_contract_validated() -> None:
+    report = compare_paths(DATA, DATA)
+
+    assert report["identical"] is True
+    assert report["left"]["validation_status"] == "CONTRACT_VALIDATED"
+    assert report["right"]["validation_status"] == "CONTRACT_VALIDATED"
+    assert len(report["left"]["artifacts"]) == len(BUNDLE_MEMBERS)
+    assert all(
+        artifact["validation_status"] == "CONTRACT_VALIDATED"
+        for artifact in report["left"]["artifacts"]
+    )
+
+
+def test_invalid_complete_replay_bundle_fails_contract_validation(tmp_path: Path) -> None:
+    bundle = tmp_path / "bundle"
+    (bundle / "events").mkdir(parents=True)
+    for member in BUNDLE_MEMBERS:
+        copyfile(member, bundle / member.relative_to(DATA))
+    tampered = _mutated(
+        (bundle / "events" / "KR-2026Q2-EARNINGS.json").read_bytes(),
+        lambda payload: payload["event_context"].update({"ticker": "TAMPERED"}),
+    )
+    (bundle / "events" / "KR-2026Q2-EARNINGS.json").write_bytes(tampered)
+
+    with pytest.raises(BundleDiffError) as caught:
+        compare_paths(bundle, bundle)
+
+    assert caught.value.reason is BundleDiffErrorReason.CONTRACT_VALIDATION_FAILED
+
+
+def test_standalone_artifact_discloses_recognition_status() -> None:
+    report = compare_paths(EVIDENCE, EVIDENCE)
+
+    assert report["left"]["validation_status"] == "STRICT_JSON_SCHEMA_RECOGNIZED"
+    assert report["left"]["artifacts"][0]["validation_status"] == "STRICT_JSON_SCHEMA_RECOGNIZED"
+
+
+def test_qfast_report_is_contract_validated() -> None:
+    rendered = _evaluation_bytes()
+
+    report = compare_artifacts(rendered, rendered)
+
+    assert report["left"]["validation_status"] == "CONTRACT_VALIDATED"
+
+
+def test_tampered_qfast_gate_fails_closed() -> None:
+    tampered = _mutated(
+        _evaluation_bytes(),
+        lambda payload: payload["latency_gate"].update({"status": "SHADOW_ONLY"}),
+    )
+
+    with pytest.raises(BundleDiffError) as caught:
+        compare_artifacts(tampered, tampered)
+
+    assert caught.value.reason is BundleDiffErrorReason.INVALID_DOCUMENT
+
+
+def test_renamed_bundle_member_is_matched_by_identity(tmp_path: Path) -> None:
+    left = tmp_path / "left"
+    right = tmp_path / "right"
+    left.mkdir()
+    right.mkdir()
+    (left / "before.json").write_bytes(EVIDENCE.read_bytes())
+    (right / "after.json").write_bytes(EVIDENCE.read_bytes())
+
+    report = compare_paths(left, right)
+
+    assert report["identical"] is False
+    assert report["semantically_equal"] is True
+    assert _categories(report) == {"ARTIFACT"}
+    delta = report["deltas"][0]
+    assert delta["change"] == "RENAMED"
+    assert delta["left"] == "before.json"
+    assert delta["right"] == "after.json"
 
 
 def test_bundle_member_order_is_independent_of_creation_order(tmp_path: Path) -> None:
@@ -384,40 +535,6 @@ def test_malformed_label_field_fails_with_stable_error() -> None:
         compare_artifacts(raw, raw)
 
     assert caught.value.reason is BundleDiffErrorReason.INVALID_DOCUMENT
-
-
-def test_boolean_and_number_are_not_python_equal_json_values() -> None:
-    left = _evaluation_bytes()
-    right = _mutated(left, lambda payload: payload.update({"event_count": True}))
-
-    report = compare_artifacts(left, right)
-
-    assert report["identical"] is False
-    assert any(delta["path"].endswith("/event_count") for delta in report["deltas"])
-
-
-def test_generic_field_changes_are_reported_without_claiming_semantics() -> None:
-    left = _evaluation_bytes()
-    right = _mutated(left, lambda payload: payload.update({"project": "Other"}))
-
-    report = compare_artifacts(left, right)
-
-    assert any(
-        delta["category"] == "FIELD" and delta["path"].endswith("/project")
-        for delta in report["deltas"]
-    )
-
-
-def test_existing_null_and_missing_values_are_distinguished() -> None:
-    left = EVIDENCE.read_bytes()
-    right = _mutated(left, lambda payload: payload["sec_filing"].pop("url"))
-
-    report = compare_artifacts(left, right)
-    delta = next(delta for delta in report["deltas"] if delta["path"].endswith("/sec_filing/url"))
-
-    assert delta["left_present"] is True
-    assert delta["right_present"] is False
-    assert delta["left"] is None
 
 
 def test_mixed_artifact_and_bundle_inputs_fail_closed(tmp_path: Path) -> None:

@@ -8,32 +8,70 @@ when the caller explicitly requests a report output file.
 
 This is comparison tooling, not research evidence. A diff never establishes
 alpha, profitability, executable fills, option pricing, or broker activity. It
-only reports values that are present in the compared inputs.
+only reports values that are present in the compared inputs, and every report
+carries the fixed labels `COMPARISON_ONLY`, `NOT_ALPHA_EVIDENCE`, and
+`NO_BROKER_EXECUTION` with data class `OFFLINE_ARTIFACT_COMPARISON`.
 
 ## Supported inputs
 
-The loader uses a closed registry of the schemas present on the current main
-branch. It supports the following direct artifacts:
+The loader uses a closed registry of the artifact schemas present on the
+current main branch:
 
 - frozen event lists, selection rules, and point-in-time evidence manifests;
 - frozen research decisions, feature snapshots, and evaluation reports;
-- execution-policy and protocol records;
-- PAPER permits, approvals, receipt bundles, and scheduled-run records;
-- synthetic panel and contract-fixture wrappers used by the repository tests.
+- execution-policy, protocol, permit, approval, receipt, and scheduled-run
+  records;
+- synthetic panel and contract-fixture wrappers used by the repository tests;
+- prior evidence-bundle diff reports.
 
-Unknown schemas, unsupported versions, missing schema metadata, and ambiguous
-containers fail closed with a stable `BundleDiffErrorReason`. JSON inputs must
-be UTF-8 objects with unique keys, finite numbers, and bounded nesting.
+Unknown schemas, unsupported versions, malformed JSON, duplicate keys,
+non-finite numbers, non-object roots, and unexpected shapes fail closed with a
+stable `BundleDiffErrorReason`. Directory bundles must contain only regular
+`.json` files; enumeration is sorted, symlinks and junctions are rejected, and
+resolved members must remain inside the requested bundle root.
 
-Directory bundles contain only regular `.json` files. Filesystem enumeration is
-sorted, symlinks and junctions are rejected, and resolved members must remain
-inside the requested bundle root. Both sides must be either individual
-artifacts or directory bundles; mixed input kinds are rejected.
+## Validation status
+
+Each side of the report discloses how far its artifacts were validated:
+
+- `CONTRACT_VALIDATED`: the artifact passed a full contract check. Q-FAST
+  evaluation reports pass strict field, type, identity, claim, latency,
+  metric, and status-consistency validation. Directory bundles containing
+  exactly one selection rule, one event list, and version 2 evidence manifests
+  are validated through the existing replay-evidence contract before
+  comparison; a contract rejection fails closed with
+  `CONTRACT_VALIDATION_FAILED`.
+- `PARTIALLY_CONTRACT_VALIDATED`: the bundle mixes contract-validated and
+  schema-recognized artifacts.
+- `STRICT_JSON_SCHEMA_RECOGNIZED`: the artifact is recognized and strict-JSON
+  valid, but a standalone artifact cannot prove cross-artifact hash and
+  provenance relationships. Read this status before interpreting a delta.
+
+## Report contract
+
+The report has schema `ringdown.evidence_bundle_diff_report` version `1`. Each
+side carries `kind`, `validation_status`, raw and canonical SHA-256 digests,
+aggregate event IDs, and per-artifact metadata. Every delta has a category, a
+JSON-Pointer-like path, a change kind, and explicit left/right presence flags,
+so a missing field is never confused with JSON `null`.
+
+Raw hashes preserve exact-byte lineage: a whitespace or key-order change
+produces an `IDENTITY` delta for `@raw_bytes_sha256` even when parsed values
+are semantically equal and canonical hashes match. `identical` means zero
+deltas of any kind; `semantically_equal` allows identity and rename deltas.
+Lists whose contract is set-like (claims, limitations, qualifiers, source
+references, rejection reasons, event IDs) are compared as sets. Events,
+evidence records, and feature dependencies are matched by their registered
+IDs, and bundle members with unchanged identity but changed file names are
+reported as `ARTIFACT` renames instead of positional noise.
+
+Delta categories: `SCHEMA`, `CLASSIFICATION`, `HASH`, `EVENT_ID`, `INCLUSION`,
+`TIMING`, `PROVENANCE`, `LATENCY`, `VERDICT`, `CLAIM`, `LIMITATION`,
+`IDENTITY`, `ARTIFACT`, `FILE`, and fallback `FIELD`.
 
 ## Python API
 
-Compare immutable artifact bytes when the exact source representation is
-already in memory:
+Compare immutable artifact bytes:
 
 ```python
 from ringdown_market.audit.bundle_diff import compare_artifacts, canonical_report_bytes
@@ -50,32 +88,13 @@ from ringdown_market.audit.bundle_diff import compare_paths
 report = compare_paths("left-bundle", "right-bundle")
 ```
 
-The report has schema `ringdown.evidence_bundle_diff_report` version `1` and
-contains sorted left/right artifact metadata, aggregate event IDs, an
-`identical` boolean, and stable `deltas`. Every delta has a category, JSON
-Pointer-like path, change kind, and explicit left/right presence flags. Missing
-values are not confused with an existing JSON `null` value.
+Write only to an explicitly requested output file whose parent already exists:
 
-## Delta categories
+```python
+from ringdown_market.audit.bundle_diff import write_report
 
-The comparator emits these categories when their values change:
-
-- `SCHEMA`: artifact schema or version;
-- `CLASSIFICATION`: data or fixture class;
-- `HASH`: protocol, input, policy, selection-rule, event-list, content, or other SHA-256 field;
-- `EVENT_ID`: event membership, keyed event changes, or event-list order;
-- `INCLUSION`: inclusion/exclusion state or reason;
-- `TIMING`: publication precision, timestamps, timezones, and session windows;
-- `PROVENANCE`: source URLs, publishers, source references, field status, entitlement, and redistribution metadata;
-- `LATENCY`: latency profile or gate settings;
-- `VERDICT`: candidate/baseline signals, verdicts, statuses, and lifecycle states;
-- `CLAIM` and `LIMITATION`: claim-boundary and limitation labels;
-- `FILE` and `FIELD`: bundle membership and other registered-value changes.
-
-Lists of labels are compared as sorted sets for meaningful added/removed
-labels. Event collections are keyed by `event_id`, so reordering event records
-does not create positional field noise. Event IDs remain visible in the report
-even when event records are stored in separate bundle members.
+write_report("left-bundle", "right-bundle", "build/evidence-bundle-diff.json")
+```
 
 ## Command-line entry
 
@@ -89,17 +108,9 @@ uv run python -m ringdown_market.audit.bundle_diff \
   --output build/evidence-bundle-diff.json
 ```
 
-The output parent must already exist. Without `--output`, the canonical report
-is written to standard output:
-
-```bash
-uv run python -m ringdown_market.audit.bundle_diff \
-  data/earnings-replays \
-  data/earnings-replays
-```
-
-Errors are printed with their stable reason and the command exits `2`. The
-library raises `BundleDiffError` with the same reason, path, and detail.
+Without `--output`, the canonical report is written to standard output. Errors
+are printed with their stable reason and the command exits `2`. The library
+raises `BundleDiffError` with the same reason, path, and detail.
 
 ## Verification
 
@@ -115,9 +126,9 @@ Observed result:
 
 ```text
 All checks passed!
-52 passed, 2 skipped
+57 passed, 2 skipped in 0.51s
 ```
 
 The two skips are symlink tests because symbolic-link creation is unavailable
-in the verification environment. The implementation rejects symlinks when the
-platform exposes them.
+in the verification environment. The implementation rejects symlinks and
+junctions when the platform exposes them.
