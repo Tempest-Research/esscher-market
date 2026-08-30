@@ -9,6 +9,9 @@
 	separate earnings and macro cohorts, frozen features, baselines, partitions, and promotion gates.
 - Immutable candidate-manifest, strategy-snapshot, feature-receipt, reasoner-exchange, and
 	direction-only decision contracts with a labeled synthetic development bundle.
+- A strict, source-grounded Gate A organizer contract and separate sanitized account-capability
+	receipt covering competition rules, PAPER identity, account freshness, entitlements, option
+	level, multi-leg support, reset state, and required MCP tools.
 - Four pre-outcome scheduled-earnings replay manifests bound to one frozen event list and selection rule.
 - A strict data-only evidence-manifest v2 validator with event-context provenance and point-in-time gates.
 - Versioned, strict frozen-research-decision, point-in-time evidence-manifest, and feature-input contracts.
@@ -47,6 +50,9 @@
   closed before downstream trade construction.
 - Gate A remains `UNVERIFIED`, and the accepted strategy policy grants no expression, exit, risk,
   permit, order, account, or broker authority.
+- Unknown or stale mark, cost, leverage, flattening, entitlement, endpoint, option-level,
+  multi-leg, account-freshness, reset, balance, or MCP-tool truth yields `ENTRY_DISABLED`; no raw
+  account identifier or credential is accepted.
 - Unknown fields/states, hash or provenance mismatch, post-cutoff dependencies, abstention, failed research gates, unsupported strategy shape, and excess paper risk fail closed before any broker session exists.
 - Source-health audits return deterministic findings for malformed `redistribution_status` values and incomplete `published_at_interval` objects instead of raising.
 - Evidence-manifest v2 remains ineligible for permit compilation and carries no post-cutoff path or outcome value.
