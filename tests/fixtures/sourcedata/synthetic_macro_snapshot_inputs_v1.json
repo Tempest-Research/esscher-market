@@ -1,0 +1,4169 @@
+{
+ "candidate_manifest": {
+  "candidate_id": "MACRO_SPY_CONTINUATION_CHALLENGER_V1",
+  "frozen_at": "2026-09-08T20:15:00Z",
+  "manifest_id": "synthetic-macro-candidates-2026-09-09",
+  "producer_build_sha256": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+  "records": [
+   {
+    "cohort_id": "BLS_JOLTS",
+    "eligibility": "ELIGIBLE",
+    "event_id": "BLS-JOLTS-2026-07",
+    "issuer": "U.S. Bureau of Labor Statistics",
+    "reason_codes": [],
+    "scheduled_at": "2026-09-09T14:00:00Z",
+    "security_id": "SPY",
+    "ticker": "SPY"
+   },
+   {
+    "cohort_id": "BLS_EMPLOYMENT_SITUATION",
+    "eligibility": "INELIGIBLE",
+    "event_id": "BLS-ES-2026-08",
+    "issuer": "U.S. Bureau of Labor Statistics",
+    "reason_codes": [
+     "EVENT_NOT_CONFIRMED"
+    ],
+    "scheduled_at": "2026-10-02T12:30:00Z",
+    "security_id": "SPY",
+    "ticker": "SPY"
+   }
+  ],
+  "selection_rule_id": "synthetic-macro-universe-v1"
+ },
+ "capture_at": "2026-09-09T14:15:10Z",
+ "claim_labels": [
+  "NOT_ALPHA_EVIDENCE",
+  "NOT_HISTORICAL_DATA",
+  "NO_BROKER_EXECUTION"
+ ],
+ "data_class": "SYNTHETIC_CONTRACT_FIXTURE",
+ "event_id": "BLS-JOLTS-2026-07",
+ "feasibility": [
+  {
+   "endpoint": "synthetic official BLS release schedule",
+   "entitlement": "ENTITLED",
+   "feed_adjustment_policy": "none",
+   "historical_coverage": "official schedule for the 2026 release year",
+   "identifiers": "content_sha256 plus source identifiers",
+   "known_gaps": [],
+   "publisher_clock": "America/New_York official source clock",
+   "redistribution": "NON_REDISTRIBUTABLE",
+   "retrieval": "point-in-time read-only retrieval at capture clock",
+   "revision_behavior": "frozen; no revisions after publication",
+   "source_family": "OFFICIAL_BLS_RELEASE_CALENDAR",
+   "timestamp_precision": "SECOND"
+  },
+  {
+   "endpoint": "synthetic official BLS public releases",
+   "entitlement": "ENTITLED",
+   "feed_adjustment_policy": "none",
+   "historical_coverage": "first vintage per reference period",
+   "identifiers": "content_sha256 plus source identifiers",
+   "known_gaps": [],
+   "publisher_clock": "America/New_York official source clock",
+   "redistribution": "NON_REDISTRIBUTABLE",
+   "retrieval": "point-in-time read-only retrieval at capture clock",
+   "revision_behavior": "later vintages are revisions; base fields keep first-published values",
+   "source_family": "OFFICIAL_BLS_RELEASE",
+   "timestamp_precision": "SECOND"
+  },
+  {
+   "endpoint": "synthetic official BLS revision tables",
+   "entitlement": "ENTITLED",
+   "feed_adjustment_policy": "none",
+   "historical_coverage": "revisions published with each release",
+   "identifiers": "content_sha256 plus source identifiers",
+   "known_gaps": [],
+   "publisher_clock": "America/New_York official source clock",
+   "redistribution": "NON_REDISTRIBUTABLE",
+   "retrieval": "point-in-time read-only retrieval at capture clock",
+   "revision_behavior": "revisions are explicit; never folded into base fields",
+   "source_family": "OFFICIAL_BLS_REVISION_TABLE",
+   "timestamp_precision": "SECOND"
+  },
+  {
+   "endpoint": "synthetic licensed SIP SPY trades",
+   "entitlement": "ENTITLED",
+   "feed_adjustment_policy": "no adjustments; SPY is the market proxy",
+   "historical_coverage": "reaction window plus 60 prior normalization sessions",
+   "identifiers": "content_sha256 plus source identifiers",
+   "known_gaps": [],
+   "publisher_clock": "America/New_York official source clock",
+   "redistribution": "NON_REDISTRIBUTABLE",
+   "retrieval": "point-in-time read-only retrieval at capture clock",
+   "revision_behavior": "frozen; no revisions after publication",
+   "source_family": "LICENSED_SIP_SPY_TRADES",
+   "timestamp_precision": "SECOND"
+  },
+  {
+   "endpoint": "synthetic licensed SIP SPY quotes",
+   "entitlement": "ENTITLED",
+   "feed_adjustment_policy": "none",
+   "historical_coverage": "anchor and event-window NBBO quotes",
+   "identifiers": "content_sha256 plus source identifiers",
+   "known_gaps": [],
+   "publisher_clock": "America/New_York official source clock",
+   "redistribution": "NON_REDISTRIBUTABLE",
+   "retrieval": "point-in-time read-only retrieval at capture clock",
+   "revision_behavior": "frozen; no revisions after publication",
+   "source_family": "LICENSED_SIP_SPY_QUOTES",
+   "timestamp_precision": "SECOND"
+  }
+ ],
+ "market_entitlement": "ENTITLED",
+ "market_publisher": "SYNTHETIC_SIP_CONSOLIDATED_FEED",
+ "market_redistribution": "NON_REDISTRIBUTABLE",
+ "release": {
+  "fields": {
+   "hires": "5400000",
+   "job_openings": "7200000",
+   "layoffs_and_discharges": "1600000",
+   "quits": "3100000",
+   "total_separations": "5000000"
+  },
+  "provenance": {
+   "content_sha256": "6a498db8bb31534ba73dba33e307eb0db179a8779b150ac9992dedb934dfd8dd",
+   "entitlement": "PUBLIC",
+   "limitations": [],
+   "published_at": "2026-09-09T14:00:12Z",
+   "published_at_precision": "SECOND",
+   "publisher": "SYNTHETIC_BLS_PUBLIC_RELEASE",
+   "redistribution_status": "REDISTRIBUTABLE",
+   "retrieved_at": "2026-09-09T14:00:20Z",
+   "source_class": "OFFICIAL_BLS_RELEASE"
+  },
+  "published_at": "2026-09-09T14:00:12Z",
+  "reference_period": "2026-07",
+  "release_family": "BLS_JOLTS",
+  "vintage_index": 1
+ },
+ "release_schedule": [
+  {
+   "provenance": {
+    "content_sha256": "a1ce0850a793acbae93681f3cbf88a623c41bca1784dd3856cd8e78d5df44b7f",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": "2026-01-09T15:00:00Z",
+    "published_at_precision": "SECOND",
+    "publisher": "SYNTHETIC_BLS_SCHEDULE",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_BLS_RELEASE_CALENDAR"
+   },
+   "reference_period": "2026-07",
+   "release_family": "BLS_JOLTS",
+   "scheduled_at": "2026-09-09T14:00:00Z"
+  }
+ ],
+ "revisions": [
+  {
+   "field_id": "job_openings",
+   "initial_value": "7100000",
+   "provenance": {
+    "content_sha256": "175a1c4fe67d41f03aba3e669ec5e981e97a22927332569c4f38956cd0a648ae",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": "2026-09-09T14:00:12Z",
+    "published_at_precision": "SECOND",
+    "publisher": "SYNTHETIC_BLS_PUBLIC_RELEASE",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T14:00:20Z",
+    "source_class": "OFFICIAL_BLS_REVISION_TABLE"
+   },
+   "published_at": "2026-09-09T14:00:12Z",
+   "release_family": "BLS_JOLTS",
+   "revised_reference_period": "2026-06",
+   "revised_value": "7150000"
+  }
+ ],
+ "schema": "esscher.synthetic_macro_snapshot_inputs",
+ "schema_version": 1,
+ "sessions": [
+  {
+   "close_at": "2026-06-01T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-06-01T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "842e199a558a327529ce758bcf537514f6cf870d30e0c2f3061e408538399fa0",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-06-01",
+   "session_id": "XNYS-2026-06-01"
+  },
+  {
+   "close_at": "2026-06-02T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-06-02T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "a71e86d5f8ac74748f7c64c4cfd02cce6f2dac0ec8f29861a1c68a373cb6fc4d",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-06-02",
+   "session_id": "XNYS-2026-06-02"
+  },
+  {
+   "close_at": "2026-06-03T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-06-03T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "08ffbae50c831c85cec39755097ec531aaa5931c15cd314a1e17de0ea3272dce",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-06-03",
+   "session_id": "XNYS-2026-06-03"
+  },
+  {
+   "close_at": "2026-06-04T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-06-04T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "f92df22eae8c9056d2bd752b0c99f28693ebc8d730c6f0872b670a4e1ae5012f",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-06-04",
+   "session_id": "XNYS-2026-06-04"
+  },
+  {
+   "close_at": "2026-06-05T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-06-05T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "608c78a7d2d2db22b7a6fab57f0be688a333680df4f88ce1a3066ee0cbbfa05e",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-06-05",
+   "session_id": "XNYS-2026-06-05"
+  },
+  {
+   "close_at": "2026-06-08T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-06-08T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "cbcd0492ccbc3694de82c27c5fa39a6a5302c81a2073c05783cf8f69f394f2a5",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-06-08",
+   "session_id": "XNYS-2026-06-08"
+  },
+  {
+   "close_at": "2026-06-09T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-06-09T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "13ad9a58b4f4145e2a9420c3267d36701e5127fbacb42a5a594ce7509d758683",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-06-09",
+   "session_id": "XNYS-2026-06-09"
+  },
+  {
+   "close_at": "2026-06-10T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-06-10T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "5f8e42c75ff0443ddd80a8ad6be81d0ba996bfd73ca34b04090d2bd5b73aafb1",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-06-10",
+   "session_id": "XNYS-2026-06-10"
+  },
+  {
+   "close_at": "2026-06-11T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-06-11T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "c709444b34f65f82bce2c36129013c7ad66018511d44aa3c7238ec717b73c5d8",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-06-11",
+   "session_id": "XNYS-2026-06-11"
+  },
+  {
+   "close_at": "2026-06-12T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-06-12T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "4e6654ad0d1a2af9f6f5b01a5a7fa8626265e541598db87bb2c8894ca27ad613",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-06-12",
+   "session_id": "XNYS-2026-06-12"
+  },
+  {
+   "close_at": "2026-06-15T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-06-15T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "5e51dd2a0e3cb85cb8a695e3a490f24bf80325ad5c712b30c0c92a88f5bd0d78",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-06-15",
+   "session_id": "XNYS-2026-06-15"
+  },
+  {
+   "close_at": "2026-06-16T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-06-16T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "396f1d2464b98ed173c12a90555ad787a1c1a05b23cdc908b7f923ce2f24a618",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-06-16",
+   "session_id": "XNYS-2026-06-16"
+  },
+  {
+   "close_at": "2026-06-17T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-06-17T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "53f6a6b20f911bd2c38e5a0af94c47b029399685963d3d054b6b0c4068829fc7",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-06-17",
+   "session_id": "XNYS-2026-06-17"
+  },
+  {
+   "close_at": "2026-06-18T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-06-18T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "677402b87d4e42b32138c9a9f5ad40006629830d04de3a6557da37f304dbadb4",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-06-18",
+   "session_id": "XNYS-2026-06-18"
+  },
+  {
+   "close_at": "2026-06-22T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-06-22T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "024b04a0b931c2260472da03a37be18c3dbb061ed603ec2339d38a1e1c2a55a6",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-06-22",
+   "session_id": "XNYS-2026-06-22"
+  },
+  {
+   "close_at": "2026-06-23T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-06-23T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "f8de27b555dbc850a45adc8db8559eede08f125d4814042cdad3708b234953bb",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-06-23",
+   "session_id": "XNYS-2026-06-23"
+  },
+  {
+   "close_at": "2026-06-24T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-06-24T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "66291b38e3768d1987796c4b37699f656f9e012d7bb1086c7b1f1c271cce9ac7",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-06-24",
+   "session_id": "XNYS-2026-06-24"
+  },
+  {
+   "close_at": "2026-06-25T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-06-25T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "427bf1c8900a895bc8ae93ac8bf4a8755991f05dac0818ed40f48e5065045202",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-06-25",
+   "session_id": "XNYS-2026-06-25"
+  },
+  {
+   "close_at": "2026-06-26T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-06-26T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "d6cf6ec89f60e321e01cb94eae22f51520813e67cf37ef64df15f441ec3dd625",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-06-26",
+   "session_id": "XNYS-2026-06-26"
+  },
+  {
+   "close_at": "2026-06-29T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-06-29T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "aa78060d03799add59738246b52cada85861cfd0f46b23c2303fe04c0c1d47b2",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-06-29",
+   "session_id": "XNYS-2026-06-29"
+  },
+  {
+   "close_at": "2026-06-30T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-06-30T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "ce57f0cf3a569ea3110dd5745b6610175e61ab77072451ddd6d355f263b73f32",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-06-30",
+   "session_id": "XNYS-2026-06-30"
+  },
+  {
+   "close_at": "2026-07-01T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-07-01T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "93fdfb17048e1d51f21f8fe93058a75697d1ec49c87ffe8f937a840d2cf366ad",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-07-01",
+   "session_id": "XNYS-2026-07-01"
+  },
+  {
+   "close_at": "2026-07-02T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-07-02T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "c533242afb3be6be16fc2b245192867299f445eb1c56713eac54ce7c65050e7a",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-07-02",
+   "session_id": "XNYS-2026-07-02"
+  },
+  {
+   "close_at": "2026-07-06T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-07-06T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "f40e3c074e8f43535b286cf7b3f15ac18098fefe260f6529c73ec4d7052c6d7e",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-07-06",
+   "session_id": "XNYS-2026-07-06"
+  },
+  {
+   "close_at": "2026-07-07T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-07-07T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "522e971fb5c59d832e5a4a3943d5fa4aab6f17e41c464a590e2cefa92c647b3d",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-07-07",
+   "session_id": "XNYS-2026-07-07"
+  },
+  {
+   "close_at": "2026-07-08T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-07-08T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "208c3dee124184c0bd57c797edbdc4b4751bab5bd1d68fa33d003392336e3489",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-07-08",
+   "session_id": "XNYS-2026-07-08"
+  },
+  {
+   "close_at": "2026-07-09T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-07-09T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "4ff8594f2cbca82bbcb94116596b525e30d0e31d5309856b0d60cb314ce02756",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-07-09",
+   "session_id": "XNYS-2026-07-09"
+  },
+  {
+   "close_at": "2026-07-10T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-07-10T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "1759a31899bb377879ed0add0cd7781842727cc434bcdd981cdcf52eaef102ed",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-07-10",
+   "session_id": "XNYS-2026-07-10"
+  },
+  {
+   "close_at": "2026-07-13T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-07-13T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "acfcca39610aa5769bba79ba4880bd7ec41642b95f357e1e62c4664dd9a11283",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-07-13",
+   "session_id": "XNYS-2026-07-13"
+  },
+  {
+   "close_at": "2026-07-14T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-07-14T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "3acf33297c823ef6ad0fed0bd9291741cf7408f703e70551ddc7c4c954f9c9d4",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-07-14",
+   "session_id": "XNYS-2026-07-14"
+  },
+  {
+   "close_at": "2026-07-15T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-07-15T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "4e19ddbe0448d9cea0ebc00aa0f719d252138de42f7fc48a2ff23b1a0155f886",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-07-15",
+   "session_id": "XNYS-2026-07-15"
+  },
+  {
+   "close_at": "2026-07-16T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-07-16T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "94ea3ecd3c0e36b69fd119f22e25dbfa97b5c160dfd37b68b1f6e771e43d0202",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-07-16",
+   "session_id": "XNYS-2026-07-16"
+  },
+  {
+   "close_at": "2026-07-17T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-07-17T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "ac1d89863dcf09f4bd6a80c759fa9134465ebfed324951576951189f07a1b21a",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-07-17",
+   "session_id": "XNYS-2026-07-17"
+  },
+  {
+   "close_at": "2026-07-20T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-07-20T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "904ed7e6580162c1ae73659db2e9bb5fb1c19e3028fae0f9163685fab8210158",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-07-20",
+   "session_id": "XNYS-2026-07-20"
+  },
+  {
+   "close_at": "2026-07-21T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-07-21T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "dd2d8d81f1dde07e77b1998589938779a2d24efbf19202d08671bf29675b691d",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-07-21",
+   "session_id": "XNYS-2026-07-21"
+  },
+  {
+   "close_at": "2026-07-22T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-07-22T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "54104c94dbf7e6596b344d539df2c5b5d7c04811c8095d9d4b7d652abbfa5b0c",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-07-22",
+   "session_id": "XNYS-2026-07-22"
+  },
+  {
+   "close_at": "2026-07-23T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-07-23T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "bdb1edda7005cda32346ce819192712f6e8ddf4932a1b68a8f8fcdc9428f2c77",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-07-23",
+   "session_id": "XNYS-2026-07-23"
+  },
+  {
+   "close_at": "2026-07-24T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-07-24T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "404294586cc5653a0670071efe0486186d5f4a6ef7019d1513658e12519aeb77",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-07-24",
+   "session_id": "XNYS-2026-07-24"
+  },
+  {
+   "close_at": "2026-07-27T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-07-27T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "9037bdc3f842be810112b6fd39ab555a76ff557207bf895179d360a2e08e0183",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-07-27",
+   "session_id": "XNYS-2026-07-27"
+  },
+  {
+   "close_at": "2026-07-28T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-07-28T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "83ac1936d6cb10d4d77c3c84aa51052b260c17412653655d7d943401c7458423",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-07-28",
+   "session_id": "XNYS-2026-07-28"
+  },
+  {
+   "close_at": "2026-07-29T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-07-29T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "b0941fa56a3c3bf568c116d4f792b6dd379b6951a304613625ca53849796bf52",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-07-29",
+   "session_id": "XNYS-2026-07-29"
+  },
+  {
+   "close_at": "2026-07-30T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-07-30T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "570bfe5c563979ec42676660b4f1475063d63636aebed7d5a3cb0cf45705be81",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-07-30",
+   "session_id": "XNYS-2026-07-30"
+  },
+  {
+   "close_at": "2026-07-31T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-07-31T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "739fcf2e85ed7b41d936fc0947ee298a6ea57d0dd61dc5825ce640ca6ee3d845",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-07-31",
+   "session_id": "XNYS-2026-07-31"
+  },
+  {
+   "close_at": "2026-08-03T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-08-03T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "53a0056f9af9ff1dbd13cccc9228f0de95b3d84fb086ca6ecea7e6f889e1656c",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-08-03",
+   "session_id": "XNYS-2026-08-03"
+  },
+  {
+   "close_at": "2026-08-04T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-08-04T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "8d5fdba277ca676b90d16c61788eb916f95a0d0c6d8067b10deb3ecb597e6a1a",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-08-04",
+   "session_id": "XNYS-2026-08-04"
+  },
+  {
+   "close_at": "2026-08-05T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-08-05T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "162f405d7916a417b56a9a1a3736189757d820314a8e57c968a4252795b13ac1",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-08-05",
+   "session_id": "XNYS-2026-08-05"
+  },
+  {
+   "close_at": "2026-08-06T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-08-06T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "24cc93e7a0723b7dfa0c90998c4be07bb19031b92e23c5823fbbd96e2dfa75bf",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-08-06",
+   "session_id": "XNYS-2026-08-06"
+  },
+  {
+   "close_at": "2026-08-07T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-08-07T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "3f11937d8675c8e6a709a30b352f81ca7abee1e10cea2237680f1a9b8699112e",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-08-07",
+   "session_id": "XNYS-2026-08-07"
+  },
+  {
+   "close_at": "2026-08-10T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-08-10T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "6508d12c481407a83c17de3e0ebbc6c096765aaa56a1d1f10c6ed64f1fa99c92",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-08-10",
+   "session_id": "XNYS-2026-08-10"
+  },
+  {
+   "close_at": "2026-08-11T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-08-11T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "010d9ba96042b0e927afc65d3e7cb664ca13de3d4259094bb92f86505b349f84",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-08-11",
+   "session_id": "XNYS-2026-08-11"
+  },
+  {
+   "close_at": "2026-08-12T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-08-12T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "1f4e8efb1bbfb4392e463d3e83659296a14b51d93340df173c1c49e680bd770e",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-08-12",
+   "session_id": "XNYS-2026-08-12"
+  },
+  {
+   "close_at": "2026-08-13T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-08-13T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "f5e4ed49d27371cbce7ad87a7c7852dd5ad191027ff6b069e158632e281aae43",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-08-13",
+   "session_id": "XNYS-2026-08-13"
+  },
+  {
+   "close_at": "2026-08-14T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-08-14T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "3c2d8f4631cdd8529a419a5688276608f6641be3c8b8583f4f6573696c0bc5d9",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-08-14",
+   "session_id": "XNYS-2026-08-14"
+  },
+  {
+   "close_at": "2026-08-17T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-08-17T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "df1fd0bfe6d948dedd80d56e8339554433c31d1560996bc792f1ce817ab8bac6",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-08-17",
+   "session_id": "XNYS-2026-08-17"
+  },
+  {
+   "close_at": "2026-08-18T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-08-18T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "4b8b97de71f5350c448daf94111771d14f2f5c0a7364865ec0a47a35ab180d67",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-08-18",
+   "session_id": "XNYS-2026-08-18"
+  },
+  {
+   "close_at": "2026-08-19T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-08-19T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "fa8c6daac1e429a1265a3681c7c665925f52b42cc8a722f183f8c4aa64637b59",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-08-19",
+   "session_id": "XNYS-2026-08-19"
+  },
+  {
+   "close_at": "2026-08-20T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-08-20T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "eb9e6a940e4f43065eeba2f3b897f393c6521b8c1336d43b5c361c3c21cf56cd",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-08-20",
+   "session_id": "XNYS-2026-08-20"
+  },
+  {
+   "close_at": "2026-08-21T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-08-21T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "3394d014a6b7989295efa92b9732e85f8693bba9dfe28839c2c3ddea6c3551e2",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-08-21",
+   "session_id": "XNYS-2026-08-21"
+  },
+  {
+   "close_at": "2026-08-24T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-08-24T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "f3c197ae7bd28ef12b56b8e857c6a8deab1e40e7b9e47a3610f50e5c3b4b7e48",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-08-24",
+   "session_id": "XNYS-2026-08-24"
+  },
+  {
+   "close_at": "2026-08-25T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-08-25T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "756c10f7198614a441a5393a318e35396b18dd5f428ccc165eeae099cd13ab53",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-08-25",
+   "session_id": "XNYS-2026-08-25"
+  },
+  {
+   "close_at": "2026-08-26T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-08-26T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "fc3828d6258c530275d3a88d28de92742df222d2cbcac4d3c9e0b1d1caa28043",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-08-26",
+   "session_id": "XNYS-2026-08-26"
+  },
+  {
+   "close_at": "2026-08-27T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-08-27T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "064ca25a393814f6ae6bcf6cb2f71e923d9a33f82aff8a4b11b73f64cd862511",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-08-27",
+   "session_id": "XNYS-2026-08-27"
+  },
+  {
+   "close_at": "2026-08-28T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-08-28T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "2e4fbfa35ab0e50693a70c15a3934632a55b3e054a7f11a5d6656595b0eb4089",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-08-28",
+   "session_id": "XNYS-2026-08-28"
+  },
+  {
+   "close_at": "2026-08-31T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-08-31T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "b6fc55e615676a51e76a58f58abad4ba3fb2b107b8b2ecdf44cd155759262055",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-08-31",
+   "session_id": "XNYS-2026-08-31"
+  },
+  {
+   "close_at": "2026-09-01T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-09-01T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "7d943ddab41bf1c78861e802efeb5b4016ad31c4a22f1e5ff39a0de952004960",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-09-01",
+   "session_id": "XNYS-2026-09-01"
+  },
+  {
+   "close_at": "2026-09-02T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-09-02T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "7ed3d43605e7c55f9a8acf952d5197e05d6c784b1108ff09e32ba5f682593b64",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-09-02",
+   "session_id": "XNYS-2026-09-02"
+  },
+  {
+   "close_at": "2026-09-03T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-09-03T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "0e51626e22f9eb7fe6a896130f859a5a5fdea2f3214a4bee5e4bd9df3dff947d",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-09-03",
+   "session_id": "XNYS-2026-09-03"
+  },
+  {
+   "close_at": "2026-09-04T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-09-04T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "cf0ebd7cd5c600febcf180ac7ab09d7b31d5da9af1fdb87aa7792270460db246",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-09-04",
+   "session_id": "XNYS-2026-09-04"
+  },
+  {
+   "close_at": "2026-09-08T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-09-08T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "9edab587962c680c93ce4dc747dd6c756ded93b49732260717300995dc0eb025",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-09-08",
+   "session_id": "XNYS-2026-09-08"
+  },
+  {
+   "close_at": "2026-09-09T20:00:00.000Z",
+   "exchange_mic": "XNYS",
+   "full_regular": true,
+   "open_at": "2026-09-09T13:30:00.000Z",
+   "provenance": {
+    "content_sha256": "0688b0e9c2e464d052762fd675d6e130ec914861f02ad2eb113967372982f075",
+    "entitlement": "PUBLIC",
+    "limitations": [],
+    "published_at": null,
+    "published_at_precision": "DATE",
+    "publisher": "SYNTHETIC_OFFICIAL_CALENDAR",
+    "redistribution_status": "REDISTRIBUTABLE",
+    "retrieved_at": "2026-09-09T13:00:00Z",
+    "source_class": "OFFICIAL_EXCHANGE_CALENDAR"
+   },
+   "session_date": "2026-09-09",
+   "session_id": "XNYS-2026-09-09"
+  }
+ ],
+ "spy_anchor_quotes": [
+  {
+   "ask": "551.02",
+   "bid": "550.98",
+   "observed_at": "2026-09-09T13:55:00.000Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  },
+  {
+   "ask": "551.02",
+   "bid": "550.98",
+   "observed_at": "2026-09-09T13:55:50.000Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  },
+  {
+   "ask": "551.02",
+   "bid": "550.98",
+   "observed_at": "2026-09-09T13:56:40.000Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  },
+  {
+   "ask": "551.02",
+   "bid": "550.98",
+   "observed_at": "2026-09-09T13:57:30.000Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  },
+  {
+   "ask": "551.02",
+   "bid": "550.98",
+   "observed_at": "2026-09-09T13:58:20.000Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  },
+  {
+   "ask": "551.02",
+   "bid": "550.98",
+   "observed_at": "2026-09-09T13:59:10.000Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  }
+ ],
+ "spy_daily_bars": [
+  {
+   "close": "551.5204803128192390104800326",
+   "session_date": "2026-06-01",
+   "session_id": "XNYS-2026-06-01",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 58067855
+  },
+  {
+   "close": "550.9733842996048221664557901",
+   "session_date": "2026-06-02",
+   "session_id": "XNYS-2026-06-02",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 56119752
+  },
+  {
+   "close": "549.1815957074598649009648244",
+   "session_date": "2026-06-03",
+   "session_id": "XNYS-2026-06-03",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 51575848
+  },
+  {
+   "close": "551.7072463340281839588777029",
+   "session_date": "2026-06-04",
+   "session_id": "XNYS-2026-06-04",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 53840211
+  },
+  {
+   "close": "551.8531482741178855432998879",
+   "session_date": "2026-06-05",
+   "session_id": "XNYS-2026-06-05",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 57484046
+  },
+  {
+   "close": "551.9212184193152628261196221",
+   "session_date": "2026-06-08",
+   "session_id": "XNYS-2026-06-08",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 54000942
+  },
+  {
+   "close": "550.2934219097221166405871167",
+   "session_date": "2026-06-09",
+   "session_id": "XNYS-2026-06-09",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 53746358
+  },
+  {
+   "close": "549.2027417060966488006419785",
+   "session_date": "2026-06-10",
+   "session_id": "XNYS-2026-06-10",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 58959435
+  },
+  {
+   "close": "547.2232011547559340163208987",
+   "session_date": "2026-06-11",
+   "session_id": "XNYS-2026-06-11",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 54026601
+  },
+  {
+   "close": "547.8990405420459568477012356",
+   "session_date": "2026-06-12",
+   "session_id": "XNYS-2026-06-12",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 56155480
+  },
+  {
+   "close": "547.0987072981277386628814689",
+   "session_date": "2026-06-15",
+   "session_id": "XNYS-2026-06-15",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 56098191
+  },
+  {
+   "close": "545.6727626117261338805706316",
+   "session_date": "2026-06-16",
+   "session_id": "XNYS-2026-06-16",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 51476873
+  },
+  {
+   "close": "545.1055185011281766764277425",
+   "session_date": "2026-06-17",
+   "session_id": "XNYS-2026-06-17",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 53717291
+  },
+  {
+   "close": "545.9020792023087145679411581",
+   "session_date": "2026-06-18",
+   "session_id": "XNYS-2026-06-18",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 51225009
+  },
+  {
+   "close": "545.8054629874115607126288472",
+   "session_date": "2026-06-22",
+   "session_id": "XNYS-2026-06-22",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 52216423
+  },
+  {
+   "close": "544.9145708859115171522750912",
+   "session_date": "2026-06-23",
+   "session_id": "XNYS-2026-06-23",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 57673932
+  },
+  {
+   "close": "546.0969912800250620823265905",
+   "session_date": "2026-06-24",
+   "session_id": "XNYS-2026-06-24",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 50013781
+  },
+  {
+   "close": "545.5966000534515415356018602",
+   "session_date": "2026-06-25",
+   "session_id": "XNYS-2026-06-25",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 52675617
+  },
+  {
+   "close": "544.0140657133099713574139597",
+   "session_date": "2026-06-26",
+   "session_id": "XNYS-2026-06-26",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 56829507
+  },
+  {
+   "close": "546.1971147399797703120247593",
+   "session_date": "2026-06-29",
+   "session_id": "XNYS-2026-06-29",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 51104763
+  },
+  {
+   "close": "544.4907269517379917693498256",
+   "session_date": "2026-06-30",
+   "session_id": "XNYS-2026-06-30",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 51019187
+  },
+  {
+   "close": "546.6599443876334328376038370",
+   "session_date": "2026-07-01",
+   "session_id": "XNYS-2026-07-01",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 52107606
+  },
+  {
+   "close": "547.7259731285540989254248359",
+   "session_date": "2026-07-02",
+   "session_id": "XNYS-2026-07-02",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 56750455
+  },
+  {
+   "close": "550.3244652153826157578212856",
+   "session_date": "2026-07-06",
+   "session_id": "XNYS-2026-07-06",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 53770744
+  },
+  {
+   "close": "551.5794484146258021241876744",
+   "session_date": "2026-07-07",
+   "session_id": "XNYS-2026-07-07",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 55409812
+  },
+  {
+   "close": "553.7641204163015907643111995",
+   "session_date": "2026-07-08",
+   "session_id": "XNYS-2026-07-08",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 52821617
+  },
+  {
+   "close": "554.0952141129892048572303794",
+   "session_date": "2026-07-09",
+   "session_id": "XNYS-2026-07-09",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 55075464
+  },
+  {
+   "close": "551.6595401239515269540587634",
+   "session_date": "2026-07-10",
+   "session_id": "XNYS-2026-07-10",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 51231091
+  },
+  {
+   "close": "551.3747193167267662814853558",
+   "session_date": "2026-07-13",
+   "session_id": "XNYS-2026-07-13",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 55139830
+  },
+  {
+   "close": "550.9742979427868901340825420",
+   "session_date": "2026-07-14",
+   "session_id": "XNYS-2026-07-14",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 58084851
+  },
+  {
+   "close": "549.5846521966919545731468195",
+   "session_date": "2026-07-15",
+   "session_id": "XNYS-2026-07-15",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 57375657
+  },
+  {
+   "close": "548.3385229428162370715324990",
+   "session_date": "2026-07-16",
+   "session_id": "XNYS-2026-07-16",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 54786847
+  },
+  {
+   "close": "547.3761412878955492655642557",
+   "session_date": "2026-07-17",
+   "session_id": "XNYS-2026-07-17",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 56961777
+  },
+  {
+   "close": "545.6579253518737872217773156",
+   "session_date": "2026-07-20",
+   "session_id": "XNYS-2026-07-20",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 54377598
+  },
+  {
+   "close": "545.3396778765703310140972757",
+   "session_date": "2026-07-21",
+   "session_id": "XNYS-2026-07-21",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 50092681
+  },
+  {
+   "close": "542.8527024265386273598537594",
+   "session_date": "2026-07-22",
+   "session_id": "XNYS-2026-07-22",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 50689512
+  },
+  {
+   "close": "545.0136146548830927274378616",
+   "session_date": "2026-07-23",
+   "session_id": "XNYS-2026-07-23",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 53681819
+  },
+  {
+   "close": "545.2221754259739133781863436",
+   "session_date": "2026-07-24",
+   "session_id": "XNYS-2026-07-24",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 52049971
+  },
+  {
+   "close": "545.9254038546033510962091842",
+   "session_date": "2026-07-27",
+   "session_id": "XNYS-2026-07-27",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 54796471
+  },
+  {
+   "close": "545.6988322514832410471947534",
+   "session_date": "2026-07-28",
+   "session_id": "XNYS-2026-07-28",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 53816041
+  },
+  {
+   "close": "545.3132816843453064046843093",
+   "session_date": "2026-07-29",
+   "session_id": "XNYS-2026-07-29",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 57009378
+  },
+  {
+   "close": "543.2409357668616320397797535",
+   "session_date": "2026-07-30",
+   "session_id": "XNYS-2026-07-30",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 55599346
+  },
+  {
+   "close": "542.6828029165342809438178135",
+   "session_date": "2026-07-31",
+   "session_id": "XNYS-2026-07-31",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 56132448
+  },
+  {
+   "close": "544.5655148721624712188755573",
+   "session_date": "2026-08-03",
+   "session_id": "XNYS-2026-08-03",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 53670361
+  },
+  {
+   "close": "546.2903747884361971536413672",
+   "session_date": "2026-08-04",
+   "session_id": "XNYS-2026-08-04",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 53201466
+  },
+  {
+   "close": "548.2955095986831540152147995",
+   "session_date": "2026-08-05",
+   "session_id": "XNYS-2026-08-05",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 52516347
+  },
+  {
+   "close": "546.9912272668018524588098637",
+   "session_date": "2026-08-06",
+   "session_id": "XNYS-2026-08-06",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 53303570
+  },
+  {
+   "close": "547.2165407432138237843923823",
+   "session_date": "2026-08-07",
+   "session_id": "XNYS-2026-08-07",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 57465143
+  },
+  {
+   "close": "549.6187046187760102619177703",
+   "session_date": "2026-08-10",
+   "session_id": "XNYS-2026-08-10",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 52443932
+  },
+  {
+   "close": "550.9704613398875035856317568",
+   "session_date": "2026-08-11",
+   "session_id": "XNYS-2026-08-11",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 55969993
+  },
+  {
+   "close": "548.9665424914030224826417091",
+   "session_date": "2026-08-12",
+   "session_id": "XNYS-2026-08-12",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 51473564
+  },
+  {
+   "close": "550.9523660368943210057608065",
+   "session_date": "2026-08-13",
+   "session_id": "XNYS-2026-08-13",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 50706423
+  },
+  {
+   "close": "552.4217609460047427804374075",
+   "session_date": "2026-08-14",
+   "session_id": "XNYS-2026-08-14",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 50355381
+  },
+  {
+   "close": "551.4837256547251936529978093",
+   "session_date": "2026-08-17",
+   "session_id": "XNYS-2026-08-17",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 57190477
+  },
+  {
+   "close": "549.1658936768440266170115939",
+   "session_date": "2026-08-18",
+   "session_id": "XNYS-2026-08-18",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 54467607
+  },
+  {
+   "close": "551.0473248306680562027619647",
+   "session_date": "2026-08-19",
+   "session_id": "XNYS-2026-08-19",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 51959170
+  },
+  {
+   "close": "551.7819271630768443021783139",
+   "session_date": "2026-08-20",
+   "session_id": "XNYS-2026-08-20",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 54621712
+  },
+  {
+   "close": "550.1654948014012181241504659",
+   "session_date": "2026-08-21",
+   "session_id": "XNYS-2026-08-21",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 54557723
+  },
+  {
+   "close": "551.7728958885539124953270918",
+   "session_date": "2026-08-24",
+   "session_id": "XNYS-2026-08-24",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 54150694
+  },
+  {
+   "close": "553.9797466795375858605391761",
+   "session_date": "2026-08-25",
+   "session_id": "XNYS-2026-08-25",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 58507081
+  },
+  {
+   "close": "551.5049345914930421678031759",
+   "session_date": "2026-08-26",
+   "session_id": "XNYS-2026-08-26",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 58317568
+  },
+  {
+   "close": "552.0171700417621918914192707",
+   "session_date": "2026-08-27",
+   "session_id": "XNYS-2026-08-27",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 53409219
+  },
+  {
+   "close": "552.8049441966763489316321719",
+   "session_date": "2026-08-28",
+   "session_id": "XNYS-2026-08-28",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 51839822
+  },
+  {
+   "close": "552.6354906009383801829192326",
+   "session_date": "2026-08-31",
+   "session_id": "XNYS-2026-08-31",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 54467990
+  },
+  {
+   "close": "552.9251263141582995531960062",
+   "session_date": "2026-09-01",
+   "session_id": "XNYS-2026-09-01",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 55987279
+  },
+  {
+   "close": "555.0340578879063467958813236",
+   "session_date": "2026-09-02",
+   "session_id": "XNYS-2026-09-02",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 55837688
+  },
+  {
+   "close": "555.2229107567769879640490564",
+   "session_date": "2026-09-03",
+   "session_id": "XNYS-2026-09-03",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 56258783
+  },
+  {
+   "close": "554.3814965383846265983330243",
+   "session_date": "2026-09-04",
+   "session_id": "XNYS-2026-09-04",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 54701029
+  },
+  {
+   "close": "557.0738149385039591122795298",
+   "session_date": "2026-09-08",
+   "session_id": "XNYS-2026-09-08",
+   "symbol": "SPY",
+   "valid": true,
+   "volume": 50076691
+  }
+ ],
+ "spy_prior_window_trades": {
+  "XNYS-2026-06-12": [
+   {
+    "observed_at": "2026-06-12T14:00:05.000Z",
+    "price": "550.66",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-06-12",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-06-12T14:07:00.000Z",
+    "price": "551.64",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-06-12",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-06-12T14:14:55.000Z",
+    "price": "551.35",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-06-12",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-06-15": [
+   {
+    "observed_at": "2026-06-15T14:00:05.000Z",
+    "price": "551.15",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-06-15",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-06-15T14:07:00.000Z",
+    "price": "551.60",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-06-15",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-06-15T14:14:55.000Z",
+    "price": "551.18",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-06-15",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-06-16": [
+   {
+    "observed_at": "2026-06-16T14:00:05.000Z",
+    "price": "551.78",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-06-16",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-06-16T14:07:00.000Z",
+    "price": "549.93",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-06-16",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-06-16T14:14:55.000Z",
+    "price": "549.97",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-06-16",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-06-17": [
+   {
+    "observed_at": "2026-06-17T14:00:05.000Z",
+    "price": "551.84",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-06-17",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-06-17T14:07:00.000Z",
+    "price": "551.32",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-06-17",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-06-17T14:14:55.000Z",
+    "price": "549.99",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-06-17",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-06-18": [
+   {
+    "observed_at": "2026-06-18T14:00:05.000Z",
+    "price": "551.40",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-06-18",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-06-18T14:07:00.000Z",
+    "price": "550.80",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-06-18",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-06-18T14:14:55.000Z",
+    "price": "550.07",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-06-18",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-06-22": [
+   {
+    "observed_at": "2026-06-22T14:00:05.000Z",
+    "price": "551.79",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-06-22",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-06-22T14:07:00.000Z",
+    "price": "551.96",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-06-22",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-06-22T14:14:55.000Z",
+    "price": "551.60",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-06-22",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-06-23": [
+   {
+    "observed_at": "2026-06-23T14:00:05.000Z",
+    "price": "551.09",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-06-23",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-06-23T14:07:00.000Z",
+    "price": "551.58",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-06-23",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-06-23T14:14:55.000Z",
+    "price": "550.59",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-06-23",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-06-24": [
+   {
+    "observed_at": "2026-06-24T14:00:05.000Z",
+    "price": "551.96",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-06-24",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-06-24T14:07:00.000Z",
+    "price": "551.38",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-06-24",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-06-24T14:14:55.000Z",
+    "price": "550.34",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-06-24",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-06-25": [
+   {
+    "observed_at": "2026-06-25T14:00:05.000Z",
+    "price": "551.39",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-06-25",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-06-25T14:07:00.000Z",
+    "price": "551.36",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-06-25",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-06-25T14:14:55.000Z",
+    "price": "551.55",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-06-25",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-06-26": [
+   {
+    "observed_at": "2026-06-26T14:00:05.000Z",
+    "price": "551.29",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-06-26",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-06-26T14:07:00.000Z",
+    "price": "550.78",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-06-26",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-06-26T14:14:55.000Z",
+    "price": "550.99",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-06-26",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-06-29": [
+   {
+    "observed_at": "2026-06-29T14:00:05.000Z",
+    "price": "551.74",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-06-29",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-06-29T14:07:00.000Z",
+    "price": "550.39",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-06-29",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-06-29T14:14:55.000Z",
+    "price": "549.99",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-06-29",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-06-30": [
+   {
+    "observed_at": "2026-06-30T14:00:05.000Z",
+    "price": "551.86",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-06-30",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-06-30T14:07:00.000Z",
+    "price": "551.48",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-06-30",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-06-30T14:14:55.000Z",
+    "price": "552.04",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-06-30",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-07-01": [
+   {
+    "observed_at": "2026-07-01T14:00:05.000Z",
+    "price": "551.02",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-01",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-01T14:07:00.000Z",
+    "price": "550.38",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-01",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-01T14:14:55.000Z",
+    "price": "550.23",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-01",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-07-02": [
+   {
+    "observed_at": "2026-07-02T14:00:05.000Z",
+    "price": "551.63",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-02",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-02T14:07:00.000Z",
+    "price": "550.81",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-02",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-02T14:14:55.000Z",
+    "price": "549.91",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-02",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-07-06": [
+   {
+    "observed_at": "2026-07-06T14:00:05.000Z",
+    "price": "550.47",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-06",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-06T14:07:00.000Z",
+    "price": "550.70",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-06",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-06T14:14:55.000Z",
+    "price": "551.88",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-06",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-07-07": [
+   {
+    "observed_at": "2026-07-07T14:00:05.000Z",
+    "price": "551.29",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-07",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-07T14:07:00.000Z",
+    "price": "552.06",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-07",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-07T14:14:55.000Z",
+    "price": "550.33",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-07",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-07-08": [
+   {
+    "observed_at": "2026-07-08T14:00:05.000Z",
+    "price": "551.02",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-08",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-08T14:07:00.000Z",
+    "price": "549.98",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-08",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-08T14:14:55.000Z",
+    "price": "552.06",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-08",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-07-09": [
+   {
+    "observed_at": "2026-07-09T14:00:05.000Z",
+    "price": "551.57",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-09",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-09T14:07:00.000Z",
+    "price": "552.02",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-09",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-09T14:14:55.000Z",
+    "price": "551.76",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-09",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-07-10": [
+   {
+    "observed_at": "2026-07-10T14:00:05.000Z",
+    "price": "551.98",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-10",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-10T14:07:00.000Z",
+    "price": "550.16",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-10",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-10T14:14:55.000Z",
+    "price": "551.37",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-10",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-07-13": [
+   {
+    "observed_at": "2026-07-13T14:00:05.000Z",
+    "price": "550.38",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-13",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-13T14:07:00.000Z",
+    "price": "550.33",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-13",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-13T14:14:55.000Z",
+    "price": "550.47",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-13",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-07-14": [
+   {
+    "observed_at": "2026-07-14T14:00:05.000Z",
+    "price": "551.80",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-14",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-14T14:07:00.000Z",
+    "price": "550.93",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-14",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-14T14:14:55.000Z",
+    "price": "550.05",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-14",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-07-15": [
+   {
+    "observed_at": "2026-07-15T14:00:05.000Z",
+    "price": "552.08",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-15",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-15T14:07:00.000Z",
+    "price": "549.91",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-15",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-15T14:14:55.000Z",
+    "price": "550.16",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-15",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-07-16": [
+   {
+    "observed_at": "2026-07-16T14:00:05.000Z",
+    "price": "550.79",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-16",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-16T14:07:00.000Z",
+    "price": "551.83",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-16",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-16T14:14:55.000Z",
+    "price": "550.37",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-16",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-07-17": [
+   {
+    "observed_at": "2026-07-17T14:00:05.000Z",
+    "price": "551.00",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-17",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-17T14:07:00.000Z",
+    "price": "551.20",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-17",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-17T14:14:55.000Z",
+    "price": "551.86",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-17",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-07-20": [
+   {
+    "observed_at": "2026-07-20T14:00:05.000Z",
+    "price": "551.89",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-20",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-20T14:07:00.000Z",
+    "price": "550.81",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-20",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-20T14:14:55.000Z",
+    "price": "550.34",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-20",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-07-21": [
+   {
+    "observed_at": "2026-07-21T14:00:05.000Z",
+    "price": "552.06",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-21",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-21T14:07:00.000Z",
+    "price": "550.36",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-21",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-21T14:14:55.000Z",
+    "price": "549.91",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-21",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-07-22": [
+   {
+    "observed_at": "2026-07-22T14:00:05.000Z",
+    "price": "552.01",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-22",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-22T14:07:00.000Z",
+    "price": "551.05",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-22",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-22T14:14:55.000Z",
+    "price": "551.18",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-22",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-07-23": [
+   {
+    "observed_at": "2026-07-23T14:00:05.000Z",
+    "price": "550.22",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-23",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-23T14:07:00.000Z",
+    "price": "551.09",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-23",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-23T14:14:55.000Z",
+    "price": "551.57",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-23",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-07-24": [
+   {
+    "observed_at": "2026-07-24T14:00:05.000Z",
+    "price": "549.93",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-24",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-24T14:07:00.000Z",
+    "price": "550.89",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-24",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-24T14:14:55.000Z",
+    "price": "550.64",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-24",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-07-27": [
+   {
+    "observed_at": "2026-07-27T14:00:05.000Z",
+    "price": "550.19",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-27",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-27T14:07:00.000Z",
+    "price": "551.89",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-27",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-27T14:14:55.000Z",
+    "price": "551.04",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-27",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-07-28": [
+   {
+    "observed_at": "2026-07-28T14:00:05.000Z",
+    "price": "551.88",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-28",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-28T14:07:00.000Z",
+    "price": "551.01",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-28",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-28T14:14:55.000Z",
+    "price": "551.99",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-28",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-07-29": [
+   {
+    "observed_at": "2026-07-29T14:00:05.000Z",
+    "price": "550.92",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-29",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-29T14:07:00.000Z",
+    "price": "552.06",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-29",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-29T14:14:55.000Z",
+    "price": "550.18",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-29",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-07-30": [
+   {
+    "observed_at": "2026-07-30T14:00:05.000Z",
+    "price": "550.24",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-30",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-30T14:07:00.000Z",
+    "price": "551.80",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-30",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-30T14:14:55.000Z",
+    "price": "550.07",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-30",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-07-31": [
+   {
+    "observed_at": "2026-07-31T14:00:05.000Z",
+    "price": "550.89",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-31",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-31T14:07:00.000Z",
+    "price": "550.93",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-31",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-07-31T14:14:55.000Z",
+    "price": "550.65",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-07-31",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-08-03": [
+   {
+    "observed_at": "2026-08-03T14:00:05.000Z",
+    "price": "551.28",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-03",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-03T14:07:00.000Z",
+    "price": "551.17",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-03",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-03T14:14:55.000Z",
+    "price": "550.65",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-03",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-08-04": [
+   {
+    "observed_at": "2026-08-04T14:00:05.000Z",
+    "price": "550.62",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-04",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-04T14:07:00.000Z",
+    "price": "551.47",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-04",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-04T14:14:55.000Z",
+    "price": "550.86",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-04",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-08-05": [
+   {
+    "observed_at": "2026-08-05T14:00:05.000Z",
+    "price": "550.87",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-05",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-05T14:07:00.000Z",
+    "price": "550.79",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-05",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-05T14:14:55.000Z",
+    "price": "550.72",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-05",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-08-06": [
+   {
+    "observed_at": "2026-08-06T14:00:05.000Z",
+    "price": "551.12",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-06",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-06T14:07:00.000Z",
+    "price": "551.56",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-06",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-06T14:14:55.000Z",
+    "price": "551.15",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-06",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-08-07": [
+   {
+    "observed_at": "2026-08-07T14:00:05.000Z",
+    "price": "551.45",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-07",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-07T14:07:00.000Z",
+    "price": "552.00",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-07",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-07T14:14:55.000Z",
+    "price": "551.76",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-07",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-08-10": [
+   {
+    "observed_at": "2026-08-10T14:00:05.000Z",
+    "price": "550.35",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-10",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-10T14:07:00.000Z",
+    "price": "551.66",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-10",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-10T14:14:55.000Z",
+    "price": "551.64",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-10",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-08-11": [
+   {
+    "observed_at": "2026-08-11T14:00:05.000Z",
+    "price": "550.00",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-11",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-11T14:07:00.000Z",
+    "price": "550.07",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-11",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-11T14:14:55.000Z",
+    "price": "550.26",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-11",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-08-12": [
+   {
+    "observed_at": "2026-08-12T14:00:05.000Z",
+    "price": "550.98",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-12",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-12T14:07:00.000Z",
+    "price": "550.37",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-12",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-12T14:14:55.000Z",
+    "price": "551.77",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-12",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-08-13": [
+   {
+    "observed_at": "2026-08-13T14:00:05.000Z",
+    "price": "550.68",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-13",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-13T14:07:00.000Z",
+    "price": "550.26",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-13",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-13T14:14:55.000Z",
+    "price": "550.54",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-13",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-08-14": [
+   {
+    "observed_at": "2026-08-14T14:00:05.000Z",
+    "price": "551.60",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-14",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-14T14:07:00.000Z",
+    "price": "550.00",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-14",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-14T14:14:55.000Z",
+    "price": "551.24",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-14",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-08-17": [
+   {
+    "observed_at": "2026-08-17T14:00:05.000Z",
+    "price": "550.89",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-17",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-17T14:07:00.000Z",
+    "price": "550.35",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-17",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-17T14:14:55.000Z",
+    "price": "550.88",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-17",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-08-18": [
+   {
+    "observed_at": "2026-08-18T14:00:05.000Z",
+    "price": "551.86",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-18",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-18T14:07:00.000Z",
+    "price": "550.34",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-18",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-18T14:14:55.000Z",
+    "price": "551.95",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-18",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-08-19": [
+   {
+    "observed_at": "2026-08-19T14:00:05.000Z",
+    "price": "550.05",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-19",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-19T14:07:00.000Z",
+    "price": "551.78",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-19",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-19T14:14:55.000Z",
+    "price": "550.51",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-19",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-08-20": [
+   {
+    "observed_at": "2026-08-20T14:00:05.000Z",
+    "price": "551.40",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-20",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-20T14:07:00.000Z",
+    "price": "550.64",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-20",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-20T14:14:55.000Z",
+    "price": "550.33",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-20",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-08-21": [
+   {
+    "observed_at": "2026-08-21T14:00:05.000Z",
+    "price": "551.22",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-21",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-21T14:07:00.000Z",
+    "price": "550.81",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-21",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-21T14:14:55.000Z",
+    "price": "550.31",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-21",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-08-24": [
+   {
+    "observed_at": "2026-08-24T14:00:05.000Z",
+    "price": "551.55",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-24",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-24T14:07:00.000Z",
+    "price": "551.96",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-24",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-24T14:14:55.000Z",
+    "price": "550.11",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-24",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-08-25": [
+   {
+    "observed_at": "2026-08-25T14:00:05.000Z",
+    "price": "550.76",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-25",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-25T14:07:00.000Z",
+    "price": "550.61",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-25",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-25T14:14:55.000Z",
+    "price": "551.84",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-25",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-08-26": [
+   {
+    "observed_at": "2026-08-26T14:00:05.000Z",
+    "price": "551.38",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-26",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-26T14:07:00.000Z",
+    "price": "551.20",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-26",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-26T14:14:55.000Z",
+    "price": "551.17",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-26",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-08-27": [
+   {
+    "observed_at": "2026-08-27T14:00:05.000Z",
+    "price": "550.39",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-27",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-27T14:07:00.000Z",
+    "price": "551.64",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-27",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-27T14:14:55.000Z",
+    "price": "551.57",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-27",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-08-28": [
+   {
+    "observed_at": "2026-08-28T14:00:05.000Z",
+    "price": "550.56",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-28",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-28T14:07:00.000Z",
+    "price": "550.75",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-28",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-28T14:14:55.000Z",
+    "price": "551.48",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-28",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-08-31": [
+   {
+    "observed_at": "2026-08-31T14:00:05.000Z",
+    "price": "552.08",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-31",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-31T14:07:00.000Z",
+    "price": "550.65",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-31",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-08-31T14:14:55.000Z",
+    "price": "551.93",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-08-31",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-09-01": [
+   {
+    "observed_at": "2026-09-01T14:00:05.000Z",
+    "price": "552.00",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-09-01",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-09-01T14:07:00.000Z",
+    "price": "550.51",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-09-01",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-09-01T14:14:55.000Z",
+    "price": "550.23",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-09-01",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-09-02": [
+   {
+    "observed_at": "2026-09-02T14:00:05.000Z",
+    "price": "550.81",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-09-02",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-09-02T14:07:00.000Z",
+    "price": "550.21",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-09-02",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-09-02T14:14:55.000Z",
+    "price": "550.36",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-09-02",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-09-03": [
+   {
+    "observed_at": "2026-09-03T14:00:05.000Z",
+    "price": "551.36",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-09-03",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-09-03T14:07:00.000Z",
+    "price": "550.95",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-09-03",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-09-03T14:14:55.000Z",
+    "price": "550.52",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-09-03",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-09-04": [
+   {
+    "observed_at": "2026-09-04T14:00:05.000Z",
+    "price": "551.27",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-09-04",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-09-04T14:07:00.000Z",
+    "price": "551.01",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-09-04",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-09-04T14:14:55.000Z",
+    "price": "550.09",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-09-04",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ],
+  "XNYS-2026-09-08": [
+   {
+    "observed_at": "2026-09-08T14:00:05.000Z",
+    "price": "550.66",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-09-08",
+    "size": 4000,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-09-08T14:07:00.000Z",
+    "price": "550.43",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-09-08",
+    "size": 4250,
+    "symbol": "SPY"
+   },
+   {
+    "observed_at": "2026-09-08T14:14:55.000Z",
+    "price": "552.08",
+    "sale_condition": "REGULAR_CONTINUOUS",
+    "session_id": "XNYS-2026-09-08",
+    "size": 4500,
+    "symbol": "SPY"
+   }
+  ]
+ },
+ "spy_reaction_trades": [
+  {
+   "observed_at": "2026-09-09T14:00:02.000Z",
+   "price": "550.89",
+   "sale_condition": "REGULAR_CONTINUOUS",
+   "session_id": "XNYS-2026-09-09",
+   "size": 3000,
+   "symbol": "SPY"
+  },
+  {
+   "observed_at": "2026-09-09T14:00:32.793Z",
+   "price": "551.29",
+   "sale_condition": "REGULAR_CONTINUOUS",
+   "session_id": "XNYS-2026-09-09",
+   "size": 3040,
+   "symbol": "SPY"
+  },
+  {
+   "observed_at": "2026-09-09T14:01:03.586Z",
+   "price": "550.93",
+   "sale_condition": "REGULAR_CONTINUOUS",
+   "session_id": "XNYS-2026-09-09",
+   "size": 3080,
+   "symbol": "SPY"
+  },
+  {
+   "observed_at": "2026-09-09T14:01:34.379Z",
+   "price": "551.35",
+   "sale_condition": "REGULAR_CONTINUOUS",
+   "session_id": "XNYS-2026-09-09",
+   "size": 3120,
+   "symbol": "SPY"
+  },
+  {
+   "observed_at": "2026-09-09T14:02:05.172Z",
+   "price": "551.20",
+   "sale_condition": "REGULAR_CONTINUOUS",
+   "session_id": "XNYS-2026-09-09",
+   "size": 3160,
+   "symbol": "SPY"
+  },
+  {
+   "observed_at": "2026-09-09T14:02:35.965Z",
+   "price": "551.02",
+   "sale_condition": "REGULAR_CONTINUOUS",
+   "session_id": "XNYS-2026-09-09",
+   "size": 3200,
+   "symbol": "SPY"
+  },
+  {
+   "observed_at": "2026-09-09T14:03:06.758Z",
+   "price": "551.60",
+   "sale_condition": "REGULAR_CONTINUOUS",
+   "session_id": "XNYS-2026-09-09",
+   "size": 3240,
+   "symbol": "SPY"
+  },
+  {
+   "observed_at": "2026-09-09T14:03:37.551Z",
+   "price": "551.07",
+   "sale_condition": "REGULAR_CONTINUOUS",
+   "session_id": "XNYS-2026-09-09",
+   "size": 3280,
+   "symbol": "SPY"
+  },
+  {
+   "observed_at": "2026-09-09T14:04:08.344Z",
+   "price": "551.42",
+   "sale_condition": "REGULAR_CONTINUOUS",
+   "session_id": "XNYS-2026-09-09",
+   "size": 3320,
+   "symbol": "SPY"
+  },
+  {
+   "observed_at": "2026-09-09T14:04:39.137Z",
+   "price": "550.87",
+   "sale_condition": "REGULAR_CONTINUOUS",
+   "session_id": "XNYS-2026-09-09",
+   "size": 3360,
+   "symbol": "SPY"
+  },
+  {
+   "observed_at": "2026-09-09T14:05:09.931Z",
+   "price": "551.67",
+   "sale_condition": "REGULAR_CONTINUOUS",
+   "session_id": "XNYS-2026-09-09",
+   "size": 3400,
+   "symbol": "SPY"
+  },
+  {
+   "observed_at": "2026-09-09T14:05:40.724Z",
+   "price": "551.36",
+   "sale_condition": "REGULAR_CONTINUOUS",
+   "session_id": "XNYS-2026-09-09",
+   "size": 3440,
+   "symbol": "SPY"
+  },
+  {
+   "observed_at": "2026-09-09T14:06:11.517Z",
+   "price": "551.10",
+   "sale_condition": "REGULAR_CONTINUOUS",
+   "session_id": "XNYS-2026-09-09",
+   "size": 3480,
+   "symbol": "SPY"
+  },
+  {
+   "observed_at": "2026-09-09T14:06:42.310Z",
+   "price": "551.50",
+   "sale_condition": "REGULAR_CONTINUOUS",
+   "session_id": "XNYS-2026-09-09",
+   "size": 3520,
+   "symbol": "SPY"
+  },
+  {
+   "observed_at": "2026-09-09T14:07:13.103Z",
+   "price": "551.30",
+   "sale_condition": "REGULAR_CONTINUOUS",
+   "session_id": "XNYS-2026-09-09",
+   "size": 3560,
+   "symbol": "SPY"
+  },
+  {
+   "observed_at": "2026-09-09T14:07:43.896Z",
+   "price": "551.27",
+   "sale_condition": "REGULAR_CONTINUOUS",
+   "session_id": "XNYS-2026-09-09",
+   "size": 3600,
+   "symbol": "SPY"
+  },
+  {
+   "observed_at": "2026-09-09T14:08:14.689Z",
+   "price": "551.53",
+   "sale_condition": "REGULAR_CONTINUOUS",
+   "session_id": "XNYS-2026-09-09",
+   "size": 3640,
+   "symbol": "SPY"
+  },
+  {
+   "observed_at": "2026-09-09T14:08:45.482Z",
+   "price": "551.59",
+   "sale_condition": "REGULAR_CONTINUOUS",
+   "session_id": "XNYS-2026-09-09",
+   "size": 3680,
+   "symbol": "SPY"
+  },
+  {
+   "observed_at": "2026-09-09T14:09:16.275Z",
+   "price": "551.29",
+   "sale_condition": "REGULAR_CONTINUOUS",
+   "session_id": "XNYS-2026-09-09",
+   "size": 3720,
+   "symbol": "SPY"
+  },
+  {
+   "observed_at": "2026-09-09T14:09:47.068Z",
+   "price": "551.41",
+   "sale_condition": "REGULAR_CONTINUOUS",
+   "session_id": "XNYS-2026-09-09",
+   "size": 3760,
+   "symbol": "SPY"
+  },
+  {
+   "observed_at": "2026-09-09T14:10:17.862Z",
+   "price": "551.53",
+   "sale_condition": "REGULAR_CONTINUOUS",
+   "session_id": "XNYS-2026-09-09",
+   "size": 3800,
+   "symbol": "SPY"
+  },
+  {
+   "observed_at": "2026-09-09T14:10:48.655Z",
+   "price": "551.08",
+   "sale_condition": "REGULAR_CONTINUOUS",
+   "session_id": "XNYS-2026-09-09",
+   "size": 3840,
+   "symbol": "SPY"
+  },
+  {
+   "observed_at": "2026-09-09T14:11:19.448Z",
+   "price": "551.05",
+   "sale_condition": "REGULAR_CONTINUOUS",
+   "session_id": "XNYS-2026-09-09",
+   "size": 3880,
+   "symbol": "SPY"
+  },
+  {
+   "observed_at": "2026-09-09T14:11:50.241Z",
+   "price": "551.61",
+   "sale_condition": "REGULAR_CONTINUOUS",
+   "session_id": "XNYS-2026-09-09",
+   "size": 3920,
+   "symbol": "SPY"
+  },
+  {
+   "observed_at": "2026-09-09T14:12:21.034Z",
+   "price": "551.90",
+   "sale_condition": "REGULAR_CONTINUOUS",
+   "session_id": "XNYS-2026-09-09",
+   "size": 3960,
+   "symbol": "SPY"
+  },
+  {
+   "observed_at": "2026-09-09T14:12:51.827Z",
+   "price": "551.28",
+   "sale_condition": "REGULAR_CONTINUOUS",
+   "session_id": "XNYS-2026-09-09",
+   "size": 4000,
+   "symbol": "SPY"
+  },
+  {
+   "observed_at": "2026-09-09T14:13:22.620Z",
+   "price": "551.27",
+   "sale_condition": "REGULAR_CONTINUOUS",
+   "session_id": "XNYS-2026-09-09",
+   "size": 4040,
+   "symbol": "SPY"
+  },
+  {
+   "observed_at": "2026-09-09T14:13:53.413Z",
+   "price": "551.40",
+   "sale_condition": "REGULAR_CONTINUOUS",
+   "session_id": "XNYS-2026-09-09",
+   "size": 4080,
+   "symbol": "SPY"
+  },
+  {
+   "observed_at": "2026-09-09T14:14:24.206Z",
+   "price": "551.31",
+   "sale_condition": "REGULAR_CONTINUOUS",
+   "session_id": "XNYS-2026-09-09",
+   "size": 4120,
+   "symbol": "SPY"
+  },
+  {
+   "observed_at": "2026-09-09T14:14:55.000Z",
+   "price": "551.21",
+   "sale_condition": "REGULAR_CONTINUOUS",
+   "session_id": "XNYS-2026-09-09",
+   "size": 4160,
+   "symbol": "SPY"
+  }
+ ],
+ "spy_window_quotes": [
+  {
+   "ask": "551.61",
+   "bid": "551.59",
+   "observed_at": "2026-09-09T14:14:01.000Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  },
+  {
+   "ask": "551.61",
+   "bid": "551.59",
+   "observed_at": "2026-09-09T14:14:02.667Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  },
+  {
+   "ask": "551.62",
+   "bid": "551.60",
+   "observed_at": "2026-09-09T14:14:04.334Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  },
+  {
+   "ask": "551.62",
+   "bid": "551.60",
+   "observed_at": "2026-09-09T14:14:06.001Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  },
+  {
+   "ask": "551.63",
+   "bid": "551.61",
+   "observed_at": "2026-09-09T14:14:07.668Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  },
+  {
+   "ask": "551.63",
+   "bid": "551.61",
+   "observed_at": "2026-09-09T14:14:09.335Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  },
+  {
+   "ask": "551.63",
+   "bid": "551.61",
+   "observed_at": "2026-09-09T14:14:11.002Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  },
+  {
+   "ask": "551.64",
+   "bid": "551.62",
+   "observed_at": "2026-09-09T14:14:12.669Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  },
+  {
+   "ask": "551.64",
+   "bid": "551.62",
+   "observed_at": "2026-09-09T14:14:14.336Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  },
+  {
+   "ask": "551.65",
+   "bid": "551.63",
+   "observed_at": "2026-09-09T14:14:16.003Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  },
+  {
+   "ask": "551.65",
+   "bid": "551.63",
+   "observed_at": "2026-09-09T14:14:17.670Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  },
+  {
+   "ask": "551.65",
+   "bid": "551.63",
+   "observed_at": "2026-09-09T14:14:19.337Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  },
+  {
+   "ask": "551.66",
+   "bid": "551.64",
+   "observed_at": "2026-09-09T14:14:21.004Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  },
+  {
+   "ask": "551.66",
+   "bid": "551.64",
+   "observed_at": "2026-09-09T14:14:22.671Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  },
+  {
+   "ask": "551.67",
+   "bid": "551.65",
+   "observed_at": "2026-09-09T14:14:24.338Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  },
+  {
+   "ask": "551.67",
+   "bid": "551.65",
+   "observed_at": "2026-09-09T14:14:26.005Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  },
+  {
+   "ask": "551.67",
+   "bid": "551.65",
+   "observed_at": "2026-09-09T14:14:27.672Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  },
+  {
+   "ask": "551.68",
+   "bid": "551.66",
+   "observed_at": "2026-09-09T14:14:29.339Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  },
+  {
+   "ask": "551.68",
+   "bid": "551.66",
+   "observed_at": "2026-09-09T14:14:31.006Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  },
+  {
+   "ask": "551.69",
+   "bid": "551.67",
+   "observed_at": "2026-09-09T14:14:32.673Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  },
+  {
+   "ask": "551.69",
+   "bid": "551.67",
+   "observed_at": "2026-09-09T14:14:34.340Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  },
+  {
+   "ask": "551.69",
+   "bid": "551.67",
+   "observed_at": "2026-09-09T14:14:36.007Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  },
+  {
+   "ask": "551.70",
+   "bid": "551.68",
+   "observed_at": "2026-09-09T14:14:37.674Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  },
+  {
+   "ask": "551.70",
+   "bid": "551.68",
+   "observed_at": "2026-09-09T14:14:39.341Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  },
+  {
+   "ask": "551.71",
+   "bid": "551.69",
+   "observed_at": "2026-09-09T14:14:41.008Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  },
+  {
+   "ask": "551.71",
+   "bid": "551.69",
+   "observed_at": "2026-09-09T14:14:42.675Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  },
+  {
+   "ask": "551.71",
+   "bid": "551.69",
+   "observed_at": "2026-09-09T14:14:44.342Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  },
+  {
+   "ask": "551.72",
+   "bid": "551.70",
+   "observed_at": "2026-09-09T14:14:46.009Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  },
+  {
+   "ask": "551.72",
+   "bid": "551.70",
+   "observed_at": "2026-09-09T14:14:47.676Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  },
+  {
+   "ask": "551.73",
+   "bid": "551.71",
+   "observed_at": "2026-09-09T14:14:49.343Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  },
+  {
+   "ask": "551.73",
+   "bid": "551.71",
+   "observed_at": "2026-09-09T14:14:51.010Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  },
+  {
+   "ask": "551.73",
+   "bid": "551.71",
+   "observed_at": "2026-09-09T14:14:52.677Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  },
+  {
+   "ask": "551.74",
+   "bid": "551.72",
+   "observed_at": "2026-09-09T14:14:54.344Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  },
+  {
+   "ask": "551.74",
+   "bid": "551.72",
+   "observed_at": "2026-09-09T14:14:56.011Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  },
+  {
+   "ask": "551.75",
+   "bid": "551.73",
+   "observed_at": "2026-09-09T14:14:57.678Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  },
+  {
+   "ask": "551.75",
+   "bid": "551.73",
+   "observed_at": "2026-09-09T14:14:59.345Z",
+   "session_id": "XNYS-2026-09-09",
+   "symbol": "SPY"
+  }
+ ]
+}

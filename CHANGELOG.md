@@ -23,6 +23,22 @@
 - A strict panel-manifest validator and deterministic fail-closed panel assembler behind the inert `ringdown assemble-panel` command, hash-bound to the strategy-policy, snapshot, and research-decision protocols.
 - Synthetic Q-FAST panel fixtures and mutation-negative tests proving leak, exclusion, size, latency, and byte-determinism gates.
 - A frozen untouched Q-FAST panel universe: 23 historical BMO/AMC earnings events with EDGAR primary-source provenance, preserved exclusions, and hash-bound synchronized issuer/SPY/sector one-minute window records.
+- A read-only point-in-time strategy snapshot collector that compiles canonical snapshots and
+	feature receipts from permitted primary evidence and synchronized equity market data, bound to
+	the accepted event-policy hash and joined through the frozen strategy-input contract.
+- Deterministic fake evidence and market-data adapters with one frozen synthetic fixture,
+	canonical source and corporate-action receipts, a frozen decimal beta estimator, and an inert
+	capture command that requires explicit host authorization and never carries credentials.
+- A strategy data-pipeline document fixing exact source classes, clocks, adjustment, entitlement,
+	and recovery rules for the collector lane.
+- A macro-challenger snapshot lane compiling all twenty frozen macro features from official BLS
+	releases, first-vintage fields, explicit revision vectors, and synchronized SPY windows, with
+	distinct BLS_JOLTS and BLS_EMPLOYMENT_SITUATION clocks.
+- Candidate-specific Gate B data-feasibility manifests with fail-closed FEASIBLE/INFEASIBLE
+	verdicts, bound sample-receipt hashes, and a no-trade-authorization macro fallback for an
+	infeasible earnings contract.
+- Explicit pagination, partial-retrieval, and duplicate-source-record handling in the evidence
+	packet with stable fail-closed reason codes, plus distinct BMO and AMC reaction-session selection.
 
 ### Safety
 
