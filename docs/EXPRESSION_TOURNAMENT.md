@@ -56,6 +56,24 @@ entry cost. An expression qualifies only if it is comparable on at least
 otherwise the report says `NO_EXPRESSION` and PAPER mutation stays blocked.
 All failures stay in the denominator.
 
+Every tournament event carries one decision timestamp (the snapshot
+observation clock) and one frozen exit clock shared by every expression, so
+cash, shares, long option, and debit vertical are always compared on identical
+event terms. The report records both per event.
+
+## Report claims and data blockers
+
+Every Gate D report carries the frozen claim labels
+`NOT_ALPHA_EVIDENCE`, `OPTION_FILL_PROVES_ELIGIBILITY_NOT_SUPERIORITY`,
+`UNDERLYING_RETURNS_ARE_NOT_OPTION_PNL`, and `NO_PAPER_MUTATION_AUTHORIZED`,
+and always reports `paper_mutation_blocked: true`. An option-required
+competition fill proves eligibility and operation, never option superiority.
+
+Missing legitimate option history is reported as `option_history_status:
+NOT_RUN` with explicit blocker reason codes — it is never filled with
+underlying returns. When eligible option observations exist the status is
+`AVAILABLE`.
+
 ## Deterministic selection
 
 - Long leg: direction-first — an up view longs the lowest eligible strike, a
@@ -71,7 +89,9 @@ Debit-vertical output is permit-boundary compatible: legs validate through the
 existing `OptionLeg` OCC rules (long `BUY`/`buy_to_open` first, short
 `SELL`/`sell_to_open`, shared underlying/type/expiry, strike ordering by
 vertical type, limit below width), extending the existing permit path rather
-than creating a second broker path.
+than creating a second broker path. Every compiled position block declares
+`order_type: LIMIT` (market orders are prohibited) and debit verticals declare
+`legging: ATOMIC_PACKAGE` (sequential legging is prohibited).
 
 ## NO_PACKAGE rejection paths
 
@@ -95,7 +115,7 @@ Exact commands observed during implementation:
 
 ```text
 command: uv run pytest tests/test_expression_tournament.py -q
-result: 38 passed in 0.21s
+result: 45 passed in 0.25s
 
 command: uv run ruff check src/ringdown_market/execution/expression tests/test_expression_tournament.py
 result: All checks passed!

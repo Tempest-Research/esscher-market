@@ -47,6 +47,14 @@ GATE_D_REPORT_SCHEMA_VERSION: Final = 1
 PROMOTION_BELOW_THRESHOLD: Final = "BELOW_EVIDENCE_THRESHOLD"
 PROMOTION_INSUFFICIENT_EVENTS: Final = "INSUFFICIENT_EVENTS"
 PROMOTION_NO_COMPARED_EVENTS: Final = "NO_COMPARED_EVENTS"
+OPTION_HISTORY_AVAILABLE: Final = "AVAILABLE"
+OPTION_HISTORY_NOT_RUN: Final = "NOT_RUN"
+GATE_D_CLAIMS: Final = (
+    "NOT_ALPHA_EVIDENCE",
+    "OPTION_FILL_PROVES_ELIGIBILITY_NOT_SUPERIORITY",
+    "UNDERLYING_RETURNS_ARE_NOT_OPTION_PNL",
+    "NO_PAPER_MUTATION_AUTHORIZED",
+)
 _EXPRESSION_ORDER: Final = (
     ExpressionKind.CASH_NO_TRADE,
     ExpressionKind.SHARES,
@@ -57,13 +65,19 @@ _EXPRESSION_ORDER: Final = (
 
 @dataclass(frozen=True, slots=True)
 class TournamentEvent:
-    """One comparison event: validated decision plus immutable observations."""
+    """One comparison event: validated decision plus immutable observations.
+
+    The decision timestamp is carried by the snapshot observation clock and
+    the exit clock is one frozen value shared by every expression, so all
+    expressions are compared on identical event terms.
+    """
 
     event_id: str
     decision_direction: str
     decision_sha256: str
     outcome_direction: str | None
     snapshot: ExpressionMarketSnapshot
+    exit_clock_at: datetime
 
     def __post_init__(self) -> None:
         if not self.event_id:
@@ -72,8 +86,10 @@ class TournamentEvent:
             raise ValueError("tournament events require a validated UP or DOWN decision")
         if self.outcome_direction not in {"UP", "DOWN", None}:
             raise ValueError("outcome_direction must be UP, DOWN, or absent")
-        if self.decision_direction not in {"UP", "DOWN"}:
-            raise ValueError("decision_direction must be UP or DOWN")
+        if self.exit_clock_at.tzinfo != UTC:
+            raise ValueError("exit_clock_at must be UTC")
+        if self.exit_clock_at < self.snapshot.observation_clock_at:
+            raise ValueError("exit clock cannot precede the observation clock")
 
 
 def _event_economics(
@@ -180,6 +196,8 @@ class GateDReport:
     summaries: tuple[Mapping[str, object], ...]
     promoted: ExpressionKind | None
     promotion_reason_codes: tuple[str, ...]
+    option_history_status: str
+    option_history_blockers: tuple[str, ...]
 
     def __post_init__(self) -> None:
         if not self.report_id:
@@ -192,6 +210,13 @@ class GateDReport:
             raise ValueError("cash is the baseline and cannot be promoted")
         if self.promotion_reason_codes != tuple(sorted(set(self.promotion_reason_codes))):
             raise ValueError("promotion_reason_codes must be sorted unique text")
+        if self.option_history_status not in {
+            OPTION_HISTORY_AVAILABLE,
+            OPTION_HISTORY_NOT_RUN,
+        }:
+            raise ValueError("option_history_status must be AVAILABLE or NOT_RUN")
+        if self.option_history_blockers != tuple(sorted(set(self.option_history_blockers))):
+            raise ValueError("option_history_blockers must be sorted unique text")
 
 
 def _summarize(
@@ -304,12 +329,30 @@ def run_gate_d_tournament(
                 "decision_sha256": event.decision_sha256,
                 "outcome_direction": event.outcome_direction,
                 "snapshot_sha256": expression_market_snapshot_sha256(event.snapshot),
+                "decision_timestamp": event.snapshot.observation_clock_at.isoformat().replace(
+                    "+00:00", "Z"
+                ),
+                "exit_clock_at": event.exit_clock_at.isoformat().replace("+00:00", "Z"),
                 "economics": [_economics_payload(item) for item in economics],
             }
         )
     summaries = {
         kind: _summarize(events, all_economics, kind, policy) for kind in _EXPRESSION_ORDER
     }
+    option_rows = tuple(
+        economics
+        for economics_list in all_economics.values()
+        for economics in economics_list
+        if economics.expression_kind is ExpressionKind.ONE_LONG_OPTION
+    )
+    option_compared = tuple(row for row in option_rows if row.compared)
+    if option_compared:
+        option_history_status = OPTION_HISTORY_AVAILABLE
+        option_history_blockers: tuple[str, ...] = ()
+    else:
+        option_history_status = OPTION_HISTORY_NOT_RUN
+        blockers = {row.reason.value for row in option_rows if row.reason is not None}
+        option_history_blockers = tuple(sorted(blockers))
     promoted, promotion_reasons = _promote(summaries, policy)
     ordered_summaries = tuple(summaries[kind] for kind in _EXPRESSION_ORDER)
     return GateDReport(
@@ -320,6 +363,8 @@ def run_gate_d_tournament(
         summaries=ordered_summaries,
         promoted=promoted,
         promotion_reason_codes=promotion_reasons if promoted is None else (),
+        option_history_status=option_history_status,
+        option_history_blockers=option_history_blockers,
     )
 
 
@@ -332,6 +377,10 @@ def gate_d_report_payload(value: GateDReport) -> dict[str, object]:
         "report_id": value.report_id,
         "policy_sha256": value.policy_sha256,
         "evaluated_at": value.evaluated_at.isoformat().replace("+00:00", "Z"),
+        "claims": list(GATE_D_CLAIMS),
+        "paper_mutation_blocked": True,
+        "option_history_status": value.option_history_status,
+        "option_history_blockers": list(value.option_history_blockers),
         "events": [dict(payload) for payload in value.event_payloads],
         "summaries": [dict(summary) for summary in value.summaries],
         "promoted": None if value.promoted is None else value.promoted.value,
