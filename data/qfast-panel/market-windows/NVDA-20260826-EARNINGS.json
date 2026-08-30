@@ -1,0 +1,52 @@
+{
+  "schema": "ringdown.panel_market_window_provenance",
+  "schema_version": 1,
+  "event_id": "NVDA-20260826-EARNINGS",
+  "entry_session_id": "XNAS-2026-08-27",
+  "entry_session_date": "2026-08-27",
+  "timeframe": "1Min",
+  "adjustment": "all",
+  "window_start": "2026-08-27T13:30:00Z",
+  "window_end": "2026-08-27T14:51:00Z",
+  "symbols": {
+    "issuer": "NVDA",
+    "market": "SPY",
+    "sector": "XLK"
+  },
+  "retrieved_at": "2026-08-30T15:52:54Z",
+  "redistribution_status": "METADATA_AND_HASH_ONLY",
+  "entitlement_note": "Host-subscription historical bars retrieved read-only from the configured market-data endpoint; raw bytes remain host-side and are bound by SHA-256 only.",
+  "limitations": [
+    "INDICATIVE_DATA",
+    "NOT_ALPHA_EVIDENCE",
+    "NO_OUTCOME_VALUES",
+    "NO_BROKER_EXECUTION"
+  ],
+  "bars": {
+    "issuer": {
+      "symbol": "NVDA",
+      "status": "PRESENT",
+      "bar_count": 82,
+      "first_bar_at": "2026-08-27T13:30:00Z",
+      "last_bar_at": "2026-08-27T14:51:00Z",
+      "content_sha256": "8f7551286cce981406491a8bd2ba8c3ad4d6fdbfc0baf230d819427f1d7fd609"
+    },
+    "market": {
+      "symbol": "SPY",
+      "status": "PRESENT",
+      "bar_count": 82,
+      "first_bar_at": "2026-08-27T13:30:00Z",
+      "last_bar_at": "2026-08-27T14:51:00Z",
+      "content_sha256": "830dd39db023a2b98c2c0a1e21210d89cfeb163a543352dbe987b3a3d40a1126"
+    },
+    "sector": {
+      "symbol": "XLK",
+      "status": "PRESENT",
+      "bar_count": 82,
+      "first_bar_at": "2026-08-27T13:30:00Z",
+      "last_bar_at": "2026-08-27T14:51:00Z",
+      "content_sha256": "64dc26ca3cb7f6976bb3a35cffe970996c652676e559bc58dc5e1988dda1cb52"
+    }
+  },
+  "status": "COMPLETE"
+}

@@ -1,0 +1,52 @@
+{
+  "schema": "ringdown.panel_market_window_provenance",
+  "schema_version": 1,
+  "event_id": "AAPL-20260730-EARNINGS",
+  "entry_session_id": "XNAS-2026-07-31",
+  "entry_session_date": "2026-07-31",
+  "timeframe": "1Min",
+  "adjustment": "all",
+  "window_start": "2026-07-31T13:30:00Z",
+  "window_end": "2026-07-31T14:51:00Z",
+  "symbols": {
+    "issuer": "AAPL",
+    "market": "SPY",
+    "sector": "XLK"
+  },
+  "retrieved_at": "2026-08-30T15:52:54Z",
+  "redistribution_status": "METADATA_AND_HASH_ONLY",
+  "entitlement_note": "Host-subscription historical bars retrieved read-only from the configured market-data endpoint; raw bytes remain host-side and are bound by SHA-256 only.",
+  "limitations": [
+    "INDICATIVE_DATA",
+    "NOT_ALPHA_EVIDENCE",
+    "NO_OUTCOME_VALUES",
+    "NO_BROKER_EXECUTION"
+  ],
+  "bars": {
+    "issuer": {
+      "symbol": "AAPL",
+      "status": "PRESENT",
+      "bar_count": 82,
+      "first_bar_at": "2026-07-31T13:30:00Z",
+      "last_bar_at": "2026-07-31T14:51:00Z",
+      "content_sha256": "b88358104554535110acb2393d93cedc8555fec6d114009eb3f6d25b9e2abe6b"
+    },
+    "market": {
+      "symbol": "SPY",
+      "status": "PRESENT",
+      "bar_count": 82,
+      "first_bar_at": "2026-07-31T13:30:00Z",
+      "last_bar_at": "2026-07-31T14:51:00Z",
+      "content_sha256": "bde88b4e6a389421ffa09f3447a9582da1cabfaff369bb7426b4c6db9797c50e"
+    },
+    "sector": {
+      "symbol": "XLK",
+      "status": "PRESENT",
+      "bar_count": 82,
+      "first_bar_at": "2026-07-31T13:30:00Z",
+      "last_bar_at": "2026-07-31T14:51:00Z",
+      "content_sha256": "0ad971f49061a7bed46465bbdd1a8553c1ba8a21f70184cfc0deb4ba0a55f521"
+    }
+  },
+  "status": "COMPLETE"
+}
