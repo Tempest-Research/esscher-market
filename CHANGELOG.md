@@ -26,6 +26,7 @@
 - Durable monitored PAPER lifecycle runtime driving one event through `APPROVED -> OPEN_SUBMITTED -> OPEN_PARTIAL|OPEN_FILLED|OPEN_CANCELED -> HOLDING -> CLOSE_DUE -> CLOSE_SUBMITTED -> CLOSED_FLAT|MANUAL_REQUIRED` with a 60-minute fill-relative hold, deterministic close, bounded repricing, restart-safe recovery, and sanitized terminal receipts.
 - Frozen confirmation-panel selection rule and honest empty panel manifest bound to the selection-rule and strategy-policy hashes, with a strict panel contract and deterministic zero-latency/p95 Q-FAST report builder.
 - `docs/research/qfast-confirmation-panel.md` recording the preregistered panel rules and the exact issue-#3 stop conditions that keep the panel at `COLLECTION_INCOMPLETE` with `INSUFFICIENT_DATA`.
+- Attributable prospective shadow ledger and read-only orchestrator running the exact frozen strategy, option compiler, and risk kernel end to end without order authority, retaining every abstention, rejection, `NO_PACKAGE`, risk result, and shadow hold in immutable records with deterministic hash-bound reports.
 
 ### Safety
 
@@ -39,6 +40,7 @@
 - The risk kernel reserves durable capacity before any mutation: duplicate events or packages, market-opening orders, naked short exposure, stale or missing truth, unknown exposure, budget or entry-limit breaches, and drawdown transitions fail closed with stable reason codes; concurrent reservations cannot double-reserve, permits bind once, and restart resumes from ledger truth.
 - The lifecycle runtime persists every transition before side effects, never closes a filled package early, treats broker acknowledgement as non-proof of fills, bounds outages, repricing, and retries, and yields `MANUAL_REQUIRED` rather than a fabricated terminal receipt when flatness cannot be proven.
 - The confirmation panel admits no synthetic or post-hoc events: development events are excluded by identity, outcome fields and post-cutoff paths are forbidden at freeze, and a panel below the 20-event floor must declare `COLLECTION_INCOMPLETE` and report `INSUFFICIENT_DATA`.
+- The shadow ledger cannot reach broker mutation surfaces, keeps development/confirmation/prospective samples mechanically separated, records abstentions and failures in the denominator, and reports the preregistered evidence threshold as `NOT_MET` rather than inferring success while the confirmation panel stays empty.
 - Evidence-manifest v2 remains ineligible for permit compilation and carries no post-cutoff path or outcome value.
 - Partial or contradictory package fills stop for reconciliation; missing fees remain explicit and raw broker/account identities never enter the receipt bundle.
 - Scheduled unknown, ambiguous, partial, overlapping, or integrity-invalid state fails closed without sequential-leg repair, guessed P&L, or another mutation.
