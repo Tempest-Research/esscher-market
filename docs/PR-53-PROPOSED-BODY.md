@@ -93,6 +93,18 @@ ringdown 0.2.0
 evaluate_mode=OFFLINE_RESEARCH
 event_count=4
 judge_trace=PASS
+
+uv run python -m compileall -q src
+PASS
+
+uv lock --check
+PASS
+
+Deterministic repeated policy/registry probe
+PASS (policy SHA-256 and both candidate reasoner-binding tuples matched)
+
+Changed diff credential/account scan
+PASS (no private-key, GitHub token, AWS key, OpenAI-style key, or account-identifier-like value)
 ```
 
 ## Safety and claims
@@ -149,8 +161,22 @@ Revert the PR merge (including the corrected contract commits
 broker, or external-state mutation, so rollback cannot corrupt broker state or evidence. Existing
 legacy research/execution fixtures remain separate and unchanged.
 
+## Authorship and residual risks
+
+- Authorship: **Ciel-built repair**; commits use the repository identity
+  `Benedict Anokye-Davies <bbeennyy860@gmail.com>`.
+- The repaired policy bytes/hash and reasoner bindings are a changed contract identity, not
+  evidence of alpha, profitability, executable fills, or any expansion beyond this paper-only
+  contract. They require independent review and a fresh untouched/prospective evidence gate
+  before any future research-release claim.
+- This remains a synthetic, PAPER-only, no-network, no-broker contract. Provider choice,
+  expression selection, account budgets, lifecycle exits, and public PR wording remain outside
+  this repair.
+
 ## Remaining gate
 
-Independent code-owner review, manual review, and merge approval remain pending and are not
-claimed by this record. This artifact remains local until Ben approves replacing the public PR
-body; no PR title, body, reviewers, or review state has been changed by this work.
+The next gate is a targeted independent **Luna A** exact-head re-review. Independent code-owner
+review, Ben's comprehension/public-wording approval, manual review, and merge approval remain
+pending and are not claimed by this record. This artifact remains local until Ben approves
+replacing the public PR body; no PR title, body, reviewers, or review state has been changed by
+this work.
