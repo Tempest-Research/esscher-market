@@ -20,7 +20,7 @@ panel:
 the frozen criteria with primary-source provenance:
 
 - 15 BEFORE_OPEN events, 8 AFTER_CLOSE events;
-- 8 GICS sectors with SPDR proxies, market proxy SPY;
+- 7 GICS sectors with SPDR proxies, market proxy SPY;
 - every event carries its issuer Form 8-K press release (EDGAR exhibit URL,
   content SHA-256, acceptance timestamp) and the SEC_OFFICIAL filing index;
 - every publication bound precedes the event decision cutoff.
