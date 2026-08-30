@@ -15,7 +15,7 @@ type FrozenJson = JsonScalar | tuple[FrozenJson, ...] | MappingProxyType
 POLICY_RESOURCE_NAME: Final = "policies/accepted_event_policy_v1.json"
 # Updated only when the canonical policy bytes are intentionally amended.
 ACCEPTED_EVENT_POLICY_V1_SHA256: Final = (
-    "3234017de2fec6c33dce20508f483d649d4614130e76cdc6f57af8185e05d05e"
+    "afce93b52b96e0d8c71deeb80027a1c87a4cf3623e9417db14de00279fc23bca"
 )
 
 _TOP_LEVEL_FIELDS = frozenset(
@@ -58,6 +58,13 @@ _EXPECTED_CANDIDATES = (
 )
 _EXPECTED_COHORTS = {
     "EARNINGS_RESIDUAL_CONTINUATION_V1": ("BMO", "AMC"),
+    "MACRO_SPY_CONTINUATION_CHALLENGER_V1": (
+        "BLS_JOLTS",
+        "BLS_EMPLOYMENT_SITUATION",
+    ),
+}
+_EXPECTED_RELEASE_FAMILIES = {
+    "EARNINGS_RESIDUAL_CONTINUATION_V1": (None, None),
     "MACRO_SPY_CONTINUATION_CHALLENGER_V1": (
         "BLS_JOLTS",
         "BLS_EMPLOYMENT_SITUATION",
@@ -362,6 +369,7 @@ def _validate_candidate(candidate: dict[str, Any], path: str) -> None:
                 "observation_end",
                 "observation_start",
                 "reaction_session_rule",
+                "release_family",
                 "reasoner_hard_timeout_seconds",
                 "timezone",
                 "universe_freeze",
@@ -393,6 +401,13 @@ def _validate_candidate(candidate: dict[str, Any], path: str) -> None:
             f"{clock_path}.reasoner_hard_timeout_seconds",
             minimum=1,
         )
+        release_family = clock["release_family"]
+        if release_family is not None:
+            _expect_string(release_family, f"{clock_path}.release_family")
+        if release_family != _EXPECTED_RELEASE_FAMILIES[candidate_id][clock_index]:
+            raise StrategyPolicyError(
+                f"{clock_path}.release_family does not bind the frozen cohort family"
+            )
         clock_ids.append(cast(str, clock["clock_id"]))
     if len(clock_ids) != len(set(clock_ids)):
         raise StrategyPolicyError(f"{path}.clocks contains duplicate clock IDs")

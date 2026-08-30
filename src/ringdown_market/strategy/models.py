@@ -344,6 +344,7 @@ class StrategySnapshot:
     health_reason_codes: tuple[str, ...]
     allowed_unknown_codes: tuple[str, ...]
     critical_unknown_codes: tuple[str, ...]
+    prior_eligible_session_close_at: datetime | None = None
 
     def __post_init__(self) -> None:
         for field in ("event_id", "candidate_id", "cohort_id", "security_id"):
@@ -372,6 +373,11 @@ class StrategySnapshot:
             "candidate_entry_deadline_at",
         ):
             _require_utc(getattr(self, field), field)
+        if self.prior_eligible_session_close_at is not None:
+            _require_utc(
+                self.prior_eligible_session_close_at,
+                "prior_eligible_session_close_at",
+            )
         if self.reaction_session_close_at <= self.reaction_session_open_at:
             raise ValueError("reaction session close must be after its open")
         if not (
@@ -455,6 +461,8 @@ class FeatureComponent:
         _require_feature_unit(self.unit, "unit")
         _require_identifiers(self.source_refs, "source_refs")
         if self.status is FeatureStatus.PRESENT:
+            if not self.source_refs:
+                raise ValueError("present feature components require source_refs")
             if self.value is None or isinstance(self.value, bool):
                 raise ValueError("present feature components require a numeric value")
             if isinstance(self.value, Decimal) and not self.value.is_finite():
@@ -486,6 +494,8 @@ class FeatureValue:
         if component_ids != tuple(sorted(set(component_ids))):
             raise ValueError("feature components must be sorted and unique")
         if self.status is FeatureStatus.PRESENT:
+            if not self.source_refs:
+                raise ValueError("present features require source_refs")
             if self.value_type is FeatureValueType.DECIMAL_STRING_MAP:
                 if self.value is not None or not self.components:
                     raise ValueError("present vector features require components and null value")

@@ -1,8 +1,8 @@
 # Accepted event-strategy research contract V1
 
-**Status:** preregistered research policy; no alpha or execution authority  
-**Canonical policy:** `src/ringdown_market/strategy/policies/accepted_event_policy_v1.json`  
-**Registry digest:** `3234017de2fec6c33dce20508f483d649d4614130e76cdc6f57af8185e05d05e`  
+**Status:** preregistered research policy; no alpha or execution authority
+**Canonical policy:** `src/ringdown_market/strategy/policies/accepted_event_policy_v1.json`
+**Registry digest:** `afce93b52b96e0d8c71deeb80027a1c87a4cf3623e9417db14de00279fc23bca`
 **Execution boundary:** Alpaca PAPER only, with entry currently disabled
 
 ## 1. What V1 does
@@ -71,6 +71,11 @@ The market proxy is SPY. The point-in-time GICS sector map is fixed to XLC, XLY,
 | BMO | Same eligible full session after a release proven public before the open | 09:30–09:35 ET | 09:35:15 | 09:36:05 | 09:37:00 |
 | AMC | Next eligible full session after a release proven public at/after the prior close | 09:30–09:35 ET | 09:35:15 | 09:36:05 | 09:37:00 |
 
+An AMC snapshot binds `prior_eligible_session_close_at` as the preceding 16:00 ET
+regular-session boundary. Its declared publication time must be at or after that bound and strictly
+before the next reaction-session open; the contract does not infer an eligible prior close from a
+calendar date.
+
 The opening auction, non-regular conditions, corrections, extended hours, forward-filled observations, and post-cutoff dependencies are inadmissible. The start observation may be no more than 15 seconds late, the end observation no more than 15 seconds old, and issuer/SPY/sector endpoints no more than five seconds apart.
 
 ### Beta and deterministic confirmation
@@ -111,7 +116,7 @@ The exact 13 feature IDs are:
 12. `market.pre_event_residual_momentum_20d.v1`
 13. `market.distance_from_opening_vwap_bps.v1`
 
-Every feature record exists with `PRESENT`, `UNAVAILABLE`, `NOT_APPLICABLE`, or `CONFLICTING` status. Decimal values are canonical decimal strings. Consensus features are optional only when explicitly unavailable; at least one frozen EPS surprise path is required. `NOT_GIVEN` is a valid guidance value, not an imputation. Required market features, dependencies, quote entitlement, numeric finiteness, and corporate-action state fail closed.
+Every feature record exists with `PRESENT`, `UNAVAILABLE`, `NOT_APPLICABLE`, or `CONFLICTING` status. Decimal values are canonical decimal strings. Every `PRESENT` feature and every `PRESENT` vector component must cite at least one `source_refs` evidence ID; blank provenance is rejected. Consensus features are optional only when explicitly unavailable; at least one frozen EPS surprise path is required. `NOT_GIVEN` is a valid guidance value, not an imputation. Required market features, dependencies, quote entitlement, numeric finiteness, and corporate-action state fail closed.
 
 ## 5. Macro SPY challenger
 
@@ -124,7 +129,7 @@ The evidence-backed boundary is SPY-only, post-release, official BLS evidence, n
 | BLS JOLTS | Exact BLS schedule, normally 10:00 ET | 10:00–10:15; anchor is median SPY SIP midpoint from 09:55–10:00 | 10:15:15 | 10:16:05 | 10:17:00 |
 | BLS Employment Situation | Exact BLS schedule, normally 08:30 ET | 09:30–09:45 only; premarket price is forbidden | 09:45:15 | 09:46:05 | 09:47:00 |
 
-The official public time must be known and no more than 60 seconds from the frozen schedule. A late/off-schedule release, missing required component or revision, non-full session, or stale/missing market window is retained with an exclusion reason.
+The policy binds BLS JOLTS only to `BLS_JOLTS` and Employment Situation only to `BLS_EMPLOYMENT_SITUATION`. The official public time must be known and no more than 60 seconds from the retained frozen schedule. Exactly one `MACRO_PRIMARY` `OFFICIAL_BLS_RELEASE` citation must bind the declared event time through its publisher timestamp. A late/off-schedule release, a release-family mismatch, an unbound official timestamp, a missing required component or revision, a non-full session, or a stale/missing market window is retained with an exclusion reason.
 
 JOLTS requires openings, hires, quits, layoffs/discharges, total separations, and published revisions. Employment requires nonfarm payrolls, unemployment rate, average hourly earnings, participation, and payroll revisions. Consensus is optional and never inferred.
 
@@ -152,8 +157,8 @@ eight-second call deadline or decision cutoff is recorded as rejected `UNCERTAIN
 
 | Candidate | Route SHA-256 | Prompt-contract SHA-256 | Output-schema SHA-256 |
 |---|---|---|---|
-| Earnings | `2270b06ce31d7f93034fd9d2f5fca6c44333599bf2045f7df6d5ec73acfb1e50` | `d689e9c1a49bfbc02896164b0faa731bf61fd8aa9eb3d6436532cf5b488d555e` | `08dd5302e8e03e01a7012acb59048329516e6a801f8b24827066f43430c04fa4` |
-| Macro | `6313a2f84e0b52c84eb7300cc7c0dbb246f95705bff8ec77bcac72edd4766def` | `c2c02adc169766db6fd14319d0e7a9650d27a32e32640fd7aea9c46166c000a3` | `08dd5302e8e03e01a7012acb59048329516e6a801f8b24827066f43430c04fa4` |
+| Earnings | `af801a9baf24cff5b1f093e3802834855e8b82d56491b7244bba59ba357b30e3` | `617897661b723c2315f3cb60fbb15b6e57dfc571098a4be4563b324cd6a0354f` | `08dd5302e8e03e01a7012acb59048329516e6a801f8b24827066f43430c04fa4` |
+| Macro | `c2dd3668be1595f6658506f830ccad06b92b532c36732fff667f7f59ce641dd2` | `52f7b1c152128414363225aa441bf40e3b099ff045952891d9b2743bb3bccfec` | `08dd5302e8e03e01a7012acb59048329516e6a801f8b24827066f43430c04fa4` |
 
 The reasoner returns exactly these fields, with no additional properties:
 

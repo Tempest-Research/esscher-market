@@ -23,16 +23,16 @@ POLICY_RESOURCE = "policies/accepted_event_policy_v1.json"
 SYNTHETIC_BUNDLE_PATH = (
     ROOT / "tests" / "contract_fixtures" / "synthetic_strategy_development_v1.json"
 )
-EXPECTED_POLICY_SHA256 = "3234017de2fec6c33dce20508f483d649d4614130e76cdc6f57af8185e05d05e"
+EXPECTED_POLICY_SHA256 = "afce93b52b96e0d8c71deeb80027a1c87a4cf3623e9417db14de00279fc23bca"
 EXPECTED_REASONER_POLICY_HASHES = {
     "EARNINGS_RESIDUAL_CONTINUATION_V1": (
-        "2270b06ce31d7f93034fd9d2f5fca6c44333599bf2045f7df6d5ec73acfb1e50",
-        "d689e9c1a49bfbc02896164b0faa731bf61fd8aa9eb3d6436532cf5b488d555e",
+        "af801a9baf24cff5b1f093e3802834855e8b82d56491b7244bba59ba357b30e3",
+        "617897661b723c2315f3cb60fbb15b6e57dfc571098a4be4563b324cd6a0354f",
         "08dd5302e8e03e01a7012acb59048329516e6a801f8b24827066f43430c04fa4",
     ),
     "MACRO_SPY_CONTINUATION_CHALLENGER_V1": (
-        "6313a2f84e0b52c84eb7300cc7c0dbb246f95705bff8ec77bcac72edd4766def",
-        "c2c02adc169766db6fd14319d0e7a9650d27a32e32640fd7aea9c46166c000a3",
+        "c2dd3668be1595f6658506f830ccad06b92b532c36732fff667f7f59ce641dd2",
+        "52f7b1c152128414363225aa441bf40e3b099ff045952891d9b2743bb3bccfec",
         "08dd5302e8e03e01a7012acb59048329516e6a801f8b24827066f43430c04fa4",
     ),
 }
@@ -333,6 +333,30 @@ def test_policy_freezes_exact_candidates_cohorts_and_separate_clocks() -> None:
             )
         )
     )
+
+
+def test_macro_clocks_bind_specific_release_families_and_schedule_tolerance() -> None:
+    macro = load_strategy_policy().candidate(MACRO_CANDIDATE)
+    clocks = {record["cohort_id"]: record for record in _mapping_records(macro["clocks"])}
+    schedule_rule = next(
+        record
+        for record in _mapping_records(macro["data_health"]["rules"])
+        if record["rule_id"] == "official_publication_schedule_delta_max"
+    )
+
+    assert {
+        "BLS_JOLTS": clocks["BLS_JOLTS"]["release_family"],
+        "BLS_EMPLOYMENT_SITUATION": clocks["BLS_EMPLOYMENT_SITUATION"]["release_family"],
+    } == {
+        "BLS_JOLTS": "BLS_JOLTS",
+        "BLS_EMPLOYMENT_SITUATION": "BLS_EMPLOYMENT_SITUATION",
+    }
+    assert schedule_rule == {
+        "operator": "LTE",
+        "rule_id": "official_publication_schedule_delta_max",
+        "unit": "SECONDS",
+        "value": 60,
+    }
 
 
 def test_gate_a_is_explicitly_unverified_and_blocks_assumptions() -> None:

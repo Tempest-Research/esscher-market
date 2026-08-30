@@ -105,6 +105,30 @@ def _candidate_manifest() -> CandidateManifest:
     )
 
 
+def _amc_candidate_manifest() -> CandidateManifest:
+    policy = load_strategy_policy()
+    return CandidateManifest(
+        manifest_id="amc-candidates-2026-09-10",
+        candidate_id=EARNINGS_CANDIDATE,
+        policy_sha256=policy.sha256,
+        selection_rule_id="earnings-universe-v1",
+        producer_build_sha256=HASH_A,
+        frozen_at=_at("2026-09-09T20:15:00Z"),
+        records=(
+            CandidateRecord(
+                event_id="KR-2026Q2-AMC-EARNINGS",
+                issuer="The Kroger Co.",
+                security_id="CIK-0000056873",
+                ticker="KR",
+                cohort_id="AMC",
+                scheduled_at=_at("2026-09-10T20:00:00Z"),
+                eligibility=EligibilityState.ELIGIBLE,
+                reason_codes=(),
+            ),
+        ),
+    )
+
+
 def _evidence_refs() -> tuple[EvidenceRef, ...]:
     return (
         EvidenceRef(
@@ -187,6 +211,58 @@ def _strategy_snapshot(manifest: CandidateManifest) -> StrategySnapshot:
         health_reason_codes=(),
         allowed_unknown_codes=tuple(sorted((*tolerated, *critical))),
         critical_unknown_codes=tuple(sorted(critical)),
+    )
+
+
+def _amc_strategy_snapshot(manifest: CandidateManifest) -> StrategySnapshot:
+    policy = load_strategy_policy()
+    reasoner = policy.data["reasoner"]
+    tolerated = tuple(reasoner["tolerated_unknown_codes"])
+    critical = tuple(reasoner["critical_unknown_codes"])
+    published_at = _at("2026-09-10T20:05:00Z")
+    evidence_refs = tuple(
+        replace(
+            item,
+            published_at=published_at,
+            available_at=_at("2026-09-10T20:05:05Z"),
+        )
+        if item.evidence_id == "earnings-release"
+        else item
+        for item in _evidence_refs()
+    )
+    return StrategySnapshot(
+        event_id="KR-2026Q2-AMC-EARNINGS",
+        candidate_id=EARNINGS_CANDIDATE,
+        cohort_id="AMC",
+        event_category=EventCategory.SCHEDULED_EARNINGS,
+        issuer="The Kroger Co.",
+        security_id="CIK-0000056873",
+        ticker="KR",
+        policy_sha256=policy.sha256,
+        candidate_manifest_sha256=candidate_manifest_sha256(manifest),
+        producer_build_sha256=HASH_B,
+        created_at=_at("2026-09-11T13:35:15Z"),
+        universe_frozen_at=manifest.frozen_at,
+        timing_bucket=TimingBucket.AFTER_CLOSE,
+        release_family=None,
+        event_published_at=published_at,
+        reaction_session_id="XNYS-2026-09-11",
+        reaction_session_open_at=_at("2026-09-11T13:30:00Z"),
+        reaction_session_close_at=_at("2026-09-11T20:00:00Z"),
+        observation_window_start_at=_at("2026-09-11T13:30:00Z"),
+        observation_window_end_at=_at("2026-09-11T13:35:00Z"),
+        evidence_cutoff_at=_at("2026-09-11T13:35:15Z"),
+        decision_cutoff_at=_at("2026-09-11T13:36:05Z"),
+        candidate_entry_deadline_at=_at("2026-09-11T13:37:00Z"),
+        evidence_packet_sha256=HASH_C,
+        evidence_refs=evidence_refs,
+        eligibility=EligibilityState.ELIGIBLE,
+        eligibility_reason_codes=(),
+        data_health=DataHealthState.VALID,
+        health_reason_codes=(),
+        allowed_unknown_codes=tuple(sorted((*tolerated, *critical))),
+        critical_unknown_codes=tuple(sorted(critical)),
+        prior_eligible_session_close_at=_at("2026-09-10T20:00:00Z"),
     )
 
 
@@ -420,6 +496,22 @@ def _strategy_input():
     )
 
 
+def _rebuild_strategy_input(
+    manifest: CandidateManifest,
+    snapshot: StrategySnapshot,
+    receipt: FeatureReceipt,
+):
+    receipt = replace(
+        receipt,
+        strategy_snapshot_sha256=strategy_snapshot_sha256(snapshot),
+    )
+    return build_strategy_input(
+        strategy_snapshot_bytes(snapshot),
+        candidate_manifest_bytes=candidate_manifest_bytes(manifest),
+        feature_receipt_bytes=feature_receipt_bytes(receipt),
+    )
+
+
 def _reasoner_parts(strategy_input, *, responded_at: datetime | None = None):
     if strategy_input.snapshot.candidate_id == MACRO_CANDIDATE:
         primary_evidence_id = "bls-release"
@@ -582,6 +674,144 @@ def test_strategy_input_rejects_clock_shift_from_frozen_cohort_policy() -> None:
         )
 
     assert caught.value.reason is StrategyContractReason.POLICY_MISMATCH
+
+
+def test_strategy_input_accepts_amc_release_at_the_bound_prior_session_close() -> None:
+    manifest = _amc_candidate_manifest()
+    snapshot = replace(
+        _amc_strategy_snapshot(manifest),
+        event_published_at=_at("2026-09-10T20:00:00Z"),
+    )
+
+    strategy_input = _rebuild_strategy_input(manifest, snapshot, _feature_receipt(snapshot))
+
+    assert strategy_input.snapshot.prior_eligible_session_close_at == _at("2026-09-10T20:00:00Z")
+
+
+def test_strategy_input_rejects_amc_without_bound_prior_session_close() -> None:
+    manifest = _amc_candidate_manifest()
+    snapshot = replace(
+        _amc_strategy_snapshot(manifest),
+        prior_eligible_session_close_at=None,
+    )
+
+    with pytest.raises(StrategyContractRejected) as caught:
+        _rebuild_strategy_input(manifest, snapshot, _feature_receipt(snapshot))
+
+    assert caught.value.reason is StrategyContractReason.POLICY_MISMATCH
+
+
+def test_strategy_input_rejects_amc_release_before_prior_session_close() -> None:
+    manifest = _amc_candidate_manifest()
+    snapshot = replace(
+        _amc_strategy_snapshot(manifest),
+        event_published_at=_at("2026-09-10T19:59:59Z"),
+    )
+    receipt = _feature_receipt(snapshot)
+
+    with pytest.raises(StrategyContractRejected) as caught:
+        _rebuild_strategy_input(manifest, snapshot, receipt)
+
+    assert caught.value.reason is StrategyContractReason.POLICY_MISMATCH
+
+
+def test_strategy_input_rejects_amc_release_at_next_reaction_session_open() -> None:
+    manifest = _amc_candidate_manifest()
+    snapshot = replace(
+        _amc_strategy_snapshot(manifest),
+        event_published_at=_at("2026-09-11T13:30:00Z"),
+    )
+
+    with pytest.raises(StrategyContractRejected) as caught:
+        _rebuild_strategy_input(manifest, snapshot, _feature_receipt(snapshot))
+
+    assert caught.value.reason is StrategyContractReason.POLICY_MISMATCH
+
+
+def test_strategy_input_rejects_macro_release_family_for_the_wrong_cohort() -> None:
+    strategy_input = _macro_strategy_input(vwap_distance=Decimal("5"))
+    snapshot = replace(
+        strategy_input.snapshot,
+        release_family=ReleaseFamily.BLS_EMPLOYMENT_SITUATION,
+    )
+
+    with pytest.raises(StrategyContractRejected) as caught:
+        _rebuild_strategy_input(
+            strategy_input.candidate_manifest,
+            snapshot,
+            strategy_input.feature_receipt,
+        )
+
+    assert caught.value.reason is StrategyContractReason.POLICY_MISMATCH
+
+
+def test_strategy_input_rejects_macro_event_outside_frozen_schedule_tolerance() -> None:
+    strategy_input = _macro_strategy_input(vwap_distance=Decimal("5"))
+    event_published_at = _at("2026-09-01T14:01:01Z")
+    evidence_refs = tuple(
+        replace(item, published_at=event_published_at)
+        if item.evidence_id == "bls-release"
+        else item
+        for item in strategy_input.snapshot.evidence_refs
+    )
+    snapshot = replace(
+        strategy_input.snapshot,
+        event_published_at=event_published_at,
+        evidence_refs=evidence_refs,
+    )
+
+    with pytest.raises(StrategyContractRejected) as caught:
+        _rebuild_strategy_input(
+            strategy_input.candidate_manifest,
+            snapshot,
+            strategy_input.feature_receipt,
+        )
+
+    assert caught.value.reason is StrategyContractReason.POLICY_MISMATCH
+
+
+def test_strategy_input_rejects_macro_primary_evidence_with_unbound_publication_time() -> None:
+    strategy_input = _macro_strategy_input(vwap_distance=Decimal("5"))
+    evidence_refs = tuple(
+        replace(item, published_at=_at("2026-09-01T14:00:01Z"))
+        if item.evidence_id == "bls-release"
+        else item
+        for item in strategy_input.snapshot.evidence_refs
+    )
+    snapshot = replace(strategy_input.snapshot, evidence_refs=evidence_refs)
+
+    with pytest.raises(StrategyContractRejected) as caught:
+        _rebuild_strategy_input(
+            strategy_input.candidate_manifest,
+            snapshot,
+            strategy_input.feature_receipt,
+        )
+
+    assert caught.value.reason is StrategyContractReason.POLICY_MISMATCH
+
+
+def test_present_feature_values_require_evidence_source_refs() -> None:
+    manifest = _candidate_manifest()
+    snapshot = _strategy_snapshot(manifest)
+    payload = json.loads(feature_receipt_bytes(_feature_receipt(snapshot)))
+    payload["features"][0]["source_refs"] = []
+
+    with pytest.raises(StrategyContractRejected) as caught:
+        parse_feature_receipt(canonical_json_bytes(payload))
+
+    assert caught.value.reason is StrategyContractReason.INVALID_DOCUMENT
+
+
+def test_present_feature_components_require_evidence_source_refs() -> None:
+    strategy_input = _macro_strategy_input(vwap_distance=Decimal("5"))
+    payload = json.loads(feature_receipt_bytes(strategy_input.feature_receipt))
+    composite = next(item for item in payload["features"] if item["components"])
+    composite["components"][0]["source_refs"] = []
+
+    with pytest.raises(StrategyContractRejected) as caught:
+        parse_feature_receipt(canonical_json_bytes(payload))
+
+    assert caught.value.reason is StrategyContractReason.INVALID_DOCUMENT
 
 
 def test_strategy_input_rejects_uniformly_shifted_market_session() -> None:

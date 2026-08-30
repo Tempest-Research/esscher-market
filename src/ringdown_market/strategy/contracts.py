@@ -59,16 +59,16 @@ _REASONER_POLICY_HASH_REGISTRY = (
     (
         "EARNINGS_RESIDUAL_CONTINUATION_V1",
         (
-            "2270b06ce31d7f93034fd9d2f5fca6c44333599bf2045f7df6d5ec73acfb1e50",
-            "d689e9c1a49bfbc02896164b0faa731bf61fd8aa9eb3d6436532cf5b488d555e",
+            "af801a9baf24cff5b1f093e3802834855e8b82d56491b7244bba59ba357b30e3",
+            "617897661b723c2315f3cb60fbb15b6e57dfc571098a4be4563b324cd6a0354f",
             "08dd5302e8e03e01a7012acb59048329516e6a801f8b24827066f43430c04fa4",
         ),
     ),
     (
         "MACRO_SPY_CONTINUATION_CHALLENGER_V1",
         (
-            "6313a2f84e0b52c84eb7300cc7c0dbb246f95705bff8ec77bcac72edd4766def",
-            "c2c02adc169766db6fd14319d0e7a9650d27a32e32640fd7aea9c46166c000a3",
+            "c2dd3668be1595f6658506f830ccad06b92b532c36732fff667f7f59ce641dd2",
+            "52f7b1c152128414363225aa441bf40e3b099ff045952891d9b2743bb3bccfec",
             "08dd5302e8e03e01a7012acb59048329516e6a801f8b24827066f43430c04fa4",
         ),
     ),
@@ -594,6 +594,7 @@ _SNAPSHOT_FIELDS = frozenset(
         "timing_bucket",
         "release_family",
         "event_published_at",
+        "prior_eligible_session_close_at",
         "reaction_session_id",
         "reaction_session_open_at",
         "reaction_session_close_at",
@@ -632,6 +633,11 @@ def strategy_snapshot_payload(value: StrategySnapshot) -> dict[str, object]:
         "event_category": value.event_category.value,
         "event_id": value.event_id,
         "event_published_at": _timestamp_text(value.event_published_at),
+        "prior_eligible_session_close_at": (
+            _timestamp_text(value.prior_eligible_session_close_at)
+            if value.prior_eligible_session_close_at is not None
+            else None
+        ),
         "evidence_cutoff_at": _timestamp_text(value.evidence_cutoff_at),
         "evidence_packet_sha256": value.evidence_packet_sha256,
         "evidence_refs": [_evidence_ref_payload(item) for item in value.evidence_refs],
@@ -702,6 +708,11 @@ def parse_strategy_snapshot(raw: bytes) -> StrategySnapshot:
         parsed = _timestamp(payload[field], path=f"strategy_snapshot.{field}")
         assert parsed is not None
         timestamps[field] = parsed
+    prior_eligible_session_close_at = _timestamp(
+        payload["prior_eligible_session_close_at"],
+        path="strategy_snapshot.prior_eligible_session_close_at",
+        nullable=True,
+    )
     result = _wrap_model_error(
         "strategy_snapshot",
         lambda: StrategySnapshot(
@@ -774,6 +785,7 @@ def parse_strategy_snapshot(raw: bytes) -> StrategySnapshot:
                 path="strategy_snapshot.critical_unknown_codes",
                 reason_codes=True,
             ),
+            prior_eligible_session_close_at=prior_eligible_session_close_at,
         ),
     )
     assert isinstance(result, StrategySnapshot)
@@ -1158,6 +1170,7 @@ def _validate_input_against_policy(value: StrategyInput, policy: object) -> None
     _validate_snapshot_clock(snapshot, policy)
     candidate_policy = _policy_candidate(policy, snapshot.candidate_id)
     evidence_policy = candidate_policy.get("evidence")
+    _validate_macro_release_binding(snapshot, manifest, candidate_policy)
     if not isinstance(evidence_policy, Mapping):
         _reject(
             StrategyContractReason.POLICY_MISMATCH,
@@ -1965,6 +1978,22 @@ def _validate_snapshot_clock(snapshot: StrategySnapshot, policy: object) -> None
             "snapshot cohort must select exactly one registered clock",
         )
     clock = matches[0]
+    expected_release_family = clock.get("release_family")
+    if expected_release_family is not None and not isinstance(expected_release_family, str):
+        _reject(
+            StrategyContractReason.POLICY_MISMATCH,
+            "policy.candidate.clocks.release_family",
+            "release family must be null or a registered identifier",
+        )
+    observed_release_family = (
+        snapshot.release_family.value if snapshot.release_family is not None else None
+    )
+    if observed_release_family != expected_release_family:
+        _reject(
+            StrategyContractReason.POLICY_MISMATCH,
+            "strategy_snapshot.release_family",
+            "release family does not match the registered cohort clock",
+        )
     timezone_name = clock.get("timezone")
     if timezone_name != "America/New_York":
         _reject(
@@ -2034,13 +2063,122 @@ def _validate_snapshot_clock(snapshot: StrategySnapshot, policy: object) -> None
             "strategy_snapshot.event_published_at",
             "BMO results must be published before the same reaction-session open",
         )
-    if snapshot.cohort_id == "AMC" and snapshot.event_published_at >= (
-        snapshot.reaction_session_open_at
+    if snapshot.cohort_id == "AMC":
+        prior_close = snapshot.prior_eligible_session_close_at
+        if prior_close is None:
+            _reject(
+                StrategyContractReason.POLICY_MISMATCH,
+                "strategy_snapshot.prior_eligible_session_close_at",
+                "AMC requires the prior eligible regular-session close boundary",
+            )
+        prior_close_local = prior_close.astimezone(local_timezone)
+        if (
+            prior_close_local.time().isoformat(timespec="seconds") != "16:00:00"
+            or prior_close_local.date() >= session_open.date()
+            or prior_close >= snapshot.reaction_session_open_at
+        ):
+            _reject(
+                StrategyContractReason.POLICY_MISMATCH,
+                "strategy_snapshot.prior_eligible_session_close_at",
+                "AMC prior eligible-session close must be a preceding 16:00 ET boundary",
+            )
+        if not (prior_close <= snapshot.event_published_at < snapshot.reaction_session_open_at):
+            _reject(
+                StrategyContractReason.POLICY_MISMATCH,
+                "strategy_snapshot.event_published_at",
+                "AMC results must be published at or after the prior close "
+                "and before the next open",
+            )
+    elif snapshot.prior_eligible_session_close_at is not None:
+        _reject(
+            StrategyContractReason.POLICY_MISMATCH,
+            "strategy_snapshot.prior_eligible_session_close_at",
+            "only AMC snapshots may bind a prior eligible-session close",
+        )
+
+
+def _macro_schedule_tolerance_seconds(candidate: Mapping[str, object]) -> int:
+    data_health = candidate.get("data_health")
+    if not isinstance(data_health, Mapping):
+        _reject(
+            StrategyContractReason.POLICY_MISMATCH,
+            "policy.candidate.data_health",
+            "data-health policy must be an object",
+        )
+    rules = data_health.get("rules")
+    if not isinstance(rules, tuple):
+        _reject(
+            StrategyContractReason.POLICY_MISMATCH,
+            "policy.candidate.data_health.rules",
+            "data-health rules must be immutable records",
+        )
+    matches = tuple(
+        rule
+        for rule in rules
+        if isinstance(rule, Mapping)
+        and rule.get("rule_id") == "official_publication_schedule_delta_max"
+    )
+    if len(matches) != 1:
+        _reject(
+            StrategyContractReason.POLICY_MISMATCH,
+            "policy.candidate.data_health.rules",
+            "macro policy requires exactly one publication/schedule tolerance",
+        )
+    rule = matches[0]
+    tolerance = rule.get("value")
+    if (
+        rule.get("operator") != "LTE"
+        or rule.get("unit") != "SECONDS"
+        or isinstance(tolerance, bool)
+        or not isinstance(tolerance, int)
+        or tolerance < 0
     ):
         _reject(
             StrategyContractReason.POLICY_MISMATCH,
+            "policy.candidate.data_health.rules.official_publication_schedule_delta_max",
+            "macro publication/schedule tolerance must be a non-negative LTE seconds rule",
+        )
+    return tolerance
+
+
+def _validate_macro_release_binding(
+    snapshot: StrategySnapshot,
+    manifest: CandidateManifest,
+    candidate: Mapping[str, object],
+) -> None:
+    if snapshot.event_category is not EventCategory.SCHEDULED_MACRO_RELEASE:
+        return
+    try:
+        scheduled_at = manifest.record(snapshot.event_id).scheduled_at
+    except ValueError as error:
+        _reject(
+            StrategyContractReason.IDENTITY_MISMATCH,
+            "candidate_manifest.records",
+            str(error),
+        )
+    tolerance_seconds = _macro_schedule_tolerance_seconds(candidate)
+    if abs(snapshot.event_published_at - scheduled_at) > timedelta(seconds=tolerance_seconds):
+        _reject(
+            StrategyContractReason.POLICY_MISMATCH,
             "strategy_snapshot.event_published_at",
-            "AMC results must be published before the next reaction-session open",
+            "official macro publication time exceeds the retained schedule tolerance",
+        )
+    official_primary = tuple(
+        item
+        for item in snapshot.evidence_refs
+        if item.role is EvidenceRole.MACRO_PRIMARY and item.source_class == "OFFICIAL_BLS_RELEASE"
+    )
+    if len(official_primary) != 1:
+        _reject(
+            StrategyContractReason.DATA_HEALTH_REJECTED,
+            "strategy_snapshot.evidence_refs",
+            "macro snapshots require exactly one official primary release citation",
+        )
+    if official_primary[0].published_at != snapshot.event_published_at:
+        _reject(
+            StrategyContractReason.POLICY_MISMATCH,
+            "strategy_snapshot.evidence_refs",
+            "official macro release citation must bind the declared publication time",
         )
 
 
