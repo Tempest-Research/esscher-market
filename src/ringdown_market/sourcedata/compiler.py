@@ -13,6 +13,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from decimal import Decimal
+from types import MappingProxyType
 from typing import Final
 from zoneinfo import ZoneInfo
 
@@ -90,6 +91,7 @@ class CaptureConfiguration:
     market_publisher: str
     market_entitlement: str
     market_redistribution: str
+    retrieval_pages: Mapping[str, tuple[int, int]] = MappingProxyType({})
 
     def __post_init__(self) -> None:
         if self.capture_at.tzinfo != UTC:
@@ -116,6 +118,20 @@ class CaptureConfiguration:
                 "market_redistribution",
                 "market redistribution status must be explicit",
             )
+        for evidence_id, pages in self.retrieval_pages.items():
+            if (
+                not isinstance(pages, tuple)
+                or len(pages) != 2
+                or any(type(value) is not int or value < 1 for value in pages)
+            ):
+                raise CollectorRejected(
+                    CollectorReason.UNSUPPORTED_INPUT,
+                    f"retrieval_pages.{evidence_id}",
+                    "pagination must be a pair of positive integers",
+                )
+
+    def pages_for(self, evidence_id: str) -> tuple[int, int]:
+        return self.retrieval_pages.get(evidence_id, (1, 1))
 
 
 @dataclass(frozen=True, slots=True)
@@ -609,11 +625,15 @@ def compile_strategy_snapshot(
             evidence_id="calendar",
             role=EvidenceRole.LIQUIDITY_VOLATILITY,
             receipt=SourceReceipt.from_provenance("source-calendar", reaction_session.provenance),
+            pages_retrieved=configuration.pages_for("calendar")[0],
+            pages_total=configuration.pages_for("calendar")[1],
         ),
         EvidenceEntry(
             evidence_id="security-master",
             role=EvidenceRole.LIQUIDITY_VOLATILITY,
             receipt=SourceReceipt.from_provenance("source-security-master", master.provenance),
+            pages_retrieved=configuration.pages_for("security-master")[0],
+            pages_total=configuration.pages_for("security-master")[1],
         ),
         EvidenceEntry(
             evidence_id="earnings-release",
@@ -621,6 +641,8 @@ def compile_strategy_snapshot(
             receipt=SourceReceipt.from_provenance(
                 f"source-release-{record.event_id.lower()}", release.provenance
             ),
+            pages_retrieved=configuration.pages_for("earnings-release")[0],
+            pages_total=configuration.pages_for("earnings-release")[1],
         ),
         EvidenceEntry(
             evidence_id="corporate-actions",
@@ -629,6 +651,8 @@ def compile_strategy_snapshot(
                 f"source-actions-{record.ticker.lower()}",
                 _actions_provenance(actions, configuration),
             ),
+            pages_retrieved=configuration.pages_for("corporate-actions")[0],
+            pages_total=configuration.pages_for("corporate-actions")[1],
         ),
         EvidenceEntry(
             evidence_id="market-trades",
@@ -642,6 +666,8 @@ def compile_strategy_snapshot(
                     observed_precision="SECOND",
                 ),
             ),
+            pages_retrieved=configuration.pages_for("market-trades")[0],
+            pages_total=configuration.pages_for("market-trades")[1],
         ),
         EvidenceEntry(
             evidence_id="market-quotes",
@@ -655,6 +681,8 @@ def compile_strategy_snapshot(
                     observed_precision="MILLISECOND",
                 ),
             ),
+            pages_retrieved=configuration.pages_for("market-quotes")[0],
+            pages_total=configuration.pages_for("market-quotes")[1],
         ),
     ]
     candidate_policy = policy.candidate(EARNINGS_CANDIDATE)

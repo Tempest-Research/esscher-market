@@ -42,7 +42,7 @@ from ringdown_market.sourcedata.receipts import (
     source_receipt_bytes,
 )
 from ringdown_market.sourcedata.windows import build_synchronized_window
-from ringdown_market.strategy.models import FeatureStatus
+from ringdown_market.strategy.models import FeatureStatus, TimingBucket
 
 EVENT_ID = "KR-2026Q2-EARNINGS"
 PACKAGE_ROOT = Path(__file__).parents[1] / "src" / "ringdown_market" / "sourcedata"
@@ -579,6 +579,130 @@ def test_capture_command_rejects_unpinned_live_boundary(tmp_path: Path, monkeypa
         ]
     )
     assert exit_code == 2
+
+
+def _amc_fixture():
+    fixture = copy.deepcopy(load_fixture())
+    fixture["candidate_manifest"]["records"][0]["cohort_id"] = "AMC"
+    fixture["candidate_manifest"]["records"][0]["scheduled_at"] = "2026-09-10T21:00:00Z"
+    fixture["issuer_release"]["provenance"]["published_at"] = "2026-09-10T21:00:00Z"
+    return fixture
+
+
+def test_amc_cohort_uses_distinct_bucket_and_next_session(compiled_snapshot) -> None:
+    compiled = _compile(_amc_fixture())
+    assert compiled.snapshot.timing_bucket is TimingBucket.AFTER_CLOSE
+    assert compiled.snapshot.reaction_session_id == "XNYS-2026-09-11"
+    assert compiled.snapshot.event_published_at == _at("2026-09-10T21:00:00Z")
+    assert compiled.strategy_snapshot_bytes != compiled_snapshot.strategy_snapshot_bytes
+    joined = compiled_strategy_input(compiled)
+    assert joined.snapshot.timing_bucket is TimingBucket.AFTER_CLOSE
+
+
+def test_amc_release_before_prior_session_close_fails_closed() -> None:
+    fixture = _amc_fixture()
+    fixture["issuer_release"]["provenance"]["published_at"] = "2026-09-10T18:00:00Z"
+    _rejects(fixture, CollectorReason.PRIMARY_RELEASE_LATE)
+
+
+def test_bmo_and_amc_reaction_session_selection_is_distinct() -> None:
+    from datetime import date
+
+    from ringdown_market.sourcedata.compiler import _reaction_session, derive_clocks
+    from ringdown_market.strategy.policy import load_strategy_policy
+
+    fixture = load_fixture()
+    evidence = FixtureEvidenceSource(fixture)
+    policy = load_strategy_policy()
+    bmo_session = _reaction_session(
+        evidence,
+        cohort_id="BMO",
+        scheduled_at=_at("2026-09-11T11:00:00Z"),
+        exchange_mic="XNYS",
+    )
+    amc_session = _reaction_session(
+        evidence,
+        cohort_id="AMC",
+        scheduled_at=_at("2026-09-10T21:00:00Z"),
+        exchange_mic="XNYS",
+    )
+    assert bmo_session.session_date == date(2026, 9, 11)
+    assert amc_session.session_date == date(2026, 9, 11)
+    bmo_clocks = derive_clocks(policy, cohort_id="BMO", reaction_session=bmo_session)
+    amc_clocks = derive_clocks(policy, cohort_id="AMC", reaction_session=amc_session)
+    assert bmo_clocks.evidence_cutoff_at == amc_clocks.evidence_cutoff_at
+    assert (
+        bmo_clocks.observation_window_start_at
+        == amc_clocks.observation_window_start_at
+        == _at("2026-09-11T13:30:00Z")
+    )
+
+
+def test_partial_retrieval_fails_closed() -> None:
+    fixture = load_fixture()
+    configuration = CaptureConfiguration(
+        candidate_manifest_bytes=build_candidate_manifest(fixture),
+        event_id=EVENT_ID,
+        capture_at=_at("2026-09-11T13:35:10Z"),
+        market_publisher=str(fixture["market_publisher"]),
+        market_entitlement=str(fixture["market_entitlement"]),
+        market_redistribution=str(fixture["market_redistribution"]),
+        retrieval_pages={"earnings-release": (1, 3)},
+    )
+    with pytest.raises(CollectorRejected) as caught:
+        compile_strategy_snapshot(
+            configuration, FixtureEvidenceSource(fixture), FixtureMarketDataSource(fixture)
+        )
+    assert caught.value.reason is CollectorReason.PAGINATION_INCOMPLETE
+
+
+def test_invalid_pagination_configuration_fails_closed() -> None:
+    fixture = load_fixture()
+    with pytest.raises(CollectorRejected) as caught:
+        CaptureConfiguration(
+            candidate_manifest_bytes=build_candidate_manifest(fixture),
+            event_id=EVENT_ID,
+            capture_at=_at("2026-09-11T13:35:10Z"),
+            market_publisher=str(fixture["market_publisher"]),
+            market_entitlement=str(fixture["market_entitlement"]),
+            market_redistribution=str(fixture["market_redistribution"]),
+            retrieval_pages={"calendar": (0, 1)},
+        )
+    assert caught.value.reason is CollectorReason.UNSUPPORTED_INPUT
+
+
+def test_duplicate_source_record_fails_closed() -> None:
+    from ringdown_market.sourcedata.evidence import EvidenceEntry, build_evidence_packet
+    from ringdown_market.strategy.models import EvidenceRole
+
+    def entry(evidence_id: str) -> EvidenceEntry:
+        return EvidenceEntry(
+            evidence_id=evidence_id,
+            role=EvidenceRole.LIQUIDITY_VOLATILITY,
+            receipt=SourceReceipt.from_provenance(
+                f"source-{evidence_id}",
+                SourceProvenance(
+                    source_class="OFFICIAL_EXCHANGE_CALENDAR",
+                    publisher="SYNTHETIC_OFFICIAL_CALENDAR",
+                    content_sha256="d" * 64,
+                    published_at=None,
+                    published_at_precision="DATE",
+                    retrieved_at=_at("2026-09-11T11:00:00Z"),
+                    entitlement="ENTITLED",
+                    redistribution_status="REDISTRIBUTABLE",
+                    limitations=(),
+                ),
+            ),
+        )
+
+    with pytest.raises(CollectorRejected) as caught:
+        build_evidence_packet(
+            [entry("calendar-a"), entry("calendar-b")],
+            evidence_cutoff_at=_at("2026-09-11T13:35:15Z"),
+            permitted_source_classes=("OFFICIAL_EXCHANGE_CALENDAR",),
+            required_source_classes=("OFFICIAL_EXCHANGE_CALENDAR",),
+        )
+    assert caught.value.reason is CollectorReason.DUPLICATE_SOURCE_RECORD
 
 
 def test_capture_command_writes_canonical_artifacts(tmp_path: Path, monkeypatch) -> None:

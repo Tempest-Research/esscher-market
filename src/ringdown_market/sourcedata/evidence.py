@@ -20,11 +20,23 @@ from ringdown_market.strategy.models import EvidenceRef, EvidenceRole
 
 @dataclass(frozen=True, slots=True)
 class EvidenceEntry:
-    """One packet member: receipt, decision-use role, and evidence identity."""
+    """One packet member: receipt, decision-use role, and evidence identity.
+
+    Retrieval pagination stays explicit; a partial retrieval never enters the
+    packet silently.
+    """
 
     evidence_id: str
     role: EvidenceRole
     receipt: SourceReceipt
+    pages_retrieved: int = 1
+    pages_total: int = 1
+
+    def __post_init__(self) -> None:
+        if self.pages_retrieved < 1 or self.pages_total < 1:
+            raise ValueError("pagination counters must be positive integers")
+        if self.pages_retrieved > self.pages_total:
+            raise ValueError("retrieved pages cannot exceed total pages")
 
 
 @dataclass(frozen=True, slots=True)
@@ -113,8 +125,24 @@ def build_evidence_packet(
     refs: list[EvidenceRef] = []
     receipts: list[SourceReceipt] = []
     observed_classes: set[str] = set()
+    seen_content: dict[str, str] = {}
     for entry in sorted(entries, key=lambda item: item.evidence_id):
         path = f"evidence.{entry.evidence_id}"
+        if entry.pages_retrieved != entry.pages_total:
+            raise CollectorRejected(
+                CollectorReason.PAGINATION_INCOMPLETE,
+                path,
+                f"retrieved {entry.pages_retrieved} of {entry.pages_total} pages;"
+                " partial retrieval never enters silently",
+            )
+        content_sha256 = entry.receipt.content_sha256
+        if content_sha256 in seen_content:
+            raise CollectorRejected(
+                CollectorReason.DUPLICATE_SOURCE_RECORD,
+                path,
+                f"content identity duplicates evidence.{seen_content[content_sha256]}",
+            )
+        seen_content[content_sha256] = entry.evidence_id
         if entry.receipt.source_class not in set(permitted_source_classes):
             raise CollectorRejected(
                 CollectorReason.UNPERMITTED_SOURCE_CLASS,
