@@ -27,6 +27,8 @@ This directory gives the team one place to read the current plan, understand how
 | [`research/2026-08-30-quant-data-ai-evidence-memo.md`](research/2026-08-30-quant-data-ai-evidence-memo.md) | Research input | Point-in-time data, universe, feature, AI, falsification, and sample-size analysis | `b978700605b651d30e45ed8a0da0403fe29aa114b082451ef8cf6e52538bc246` |
 | [`reviews/2026-08-30-research-to-paper-architecture-challenge.md`](reviews/2026-08-30-research-to-paper-architecture-challenge.md) | Architecture review | Source-grounded challenge of decision/package authority, option evidence, contracts, and work ordering | `c6356d50472e45769da64c33b8d91ea06723d0597fe1cdb60ac5fdd7cf81c8c5` |
 | [`research/2026-08-30-clean-room-quant-firm-cto-report.md`](research/2026-08-30-clean-room-quant-firm-cto-report.md) | Research input | Blank-slate small-firm CTO proposal focused on competitive PnL, implementation, candidate selection, equities/options, execution truth, and judge proof | `dc33cdc3a740ae84b539d2e39354db83405d814e881bd68af72888b8cfdf3e2b` |
+| [`research/2026-08-30-clean-room-quant-researcher-report.md`](research/2026-08-30-clean-room-quant-researcher-report.md) | Research input | Blank-slate chief-quant proposal for systematic post-earnings underreaction in liquid equities, with conditional options convexity | `7b9228ce8b064376f1ae7eb47bbccf39ecdfecb0a37d1c8548104f3e1e3cfccb` |
+| [`research/2026-08-30-clean-room-tournament-portfolio-report.md`](research/2026-08-30-clean-room-tournament-portfolio-report.md) | Research input | Adversarial tournament portfolio analysis covering raw-upside, high-finish-probability, and judge-defensible playbooks | `c76a32aec8342ac2773a00f3d4158fccab30638858b9d57f60be76576eb3e51b` |
 
 The source reports are content-preserving repository copies. UTF-8 line endings and trailing Markdown hard-break whitespace may be normalized to satisfy repository hygiene. The recorded hashes identify the repository copies, allowing the team to detect accidental edits and compare later revisions without pretending two different reports are the same artifact.
 
@@ -34,8 +36,6 @@ The source reports are content-preserving repository copies. UTF-8 line endings 
 
 These are not represented by empty placeholder files:
 
-- clean-room chief-quantitative-researcher report;
-- clean-room tournament portfolio/risk report;
 - Ben's external research;
 - independent ChatGPT web report.
 
