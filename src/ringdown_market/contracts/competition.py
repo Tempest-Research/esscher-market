@@ -65,13 +65,18 @@ class CompetitionContractRejected(ValueError):
 
 @dataclass(frozen=True, slots=True)
 class ValidatedCompetitionContract:
-    """Identity and release state of a validated competition contract."""
+    """Identity and fact-completeness state of a validated competition contract."""
 
     contract_id: str
     contract_sha256: str
     blocking_unknowns: tuple[str, ...]
-    release_ready: bool
-    permit_eligible: bool = False
+    facts_complete: bool
+
+    @property
+    def permit_eligible(self) -> bool:
+        """Remain explicitly ineligible for trading permits."""
+
+        return False
 
 
 class _DuplicateFieldError(ValueError):
@@ -300,5 +305,5 @@ def validate_competition_contract(raw: bytes) -> ValidatedCompetitionContract:
         contract_id=contract_id,
         contract_sha256=hashlib.sha256(raw).hexdigest(),
         blocking_unknowns=blocking_unknowns,
-        release_ready=not blocking_unknowns,
+        facts_complete=not blocking_unknowns,
     )

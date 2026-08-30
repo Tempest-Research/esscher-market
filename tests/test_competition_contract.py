@@ -7,6 +7,7 @@ import pytest
 
 from ringdown_market.contracts.competition import (
     CompetitionContractRejected,
+    ValidatedCompetitionContract,
     validate_competition_contract,
 )
 
@@ -110,7 +111,8 @@ def test_valid_contract_reports_blocking_unknowns_and_raw_byte_identity() -> Non
         "minimum_trade_count",
         "positions_flat_at_submission",
     )
-    assert validated.release_ready is False
+    assert validated.facts_complete is False
+    assert not hasattr(validated, "release_ready")
     assert validated.permit_eligible is False
 
 
@@ -120,7 +122,7 @@ def _rejected(document: dict[str, object]) -> CompetitionContractRejected:
     return caught.value
 
 
-def test_all_required_facts_confirmed_is_release_ready_but_never_permit_eligible() -> None:
+def test_all_required_facts_confirmed_is_contract_complete_without_release_authority() -> None:
     document = _document()
     facts = document["facts"]
     assert isinstance(facts, dict)
@@ -130,9 +132,21 @@ def test_all_required_facts_confirmed_is_release_ready_but_never_permit_eligible
 
     validated = validate_competition_contract(_bytes(document))
 
-    assert validated.release_ready is True
+    assert validated.facts_complete is True
+    assert not hasattr(validated, "release_ready")
     assert validated.blocking_unknowns == ()
     assert validated.permit_eligible is False
+
+
+def test_validated_contract_cannot_be_constructed_with_permit_authority() -> None:
+    with pytest.raises(TypeError, match="permit_eligible"):
+        ValidatedCompetitionContract(
+            contract_id="alpaca-ai-trading-agents-hackathon-2026",
+            contract_sha256="a" * 64,
+            blocking_unknowns=(),
+            facts_complete=True,
+            permit_eligible=True,  # type: ignore[call-arg]
+        )
 
 
 def test_unknown_fact_cannot_smuggle_a_value() -> None:
@@ -188,6 +202,94 @@ def test_schema_and_root_fields_are_exact() -> None:
     caught = _rejected(document)
 
     assert "paper_account_id" in str(caught)
+
+
+@pytest.mark.parametrize(
+    ("level", "field", "expected_path"),
+    [
+        ("root", "contract_id", "contract.contract_id"),
+        ("source", "publisher", "sources[0].publisher"),
+        ("facts", "options_required", "facts.options_required"),
+        ("fact", "status", "facts.options_required.status"),
+        ("safety", "run_mode", "safety.run_mode"),
+    ],
+)
+def test_missing_required_fields_fail_closed(
+    level: str,
+    field: str,
+    expected_path: str,
+) -> None:
+    document = _document()
+    if level == "root":
+        target = document
+    elif level == "source":
+        sources = document["sources"]
+        assert isinstance(sources, list)
+        target = sources[0]
+    elif level == "facts":
+        target = document["facts"]
+    elif level == "fact":
+        facts = document["facts"]
+        assert isinstance(facts, dict)
+        target = facts["options_required"]
+    else:
+        target = document["safety"]
+    assert isinstance(target, dict)
+    del target[field]
+
+    caught = _rejected(document)
+
+    assert expected_path in str(caught)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("verification_method", "SCREENSHOT"),
+        ("redistribution_status", "FULL_SOURCE_BYTES"),
+    ],
+)
+def test_source_provenance_guards_fail_closed(field: str, value: str) -> None:
+    document = _document()
+    sources = document["sources"]
+    assert isinstance(sources, list)
+    source = sources[0]
+    assert isinstance(source, dict)
+    source[field] = value
+
+    caught = _rejected(document)
+
+    assert f"sources[0].{field}" in str(caught)
+
+
+def test_duplicate_source_ids_fail_closed() -> None:
+    document = _document()
+    sources = document["sources"]
+    assert isinstance(sources, list)
+    first = sources[0]
+    second = sources[1]
+    assert isinstance(first, dict)
+    assert isinstance(second, dict)
+    second["source_id"] = first["source_id"]
+
+    caught = _rejected(document)
+
+    assert "sources[1].source_id" in str(caught)
+
+
+def test_empty_sources_fail_closed() -> None:
+    document = _document()
+    document["sources"] = []
+
+    caught = _rejected(document)
+
+    assert "sources" in str(caught)
+
+
+@pytest.mark.parametrize("raw", [b"[]", b"{not-json", b"\xff"])
+def test_non_object_or_invalid_json_bytes_fail_closed(raw: bytes) -> None:
+    with pytest.raises(CompetitionContractRejected):
+        validate_competition_contract(raw)
 
 
 def test_unsupported_schema_version_is_rejected() -> None:
@@ -257,6 +359,22 @@ def test_confirmed_fact_values_are_typed(field: str, value: object) -> None:
     caught = _rejected(document)
 
     assert f"facts.{field}.value" in str(caught)
+
+
+@pytest.mark.parametrize("value", [True, False, 1.0])
+def test_minimum_trade_count_rejects_boolean_and_float_aliases(value: object) -> None:
+    document = _document()
+    facts = document["facts"]
+    assert isinstance(facts, dict)
+    facts["minimum_trade_count"] = _fact(
+        value,
+        "organizer-event",
+        "organizer-live",
+    )
+
+    caught = _rejected(document)
+
+    assert "facts.minimum_trade_count.value" in str(caught)
 
 
 def test_source_must_be_public_https_and_precede_freeze() -> None:
