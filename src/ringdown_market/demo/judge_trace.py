@@ -8,9 +8,13 @@ from __future__ import annotations
 import hashlib
 import html
 import json
+import re
 from dataclasses import dataclass
+from datetime import UTC, datetime
+from decimal import Decimal, InvalidOperation
 from importlib.resources import files
 from typing import Final
+from urllib.parse import urlsplit
 
 
 class JudgeTraceInputError(ValueError):
@@ -28,6 +32,11 @@ class FrozenTraceInputs:
 
 
 _MISSING: Final = object()
+_SHA256: Final = re.compile(r"^[0-9a-f]{64}$")
+_UTC_TIMESTAMP: Final = re.compile(
+    r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]+)?Z$"
+)
+_PAPER_PNL_DECIMAL_TEXT_MAX_LENGTH: Final = 128
 _SYNTHETIC_LIMITATIONS: Final = [
     "NOT_HISTORICAL_DATA",
     "NOT_ALPHA_EVIDENCE",
@@ -97,6 +106,7 @@ def _require_artifact_boundary(value: dict[str, object], label: str) -> None:
 def _require_evidence_boundary(value: dict[str, object]) -> None:
     if (
         value.get("schema") != "ringdown.point_in_time_evidence_manifest"
+        or type(value.get("schema_version")) is not int
         or value.get("schema_version") != 2
         or value.get("data_class") != "POINT_IN_TIME_EVENT_PANEL"
         or value.get("data_qualifiers")
@@ -110,6 +120,71 @@ def _require_evidence_boundary(value: dict[str, object]) -> None:
         or "permit" in value
     ):
         raise JudgeTraceInputError("evidence boundary is invalid")
+
+
+def _is_normalized_text(value: object) -> bool:
+    return isinstance(value, str) and bool(value) and value == value.strip()
+
+
+def _utc_timestamp(value: object) -> datetime | None:
+    if not isinstance(value, str) or _UTC_TIMESTAMP.fullmatch(value) is None:
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(UTC)
+    except ValueError:
+        return None
+
+
+def _is_public_https_url(value: object) -> bool:
+    if not _is_normalized_text(value):
+        return False
+    assert isinstance(value, str)
+    try:
+        parsed = urlsplit(value)
+        _ = parsed.port
+    except ValueError:
+        return False
+    return (
+        parsed.scheme == "https"
+        and bool(parsed.netloc)
+        and bool(parsed.hostname)
+        and parsed.username is None
+        and parsed.password is None
+    )
+
+
+def _require_evidence_provenance(value: dict[str, object]) -> None:
+    context = value.get("event_context")
+    records = value.get("records")
+    limitations = value.get("limitations")
+    if (
+        not _is_normalized_text(value.get("event_id"))
+        or not _is_normalized_text(value.get("issuer"))
+        or not isinstance(context, dict)
+        or not isinstance(records, list)
+        or len(records) <= 1
+        or not isinstance(records[1], dict)
+        or not isinstance(limitations, list)
+        or len(limitations) <= 1
+        or not _is_normalized_text(limitations[1])
+    ):
+        raise JudgeTraceInputError("evidence provenance is invalid")
+
+    cutoff = _utc_timestamp(value.get("decision_cutoff"))
+    scheduled = _utc_timestamp(context.get("scheduled_event_at"))
+    record = records[1]
+    published = _utc_timestamp(record.get("published_at"))
+    if (
+        cutoff is None
+        or scheduled is None
+        or scheduled != cutoff
+        or published is None
+        or published > cutoff
+        or not isinstance(record.get("content_sha256"), str)
+        or _SHA256.fullmatch(record["content_sha256"]) is None
+        or not _is_public_https_url(record.get("source_url"))
+    ):
+        raise JudgeTraceInputError("evidence provenance is invalid")
 
 
 def _require_accepted_state(value: dict[str, object]) -> None:
@@ -127,11 +202,40 @@ def _require_accepted_state(value: dict[str, object]) -> None:
 
 
 def _is_sha256(value: object) -> bool:
-    return (
-        isinstance(value, str)
-        and len(value) == 64
-        and all(character in "0123456789abcdef" for character in value)
-    )
+    return isinstance(value, str) and _SHA256.fullmatch(value) is not None
+
+
+def _canonical_receipt_datetime(value: object) -> datetime | None:
+    if not isinstance(value, str) or not 1 <= len(value) <= 64:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None or parsed.utcoffset() is None or parsed.isoformat() != value:
+        return None
+    return parsed
+
+
+def _is_canonical_decimal_text(value: object) -> bool:
+    if not isinstance(value, str) or not 1 <= len(value) <= _PAPER_PNL_DECIMAL_TEXT_MAX_LENGTH:
+        return False
+    unsigned = value[1:] if value.startswith("-") else value
+    whole, separator, fraction = unsigned.partition(".")
+    if (
+        not whole
+        or not whole.isascii()
+        or not whole.isdecimal()
+        or (len(whole) > 1 and whole.startswith("0"))
+        or (separator and (not fraction or not fraction.isascii() or not fraction.isdecimal()))
+        or "." in fraction
+    ):
+        return False
+    try:
+        parsed = Decimal(value)
+    except InvalidOperation:
+        return False
+    return parsed.is_finite() and format(parsed.normalize(), "f") == value
 
 
 def _require_terminal_receipt(value: dict[str, object]) -> None:
@@ -170,6 +274,7 @@ def _require_terminal_receipt(value: dict[str, object]) -> None:
     if (
         set(receipt) != required
         or receipt.get("schema") != "ringdown.paper_receipt_bundle"
+        or type(receipt.get("schema_version")) is not int
         or receipt.get("schema_version") != 1
         or receipt.get("run_mode") != "PAPER"
         or receipt.get("data_class") != "INDICATIVE_DATA"
@@ -177,9 +282,9 @@ def _require_terminal_receipt(value: dict[str, object]) -> None:
         or receipt.get("event_run_id") != artifact.get("event_run_id")
         or receipt.get("lifecycle_outcome") != artifact.get("lifecycle")
         or not all(_is_sha256(receipt.get(field)) for field in digest_fields)
-        or not isinstance(receipt.get("open_permit_id"), str)
-        or not isinstance(receipt.get("close_permit_id"), str)
-        or not isinstance(receipt.get("final_flat_observed_at"), str)
+        or not _is_normalized_text(receipt.get("event_run_id"))
+        or not _is_normalized_text(receipt.get("open_permit_id"))
+        or not _is_normalized_text(receipt.get("close_permit_id"))
         or not isinstance(paper_pnl, dict)
         or set(paper_pnl)
         != {
@@ -192,12 +297,21 @@ def _require_terminal_receipt(value: dict[str, object]) -> None:
             "unavailable_reason",
         }
         or paper_pnl.get("classification") != "PAPER_REALIZED_PNL"
-        or not isinstance(paper_pnl.get("gross_realized_pnl"), str)
+        or not _is_canonical_decimal_text(paper_pnl.get("gross_realized_pnl"))
         or paper_pnl.get("broker_fees") is not None
         or paper_pnl.get("net_realized_pnl") is not None
-        or not isinstance(paper_pnl.get("open_filled_at"), str)
-        or not isinstance(paper_pnl.get("close_filled_at"), str)
         or paper_pnl.get("unavailable_reason") is not None
+    ):
+        raise JudgeTraceInputError("terminal receipt boundary is invalid")
+    final_flat_observed_at = _canonical_receipt_datetime(receipt["final_flat_observed_at"])
+    open_filled_at = _canonical_receipt_datetime(paper_pnl["open_filled_at"])
+    close_filled_at = _canonical_receipt_datetime(paper_pnl["close_filled_at"])
+    if (
+        final_flat_observed_at is None
+        or open_filled_at is None
+        or close_filled_at is None
+        or close_filled_at < open_filled_at
+        or final_flat_observed_at < close_filled_at
     ):
         raise JudgeTraceInputError("terminal receipt boundary is invalid")
     unsigned = dict(receipt)
@@ -303,6 +417,7 @@ def render_judge_trace(inputs: FrozenTraceInputs) -> bytes:
     rejected = _parse_object(inputs.rejected_bytes, "rejected lifecycle")
     manual = _parse_object(inputs.manual_bytes, "manual lifecycle")
     _require_evidence_boundary(evidence)
+    _require_evidence_provenance(evidence)
     _require_synthetic_boundary(accepted, "accepted lifecycle")
     _require_synthetic_boundary(rejected, "rejected lifecycle")
     _require_synthetic_boundary(manual, "manual lifecycle")
