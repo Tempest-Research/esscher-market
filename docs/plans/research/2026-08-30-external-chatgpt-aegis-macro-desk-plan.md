@@ -1127,9 +1127,7 @@ class ReleaseSource(Protocol):
 
 
 class ResearchAgents(Protocol):
-    async def interpret(
-        self, packet: ReleaseEvidencePacket
-    ) -> ReleaseInterpretation: ...
+    async def interpret(self, packet: ReleaseEvidencePacket) -> ReleaseInterpretation: ...
     async def challenge(
         self, packet: ReleaseEvidencePacket, first: ReleaseInterpretation
     ) -> SkepticAssessment: ...
