@@ -57,6 +57,26 @@ MARKET_QUOTE_CLASSES = ("LICENSED_SIP_EQUITY_QUOTES",)
 ISSUER_CLASSES = ("ISSUER_INVESTOR_RELATIONS",)
 
 
+def _proven_observed_at(
+    evidence: EvidencePacket,
+    source_refs: tuple[str, ...],
+    lower_bound: datetime,
+) -> datetime:
+    """Return the instant a feature became usable.
+
+    A feature cannot be observed before the evidence it cites was available,
+    so the observation time is bounded below by every cited source's
+    collector-proven availability and by the observation lower bound.
+    """
+
+    observed_at = lower_bound
+    for source_ref in source_refs:
+        retrieved_at = evidence.receipt(source_ref).retrieved_at
+        if retrieved_at > observed_at:
+            observed_at = retrieved_at
+    return observed_at
+
+
 @dataclass(frozen=True, slots=True)
 class FeatureBuildInput:
     """All point-in-time inputs required by the earnings feature set."""
@@ -288,14 +308,15 @@ def _build_opening_residual(inputs: FeatureBuildInput) -> FeatureValue:
         market = _window_log_return(inputs.window, inputs.market_symbol)
         sector = _window_log_return(inputs.window, inputs.sector_symbol)
         value = residualize(stock, market, sector, inputs.beta)
+    source_refs = source_refs_for(inputs.evidence, source_classes=MARKET_TRADE_CLASSES)
     return FeatureValue(
         feature_id=FEATURE_OPENING_RESIDUAL,
         status=FeatureStatus.PRESENT,
         value=value,
         value_type=FeatureValueType.DECIMAL_STRING,
         unit="LOG_RETURN",
-        observed_at=inputs.window.window_end_at,
-        source_refs=source_refs_for(inputs.evidence, source_classes=MARKET_TRADE_CLASSES),
+        observed_at=_proven_observed_at(inputs.evidence, source_refs, inputs.window.window_end_at),
+        source_refs=source_refs,
     )
 
 
@@ -305,14 +326,15 @@ def _build_event_gap(inputs: FeatureBuildInput) -> FeatureValue:
         market = _gap_log_return(inputs.window, inputs.prior_closes, inputs.market_symbol)
         sector = _gap_log_return(inputs.window, inputs.prior_closes, inputs.sector_symbol)
         value = residualize(stock, market, sector, inputs.beta)
+    source_refs = source_refs_for(inputs.evidence, source_classes=MARKET_TRADE_CLASSES)
     return FeatureValue(
         feature_id=FEATURE_EVENT_GAP,
         status=FeatureStatus.PRESENT,
         value=value,
         value_type=FeatureValueType.DECIMAL_STRING,
         unit="LOG_RETURN",
-        observed_at=inputs.window.window_end_at,
-        source_refs=source_refs_for(inputs.evidence, source_classes=MARKET_TRADE_CLASSES),
+        observed_at=_proven_observed_at(inputs.evidence, source_refs, inputs.window.window_end_at),
+        source_refs=source_refs,
     )
 
 
@@ -347,14 +369,15 @@ def _build_relative_volume(inputs: FeatureBuildInput) -> FeatureValue:
         )
     with collector_context():
         value = Decimal(current_volume) / _median(volumes)
+    source_refs = source_refs_for(inputs.evidence, source_classes=MARKET_TRADE_CLASSES)
     return FeatureValue(
         feature_id=FEATURE_RELATIVE_VOLUME,
         status=FeatureStatus.PRESENT,
         value=value,
         value_type=FeatureValueType.DECIMAL_STRING,
         unit="RATIO",
-        observed_at=inputs.window.window_end_at,
-        source_refs=source_refs_for(inputs.evidence, source_classes=MARKET_TRADE_CLASSES),
+        observed_at=_proven_observed_at(inputs.evidence, source_refs, inputs.window.window_end_at),
+        source_refs=source_refs,
     )
 
 
@@ -370,14 +393,15 @@ def _build_nbbo_spread(inputs: FeatureBuildInput) -> FeatureValue:
         symbol=inputs.ticker_symbol,
         window_end_at=inputs.window.window_end_at,
     )
+    source_refs = source_refs_for(inputs.evidence, source_classes=MARKET_QUOTE_CLASSES)
     return FeatureValue(
         feature_id=FEATURE_NBBO_SPREAD,
         status=FeatureStatus.PRESENT,
         value=value,
         value_type=FeatureValueType.DECIMAL_STRING,
         unit="BASIS_POINTS",
-        observed_at=inputs.window.window_end_at,
-        source_refs=source_refs_for(inputs.evidence, source_classes=MARKET_QUOTE_CLASSES),
+        observed_at=_proven_observed_at(inputs.evidence, source_refs, inputs.window.window_end_at),
+        source_refs=source_refs,
     )
 
 
@@ -390,14 +414,15 @@ def _build_quote_age(inputs: FeatureBuildInput) -> FeatureValue:
             "quote ages are required for issuer, market, and sector symbols",
         )
     value = max(inputs.window.quote_age_ms.values())
+    source_refs = source_refs_for(inputs.evidence, source_classes=MARKET_QUOTE_CLASSES)
     return FeatureValue(
         feature_id=FEATURE_QUOTE_AGE,
         status=FeatureStatus.PRESENT,
         value=value,
         value_type=FeatureValueType.INTEGER,
         unit="MILLISECONDS",
-        observed_at=inputs.window.window_end_at,
-        source_refs=source_refs_for(inputs.evidence, source_classes=MARKET_QUOTE_CLASSES),
+        observed_at=_proven_observed_at(inputs.evidence, source_refs, inputs.window.window_end_at),
+        source_refs=source_refs,
     )
 
 
@@ -426,14 +451,15 @@ def _build_realized_volatility(inputs: FeatureBuildInput) -> FeatureValue:
     with collector_context():
         values = tuple(triple[0] for triple in recent)
         volatility = _sample_standard_deviation(values) * decimal_sqrt(Decimal(252))
+    source_refs = source_refs_for(inputs.evidence, source_classes=MARKET_TRADE_CLASSES)
     return FeatureValue(
         feature_id=FEATURE_REALIZED_VOL,
         status=FeatureStatus.PRESENT,
         value=volatility,
         value_type=FeatureValueType.DECIMAL_STRING,
         unit="ANNUALIZED_LOG_RETURN_VOLATILITY",
-        observed_at=inputs.window.window_end_at,
-        source_refs=source_refs_for(inputs.evidence, source_classes=MARKET_TRADE_CLASSES),
+        observed_at=_proven_observed_at(inputs.evidence, source_refs, inputs.window.window_end_at),
+        source_refs=source_refs,
     )
 
 
@@ -450,14 +476,15 @@ def _build_residual_momentum(inputs: FeatureBuildInput) -> FeatureValue:
         total = Decimal(0)
         for stock, market, sector in recent:
             total += residualize(stock, market, sector, inputs.beta)
+    source_refs = source_refs_for(inputs.evidence, source_classes=MARKET_TRADE_CLASSES)
     return FeatureValue(
         feature_id=FEATURE_RESIDUAL_MOMENTUM,
         status=FeatureStatus.PRESENT,
         value=total,
         value_type=FeatureValueType.DECIMAL_STRING,
         unit="LOG_RETURN",
-        observed_at=inputs.window.window_end_at,
-        source_refs=source_refs_for(inputs.evidence, source_classes=MARKET_TRADE_CLASSES),
+        observed_at=_proven_observed_at(inputs.evidence, source_refs, inputs.window.window_end_at),
+        source_refs=source_refs,
     )
 
 
@@ -471,14 +498,15 @@ def _build_vwap_distance(inputs: FeatureBuildInput) -> FeatureValue:
                 "window VWAP must be positive",
             )
         value = (symbol_window.last_price / symbol_window.window_vwap - 1) * 10000
+    source_refs = source_refs_for(inputs.evidence, source_classes=MARKET_TRADE_CLASSES)
     return FeatureValue(
         feature_id=FEATURE_VWAP_DISTANCE,
         status=FeatureStatus.PRESENT,
         value=value,
         value_type=FeatureValueType.DECIMAL_STRING,
         unit="BASIS_POINTS",
-        observed_at=inputs.window.window_end_at,
-        source_refs=source_refs_for(inputs.evidence, source_classes=MARKET_TRADE_CLASSES),
+        observed_at=_proven_observed_at(inputs.evidence, source_refs, inputs.window.window_end_at),
+        source_refs=source_refs,
     )
 
 
@@ -493,7 +521,9 @@ def build_earnings_features(inputs: FeatureBuildInput) -> tuple[FeatureValue, ..
             "issuer evidence is required for earnings features",
         )
     release = inputs.release
-    evidence_observed_at = inputs.evidence.receipt(issuer_refs[0]).retrieved_at
+    evidence_observed_at = _proven_observed_at(
+        inputs.evidence, issuer_refs, inputs.evidence.receipt(issuer_refs[0]).retrieved_at
+    )
     features = (
         _unavailable(
             FEATURE_EPS_CONSENSUS, unit="RATIO", value_type=FeatureValueType.DECIMAL_STRING
@@ -656,7 +686,9 @@ def _build_macro_components(inputs: MacroFeatureBuildInput) -> list[FeatureValue
                     value=value,
                     value_type=FeatureValueType.DECIMAL_STRING,
                     unit=unit,
-                    observed_at=inputs.release.published_at,
+                    observed_at=_proven_observed_at(
+                        inputs.evidence, bls_refs, inputs.release.published_at
+                    ),
                     source_refs=bls_refs,
                 )
             )
@@ -703,7 +735,7 @@ def _build_revision_vector(inputs: MacroFeatureBuildInput) -> FeatureValue:
         value=None,
         value_type=FeatureValueType.DECIMAL_STRING_MAP,
         unit="DECIMAL_VECTOR",
-        observed_at=inputs.window_end_at,
+        observed_at=_proven_observed_at(inputs.evidence, bls_refs, inputs.window_end_at),
         source_refs=bls_refs,
         components=tuple(sorted(components, key=lambda item: item.component_id)),
     )
@@ -712,14 +744,15 @@ def _build_revision_vector(inputs: MacroFeatureBuildInput) -> FeatureValue:
 def _build_spy_log_return(inputs: MacroFeatureBuildInput) -> FeatureValue:
     with collector_context():
         value = log_return(inputs.anchor_mid, inputs.end_mid)
+    source_refs = source_refs_for(inputs.evidence, source_classes=MACRO_SPY_QUOTE_CLASSES)
     return FeatureValue(
         feature_id=FEATURE_SPY_EVENT_LOG_RETURN,
         status=FeatureStatus.PRESENT,
         value=value,
         value_type=FeatureValueType.DECIMAL_STRING,
         unit="LOG_RETURN",
-        observed_at=inputs.window_end_at,
-        source_refs=source_refs_for(inputs.evidence, source_classes=MACRO_SPY_QUOTE_CLASSES),
+        observed_at=_proven_observed_at(inputs.evidence, source_refs, inputs.window_end_at),
+        source_refs=source_refs,
     )
 
 
@@ -737,14 +770,15 @@ def _build_spy_zscore(inputs: MacroFeatureBuildInput, event_return: Decimal) -> 
         mad = _median_decimal(deviations)
         scale = max(ZSCORE_MAD_MULTIPLIER * mad, ZSCORE_SCALE_FLOOR)
         value = (event_return - median) / scale
+    source_refs = source_refs_for(inputs.evidence, source_classes=MACRO_SPY_QUOTE_CLASSES)
     return FeatureValue(
         feature_id=FEATURE_SPY_EVENT_ZSCORE,
         status=FeatureStatus.PRESENT,
         value=value,
         value_type=FeatureValueType.DECIMAL_STRING,
         unit="Z_SCORE",
-        observed_at=inputs.window_end_at,
-        source_refs=source_refs_for(inputs.evidence, source_classes=MACRO_SPY_QUOTE_CLASSES),
+        observed_at=_proven_observed_at(inputs.evidence, source_refs, inputs.window_end_at),
+        source_refs=source_refs,
     )
 
 
@@ -760,14 +794,15 @@ def _build_spy_volume_ratio(inputs: MacroFeatureBuildInput) -> FeatureValue:
         value = Decimal(inputs.window_volume) / _median_decimal(
             tuple(Decimal(volume) for volume in prior)
         )
+    source_refs = source_refs_for(inputs.evidence, source_classes=MACRO_SPY_TRADE_CLASSES)
     return FeatureValue(
         feature_id=FEATURE_SPY_EVENT_VOLUME_RATIO,
         status=FeatureStatus.PRESENT,
         value=value,
         value_type=FeatureValueType.DECIMAL_STRING,
         unit="RATIO",
-        observed_at=inputs.window_end_at,
-        source_refs=source_refs_for(inputs.evidence, source_classes=MACRO_SPY_TRADE_CLASSES),
+        observed_at=_proven_observed_at(inputs.evidence, source_refs, inputs.window_end_at),
+        source_refs=source_refs,
     )
 
 
@@ -780,28 +815,30 @@ def _build_spy_vwap_distance(inputs: MacroFeatureBuildInput) -> FeatureValue:
                 "window VWAP must be positive",
             )
         value = (inputs.end_mid / inputs.window_vwap - 1) * 10000
+    source_refs = source_refs_for(inputs.evidence, source_classes=MACRO_SPY_TRADE_CLASSES)
     return FeatureValue(
         feature_id=FEATURE_SPY_EVENT_VWAP_DISTANCE,
         status=FeatureStatus.PRESENT,
         value=value,
         value_type=FeatureValueType.DECIMAL_STRING,
         unit="BASIS_POINTS",
-        observed_at=inputs.window_end_at,
-        source_refs=source_refs_for(inputs.evidence, source_classes=MACRO_SPY_TRADE_CLASSES),
+        observed_at=_proven_observed_at(inputs.evidence, source_refs, inputs.window_end_at),
+        source_refs=source_refs,
     )
 
 
 def _build_spy_range(inputs: MacroFeatureBuildInput) -> FeatureValue:
     with collector_context():
         value = (inputs.window_high - inputs.window_low) / inputs.window_vwap * 10000
+    source_refs = source_refs_for(inputs.evidence, source_classes=MACRO_SPY_QUOTE_CLASSES)
     return FeatureValue(
         feature_id=FEATURE_SPY_EVENT_RANGE,
         status=FeatureStatus.PRESENT,
         value=value,
         value_type=FeatureValueType.DECIMAL_STRING,
         unit="BASIS_POINTS",
-        observed_at=inputs.window_end_at,
-        source_refs=source_refs_for(inputs.evidence, source_classes=MACRO_SPY_QUOTE_CLASSES),
+        observed_at=_proven_observed_at(inputs.evidence, source_refs, inputs.window_end_at),
+        source_refs=source_refs,
     )
 
 
@@ -813,14 +850,15 @@ def _build_spy_reversal(inputs: MacroFeatureBuildInput, event_return: Decimal) -
             value = (inputs.end_mid - inputs.window_low) / inputs.window_low * 10000
         else:
             value = Decimal(0)
+    source_refs = source_refs_for(inputs.evidence, source_classes=MACRO_SPY_QUOTE_CLASSES)
     return FeatureValue(
         feature_id=FEATURE_SPY_EVENT_REVERSAL,
         status=FeatureStatus.PRESENT,
         value=value,
         value_type=FeatureValueType.DECIMAL_STRING,
         unit="BASIS_POINTS",
-        observed_at=inputs.window_end_at,
-        source_refs=source_refs_for(inputs.evidence, source_classes=MACRO_SPY_QUOTE_CLASSES),
+        observed_at=_proven_observed_at(inputs.evidence, source_refs, inputs.window_end_at),
+        source_refs=source_refs,
     )
 
 
@@ -836,14 +874,15 @@ def _build_spy_nbbo_spread(inputs: MacroFeatureBuildInput) -> FeatureValue:
         symbol=inputs.spy_symbol,
         window_end_at=inputs.window_end_at,
     )
+    source_refs = source_refs_for(inputs.evidence, source_classes=MACRO_SPY_QUOTE_CLASSES)
     return FeatureValue(
         feature_id=FEATURE_SPY_NBBO_SPREAD,
         status=FeatureStatus.PRESENT,
         value=value,
         value_type=FeatureValueType.DECIMAL_STRING,
         unit="BASIS_POINTS",
-        observed_at=inputs.window_end_at,
-        source_refs=source_refs_for(inputs.evidence, source_classes=MACRO_SPY_QUOTE_CLASSES),
+        observed_at=_proven_observed_at(inputs.evidence, source_refs, inputs.window_end_at),
+        source_refs=source_refs,
     )
 
 
@@ -867,14 +906,15 @@ def _build_spy_quote_age(inputs: MacroFeatureBuildInput) -> FeatureValue:
         )
     latest = max(eligible, key=lambda item: item.observed_at)
     age_ms = int((inputs.window_end_at - latest.observed_at).total_seconds() * 1000)
+    source_refs = source_refs_for(inputs.evidence, source_classes=MACRO_SPY_QUOTE_CLASSES)
     return FeatureValue(
         feature_id=FEATURE_SPY_QUOTE_AGE,
         status=FeatureStatus.PRESENT,
         value=age_ms,
         value_type=FeatureValueType.INTEGER,
         unit="MILLISECONDS",
-        observed_at=inputs.window_end_at,
-        source_refs=source_refs_for(inputs.evidence, source_classes=MACRO_SPY_QUOTE_CLASSES),
+        observed_at=_proven_observed_at(inputs.evidence, source_refs, inputs.window_end_at),
+        source_refs=source_refs,
     )
 
 
@@ -889,14 +929,15 @@ def _build_spy_realized_volatility(inputs: MacroFeatureBuildInput) -> FeatureVal
     recent = returns[-VOLATILITY_SESSIONS:]
     with collector_context():
         volatility = _sample_standard_deviation(recent) * decimal_sqrt(Decimal(252))
+    source_refs = source_refs_for(inputs.evidence, source_classes=MACRO_SPY_TRADE_CLASSES)
     return FeatureValue(
         feature_id=FEATURE_SPY_REALIZED_VOL,
         status=FeatureStatus.PRESENT,
         value=volatility,
         value_type=FeatureValueType.DECIMAL_STRING,
         unit="ANNUALIZED_LOG_RETURN_VOLATILITY",
-        observed_at=inputs.window_end_at,
-        source_refs=source_refs_for(inputs.evidence, source_classes=MACRO_SPY_TRADE_CLASSES),
+        observed_at=_proven_observed_at(inputs.evidence, source_refs, inputs.window_end_at),
+        source_refs=source_refs,
     )
 
 

@@ -494,6 +494,22 @@ def compile_strategy_snapshot(
     prior_session = (
         sorted(prior_sessions, key=lambda item: item.session_date)[-1] if (prior_sessions) else None
     )
+    prior_eligible_session_close_at: datetime | None = None
+    if record.cohort_id == "AMC":
+        if prior_session is None:
+            raise CollectorRejected(
+                CollectorReason.PRIMARY_RELEASE_LATE,
+                f"candidate.{record.event_id}",
+                "AMC requires an eligible prior regular session before the reaction session",
+            )
+        scheduled_date = record.scheduled_at.astimezone(TRADING_TIMEZONE).date()
+        if prior_session.close_at.astimezone(TRADING_TIMEZONE).date() != scheduled_date:
+            raise CollectorRejected(
+                CollectorReason.TIMING_BUCKET_CONFLICT,
+                f"candidate.{record.event_id}",
+                "AMC prior session close must share the scheduled ET date",
+            )
+        prior_eligible_session_close_at = prior_session.close_at
 
     release = evidence.issuer_release(record.event_id)
     if release is None:
@@ -758,6 +774,7 @@ def compile_strategy_snapshot(
         timing_bucket=timing_bucket,
         release_family=None,
         event_published_at=release.provenance.published_at,
+        prior_eligible_session_close_at=prior_eligible_session_close_at,
         reaction_session_id=reaction_session.session_id,
         reaction_session_open_at=reaction_session.open_at,
         reaction_session_close_at=reaction_session.close_at,
