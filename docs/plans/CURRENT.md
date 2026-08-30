@@ -288,6 +288,139 @@ Compare at minimum:
 
 Report coverage, abstention, rejection, data failures, package failures, costs, drawdown, concentration, sensitivity, uncertainty, and full PnL attribution. Directional accuracy alone is not a trading result.
 
+### 9.1 Close the strategy family before implementation
+
+The current research inputs describe materially different strategies: an intraday reaction lane and a multi-day post-earnings continuation lane. They may share evidence contracts, but they do not share one target, execution budget, or risk model. Gate C must preregister and compare them rather than silently blend them.
+
+- BMO and AMC remain separate cohorts.
+- Entry-clock candidates are the first regular-session auction, 09:35, 09:45, 10:00, and the regular-session close.
+- Exit-clock candidates are same-day close, D+1 close, D+5, D+10, and D+20.
+- The trial budget, selection metric, chronological partitions, transaction-cost model, and untouched confirmation set are frozen before outcome inspection.
+- Promote one target/clock policy only when it is stable across neighbouring clocks and survives after-cost chronological evaluation. Otherwise report no winner.
+- If the edge requires sub-second reaction to public news, reject that lane. A hosted LLM and Alpaca PAPER are not a high-frequency execution stack.
+
+Research basis for this contest rather than assuming the classic anomaly persists unchanged:
+
+- transaction costs materially reduce implementable PEAD profits: <https://doi.org/10.1111/j.1475-679X.2008.00290.x>;
+- one modern study reports classic PEAD largely absent in large stocks since 2006: <https://doi.org/10.31235/osf.io/z7k3p>;
+- text-derived earnings-call surprise reports stronger recent drift than classic numeric PEAD: <https://doi.org/10.1017/S0022109022001181>.
+
+### 9.2 Parameter ownership and change control
+
+Every parameter belongs to exactly one class:
+
+1. **Hard safety policy:** PAPER-only, authority boundaries, stale-data lockout, permitted instruments, account/exposure ceilings, idempotency, reservation, close-only recovery, reconciliation, and flatness. These values are conservative and cannot be tuned against returns.
+2. **Research parameter:** entry clock, holding horizon, feature inclusion, deterministic thresholds, stop/take-profit overlay, and expression. These are chosen only through the frozen Gate C/D protocol.
+3. **Commissioning limit:** deliberately restrictive PAPER limits used to prove safe unattended operation. They are not alpha claims and may only be relaxed by an approved policy release with evidence.
+4. **Runtime measurement:** source delay, model latency, quote age, broker acknowledgement/fill time, slippage, rejection, and reconciliation duration. Measurements never silently rewrite policy.
+
+Each release binds the strategy, data, feature, prompt/model, expression, risk, exit, latency, and execution-policy identities. Production cannot self-train, retune, promote, or amend them.
+
+### 9.3 PAPER commissioning risk envelope
+
+Until a larger evidence-backed policy is approved, autonomous PAPER commissioning uses these ceilings:
+
+- maximum approved loss per event is `0.25%` of reconciled net liquidation value;
+- maximum aggregate open worst-case loss is `1.00%`;
+- maximum one-sector or correlated event-bucket risk is `0.50%`;
+- pending entry orders reserve their full potential loss before submission;
+- one event position may be open during broker commissioning; after lifecycle/fault tests pass, the maximum is four within the aggregate cap;
+- no leverage, averaging down, discretionary size increase, or risk-limit change during an active release;
+- a `1.00%` session loss disables new entries and cancels pending entries after reconciliation;
+- a `3.00%` high-water drawdown freezes the strategy once positions and orders are reconciled;
+- an operational discrepancy enters `ENTRY_DISABLED`/`CLOSE_ONLY` independently of strategy PnL.
+
+Sizing uses worst-case loss rather than cash outlay alone:
+
+```text
+R_event = min(
+  0.25% * reconciled_NLV,
+  remaining_portfolio_risk,
+  remaining_sector_risk,
+  liquidity_capacity,
+)
+
+quantity = floor(R_event / worst_case_loss_per_unit)
+```
+
+For a long option or ordinary long debit vertical, worst-case package loss is the executable debit times the contract multiplier and quantity, plus modelled fees and operational reserves. For shares, quantity uses the maximum of the validated exit distance, adverse event-move stress, and overnight-gap stress, with separate notional and liquidity caps. If one indivisible package exceeds the budget, emit `NO_PACKAGE`; never enlarge the budget to force a trade. Kelly sizing is prohibited until a sufficiently large untouched/prospective sample supports a conservative estimate and a separately approved cap.
+
+### 9.4 Exit, stop, and emergency policy
+
+The lifecycle distinguishes four concepts:
+
+1. **Strategy exit:** the frozen alpha hypothesis, initially benchmarked against a time-only exit.
+2. **Hard time exit:** an event-clock deadline that late fills cannot extend.
+3. **Safety/emergency exit:** deterministic containment for data, policy, monitor, broker, expiry, assignment, or exposure failures.
+4. **Reconciliation:** independent proof that orders, fills, positions, reservations, and the broker agree and the account is flat when required.
+
+Stop-loss and take-profit rules are research overlays, not presumed safety. Compare a small preregistered family—time-only, volatility/residual invalidation, deterministic signal-decay, and fixed-risk overlays—and promote an overlay only if it improves untouched after-cost results and expected shortfall across neighbouring values.
+
+Equity bracket/OCO orders may provide a secondary defence, but stop-market execution price is not guaranteed, stop-limit orders may not fill, and cancellation races require immediate reconciliation. Position size must remain safe if the stop slips or fails.
+
+Current Alpaca US documentation states that single-leg options support `market`, `limit`, `stop`, and `stop_limit`, while multi-leg option orders support `market` and `limit` only. The order schema permits equity `bracket`/`OCO`/`OTO` classes but options only `simple` or `mleg`. Therefore:
+
+- do not claim broker-native bracket/OCO protection for options;
+- do not use native single-option stops until the pinned adapter and PAPER contract tests prove exact behaviour;
+- manage debit-vertical exits deterministically from fresh two-sided leg quotes;
+- compute conservative closing value from executable quote sides, not midpoint;
+- close verticals as atomic multi-leg packages with bounded repricing;
+- never leg out except through an explicit reconciled emergency procedure;
+- close before the frozen expiry/assignment boundary and poll REST state where streaming does not cover assignment.
+
+Emergency flattening has one owner and one state machine:
+
+```text
+ENTRY_DISABLED
+  -> CANCEL_PENDING_ENTRIES
+  -> RECONCILE
+  -> CLOSE_ONLY
+  -> FLATTENING
+  -> BROKER_CONFIRMED_FLAT
+```
+
+Unknown broker state is reconciled before a new close is submitted; blind flattening may invert a position.
+
+### 9.5 Feature and RSI policy
+
+Deterministic code computes every numeric feature. The initial hypothesis set is deliberately small: permitted numeric/guidance/text surprise, market/sector residual reaction, relative volume, spread and quote age, realised volatility, pre-event residual momentum, and distance from session VWAP.
+
+RSI is an optional ablation for the specific continuation-versus-reversal hypothesis. Its lookback, input bars, adjustment policy, and cutoff are frozen before evaluation. It cannot independently authorize a trade, and it is removed if it adds no untouched after-cost value over simpler price features. Do not create an indicator zoo of correlated RSI/MACD/moving-average/Bollinger transformations.
+
+The LLM consumes immutable evidence and precomputed features. It does not calculate indicators, select feature windows, or use self-reported confidence as a sizing input. Its incremental contribution must beat price-only, parser, transparent statistical, and deterministic text baselines prospectively.
+
+### 9.6 Decision, quote, and execution latency
+
+Optimise latency around the promoted observation clock, not as a vanity metric. Precompute source retrieval, parsing, historical context, and model/provider readiness before the clock; at the clock add only fresh market/sector/volume observations and the bounded decision.
+
+Initial commissioning service-level objectives, measured rather than assumed, are:
+
+- deterministic feature refresh: p95 below `250 ms`;
+- LLM response: p95 below `5 s`, hard timeout by `8 s`, no blind retry;
+- validation, package, reservation, and permit: p95 below `250 ms`;
+- broker acknowledgement: measured continuously, initial p95 target below `2 s`;
+- complete decision-to-submit path: p95 below `10 s`.
+
+A model timeout is `UNCERTAIN`/`NO_TRADE`. Separate evidence validity, decision validity, package quote validity, and order deadline. The existing 60-second permit TTL cannot substitute for quote freshness. Provisional quote-age ceilings are one second for equities and two seconds per option leg; any expired quote requires package refresh and complete revalidation.
+
+Every Passport records publisher, receipt, evidence-ready, observation-clock, model request/response, quote, permit, submit, acknowledgement, first-fill, final-fill, close, and reconciliation timestamps.
+
+### 9.7 Market-data and PAPER realism gate
+
+Alpaca PAPER does not model market impact, latency slippage, queue position, price improvement, or displayed NBBO quantity. Broker PAPER PnL therefore remains separate from conservative executable shadow PnL.
+
+The Basic options feed is indicative; OPRA is the consolidated options feed. Autonomous option entry and exit stay disabled unless the runtime proves its current entitlement and quote source. A fast decision against indicative option prices is not executable evidence.
+
+Sources reviewed for these broker capabilities and limitations:
+
+- <https://docs.alpaca.markets/us/docs/options-trading>
+- <https://docs.alpaca.markets/us/docs/options-level-3-trading>
+- <https://docs.alpaca.markets/us/reference/postorder>
+- <https://docs.alpaca.markets/us/docs/orders-at-alpaca>
+- <https://docs.alpaca.markets/us/docs/paper-trading>
+- <https://docs.alpaca.markets/us/docs/real-time-option-data>
+- <https://docs.alpaca.markets/changelog/options-stop-limit-orders>
+
 ## 10. PnL objective
 
 Before strategy freeze, copy the organizer's rules into a versioned competition contract. The optimal policy changes materially between:
@@ -315,17 +448,17 @@ This is dependency order for the complete architecture, not a sequence of reduce
 
 1. Complete Gate A and freeze the competition/account contract without inventing inaccessible rules.
 2. Complete Gate B for both earnings and macro candidates; block any lane without a legitimate point-in-time data manifest.
-3. Freeze each candidate's universe, information cutoff, target, clocks, baselines, chronological partitions, amendment rule, and claim boundary.
-4. Define evidence, feature, reasoner, decision, expression, risk, permit, lifecycle, Passport, reconciliation, evaluation, and release contracts.
+3. Freeze each candidate's universe, information cutoff, target, clock grid, feature hypothesis set, parameter-selection protocol, baselines, chronological partitions, cost model, amendment rule, and claim boundary.
+4. Define evidence, feature, reasoner, decision, expression, portfolio-risk, reservation, exit, latency, permit, lifecycle, Passport, reconciliation, evaluation, and release contracts.
 5. Build the security master, earnings calendar, issuer/SEC/news, macro-release, fundamental, market/sector, and option-observation pipelines required by those manifests.
 6. Build deterministic features, price-only and parser baselines, placebo controls, the provider-neutral LLM adapter, and strict validator.
-7. Complete Gate C using survivorship-safe historical panels, untouched manifests, and prospective signal ledgers; promote one frozen directional policy or report no winner.
+7. Complete Gate C using survivorship-safe historical panels, bounded parameter trials, untouched manifests, and prospective signal ledgers; promote one frozen directional/clock/exit policy or report no winner.
 8. Complete Gate D for the winning policy; promote one expression only if its executable after-cost evidence supports it.
 9. Build deterministic selection for the promoted expression, including explicit `NO_PACKAGE` outcomes.
-10. Build account risk, durable reservations, idempotent permits, entry/close controls, and the append-only Trade Passport.
-11. Build the monitored order/position lifecycle, exposure-aware reducer, and reconciliation worker using the promoted policy's frozen exit clock.
-12. Prove an offline causal slice from source bytes to a final-flat fake-broker Passport.
-13. Run the full-stack prospective shadow ledger with explicit evidence modes, `NOT RUN`, broker/shadow PnL separation, and complete-denominator reporting.
+10. Build account-relative risk, durable reservations, correlation buckets, drawdown states, quote-bound idempotent permits, entry/close controls, and the append-only Trade Passport.
+11. Build the monitored order/position lifecycle, validated strategy exit, hard time exit, synthetic option-package exit, emergency flattening, exposure-aware reducer, and reconciliation worker.
+12. Prove an offline causal slice from source bytes to a final-flat fake-broker Passport, including restart, duplicate, stale-quote, partial-fill, lost-monitor, assignment/expiry, and ambiguous-timeout faults.
+13. Run the full-stack prospective shadow ledger with explicit evidence modes, measured latency, quote-side execution economics, `NOT RUN`, broker/shadow PnL separation, and complete-denominator reporting.
 14. Complete Gate E only after explicit approval: record one strategy-generated Alpaca PAPER open-to-flat lifecycle and broker-confirmed flatness.
 
 Parallelism is allowed only across independent ownership boundaries. Shared contracts and hotspot files have one owner.
