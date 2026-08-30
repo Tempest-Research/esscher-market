@@ -52,6 +52,8 @@ from ringdown_market.data.provenance import (
 from ringdown_market.data.snapshot import (
     SNAPSHOT_SCHEMA,
     SNAPSHOT_SCHEMA_VERSION,
+    STRATEGY_SNAPSHOT_PROTOCOL,
+    STRATEGY_SNAPSHOT_PROTOCOL_SHA256,
     CompiledSnapshot,
     SnapshotEvent,
     SnapshotRejected,
@@ -71,6 +73,8 @@ __all__ = [
     "REQUIRED_LATENCY_PROFILE",
     "SNAPSHOT_SCHEMA",
     "SNAPSHOT_SCHEMA_VERSION",
+    "STRATEGY_SNAPSHOT_PROTOCOL",
+    "STRATEGY_SNAPSHOT_PROTOCOL_SHA256",
     "SUPPORTED_ADAPTER_REGISTRIES",
     "ZERO_LATENCY_PROFILE",
     "BarObservation",

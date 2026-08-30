@@ -31,6 +31,7 @@
 - Frozen confirmation-panel selection rule and honest empty panel manifest bound to the selection-rule and strategy-policy hashes, with a strict panel contract and deterministic zero-latency/p95 Q-FAST report builder (superseded as the historical panel by the 23-event universe above; retained for the prospective confirmation view).
 - `docs/research/qfast-confirmation-panel.md` recording the preregistered panel rules and the exact issue-#3 stop conditions that keep the panel at `COLLECTION_INCOMPLETE` with `INSUFFICIENT_DATA`.
 - Attributable prospective shadow ledger and read-only orchestrator running the exact frozen strategy, option compiler, and risk kernel end to end without order authority, retaining every abstention, rejection, `NO_PACKAGE`, risk result, and shadow hold in immutable records with deterministic hash-bound reports.
+- Registered the merged Esscher v1 strategy-policy hash and the `esscher.strategy_snapshot` protocol hash into the panel assembler's `KNOWN_*` registries, unblocking the real-panel upstream-contract gates; unregistered hashes still fail closed.
 
 ### Safety
 

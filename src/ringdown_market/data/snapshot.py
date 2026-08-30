@@ -31,6 +31,33 @@ SNAPSHOT_SCHEMA_VERSION = 1
 FEATURE_COMPUTATION_PRECISION = "%.12f"
 
 
+def _canonical_json_bytes(value: object) -> bytes:
+    return json.dumps(
+        value,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    ).encode("utf-8")
+
+
+STRATEGY_SNAPSHOT_PROTOCOL = {
+    "schema": "esscher.strategy_snapshot_protocol",
+    "schema_version": 1,
+    "snapshot_schema": SNAPSHOT_SCHEMA,
+    "snapshot_schema_version": SNAPSHOT_SCHEMA_VERSION,
+    "cutoff_rule": "OBSERVATION_WINDOW_END",
+    "adjustment_policy": ADJUSTMENT_POLICY_V1,
+    "hash_representation": HASH_REPRESENTATION,
+    "data_qualifiers": ["INDICATIVE_DATA", "NOT_ALPHA_EVIDENCE"],
+    "imputation_forbidden": True,
+    "post_cutoff_evidence_forbidden": True,
+}
+STRATEGY_SNAPSHOT_PROTOCOL_SHA256 = hashlib.sha256(
+    _canonical_json_bytes(STRATEGY_SNAPSHOT_PROTOCOL)
+).hexdigest()
+
+
 class SnapshotRejectionReason(StrEnum):
     """Stable fail-closed reasons a snapshot cannot become eligible."""
 
@@ -99,16 +126,6 @@ class CompiledSnapshot:
     sha256: str
     eligible: bool
     rejection_reasons: tuple[str, ...]
-
-
-def _canonical_json_bytes(value: object) -> bytes:
-    return json.dumps(
-        value,
-        sort_keys=True,
-        separators=(",", ":"),
-        ensure_ascii=False,
-        allow_nan=False,
-    ).encode("utf-8")
 
 
 def _feature_value_text(value: float) -> str:
