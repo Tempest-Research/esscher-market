@@ -108,6 +108,84 @@ def test_findings_are_deterministic_for_mutated_input() -> None:
     )
 
 
+def test_finding_order_is_pinned_to_the_check_sequence() -> None:
+    def mutate(payload: dict[str, object]) -> None:
+        payload["records"][0]["publisher"] = ""
+        payload["records"][0]["source_url"] = "http://example.com/release"
+        payload["records"][0]["content_sha256"] = "not-a-hash"
+        payload["feature_dependencies"][0]["dependency_check"] = "PENDING"
+
+    assert _codes(check_manifest(_mutated(mutate))) == [
+        (SourceHealthCode.URL_NOT_HTTPS.value, "/records/0/source_url"),
+        (SourceHealthCode.PUBLISHER_MISSING.value, "/records/0/publisher"),
+        (SourceHealthCode.REVISION_IDENTITY_MISSING.value, "/records/0/content_sha256"),
+        (
+            SourceHealthCode.DEPENDENCY_MISSING_OR_OPEN.value,
+            "/feature_dependencies/0/dependency_check",
+        ),
+    ]
+
+
+def _unescape_pointer_part(part: str) -> str:
+    return part.replace("~1", "/").replace("~0", "~")
+
+
+def _resolve_parent(document: object, pointer: str) -> tuple[object, str]:
+    parts = [_unescape_pointer_part(part) for part in pointer.split("/")[1:]]
+    node = document
+    for part in parts[:-1]:
+        node = node[int(part)] if isinstance(node, list) else node[part]
+    return node, parts[-1]
+
+
+_CODES_POINTING_AT_ABSENT_FIELDS = {
+    SourceHealthCode.CLASSIFICATION_MISSING,
+    SourceHealthCode.DEPENDENCY_MISSING_OR_OPEN,
+    SourceHealthCode.FIELD_MISSING,
+    SourceHealthCode.PROVENANCE_MAPPING_INVALID,
+    SourceHealthCode.PUBLISHER_MISSING,
+    SourceHealthCode.RETRIEVAL_TIME_MISSING,
+    SourceHealthCode.REVISION_IDENTITY_MISSING,
+    SourceHealthCode.URL_MISSING,
+}
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        lambda p: p["records"][0].pop("source_url"),
+        lambda p: p["records"][0].pop("publisher"),
+        lambda p: p["records"][0].pop("retrieved_at"),
+        lambda p: p["records"][0].pop("content_sha256"),
+        lambda p: p["records"][0].update({"source_url": "file:///local"}),
+        lambda p: p["records"][0].update({"field_status": "CONFLICTING"}),
+        lambda p: p.pop("frozen_at"),
+        lambda p: p.pop("data_class"),
+        lambda p: p.pop("field_source_refs"),
+        lambda p: p["feature_dependencies"][0].update({"dependency_check": "OPEN"}),
+        lambda p: p["field_source_refs"].update({"ticker": ["ghost"]}),
+        lambda p: p.update({"surprise": 1}),
+        lambda p: p.update({"feature_snapshot_at": "2026-09-12T00:00:00Z"}),
+    ],
+)
+def test_every_pointer_is_exact_within_the_manifest(
+    mutate: Callable[[dict[str, object]], None],
+) -> None:
+    raw = _mutated(mutate)
+    document = json.loads(raw)
+    report = check_manifest(raw)
+
+    assert report.findings
+    for finding in report.findings:
+        if not finding.pointer:
+            continue
+        parent, last = _resolve_parent(document, finding.pointer)
+        if finding.code in _CODES_POINTING_AT_ABSENT_FIELDS:
+            continue
+        exists = int(last) < len(parent) if isinstance(parent, list) else last in parent
+        assert exists, finding
+
+
 def test_non_bytes_input_raises_type_error() -> None:
     with pytest.raises(TypeError):
         check_manifest("not bytes")  # type: ignore[arg-type]
