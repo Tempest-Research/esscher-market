@@ -19,7 +19,7 @@ from pathlib import Path
 
 from .policy import RISK_POLICY_SHA256, RISK_POLICY_VERSION
 
-LEDGER_SCHEMA_VERSION = 1
+LEDGER_SCHEMA_VERSION = 2
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta(
@@ -88,6 +88,24 @@ CREATE TABLE IF NOT EXISTS migrated_events(
     event_run_id TEXT PRIMARY KEY,
     lifecycle TEXT NOT NULL,
     updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS lifecycle_states(
+    event_run_id TEXT PRIMARY KEY,
+    reservation_id TEXT NOT NULL,
+    state TEXT NOT NULL,
+    opening_client_order_id TEXT,
+    closing_client_order_id TEXT,
+    opened_at TEXT,
+    close_due_at TEXT,
+    updated_at TEXT NOT NULL,
+    fail_code TEXT
+);
+CREATE TABLE IF NOT EXISTS lifecycle_ticks(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_run_id TEXT NOT NULL,
+    at TEXT NOT NULL,
+    tick TEXT NOT NULL,
+    UNIQUE(event_run_id, tick)
 );
 """
 
@@ -388,5 +406,94 @@ class RiskLedger:
     def migrated_events(self) -> tuple[str, ...]:
         cursor = self._connection.execute(
             "SELECT event_run_id FROM migrated_events ORDER BY event_run_id"
+        )
+        return tuple(row[0] for row in cursor.fetchall())
+
+    def set_lifecycle_state(
+        self,
+        *,
+        event_run_id: str,
+        reservation_id: str,
+        state: str,
+        updated_at: datetime,
+        opening_client_order_id: str | None = None,
+        closing_client_order_id: str | None = None,
+        opened_at: datetime | None = None,
+        close_due_at: datetime | None = None,
+        fail_code: str | None = None,
+    ) -> None:
+        """Persist one lifecycle transition before any downstream side effect."""
+
+        with self._transaction() as cursor:
+            cursor.execute(
+                "INSERT INTO lifecycle_states(event_run_id, reservation_id, state, "
+                "opening_client_order_id, closing_client_order_id, opened_at, close_due_at, "
+                "updated_at, fail_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) "
+                "ON CONFLICT(event_run_id) DO UPDATE SET "
+                "state = excluded.state, "
+                "opening_client_order_id = excluded.opening_client_order_id, "
+                "closing_client_order_id = excluded.closing_client_order_id, "
+                "opened_at = excluded.opened_at, "
+                "close_due_at = excluded.close_due_at, "
+                "updated_at = excluded.updated_at, "
+                "fail_code = excluded.fail_code",
+                (
+                    event_run_id,
+                    reservation_id,
+                    state,
+                    opening_client_order_id,
+                    closing_client_order_id,
+                    _utc_text(opened_at) if opened_at else None,
+                    _utc_text(close_due_at) if close_due_at else None,
+                    _utc_text(updated_at),
+                    fail_code,
+                ),
+            )
+
+    def lifecycle_state(self, event_run_id: str) -> dict[str, object] | None:
+        cursor = self._connection.execute(
+            "SELECT event_run_id, reservation_id, state, opening_client_order_id, "
+            "closing_client_order_id, opened_at, close_due_at, updated_at, fail_code "
+            "FROM lifecycle_states WHERE event_run_id = ?",
+            (event_run_id,),
+        )
+        row = cursor.fetchone()
+        if row is None:
+            return None
+
+        def _timestamp(value: str | None) -> datetime | None:
+            if value is None:
+                return None
+            return datetime.fromisoformat(value).astimezone(UTC)
+
+        return {
+            "event_run_id": row[0],
+            "reservation_id": row[1],
+            "state": row[2],
+            "opening_client_order_id": row[3],
+            "closing_client_order_id": row[4],
+            "opened_at": _timestamp(row[5]),
+            "close_due_at": _timestamp(row[6]),
+            "updated_at": _timestamp(row[7]),
+            "fail_code": row[8],
+        }
+
+    def record_lifecycle_tick(self, *, event_run_id: str, tick: str, at: datetime) -> bool:
+        """Record one tick idempotently; returns False when the tick already ran."""
+
+        try:
+            with self._transaction() as cursor:
+                cursor.execute(
+                    "INSERT INTO lifecycle_ticks(event_run_id, at, tick) VALUES (?, ?, ?)",
+                    (event_run_id, _utc_text(at), tick),
+                )
+        except sqlite3.IntegrityError:
+            return False
+        return True
+
+    def lifecycle_ticks(self, event_run_id: str) -> tuple[str, ...]:
+        cursor = self._connection.execute(
+            "SELECT tick FROM lifecycle_ticks WHERE event_run_id = ? ORDER BY id",
+            (event_run_id,),
         )
         return tuple(row[0] for row in cursor.fetchall())
