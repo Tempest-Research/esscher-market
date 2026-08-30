@@ -17,6 +17,8 @@
 - Frozen Esscher v1 residual-earnings strategy policy (`docs/STRATEGY_V1.md`, `configs/strategy_v1.json`) with a deterministic byte-bound policy hash, strict fail-closed parser, and preregistered evidence thresholds.
 - Typed strategy decision contract under `src/ringdown_market/strategy/` with stable abstention codes, code-derived reaction relation, evidence citations, strongest-falsifier record, and lineage hashes.
 - Synthetic reasoner-output development fixtures labelled as supplied test inputs, never strategy output.
+- Read-only point-in-time strategy snapshot collector (`esscher.strategy_snapshot/v1`) with provenance contracts, synchronized return/beta feature construction, corporate-action receipts, deterministic fake adapters, and an inert credential-rejecting capture command.
+- `docs/STRATEGY_DATA_PIPELINE.md` specifying exact source, timing, adjustment, entitlement, and recovery rules for snapshot collection.
 
 ### Safety
 
@@ -24,6 +26,7 @@
 - The strategy policy is inert, hash-bound, and frozen: post-freeze mutation, unfrozen documents, unknown fields, duplicate keys, non-finite values, and future timestamps are rejected.
 - Strategy decisions cannot carry order, permit, account, or contract fields; every abstention becomes `UNCERTAIN` with stable reason codes and no fallback signal exists.
 - Self-reported confidence never authorizes a trade and prose never controls market arithmetic.
+- The snapshot collector is read-only and credential-free: post-cutoff evidence, stale observations, unsynchronized windows, missing inputs, non-finite values, and redistribution violations fail closed with stable reason codes, and identical sources plus policy produce byte-identical snapshots.
 - Evidence-manifest v2 remains ineligible for permit compilation and carries no post-cutoff path or outcome value.
 - Partial or contradictory package fills stop for reconciliation; missing fees remain explicit and raw broker/account identities never enter the receipt bundle.
 - Scheduled unknown, ambiguous, partial, overlapping, or integrity-invalid state fails closed without sequential-leg repair, guessed P&L, or another mutation.

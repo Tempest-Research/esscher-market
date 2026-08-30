@@ -24,6 +24,8 @@ from .alpha.qfast import (
     evaluate_latency_gate,
     run_qfast,
 )
+from .data.adapters import HostConfigRejected, validate_capture_host_config
+from .data.capture import CaptureRequestRejected, run_capture_request
 from .demo.judge_trace import load_packaged_trace_inputs, render_judge_trace
 from .runtime.scheduled import (
     ScheduledEventManifest,
@@ -33,6 +35,7 @@ from .runtime.scheduled import (
     ScheduledRunError,
     run_scheduled_event_command,
 )
+from .strategy.policy import STRATEGY_POLICY_V1_SHA256, parse_frozen_strategy_policy_v1
 
 ALLOWED_DATA_CLASSES = {
     "SYNTHETIC_CONTRACT_FIXTURE",
@@ -261,6 +264,18 @@ def _build_parser() -> argparse.ArgumentParser:
         help="render the packaged offline read-only evidence-to-receipt walkthrough",
     )
     trace.add_argument("--output", type=Path, required=True)
+    capture = subparsers.add_parser(
+        "capture-snapshot",
+        help=(
+            "compile one read-only point-in-time strategy snapshot from an explicit "
+            "host configuration and capture request; performs no broker mutation and no "
+            "network access"
+        ),
+    )
+    capture.add_argument("--host-config", type=Path, required=True)
+    capture.add_argument("--policy", type=Path, required=True)
+    capture.add_argument("--input", type=Path, required=True)
+    capture.add_argument("--output", type=Path, required=True)
     return parser
 
 
@@ -353,5 +368,47 @@ def main(
             print(error.to_json_bytes().decode("utf-8"))
             return 3 if is_manual else 4
         print(result.to_json_bytes().decode("utf-8"))
+        return 0
+    if args.command == "capture-snapshot":
+        try:
+            host_config = json.loads(args.host_config.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            print("capture host configuration is missing or not valid JSON")
+            return 2
+        try:
+            validate_capture_host_config(host_config)
+        except HostConfigRejected as error:
+            print(f"capture host configuration rejected: {error}")
+            return 2
+        try:
+            policy = parse_frozen_strategy_policy_v1(args.policy.read_bytes())
+        except Exception as error:
+            print(f"capture policy rejected: {error}")
+            return 3
+        try:
+            snapshot = run_capture_request(
+                args.input.read_bytes(),
+                policy=policy,
+                expected_policy_sha256=STRATEGY_POLICY_V1_SHA256,
+            )
+        except CaptureRequestRejected as error:
+            print(f"capture request rejected: {error}")
+            return 3
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_bytes(snapshot.raw)
+        print(
+            _canonical_json(
+                {
+                    "schema": snapshot.payload["schema"],
+                    "schema_version": snapshot.payload["schema_version"],
+                    "event_id": snapshot.payload["event_id"],
+                    "eligibility": snapshot.payload["eligibility"],
+                    "rejection_reasons": snapshot.payload["rejection_reasons"],
+                    "snapshot_sha256": snapshot.sha256,
+                    "mode": "READ_ONLY_CAPTURE",
+                    "claims": ["NO_BROKER_EXECUTION", "NOT_ALPHA_EVIDENCE", "INDICATIVE_DATA"],
+                }
+            ).decode("utf-8")
+        )
         return 0
     raise AssertionError("argparse accepted an unknown command")

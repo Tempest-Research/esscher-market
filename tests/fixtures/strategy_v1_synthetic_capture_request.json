@@ -1,0 +1,154 @@
+{
+  "schema": "esscher.snapshot_capture_request",
+  "schema_version": 1,
+  "fixture_metadata": {
+    "artifact_class": "SYNTHETIC_CONTRACT_FIXTURE",
+    "limitations": [
+      "NOT_HISTORICAL_DATA",
+      "NOT_ALPHA_EVIDENCE",
+      "NO_BROKER_EXECUTION"
+    ],
+    "purpose": "Supplied synthetic capture request for snapshot-collector contract tests only. Not historical data, not strategy output, not evidence of fills."
+  },
+  "event": {
+    "event_id": "synthetic-acme-2026q3",
+    "issuer": "ACME SYNTHETIC CORP",
+    "ticker": "ACME",
+    "sector_proxy": "XLP",
+    "session_id": "XNYS-2026-09-11",
+    "session_open_at": "2026-09-11T13:30:00Z",
+    "timing_bucket": "BEFORE_OPEN",
+    "window_start_at": "2026-09-11T13:30:00Z",
+    "window_end_at": "2026-09-11T13:35:00Z",
+    "decision_cutoff": "2026-09-11T13:35:00Z"
+  },
+  "evidence": [
+    {
+      "evidence_id": "issuer-release",
+      "event_id": "synthetic-acme-2026q3",
+      "issuer": "ACME SYNTHETIC CORP",
+      "source_kind": "ISSUER_PRIMARY",
+      "source_url": "https://example.invalid/ir/acme-2026q3-release",
+      "publisher": "ACME Synthetic IR",
+      "published_at": "2026-09-11T12:00:00Z",
+      "published_at_type": "issuer_release_timestamp",
+      "published_at_precision": "second",
+      "accepted_at": null,
+      "retrieved_at": "2026-09-11T12:05:00Z",
+      "content_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "entitlement_note": "Synthetic fixture; no external bytes or entitlement claim.",
+      "redistribution_note": "PUBLIC_BYTES_ALLOWED",
+      "raw_bytes_utf8": "ACME synthetic Q3 earnings release body."
+    },
+    {
+      "evidence_id": "sec-filing",
+      "event_id": "synthetic-acme-2026q3",
+      "issuer": "ACME SYNTHETIC CORP",
+      "source_kind": "SEC_OFFICIAL",
+      "source_url": "https://example.invalid/edgar/acme-2026q3",
+      "publisher": "SEC EDGAR",
+      "published_at": "2026-09-11T13:30:00Z",
+      "published_at_type": "official_dissemination_timestamp",
+      "published_at_precision": "second",
+      "accepted_at": "2026-09-11T13:29:00Z",
+      "retrieved_at": "2026-09-11T13:31:00Z",
+      "content_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+      "entitlement_note": "Synthetic fixture; metadata and hash only.",
+      "redistribution_note": "METADATA_AND_HASH_ONLY"
+    }
+  ],
+  "opening_bars": {
+    "ACME": [
+      {
+        "symbol": "ACME",
+        "at": "2026-09-11T13:30:00Z",
+        "price": "100.00",
+        "raw_observed_at": "2026-09-11T13:30:00Z",
+        "source_id": "synthetic-market-data",
+        "adjustment": "SPLIT_AND_DIVIDEND_ADJUSTED_V1"
+      },
+      {
+        "symbol": "ACME",
+        "at": "2026-09-11T13:35:00Z",
+        "price": "101.00",
+        "raw_observed_at": "2026-09-11T13:35:00Z",
+        "source_id": "synthetic-market-data",
+        "adjustment": "SPLIT_AND_DIVIDEND_ADJUSTED_V1"
+      }
+    ],
+    "SPY": [
+      {
+        "symbol": "SPY",
+        "at": "2026-09-11T13:30:00Z",
+        "price": "500.00",
+        "raw_observed_at": "2026-09-11T13:30:00Z",
+        "source_id": "synthetic-market-data",
+        "adjustment": "SPLIT_AND_DIVIDEND_ADJUSTED_V1"
+      },
+      {
+        "symbol": "SPY",
+        "at": "2026-09-11T13:35:00Z",
+        "price": "500.50",
+        "raw_observed_at": "2026-09-11T13:35:00Z",
+        "source_id": "synthetic-market-data",
+        "adjustment": "SPLIT_AND_DIVIDEND_ADJUSTED_V1"
+      }
+    ],
+    "XLP": [
+      {
+        "symbol": "XLP",
+        "at": "2026-09-11T13:30:00Z",
+        "price": "80.00",
+        "raw_observed_at": "2026-09-11T13:30:00Z",
+        "source_id": "synthetic-market-data",
+        "adjustment": "SPLIT_AND_DIVIDEND_ADJUSTED_V1"
+      },
+      {
+        "symbol": "XLP",
+        "at": "2026-09-11T13:35:00Z",
+        "price": "80.10",
+        "raw_observed_at": "2026-09-11T13:35:00Z",
+        "source_id": "synthetic-market-data",
+        "adjustment": "SPLIT_AND_DIVIDEND_ADJUSTED_V1"
+      }
+    ]
+  },
+  "estimation_series": [
+    {
+      "at": "2026-09-10T13:30:00Z",
+      "stock_return": 0.004,
+      "market_return": 0.003,
+      "sector_return": 0.002
+    },
+    {
+      "at": "2026-09-10T13:35:00Z",
+      "stock_return": -0.002,
+      "market_return": -0.001,
+      "sector_return": -0.0015
+    },
+    {
+      "at": "2026-09-10T13:40:00Z",
+      "stock_return": 0.006,
+      "market_return": 0.004,
+      "sector_return": 0.0035
+    },
+    {
+      "at": "2026-09-10T13:45:00Z",
+      "stock_return": 0.001,
+      "market_return": 0.002,
+      "sector_return": 0.001
+    }
+  ],
+  "corporate_actions": {
+    "ACME": [
+      {
+        "action_type": "SPLIT",
+        "effective_date": "2026-08-15",
+        "symbol": "ACME",
+        "factor": "2.0",
+        "to_symbol": null,
+        "source_id": "synthetic-corporate-actions"
+      }
+    ]
+  }
+}
