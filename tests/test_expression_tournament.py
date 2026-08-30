@@ -33,6 +33,7 @@ from ringdown_market.execution.expression import (
     compiled_expression_bytes,
     expression_market_snapshot_sha256,
     gate_d_report_bytes,
+    gate_d_report_payload,
     parse_promoted_expression_policy,
     promoted_expression_policy_bytes,
     promoted_expression_policy_sha256,
@@ -49,6 +50,7 @@ from ringdown_market.strategy.models import (
 )
 
 CLOCK = datetime(2026, 9, 11, 13, 36, 0, tzinfo=UTC)
+EXIT_CLOCK = datetime(2026, 9, 11, 15, 30, 0, tzinfo=UTC)
 DECISION_AT = datetime(2026, 9, 11, 13, 35, 50, tzinfo=UTC)
 EXPIRY = date(2026, 9, 18)
 _H = sha256_bytes(b"test-hash-seed")
@@ -307,6 +309,7 @@ def test_identical_events_produce_identical_gate_d_report_bytes() -> None:
         decision_direction="UP",
         decision_sha256=_H,
         outcome_direction="UP",
+        exit_clock_at=EXIT_CLOCK,
         snapshot=_snapshot(packages=[_package("KR260918C00061000", "KR260918C00062000")]),
     )
     first = run_gate_d_tournament(
@@ -338,6 +341,7 @@ def test_tournament_compares_all_four_expressions_with_failures_in_denominator()
         decision_direction="UP",
         decision_sha256=_H,
         outcome_direction="UP",
+        exit_clock_at=EXIT_CLOCK,
         snapshot=_snapshot(packages=[_package("KR260918C00061000", "KR260918C00062000")]),
     )
     broken = TournamentEvent(
@@ -345,6 +349,7 @@ def test_tournament_compares_all_four_expressions_with_failures_in_denominator()
         decision_direction="UP",
         decision_sha256=_H,
         outcome_direction="DOWN",
+        exit_clock_at=EXIT_CLOCK,
         snapshot=_snapshot(chain=(), packages=()),
     )
     report = run_gate_d_tournament(
@@ -373,6 +378,7 @@ def test_tournament_emits_no_expression_below_threshold() -> None:
         decision_direction="UP",
         decision_sha256=_H,
         outcome_direction="UP",
+        exit_clock_at=EXIT_CLOCK,
         snapshot=_snapshot(packages=[_package("KR260918C00061000", "KR260918C00062000")]),
     )
     report = run_gate_d_tournament(
@@ -397,6 +403,7 @@ def test_tournament_requires_enough_evidence_events() -> None:
         decision_direction="UP",
         decision_sha256=_H,
         outcome_direction="UP",
+        exit_clock_at=EXIT_CLOCK,
         snapshot=_snapshot(packages=[_package("KR260918C00061000", "KR260918C00062000")]),
     )
     report = run_gate_d_tournament(
@@ -822,3 +829,132 @@ def test_policy_rejects_duplicate_fields() -> None:
     duplicated = text.replace('"version":"v1"', '"version":"v1","version":"v1"', 1)
     with pytest.raises(ExpressionRejected):
         parse_promoted_expression_policy(duplicated.encode("utf-8"))
+
+
+# ---------------------------------------------------------------------------
+# Issue #29 criteria coverage
+# ---------------------------------------------------------------------------
+
+
+def test_every_expression_uses_the_same_event_terms() -> None:
+    policy = _policy()
+    event = TournamentEvent(
+        event_id="KR-2026Q2-EARNINGS",
+        decision_direction="UP",
+        decision_sha256=_H,
+        outcome_direction="UP",
+        exit_clock_at=EXIT_CLOCK,
+        snapshot=_snapshot(packages=[_package("KR260918C00061000", "KR260918C00062000")]),
+    )
+    report = run_gate_d_tournament(
+        report_id="gate-d-test",
+        policy=policy,
+        policy_sha256=promoted_expression_policy_sha256(policy),
+        events=[event],
+        evaluated_at=CLOCK,
+    )
+    payload = gate_d_report_payload(report)
+    event_record = payload["events"][0]
+    assert event_record["decision_timestamp"] == "2026-09-11T13:36:00Z"
+    assert event_record["exit_clock_at"] == "2026-09-11T15:30:00Z"
+    kinds = {row["expression_kind"] for row in event_record["economics"]}
+    assert kinds == {"CASH_NO_TRADE", "SHARES", "ONE_LONG_OPTION", "DEBIT_VERTICAL"}
+
+
+def test_missing_option_history_is_reported_not_run() -> None:
+    policy = _policy()
+    event = TournamentEvent(
+        event_id="KR-2026Q2-EARNINGS",
+        decision_direction="UP",
+        decision_sha256=_H,
+        outcome_direction="UP",
+        exit_clock_at=EXIT_CLOCK,
+        snapshot=_snapshot(chain=(), packages=()),
+    )
+    report = run_gate_d_tournament(
+        report_id="gate-d-test",
+        policy=policy,
+        policy_sha256=promoted_expression_policy_sha256(policy),
+        events=[event],
+        evaluated_at=CLOCK,
+    )
+    payload = gate_d_report_payload(report)
+    assert payload["option_history_status"] == "NOT_RUN"
+    assert "UNSUPPORTED_CONTRACT" in payload["option_history_blockers"]
+    assert payload["promoted"] not in {"ONE_LONG_OPTION", "DEBIT_VERTICAL"}
+
+
+def test_available_option_history_is_labeled_available() -> None:
+    policy = _policy()
+    event = TournamentEvent(
+        event_id="KR-2026Q2-EARNINGS",
+        decision_direction="UP",
+        decision_sha256=_H,
+        outcome_direction="UP",
+        exit_clock_at=EXIT_CLOCK,
+        snapshot=_snapshot(packages=[_package("KR260918C00061000", "KR260918C00062000")]),
+    )
+    report = run_gate_d_tournament(
+        report_id="gate-d-test",
+        policy=policy,
+        policy_sha256=promoted_expression_policy_sha256(policy),
+        events=[event],
+        evaluated_at=CLOCK,
+    )
+    payload = gate_d_report_payload(report)
+    assert payload["option_history_status"] == "AVAILABLE"
+    assert payload["option_history_blockers"] == []
+
+
+def test_report_labels_option_fill_eligibility_not_superiority() -> None:
+    policy = _policy()
+    event = TournamentEvent(
+        event_id="KR-2026Q2-EARNINGS",
+        decision_direction="UP",
+        decision_sha256=_H,
+        outcome_direction="UP",
+        exit_clock_at=EXIT_CLOCK,
+        snapshot=_snapshot(packages=[_package("KR260918C00061000", "KR260918C00062000")]),
+    )
+    report = run_gate_d_tournament(
+        report_id="gate-d-test",
+        policy=policy,
+        policy_sha256=promoted_expression_policy_sha256(policy),
+        events=[event],
+        evaluated_at=CLOCK,
+    )
+    payload = gate_d_report_payload(report)
+    assert "OPTION_FILL_PROVES_ELIGIBILITY_NOT_SUPERIORITY" in payload["claims"]
+    assert "UNDERLYING_RETURNS_ARE_NOT_OPTION_PNL" in payload["claims"]
+    assert payload["paper_mutation_blocked"] is True
+
+
+def test_exit_clock_cannot_precede_observation_clock() -> None:
+    with pytest.raises(ValueError):
+        TournamentEvent(
+            event_id="KR-2026Q2-EARNINGS",
+            decision_direction="UP",
+            decision_sha256=_H,
+            outcome_direction="UP",
+            exit_clock_at=CLOCK - timedelta(hours=1),
+            snapshot=_snapshot(),
+        )
+
+
+def test_compiled_blocks_use_limit_orders_only() -> None:
+    shares = compile_expression(**_compile_kwargs(kind=ExpressionKind.SHARES))
+    option = compile_expression(**_compile_kwargs(kind=ExpressionKind.ONE_LONG_OPTION))
+    vertical = compile_expression(**_compile_kwargs())
+    assert shares.shares is not None and shares.shares["order_type"] == "LIMIT"
+    assert option.long_option is not None and option.long_option["order_type"] == "LIMIT"
+    assert vertical.debit_vertical is not None
+    assert vertical.debit_vertical["order_type"] == "LIMIT"
+    assert vertical.debit_vertical["legging"] == "ATOMIC_PACKAGE"
+
+
+def test_compiler_follows_only_the_promoted_policy_kind() -> None:
+    kwargs = _compile_kwargs(kind=ExpressionKind.SHARES)
+    compiled = compile_expression(**kwargs)
+    assert compiled.expression_kind is ExpressionKind.SHARES
+    assert compiled.long_option is None
+    assert compiled.debit_vertical is None
