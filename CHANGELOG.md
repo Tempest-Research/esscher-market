@@ -22,6 +22,7 @@
 - Pure residual decision engine generating source-attributable `UP`/`DOWN`/`UNCERTAIN` decisions from frozen snapshots through one injected reasoner route, with deadline fencing, duplicate-call protection, evidence-bound citations, code-derived reaction relation, and snapshot-baseline construction.
 - Structured reasoner output contract (`esscher.reasoner_output/v1`), fake reasoner, route identity, and an inert route-smoke harness recording latency and schema outcomes without broker authority.
 - Deterministic quote-safe debit-vertical option package compiler (`esscher.option_chain_snapshot/v1`) emitting one bounded package compatible with the frozen permit boundary or an explicit `NO_PACKAGE` with stable reason codes.
+- Account-level PAPER risk kernel with an immutable frozen limit policy, Decimal-only exposure math, a standard-library SQLite WAL reservation ledger, one-use permit bindings, broker-observed truth freshness gates, entry-disable/close-only control states, and idempotent migration of prior event identity.
 
 ### Safety
 
@@ -32,6 +33,7 @@
 - The snapshot collector is read-only and credential-free: post-cutoff evidence, stale observations, unsynchronized windows, missing inputs, non-finite values, and redistribution violations fail closed with stable reason codes, and identical sources plus policy produce byte-identical snapshots.
 - The decision engine abstains instead of falling back: policy/snapshot drift, ineligible snapshots, late or hostile reasoner output, unbounded citations, and duplicate calls yield stable `UNCERTAIN` abstentions; reasoner prose never sets contracts, sizing, entry, or exit, and the strategy package imports no execution or runtime surface.
 - The option compiler is quote-safe and order-free: stale or skewed quotes, wide spreads, crossed or zero-size quotes, non-positive or oversized debits, ineligible expiries, and malformed or ambiguous chains fail closed to `NO_PACKAGE`; it carries no account, position, mutation, or model authority, and indicative quotes never become executable-fill evidence.
+- The risk kernel reserves durable capacity before any mutation: duplicate events or packages, market-opening orders, naked short exposure, stale or missing truth, unknown exposure, budget or entry-limit breaches, and drawdown transitions fail closed with stable reason codes; concurrent reservations cannot double-reserve, permits bind once, and restart resumes from ledger truth.
 - Evidence-manifest v2 remains ineligible for permit compilation and carries no post-cutoff path or outcome value.
 - Partial or contradictory package fills stop for reconciliation; missing fees remain explicit and raw broker/account identities never enter the receipt bundle.
 - Scheduled unknown, ambiguous, partial, overlapping, or integrity-invalid state fails closed without sequential-leg repair, guessed P&L, or another mutation.
