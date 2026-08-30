@@ -285,6 +285,19 @@ def _build_parser() -> argparse.ArgumentParser:
     capture.add_argument("--policy", type=Path, required=True)
     capture.add_argument("--input", type=Path, required=True)
     capture.add_argument("--output", type=Path, required=True)
+    passport = subparsers.add_parser(
+        "passport-slice",
+        help=(
+            "build the offline causal slice from source bytes to a final-flat fake-broker "
+            "Trade Passport; file reads only, no broker mutation, no network access"
+        ),
+    )
+    passport.add_argument("--policy", type=Path, required=True)
+    passport.add_argument("--capture-request", type=Path, required=True)
+    passport.add_argument("--reasoner-outputs", type=Path, required=True)
+    passport.add_argument("--chain", type=Path, required=True)
+    passport.add_argument("--ledger", type=Path, required=True)
+    passport.add_argument("--output", type=Path, required=True)
     return parser
 
 
@@ -431,6 +444,46 @@ def main(
                     "snapshot_sha256": snapshot.sha256,
                     "mode": "READ_ONLY_CAPTURE",
                     "claims": ["NO_BROKER_EXECUTION", "NOT_ALPHA_EVIDENCE", "INDICATIVE_DATA"],
+                }
+            ).decode("utf-8")
+        )
+        return 0
+    if args.command == "passport-slice":
+        from .passport import (
+            SliceInputs,
+            SliceRejected,
+            build_offline_causal_slice,
+            verify_passport,
+        )
+
+        try:
+            passport = build_offline_causal_slice(
+                SliceInputs(
+                    policy_bytes=args.policy.read_bytes(),
+                    capture_request_bytes=args.capture_request.read_bytes(),
+                    reasoner_outputs_bytes=args.reasoner_outputs.read_bytes(),
+                    chain_bytes=args.chain.read_bytes(),
+                    ledger_path=args.ledger,
+                )
+            )
+        except (OSError, SliceRejected, ValueError) as error:
+            print(f"passport slice rejected: {error}")
+            return 3
+        payload_bytes = passport.payload_bytes()
+        verdict = verify_passport(payload_bytes)
+        if not verdict.valid:
+            print(f"passport slice failed independent verification: {verdict.reasons}")
+            return 3
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_bytes(payload_bytes + b"\n")
+        print(
+            _canonical_json(
+                {
+                    "mode": "OFFLINE_CAUSAL_SLICE",
+                    "entries": len(passport.entries),
+                    "passport_sha256": passport.passport_sha256(),
+                    "verified": verdict.valid,
+                    "claims": ["NO_BROKER_EXECUTION", "NOT_ALPHA_EVIDENCE", "PAPER"],
                 }
             ).decode("utf-8")
         )

@@ -14,7 +14,7 @@
     {
       "case_id": "valid-up",
       "direction": "UP",
-      "confidence": 0.72,
+      "confidence": "0.72",
       "citations": [
         {
           "citation_id": "c-1",
@@ -32,7 +32,7 @@
     {
       "case_id": "valid-down",
       "direction": "DOWN",
-      "confidence": 0.64,
+      "confidence": "0.64",
       "citations": [
         {
           "citation_id": "c-1",
@@ -50,7 +50,7 @@
     {
       "case_id": "uncertain-missing-evidence",
       "direction": "UNCERTAIN",
-      "confidence": 0.5,
+      "confidence": "0.5",
       "citations": [],
       "falsifier": null,
       "arrived_after_deadline": false
@@ -58,7 +58,7 @@
     {
       "case_id": "late-output",
       "direction": "UP",
-      "confidence": 0.9,
+      "confidence": "0.9",
       "citations": [
         {
           "citation_id": "c-1",
@@ -76,7 +76,7 @@
     {
       "case_id": "hostile-execution-fields",
       "direction": "UP",
-      "confidence": 0.99,
+      "confidence": "0.99",
       "limit_price": "1.25",
       "quantity": 5,
       "symbol": "NVDA260918C00180000",
@@ -87,7 +87,7 @@
     {
       "case_id": "invalid-direction",
       "direction": "SIDEWAYS",
-      "confidence": 0.5,
+      "confidence": "0.5",
       "citations": [],
       "falsifier": null,
       "arrived_after_deadline": false

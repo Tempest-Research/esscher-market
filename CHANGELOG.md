@@ -32,6 +32,7 @@
 - `docs/research/qfast-confirmation-panel.md` recording the preregistered panel rules and the exact issue-#3 stop conditions that keep the panel at `COLLECTION_INCOMPLETE` with `INSUFFICIENT_DATA`.
 - Attributable prospective shadow ledger and read-only orchestrator running the exact frozen strategy, option compiler, and risk kernel end to end without order authority, retaining every abstention, rejection, `NO_PACKAGE`, risk result, and shadow hold in immutable records with deterministic hash-bound reports.
 - Registered the merged Esscher v1 strategy-policy hash and the `esscher.strategy_snapshot` protocol hash into the panel assembler's `KNOWN_*` registries, unblocking the real-panel upstream-contract gates; unregistered hashes still fail closed.
+- Append-only hash-linked Trade Passport (`esscher.trade_passport/v1`) with a deterministic verifier proving linkage, head anchor, frozen stage order, causal bindings, policy identities, and broker-observed flatness; plus the offline causal slice running source bytes to a final-flat fake-broker passport behind the inert `ringdown passport-slice` command.
 
 ### Safety
 
@@ -46,6 +47,7 @@
 - The lifecycle runtime persists every transition before side effects, never closes a filled package early, treats broker acknowledgement as non-proof of fills, bounds outages, repricing, and retries, and yields `MANUAL_REQUIRED` rather than a fabricated terminal receipt when flatness cannot be proven.
 - The confirmation panel admits no synthetic or post-hoc events: development events are excluded by identity, outcome fields and post-cutoff paths are forbidden at freeze, and a panel below the 20-event floor must declare `COLLECTION_INCOMPLETE` and report `INSUFFICIENT_DATA`.
 - The shadow ledger cannot reach broker mutation surfaces, keeps development/confirmation/prospective samples mechanically separated, records abstentions and failures in the denominator, and reports the preregistered evidence threshold as `NOT_MET` rather than inferring success while the confirmation panel stays empty.
+- The Trade Passport is tamper-evident and independently readable: every entry binds its predecessor and its parent stage hashes, the head anchor closes the chain, terminal flatness requires broker position truth, and the result carries `PAPER_OPERATIONAL_RESULT` / `NOT_ALPHA_EVIDENCE` claims instead of alpha or profitability language.
 - Evidence-manifest v2 remains ineligible for permit compilation and carries no post-cutoff path or outcome value.
 - Partial or contradictory package fills stop for reconciliation; missing fees remain explicit and raw broker/account identities never enter the receipt bundle.
 - Scheduled unknown, ambiguous, partial, overlapping, or integrity-invalid state fails closed without sequential-leg repair, guessed P&L, or another mutation.
