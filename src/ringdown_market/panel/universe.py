@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, time
 
 from ..contracts.replay_evidence import (
+    ReplayEvidenceRejected,
     _decode,
     _reject,
     _sha256,
@@ -24,7 +25,7 @@ from ..contracts.replay_evidence import (
     validate_replay_event_list,
     validate_replay_selection_rule,
 )
-from .manifest import DATA_CLASS_REAL, PanelRejectionReason
+from .manifest import DATA_CLASS_REAL, PanelRejected, PanelRejectionReason
 
 HISTORICAL_EVIDENCE_SCHEMA = "ringdown.historical_evidence_manifest"
 
@@ -275,12 +276,13 @@ def _validate_session_context(
     *,
     path: str,
     decision_cutoff: datetime,
+    expected_event: Mapping[str, object],
 ) -> None:
     session_open = _timestamp(context["session_open_at"], path=f"{path}.session_open_at")
     session_close = _timestamp(context["session_close_at"], path=f"{path}.session_close_at")
     event_date = decision_cutoff.date()
-    expected_open = datetime.combine(event_date, _SESSION_OPEN.time(), tzinfo=UTC)
-    expected_close = datetime.combine(event_date, _SESSION_CLOSE.time(), tzinfo=UTC)
+    expected_open = datetime.combine(event_date, _SESSION_OPEN.replace(tzinfo=None), tzinfo=UTC)
+    expected_close = datetime.combine(event_date, _SESSION_CLOSE.replace(tzinfo=None), tzinfo=UTC)
     if session_open != expected_open or session_close != expected_close:
         _reject(
             PanelRejectionReason.SELECTION_RULE_VIOLATION,
@@ -301,6 +303,13 @@ def _validate_session_context(
             PanelRejectionReason.SELECTION_RULE_VIOLATION,
             f"{path}.scheduled_event_at",
             "frozen panel rule excludes events during the regular session",
+        )
+    expected_bucket = "BEFORE_OPEN" if decision_cutoff < session_open else "AFTER_CLOSE"
+    if expected_bucket != expected_event["timing_bucket"]:
+        _reject(
+            PanelRejectionReason.IDENTITY_MISMATCH,
+            f"{path}.scheduled_event_at",
+            "event timing bucket does not match the frozen session window",
         )
 
 
@@ -387,7 +396,10 @@ def _validate_historical_manifest(
             "decision cutoff must equal the frozen scheduled event instant",
         )
     _validate_session_context(
-        context, path=f"{path}.event_context", decision_cutoff=decision_cutoff
+        context,
+        path=f"{path}.event_context",
+        decision_cutoff=decision_cutoff,
+        expected_event=expected_event,
     )
     records = manifest["records"]
     if not isinstance(records, list) or len(records) != 2:
@@ -554,6 +566,19 @@ def validate_panel_universe(
 ) -> tuple[ValidatedHistoricalEvidence, ...]:
     """Validate one frozen historical panel universe as exact bytes."""
 
+    try:
+        return _validate_panel_universe(selection_rule_bytes, event_list_bytes, manifest_bytes)
+    except ReplayEvidenceRejected as error:
+        raise PanelRejected(
+            PanelRejectionReason(error.reason.value), error.path, error.detail
+        ) from error
+
+
+def _validate_panel_universe(
+    selection_rule_bytes: bytes,
+    event_list_bytes: bytes,
+    manifest_bytes: Sequence[bytes],
+) -> tuple[ValidatedHistoricalEvidence, ...]:
     validate_replay_selection_rule(selection_rule_bytes)
     event_list_payload, event_ids, expected_events = validate_replay_event_list(
         event_list_bytes, selection_rule_bytes
