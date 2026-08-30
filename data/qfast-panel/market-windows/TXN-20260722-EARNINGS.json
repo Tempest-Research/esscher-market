@@ -1,0 +1,52 @@
+{
+  "schema": "ringdown.panel_market_window_provenance",
+  "schema_version": 1,
+  "event_id": "TXN-20260722-EARNINGS",
+  "entry_session_id": "XNAS-2026-07-23",
+  "entry_session_date": "2026-07-23",
+  "timeframe": "1Min",
+  "adjustment": "all",
+  "window_start": "2026-07-23T13:30:00Z",
+  "window_end": "2026-07-23T14:51:00Z",
+  "symbols": {
+    "issuer": "TXN",
+    "market": "SPY",
+    "sector": "XLK"
+  },
+  "retrieved_at": "2026-08-30T15:52:54Z",
+  "redistribution_status": "METADATA_AND_HASH_ONLY",
+  "entitlement_note": "Host-subscription historical bars retrieved read-only from the configured market-data endpoint; raw bytes remain host-side and are bound by SHA-256 only.",
+  "limitations": [
+    "INDICATIVE_DATA",
+    "NOT_ALPHA_EVIDENCE",
+    "NO_OUTCOME_VALUES",
+    "NO_BROKER_EXECUTION"
+  ],
+  "bars": {
+    "issuer": {
+      "symbol": "TXN",
+      "status": "PRESENT",
+      "bar_count": 82,
+      "first_bar_at": "2026-07-23T13:30:00Z",
+      "last_bar_at": "2026-07-23T14:51:00Z",
+      "content_sha256": "da0db0ad01c4287f35094cb4706a9483794bd90d5225adcf2de7e1f7d05679a3"
+    },
+    "market": {
+      "symbol": "SPY",
+      "status": "PRESENT",
+      "bar_count": 82,
+      "first_bar_at": "2026-07-23T13:30:00Z",
+      "last_bar_at": "2026-07-23T14:51:00Z",
+      "content_sha256": "764de929f34782e68a7f218fa202fb13d0ee1ff0e5394cc40b1e13c133737761"
+    },
+    "sector": {
+      "symbol": "XLK",
+      "status": "PRESENT",
+      "bar_count": 82,
+      "first_bar_at": "2026-07-23T13:30:00Z",
+      "last_bar_at": "2026-07-23T14:51:00Z",
+      "content_sha256": "100519242034588f82f6844fb78fb50ddbeb65ee93b1eaa8608fb149c72e87e4"
+    }
+  },
+  "status": "COMPLETE"
+}

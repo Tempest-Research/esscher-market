@@ -1,0 +1,52 @@
+{
+  "schema": "ringdown.panel_market_window_provenance",
+  "schema_version": 1,
+  "event_id": "MA-20260730-EARNINGS",
+  "entry_session_id": "XNYS-2026-07-30",
+  "entry_session_date": "2026-07-30",
+  "timeframe": "1Min",
+  "adjustment": "all",
+  "window_start": "2026-07-30T13:30:00Z",
+  "window_end": "2026-07-30T14:51:00Z",
+  "symbols": {
+    "issuer": "MA",
+    "market": "SPY",
+    "sector": "XLF"
+  },
+  "retrieved_at": "2026-08-30T15:52:54Z",
+  "redistribution_status": "METADATA_AND_HASH_ONLY",
+  "entitlement_note": "Host-subscription historical bars retrieved read-only from the configured market-data endpoint; raw bytes remain host-side and are bound by SHA-256 only.",
+  "limitations": [
+    "INDICATIVE_DATA",
+    "NOT_ALPHA_EVIDENCE",
+    "NO_OUTCOME_VALUES",
+    "NO_BROKER_EXECUTION"
+  ],
+  "bars": {
+    "issuer": {
+      "symbol": "MA",
+      "status": "PRESENT",
+      "bar_count": 82,
+      "first_bar_at": "2026-07-30T13:30:00Z",
+      "last_bar_at": "2026-07-30T14:51:00Z",
+      "content_sha256": "1cb6b442abcbcaab443f2d36903e784256371bac63024705e171a22c268e535c"
+    },
+    "market": {
+      "symbol": "SPY",
+      "status": "PRESENT",
+      "bar_count": 82,
+      "first_bar_at": "2026-07-30T13:30:00Z",
+      "last_bar_at": "2026-07-30T14:51:00Z",
+      "content_sha256": "8d24572967da943170cf68b98e821f0d8b3c79db1bbd637814e3920bfb4b9fb7"
+    },
+    "sector": {
+      "symbol": "XLF",
+      "status": "PRESENT",
+      "bar_count": 82,
+      "first_bar_at": "2026-07-30T13:30:00Z",
+      "last_bar_at": "2026-07-30T14:51:00Z",
+      "content_sha256": "6179e1dcb9e77c3d97f390849345f08cf3f6751c553f760b3462a8187943787e"
+    }
+  },
+  "status": "COMPLETE"
+}

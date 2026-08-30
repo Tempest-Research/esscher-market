@@ -24,7 +24,11 @@
 - Deterministic quote-safe debit-vertical option package compiler (`esscher.option_chain_snapshot/v1`) emitting one bounded package compatible with the frozen permit boundary or an explicit `NO_PACKAGE` with stable reason codes.
 - Account-level PAPER risk kernel with an immutable frozen limit policy, Decimal-only exposure math, a standard-library SQLite WAL reservation ledger, one-use permit bindings, broker-observed truth freshness gates, entry-disable/close-only control states, and idempotent migration of prior event identity.
 - Durable monitored PAPER lifecycle runtime driving one event through `APPROVED -> OPEN_SUBMITTED -> OPEN_PARTIAL|OPEN_FILLED|OPEN_CANCELED -> HOLDING -> CLOSE_DUE -> CLOSE_SUBMITTED -> CLOSED_FLAT|MANUAL_REQUIRED` with a 60-minute fill-relative hold, deterministic close, bounded repricing, restart-safe recovery, and sanitized terminal receipts.
-- Frozen confirmation-panel selection rule and honest empty panel manifest bound to the selection-rule and strategy-policy hashes, with a strict panel contract and deterministic zero-latency/p95 Q-FAST report builder.
+- A frozen ex-ante Q-FAST panel selection rule with fixed 20/30 eligible-event bounds, required P0 exclusions, and the frozen claim boundary.
+- A strict panel-manifest validator and deterministic fail-closed panel assembler behind the inert `ringdown assemble-panel` command, hash-bound to the strategy-policy, snapshot, and research-decision protocols.
+- Synthetic Q-FAST panel fixtures and mutation-negative tests proving leak, exclusion, size, latency, and byte-determinism gates.
+- A frozen untouched Q-FAST panel universe: 23 historical BMO/AMC earnings events with EDGAR primary-source provenance, preserved exclusions, and hash-bound synchronized issuer/SPY/sector one-minute window records.
+- Frozen confirmation-panel selection rule and honest empty panel manifest bound to the selection-rule and strategy-policy hashes, with a strict panel contract and deterministic zero-latency/p95 Q-FAST report builder (superseded as the historical panel by the 23-event universe above; retained for the prospective confirmation view).
 - `docs/research/qfast-confirmation-panel.md` recording the preregistered panel rules and the exact issue-#3 stop conditions that keep the panel at `COLLECTION_INCOMPLETE` with `INSUFFICIENT_DATA`.
 - Attributable prospective shadow ledger and read-only orchestrator running the exact frozen strategy, option compiler, and risk kernel end to end without order authority, retaining every abstention, rejection, `NO_PACKAGE`, risk result, and shadow hold in immutable records with deterministic hash-bound reports.
 
@@ -45,6 +49,9 @@
 - Partial or contradictory package fills stop for reconciliation; missing fees remain explicit and raw broker/account identities never enter the receipt bundle.
 - Scheduled unknown, ambiguous, partial, overlapping, or integrity-invalid state fails closed without sequential-leg repair, guessed P&L, or another mutation.
 - The packaged trace is static and no-network; it rejects weakened labels or malformed PAPER receipt boundaries, escapes untrusted text, and leaves unsupported decision, permit, receipt, and P&L fields visibly missing.
+- Real Q-FAST panel assembly fails closed with `UPSTREAM_CONTRACT_MISSING` while issues #26, #27, and #28 remain unmerged and unregistered.
+- P0 contract-development events, sub-20 or above-30 event panels, unmeasured p95 latency profiles, and post-cutoff or post-freeze timestamps fail closed with stable reason codes before any evaluation runs.
+- Historical panel evidence is admitted only through EDGAR-accessioned preservation anchors with every publication bound preceding the decision cutoff; raw licensed market bars stay host-side and only metadata and SHA-256 bindings are redistributed.
 - Version impact is `minor`; the package stays at `0.2.0` while issue #11 consolidates the release-train bump to `0.3.0`.
 
 ## [0.2.0] - Unreleased

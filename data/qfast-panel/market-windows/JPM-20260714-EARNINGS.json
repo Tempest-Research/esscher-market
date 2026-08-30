@@ -1,0 +1,52 @@
+{
+  "schema": "ringdown.panel_market_window_provenance",
+  "schema_version": 1,
+  "event_id": "JPM-20260714-EARNINGS",
+  "entry_session_id": "XNYS-2026-07-14",
+  "entry_session_date": "2026-07-14",
+  "timeframe": "1Min",
+  "adjustment": "all",
+  "window_start": "2026-07-14T13:30:00Z",
+  "window_end": "2026-07-14T14:51:00Z",
+  "symbols": {
+    "issuer": "JPM",
+    "market": "SPY",
+    "sector": "XLF"
+  },
+  "retrieved_at": "2026-08-30T15:52:54Z",
+  "redistribution_status": "METADATA_AND_HASH_ONLY",
+  "entitlement_note": "Host-subscription historical bars retrieved read-only from the configured market-data endpoint; raw bytes remain host-side and are bound by SHA-256 only.",
+  "limitations": [
+    "INDICATIVE_DATA",
+    "NOT_ALPHA_EVIDENCE",
+    "NO_OUTCOME_VALUES",
+    "NO_BROKER_EXECUTION"
+  ],
+  "bars": {
+    "issuer": {
+      "symbol": "JPM",
+      "status": "PRESENT",
+      "bar_count": 82,
+      "first_bar_at": "2026-07-14T13:30:00Z",
+      "last_bar_at": "2026-07-14T14:51:00Z",
+      "content_sha256": "ab86ecb2a8304729873b610f077cb0d058de9e4c67d9a8dc756d76ef9e8d29a7"
+    },
+    "market": {
+      "symbol": "SPY",
+      "status": "PRESENT",
+      "bar_count": 82,
+      "first_bar_at": "2026-07-14T13:30:00Z",
+      "last_bar_at": "2026-07-14T14:51:00Z",
+      "content_sha256": "b3b46aa390a26b9ae4cfeb31f75f6092f4668a78466d928e897da32d29bb6450"
+    },
+    "sector": {
+      "symbol": "XLF",
+      "status": "PRESENT",
+      "bar_count": 82,
+      "first_bar_at": "2026-07-14T13:30:00Z",
+      "last_bar_at": "2026-07-14T14:51:00Z",
+      "content_sha256": "fbb7208a92a2f3c6227de3663649950ef5c49f7831658ccf00270f196e3e29b4"
+    }
+  },
+  "status": "COMPLETE"
+}
