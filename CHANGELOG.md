@@ -14,6 +14,7 @@
 - One-shot scheduled `PAPER` event execution with strict manifest/due-window identity, atomic restart state, deterministic broker reconciliation, terminal no-ops, overlap rejection, and mutation-free dry run.
 - Synthetic contract fixtures for terminal-flat, rejected-before-mutation, and manual-reconciliation scheduled outcomes.
 - A deterministic self-contained offline evidence-to-receipt trace with visible JSON-pointer attribution, terminal, rejected, and manual-reconciliation contract views.
+- A strict, hash-addressed competition-facts contract that separates confirmed organizer facts from blocking unknowns without embedding account identities or broker authority.
 
 ### Safety
 
@@ -22,6 +23,7 @@
 - Partial or contradictory package fills stop for reconciliation; missing fees remain explicit and raw broker/account identities never enter the receipt bundle.
 - Scheduled unknown, ambiguous, partial, overlapping, or integrity-invalid state fails closed without sequential-leg repair, guessed P&L, or another mutation.
 - The packaged trace is static and no-network; it rejects weakened labels or malformed PAPER receipt boundaries, escapes untrusted text, and leaves unsupported decision, permit, receipt, and P&L fields visibly missing.
+- Competition facts remain non-permit-eligible; unsupported schemas, unverifiable sources, unknown release facts, credential-bearing URLs, private account-identity fields, and weakened PAPER/privacy invariants fail closed.
 - Version impact is `minor`; the package stays at `0.2.0` while issue #11 consolidates the release-train bump to `0.3.0`.
 
 ## [0.2.0] - Unreleased
