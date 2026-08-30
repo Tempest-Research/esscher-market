@@ -4,6 +4,18 @@
 
 ### Added
 
+- A deterministic Gate D expression tournament comparing cash/no-trade, shares, one long option, and
+	a defined-risk debit vertical for the same frozen directional decisions, with failures kept in the
+	denominator and a canonical `NO_EXPRESSION` outcome when no expression meets the preregistered
+	after-cost objective and evidence threshold.
+- A production expression compiler consuming one validated UP/DOWN decision, one immutable market
+	snapshot, and one frozen promoted-expression policy; it emits one deterministic compiled expression
+	or stable `NO_PACKAGE`, never reaches compilation from `UNCERTAIN`, and carries no account, order,
+	position, mutation, model, or policy-promotion authority.
+- Strict share, option-chain, package, and borrow/locate observation schemas with pinned feed
+	identities, quote freshness/skew bounds, crossed/size/spread checks, and indicative-data isolation.
+- Read-only adapter documentation with no live capture in unit tests.
+
 - A canonical accepted event-strategy V1 policy with deterministic bytes/hash, strict parsing,
 	separate earnings and macro cohorts, frozen features, baselines, partitions, and promotion gates.
 - Immutable candidate-manifest, strategy-snapshot, feature-receipt, reasoner-exchange, and
