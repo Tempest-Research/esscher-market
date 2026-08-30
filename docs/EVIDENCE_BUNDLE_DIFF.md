@@ -126,7 +126,7 @@ Observed result:
 
 ```text
 All checks passed!
-57 passed, 2 skipped in 0.51s
+60 passed, 2 skipped in 0.50s
 ```
 
 The two skips are symlink tests because symbolic-link creation is unavailable
