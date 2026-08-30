@@ -8,7 +8,10 @@
 - A PAPER account risk kernel with an immutable risk-policy schema, Decimal-only exposure
 	calculations, a standard-library SQLite WAL reservation ledger, broker-observed truth snapshot
 	interfaces, startup and pre-permit reconciliation gates, entry-disabled/close-only/kill/manual
-	controls, and an append-only Trade Passport with a deterministic verifier.
+	controls, and an append-only Trade Passport with a deterministic verifier. The kernel enforces
+	duplicate-event, aggregate-exposure, per-event-budget, buying-power, concentration, drawdown,
+	daily-loss, entry-count, open-expression, close-only-threshold, and stale-clock controls against
+	broker-observed truth, with broker PAPER PnL and shadow PnL kept as separate fields.
 - A deterministic Gate D expression tournament comparing cash/no-trade, shares, one long option, and
 	a defined-risk debit vertical for the same frozen directional decisions, with failures kept in the
 	denominator and a canonical `NO_EXPRESSION` outcome when no expression meets the preregistered

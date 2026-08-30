@@ -94,6 +94,9 @@ def _policy(
     concentration_limit: str = "3000.00",
     account_capital: str = "100000.00",
     truth_max_age_seconds: int = 30,
+    max_entries_per_day: int = 10,
+    max_open_expressions: int = 5,
+    close_only_equity_threshold: str = "90000.00",
 ) -> RiskPolicy:
     return RiskPolicy(
         policy_id="PAPER_ACCOUNT_RISK_POLICY_V1",
@@ -105,9 +108,9 @@ def _policy(
         daily_loss_limit=Decimal(daily_loss_limit),
         drawdown_limit=Decimal(drawdown_limit),
         concentration_limit=Decimal(concentration_limit),
-        max_entries_per_day=10,
-        max_open_expressions=5,
-        close_only_equity_threshold=Decimal("90000.00"),
+        max_entries_per_day=max_entries_per_day,
+        max_open_expressions=max_open_expressions,
+        close_only_equity_threshold=Decimal(close_only_equity_threshold),
         truth_max_age_seconds=truth_max_age_seconds,
         constants_source_sha256=constants_source_sha256,
     )
@@ -468,3 +471,112 @@ def test_passport_tamper_detected(tmp_path) -> None:
 def test_passport_event_types_are_vocabulary() -> None:
     assert PassportEventType.RESERVATION_HELD.value == "RESERVATION_HELD"
     assert GENESIS_SHA256 == "0" * 64
+
+
+# ---------------------------------------------------------------------------
+# Entry-count / expression / daily-loss / close-only / clock controls
+# ---------------------------------------------------------------------------
+
+
+def test_entry_count_limit_enforced(tmp_path) -> None:
+    kernel = _kernel(tmp_path, policy=_policy(max_entries_per_day=1))
+    kernel.authorize_entry(
+        event_id="KR-2026Q2-EARNINGS", underlying="KR", compiled=_compiled(), now=NOW
+    )
+    with pytest.raises(RiskRejected) as caught:
+        kernel.authorize_entry(
+            event_id="MSFT-2026Q3-EARNINGS",
+            underlying="MSFT",
+            compiled=_compiled(event_id="MSFT-2026Q3-EARNINGS"),
+            now=NOW,
+        )
+    assert caught.value.reason is RiskReason.ENTRY_COUNT_LIMIT_REACHED
+
+
+def test_open_expression_limit_enforced(tmp_path) -> None:
+    kernel = _kernel(tmp_path, policy=_policy(max_open_expressions=1))
+    kernel.authorize_entry(
+        event_id="KR-2026Q2-EARNINGS", underlying="KR", compiled=_compiled(), now=NOW
+    )
+    with pytest.raises(RiskRejected) as caught:
+        kernel.authorize_entry(
+            event_id="MSFT-2026Q3-EARNINGS",
+            underlying="MSFT",
+            compiled=_compiled(event_id="MSFT-2026Q3-EARNINGS"),
+            now=NOW,
+        )
+    assert caught.value.reason is RiskReason.EXPRESSION_LIMIT_REACHED
+
+
+def test_daily_loss_limit_enforced(tmp_path) -> None:
+    db = tmp_path / "risk.sqlite3"
+    ledger = RiskLedger(db)
+    # Seed a high intraday peak earlier in the day.
+    ledger.record_account_snapshot(equity=Decimal("100000.00"), now=NOW - timedelta(hours=1))
+    # Current equity has dropped far below the peak.
+    fallen = _account(equity="97000.00", buying_power="97000.00")
+    kernel = _kernel(
+        tmp_path,
+        policy=_policy(daily_loss_limit="2000.00", account_capital="100000.00"),
+        truth=FakeTruthSource(account=fallen),
+        ledger=ledger,
+    )
+    with pytest.raises(RiskRejected) as caught:
+        kernel.authorize_entry(
+            event_id="KR-2026Q2-EARNINGS", underlying="KR", compiled=_compiled(), now=NOW
+        )
+    assert caught.value.reason is RiskReason.DAILY_LOSS_LIMIT_BREACHED
+    state, _ = kernel._ledger.get_control_state()
+    assert state is ControlState.ENTRY_DISABLED
+
+
+def test_close_only_threshold_blocks_entry(tmp_path) -> None:
+    low_equity = _account(equity="89000.00", buying_power="89000.00")
+    kernel = _kernel(
+        tmp_path,
+        policy=_policy(close_only_equity_threshold="90000.00"),
+        truth=FakeTruthSource(account=low_equity),
+    )
+    with pytest.raises(RiskRejected) as caught:
+        kernel.authorize_entry(
+            event_id="KR-2026Q2-EARNINGS", underlying="KR", compiled=_compiled(), now=NOW
+        )
+    assert caught.value.reason is RiskReason.CONTROL_STATE_BLOCKS_ENTRY
+    state, _ = kernel._ledger.get_control_state()
+    assert state is ControlState.CLOSE_ONLY
+
+
+def test_stale_clock_fails_closed(tmp_path) -> None:
+    skewed_clock = NOW - timedelta(seconds=120)
+    kernel = _kernel(tmp_path, truth=FakeTruthSource(account=_account(), clock=skewed_clock))
+    with pytest.raises(RiskRejected) as caught:
+        kernel.authorize_entry(
+            event_id="KR-2026Q2-EARNINGS", underlying="KR", compiled=_compiled(), now=NOW
+        )
+    assert caught.value.reason is RiskReason.STALE_CLOCK
+
+
+def test_pnl_fields_remain_separate(tmp_path) -> None:
+    ledger = RiskLedger(tmp_path / "risk.sqlite3")
+    ledger.record_reconciliation(
+        reconciliation_id="rec-1",
+        result="FLAT",
+        detail=None,
+        observed_at=NOW,
+        paper_pnl="12.50",
+        shadow_pnl="9.75",
+    )
+    row = ledger._conn.execute(
+        "SELECT paper_pnl, shadow_pnl FROM reconciliations WHERE reconciliation_id='rec-1'"
+    ).fetchone()
+    assert row["paper_pnl"] == "12.50"
+    assert row["shadow_pnl"] == "9.75"
+    assert row["paper_pnl"] != row["shadow_pnl"]
+    ledger.close()
+
+
+def test_close_only_transition_trigger() -> None:
+    assert (
+        next_control_state(ControlState.ACTIVE, ControlTrigger.CLOSE_ONLY_EQUITY_THRESHOLD)
+        is ControlState.CLOSE_ONLY
+    )

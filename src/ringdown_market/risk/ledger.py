@@ -74,6 +74,13 @@ _MIGRATIONS: dict[int, str] = {
         reconciliation_id TEXT PRIMARY KEY,
         result TEXT NOT NULL,
         detail TEXT,
+        paper_pnl TEXT,
+        shadow_pnl TEXT,
+        observed_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS account_snapshots (
+        seq INTEGER PRIMARY KEY AUTOINCREMENT,
+        equity TEXT NOT NULL,
         observed_at TEXT NOT NULL
     );
     CREATE TABLE IF NOT EXISTS control_state (
@@ -331,13 +338,64 @@ class RiskLedger:
         )
 
     def record_reconciliation(
-        self, *, reconciliation_id: str, result: str, detail: str | None, observed_at: datetime
+        self,
+        *,
+        reconciliation_id: str,
+        result: str,
+        detail: str | None,
+        observed_at: datetime,
+        paper_pnl: str | None = None,
+        shadow_pnl: str | None = None,
     ) -> None:
+        """Record one reconciliation; broker PAPER PnL and conservative shadow
+        PnL are stored as separate fields and remain separate claims."""
+
         self._conn.execute(
-            "INSERT INTO reconciliations (reconciliation_id, result, detail, observed_at)"
-            " VALUES (?, ?, ?, ?)",
-            (reconciliation_id, result, detail, _timestamp(observed_at)),
+            "INSERT INTO reconciliations (reconciliation_id, result, detail, paper_pnl,"
+            " shadow_pnl, observed_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (reconciliation_id, result, detail, paper_pnl, shadow_pnl, _timestamp(observed_at)),
         )
+
+    # -- account snapshots (daily-loss truth) --------------------------------
+
+    def record_account_snapshot(self, *, equity: Decimal, now: datetime) -> None:
+        self._conn.execute(
+            "INSERT INTO account_snapshots (equity, observed_at) VALUES (?, ?)",
+            (str(equity), _timestamp(now)),
+        )
+
+    def intraday_peak_equity(self, *, now: datetime) -> Decimal:
+        """Return the peak observed equity on the same UTC day as ``now``."""
+
+        day_prefix = _timestamp(now)[:10]
+        rows = self._conn.execute(
+            "SELECT equity FROM account_snapshots WHERE substr(observed_at, 1, 10)=?",
+            (day_prefix,),
+        ).fetchall()
+        peak = Decimal(0)
+        for row in rows:
+            value = Decimal(str(row["equity"]))
+            if value > peak:
+                peak = value
+        return peak
+
+    # -- entry / expression counters -----------------------------------------
+
+    def open_reservation_count(self) -> int:
+        row = self._conn.execute(
+            "SELECT COUNT(*) AS n FROM reservations WHERE state='RESERVED'"
+        ).fetchone()
+        return int(row["n"])
+
+    def entries_today(self, *, now: datetime) -> int:
+        """Count reservations created on the same UTC day as ``now``."""
+
+        day_prefix = _timestamp(now)[:10]
+        row = self._conn.execute(
+            "SELECT COUNT(*) AS n FROM reservations WHERE substr(created_at, 1, 10)=?",
+            (day_prefix,),
+        ).fetchone()
+        return int(row["n"])
 
     # -- control state -------------------------------------------------------
 

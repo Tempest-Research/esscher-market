@@ -29,6 +29,15 @@ policy binds its constants to an approved source via
 fallback — the kernel fails closed with `POLICY_UNVERIFIED_CONSTANT`.
 Illustrative values are never approved defaults.
 
+The kernel enforces every budget and control against broker-observed truth:
+duplicate events, aggregate exposure, per-event budget, buying power,
+concentration, drawdown, the daily-loss limit, the daily entry count, the open
+expression count, and the close-only equity threshold. The daily-loss limit
+compares current equity to the intraday peak recorded in the ledger; the
+close-only threshold moves the kernel to `CLOSE_ONLY` when equity falls to or
+below the threshold. A stale broker clock (skew beyond the truth-max-age) fails
+closed with `STALE_CLOCK`.
+
 ## Exposure calculations
 
 Exposure is the conservative worst case of the expression, computed in Decimal
@@ -46,7 +55,10 @@ snapshots, reservations, permits, submissions, fills, positions,
 reconciliations, control state, evidence mode, and `NOT_RUN`. A reservation and
 one-use permit are persisted before any mutation, and released only after
 fill/cancel reconciliation. Migrations are deterministic and recorded; existing
-attempt state delegates here so there are no split-brain writes.
+attempt state delegates here so there are no split-brain writes. Account
+snapshots accumulate intraday equity truth for the daily-loss check, and
+reconciliations store broker PAPER PnL and conservative shadow PnL as separate
+fields that remain separate claims.
 
 Reservations are one per event, enforced by a `UNIQUE(event_id)` constraint
 inside a `BEGIN IMMEDIATE` transaction, so two concurrent attempts cannot
@@ -81,5 +93,7 @@ authority.
 
 All tests use fakes and make no broker/MCP mutation. Coverage includes
 concurrent reservations, retries/release, restart persistence, stale truth,
-unknown exposure, drawdown transitions, duplicate events, partial fills,
-migration idempotency, control-state transitions, and passport integrity.
+stale clock, unknown exposure, drawdown transitions, daily-loss and close-only
+thresholds, entry-count and expression limits, duplicate events, partial fills,
+migration idempotency, control-state transitions, separate PnL fields, and
+passport integrity.

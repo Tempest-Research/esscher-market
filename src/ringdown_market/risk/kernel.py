@@ -117,6 +117,28 @@ class RiskKernel:
             )
 
         max_age = policy.truth_max_age_seconds
+        broker_clock = self._truth.broker_clock()
+        clock_skew = abs((broker_clock - now).total_seconds())
+        if clock_skew > max_age:
+            raise _reject(
+                RiskReason.STALE_CLOCK,
+                "broker_clock",
+                f"broker clock skew {clock_skew:.0f}s exceeds {max_age}s",
+            )
+
+        if self._ledger.entries_today(now=now) >= policy.max_entries_per_day:
+            raise _reject(
+                RiskReason.ENTRY_COUNT_LIMIT_REACHED,
+                "entries_today",
+                f"entry count has reached the daily limit {policy.max_entries_per_day}",
+            )
+        if self._ledger.open_reservation_count() >= policy.max_open_expressions:
+            raise _reject(
+                RiskReason.EXPRESSION_LIMIT_REACHED,
+                "open_expressions",
+                f"open expression count has reached the limit {policy.max_open_expressions}",
+            )
+
         account = validate_account_freshness(
             self._truth.account(), now=now, max_age_seconds=max_age
         )
@@ -124,6 +146,25 @@ class RiskKernel:
             self._truth.positions(), now=now, max_age_seconds=max_age
         )
         orders = validate_orders_freshness(self._truth.orders(), now=now, max_age_seconds=max_age)
+
+        if account.equity <= policy.close_only_equity_threshold:
+            self._apply_trigger(ControlTrigger.CLOSE_ONLY_EQUITY_THRESHOLD, now=now)
+            raise _reject(
+                RiskReason.CONTROL_STATE_BLOCKS_ENTRY,
+                "close_only_equity_threshold",
+                f"equity {account.equity} is at or below the close-only threshold",
+            )
+
+        self._ledger.record_account_snapshot(equity=account.equity, now=now)
+        intraday_peak = self._ledger.intraday_peak_equity(now=now)
+        daily_loss = intraday_peak - account.equity
+        if daily_loss > policy.daily_loss_limit:
+            self._apply_trigger(ControlTrigger.DAILY_LOSS_LIMIT_BREACHED, now=now)
+            raise _reject(
+                RiskReason.DAILY_LOSS_LIMIT_BREACHED,
+                "daily_loss",
+                f"daily loss {daily_loss} exceeds the limit {policy.daily_loss_limit}",
+            )
 
         for order in orders:
             if order.is_partial_fill:
