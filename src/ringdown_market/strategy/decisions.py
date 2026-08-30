@@ -234,7 +234,7 @@ class StrategyDecision:
     reaction_relation: ReactionRelation
     opening_residual: Decimal
     evidence_citations: tuple[EvidenceCitation, ...]
-    strongest_falsifier: Falsifier
+    strongest_falsifier: Falsifier | None
     snapshot_sha256: str
     policy_version: str
     policy_sha256: str
@@ -346,11 +346,15 @@ def strategy_decision_payload(decision: StrategyDecision) -> dict[str, object]:
             }
             for citation in decision.evidence_citations
         ],
-        "strongest_falsifier": {
-            "falsifier_id": decision.strongest_falsifier.falsifier_id,
-            "evidence_id": decision.strongest_falsifier.evidence_id,
-            "claim_sha256": decision.strongest_falsifier.claim_sha256,
-        },
+        "strongest_falsifier": (
+            {
+                "falsifier_id": decision.strongest_falsifier.falsifier_id,
+                "evidence_id": decision.strongest_falsifier.evidence_id,
+                "claim_sha256": decision.strongest_falsifier.claim_sha256,
+            }
+            if decision.strongest_falsifier is not None
+            else None
+        ),
         "snapshot_sha256": decision.snapshot_sha256,
         "policy_version": decision.policy_version,
         "policy_sha256": decision.policy_sha256,
@@ -605,8 +609,12 @@ def parse_strategy_decision(raw: bytes) -> StrategyDecision:
             payload["opening_residual"], path="decision.opening_residual"
         ),
         evidence_citations=citations,
-        strongest_falsifier=_parse_falsifier(
-            payload["strongest_falsifier"], path="decision.strongest_falsifier"
+        strongest_falsifier=(
+            None
+            if payload["strongest_falsifier"] is None
+            else _parse_falsifier(
+                payload["strongest_falsifier"], path="decision.strongest_falsifier"
+            )
         ),
         snapshot_sha256=_parse_sha256(payload["snapshot_sha256"], path="decision.snapshot_sha256"),
         policy_version=payload["policy_version"],  # type: ignore[arg-type]

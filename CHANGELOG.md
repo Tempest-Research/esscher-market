@@ -19,6 +19,8 @@
 - Synthetic reasoner-output development fixtures labelled as supplied test inputs, never strategy output.
 - Read-only point-in-time strategy snapshot collector (`esscher.strategy_snapshot/v1`) with provenance contracts, synchronized return/beta feature construction, corporate-action receipts, deterministic fake adapters, and an inert credential-rejecting capture command.
 - `docs/STRATEGY_DATA_PIPELINE.md` specifying exact source, timing, adjustment, entitlement, and recovery rules for snapshot collection.
+- Pure residual decision engine generating source-attributable `UP`/`DOWN`/`UNCERTAIN` decisions from frozen snapshots through one injected reasoner route, with deadline fencing, duplicate-call protection, evidence-bound citations, code-derived reaction relation, and snapshot-baseline construction.
+- Structured reasoner output contract (`esscher.reasoner_output/v1`), fake reasoner, route identity, and an inert route-smoke harness recording latency and schema outcomes without broker authority.
 
 ### Safety
 
@@ -27,6 +29,7 @@
 - Strategy decisions cannot carry order, permit, account, or contract fields; every abstention becomes `UNCERTAIN` with stable reason codes and no fallback signal exists.
 - Self-reported confidence never authorizes a trade and prose never controls market arithmetic.
 - The snapshot collector is read-only and credential-free: post-cutoff evidence, stale observations, unsynchronized windows, missing inputs, non-finite values, and redistribution violations fail closed with stable reason codes, and identical sources plus policy produce byte-identical snapshots.
+- The decision engine abstains instead of falling back: policy/snapshot drift, ineligible snapshots, late or hostile reasoner output, unbounded citations, and duplicate calls yield stable `UNCERTAIN` abstentions; reasoner prose never sets contracts, sizing, entry, or exit, and the strategy package imports no execution or runtime surface.
 - Evidence-manifest v2 remains ineligible for permit compilation and carries no post-cutoff path or outcome value.
 - Partial or contradictory package fills stop for reconciliation; missing fees remain explicit and raw broker/account identities never enter the receipt bundle.
 - Scheduled unknown, ambiguous, partial, overlapping, or integrity-invalid state fails closed without sequential-leg repair, guessed P&L, or another mutation.
