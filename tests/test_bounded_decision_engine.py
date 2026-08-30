@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import ast
+import json
 from dataclasses import replace
 from datetime import timedelta
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -26,6 +28,8 @@ from ringdown_market.strategy import (
     DecisionDisposition,
     EligibilityState,
     ExchangeStatus,
+    FeatureComponent,
+    FeatureStatus,
     StrategyInput,
     feature_receipt_bytes,
     parse_candidate_manifest,
@@ -53,6 +57,7 @@ from ringdown_market.strategy.reasoner import (
     ReasonerRouteResult,
 )
 from ringdown_market.strategy.smoke import run_route_smoke
+from test_strategy_contracts import _macro_strategy_input
 
 FORBIDDEN_MODULES = (
     "aiohttp",
@@ -438,3 +443,205 @@ def test_engine_decision_payload_has_no_broker_authority() -> None:
     )
     assert payload["authority"] == "DIRECTION_ONLY"
     assert outcome.decision.producer_build_sha256 == ENGINE_BUILD_SHA256
+
+
+def _good_payload(strategy_input: StrategyInput) -> dict:
+    raw = DeterministicFakeReasoner()(
+        ReasonerRouteRequest(strategy_input=strategy_input, started_at=_started(strategy_input))
+    ).raw_response_bytes
+    return json.loads(raw)
+
+
+def _rejoin_with_receipt(strategy_input: StrategyInput, receipt) -> StrategyInput:
+    from ringdown_market.strategy import candidate_manifest_bytes
+
+    return build_strategy_input(
+        strategy_snapshot_bytes(strategy_input.snapshot),
+        candidate_manifest_bytes=candidate_manifest_bytes(strategy_input.candidate_manifest),
+        feature_receipt_bytes=feature_receipt_bytes(receipt),
+    )
+
+
+def _route_with_payload(strategy_input: StrategyInput, payload: dict):
+    from ringdown_market.strategy.contracts import canonical_json_bytes, sha256_bytes
+
+    raw = canonical_json_bytes(payload)
+    base = DeterministicFakeReasoner()(
+        ReasonerRouteRequest(strategy_input=strategy_input, started_at=_started(strategy_input))
+    )
+    exchange = replace(base.exchange, raw_response_sha256=sha256_bytes(raw))
+
+    def route(request: ReasonerRouteRequest) -> ReasonerRouteResult:
+        return ReasonerRouteResult(exchange=exchange, raw_response_bytes=raw)
+
+    return route
+
+
+def test_directional_decision_without_primary_citation_is_vetoed() -> None:
+    strategy_input = _strategy_input()
+    payload = _good_payload(strategy_input)
+    payload["evidence_ids"] = ["market-snapshot"]
+    outcome = BoundedDecisionEngine(_route_with_payload(strategy_input, payload)).decide(
+        strategy_input, started_at=_started(strategy_input)
+    )
+
+    assert outcome.decision.direction is Direction.UNCERTAIN
+    assert "MISSING_PRIMARY_CITATION" in outcome.decision.reason_codes
+
+
+def test_directional_decision_without_falsifier_is_vetoed() -> None:
+    strategy_input = _strategy_input()
+    payload = _good_payload(strategy_input)
+    payload["strongest_falsifier"] = None
+    outcome = BoundedDecisionEngine(_route_with_payload(strategy_input, payload)).decide(
+        strategy_input, started_at=_started(strategy_input)
+    )
+
+    assert outcome.decision.direction is Direction.UNCERTAIN
+    assert "MISSING_FALSIFIER" in outcome.decision.reason_codes
+
+
+def test_critical_unknown_is_material_and_abstains() -> None:
+    strategy_input = _strategy_input()
+    payload = _good_payload(strategy_input)
+    payload["unknowns"] = ["MATERIAL_SOURCE_CONTRADICTION"]
+    outcome = BoundedDecisionEngine(_route_with_payload(strategy_input, payload)).decide(
+        strategy_input, started_at=_started(strategy_input)
+    )
+
+    assert outcome.decision.direction is Direction.UNCERTAIN
+    assert "MATERIAL_UNKNOWN" in outcome.decision.reason_codes
+
+
+def test_exchange_created_after_cutoff_is_late() -> None:
+    strategy_input = _strategy_input()
+    base = DeterministicFakeReasoner()(
+        ReasonerRouteRequest(strategy_input=strategy_input, started_at=_started(strategy_input))
+    )
+    late_exchange = replace(
+        base.exchange,
+        created_at=strategy_input.snapshot.decision_cutoff_at + timedelta(seconds=1),
+    )
+
+    def route(request: ReasonerRouteRequest) -> ReasonerRouteResult:
+        return ReasonerRouteResult(
+            exchange=late_exchange, raw_response_bytes=base.raw_response_bytes
+        )
+
+    outcome = BoundedDecisionEngine(route).decide(
+        strategy_input, started_at=_started(strategy_input)
+    )
+
+    assert outcome.decision.direction is Direction.UNCERTAIN
+    assert "LATE_RESPONSE" in outcome.decision.reason_codes
+
+
+def test_provider_failure_invokes_route_exactly_once() -> None:
+    strategy_input = _strategy_input()
+    calls = []
+    inner = DeterministicFakeReasoner(FakeFailure.PROVIDER_ERROR)
+
+    def counting_route(request: ReasonerRouteRequest) -> ReasonerRouteResult:
+        calls.append(request)
+        return inner(request)
+
+    outcome = BoundedDecisionEngine(counting_route).decide(
+        strategy_input, started_at=_started(strategy_input)
+    )
+
+    assert len(calls) == 1
+    assert outcome.decision.direction is Direction.UNCERTAIN
+
+
+def test_seeded_controls_match_bounded_directional_coverage_and_abstentions() -> None:
+    strategy_input = _strategy_input()
+    directional = compile_gate_c_signals(
+        strategy_input, route=DeterministicFakeReasoner(), started_at=_started(strategy_input)
+    )
+    bounded_dir = next(s for s in directional.signals if s.baseline_id == "BOUNDED_LLM")
+    if bounded_dir.direction is not Direction.UNCERTAIN:
+        assert all(c.direction is not Direction.UNCERTAIN for c in directional.controls)
+
+    abstaining = compile_gate_c_signals(
+        strategy_input,
+        route=DeterministicFakeReasoner(FakeFailure.TIMEOUT),
+        started_at=_started(strategy_input),
+    )
+    bounded_abs = next(s for s in abstaining.signals if s.baseline_id == "BOUNDED_LLM")
+    assert bounded_abs.direction is Direction.UNCERTAIN
+    assert all(c.direction is Direction.UNCERTAIN for c in abstaining.controls)
+
+
+def test_ablation_run_uses_identical_clocks_and_gates() -> None:
+    strategy_input = _strategy_input()
+    normal = BoundedDecisionEngine(DeterministicFakeReasoner()).decide(
+        strategy_input, started_at=_started(strategy_input)
+    )
+    ablation = BoundedDecisionEngine(DeterministicFakeReasoner()).decide(
+        strategy_input, started_at=_started(strategy_input), ablate_text=True
+    )
+
+    assert normal.exchange.started_at == ablation.exchange.started_at
+    assert normal.exchange.deadline_at == ablation.exchange.deadline_at
+    assert ablation.trace["ablate_text"] is True
+
+
+def test_macro_cohort_runs_engine_and_baselines_with_distinct_clocks() -> None:
+    strategy_input = _macro_strategy_input(vwap_distance=Decimal("5"))
+    outcome = BoundedDecisionEngine(DeterministicFakeReasoner()).decide(
+        strategy_input, started_at=_started(strategy_input)
+    )
+
+    assert outcome.decision.cohort_id == "BLS_JOLTS"
+    assert outcome.decision.disposition is DecisionDisposition.ACCEPTED
+    assert outcome.decision.direction is Direction.UP
+
+    bundle = compile_gate_c_signals(
+        strategy_input, route=DeterministicFakeReasoner(), started_at=_started(strategy_input)
+    )
+    continuation = next(s for s in bundle.signals if s.baseline_id == "PRICE_CONTINUATION")
+    reversal = next(s for s in bundle.signals if s.baseline_id == "PRICE_REVERSAL")
+    assert continuation.direction is Direction.UP
+    assert reversal.direction is Direction.DOWN
+
+
+def test_macro_parser_votes_use_frozen_component_mapping() -> None:
+    strategy_input = _macro_strategy_input(vwap_distance=Decimal("5"))
+    receipt = strategy_input.feature_receipt
+    features = []
+    for feature in receipt.features:
+        if feature.feature_id == "macro.consensus_surprise_vector.v1":
+            features.append(
+                replace(
+                    feature,
+                    status=FeatureStatus.PRESENT,
+                    value=None,
+                    observed_at=strategy_input.snapshot.evidence_cutoff_at,
+                    source_refs=("bls-release",),
+                    components=(
+                        FeatureComponent(
+                            component_id="job_openings",
+                            status=FeatureStatus.PRESENT,
+                            value=Decimal("1.2"),
+                            unit="Z_SCORE",
+                            source_refs=("bls-release",),
+                        ),
+                        FeatureComponent(
+                            component_id="quits",
+                            status=FeatureStatus.PRESENT,
+                            value=Decimal("0.8"),
+                            unit="Z_SCORE",
+                            source_refs=("bls-release",),
+                        ),
+                    ),
+                )
+            )
+        else:
+            features.append(feature)
+    receipt = replace(receipt, features=tuple(features))
+    mutated = _rejoin_with_receipt(strategy_input, receipt)
+
+    from ringdown_market.strategy.baselines import deterministic_parser_signal
+
+    signal = deterministic_parser_signal(mutated)
+    assert signal.direction is Direction.DOWN
