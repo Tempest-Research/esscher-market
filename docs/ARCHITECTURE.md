@@ -77,6 +77,8 @@ Current modules:
 - `alpha/baselines.py`: deterministic frozen comparators, including abstention;
 - `alpha/qfast.py`: small-sample rejection and latency gates;
 - `contracts/execution_policy.py`: the immutable paper-risk and official MCP protocol registry;
+- `contracts/gate_a.py`: strict organizer-fact and sanitized account-capability contracts plus the
+        pure fail-closed Gate A evaluator;
 - `contracts/research_to_permit.py`: the pure frozen-decision, provenance, and feature-dependency bridge;
 - `execution/models.py`: immutable opening and closing permits for one debit vertical;
 - `execution/host_mcp.py`: the host identity, startup capability/account preflight, sanitized observation, bounded runtime allowlist, and typed transport failures;
@@ -152,6 +154,8 @@ The residual return removes frozen market and sector components measured over th
 14. Public artifacts are static, sanitized, and incapable of mutation.
 15. Each scheduled invocation handles one exact `event_run_id`; non-terminal restart reconciles deterministic broker identity, terminal repeats are no-ops, and a second active event is rejected.
 16. Local scheduled state is an atomic integrity-checked restart cursor; broker order and position readback remains authority, and ambiguous or partial truth stops for manual reconciliation.
+17. Gate A organizer facts and account capabilities are separate hash-bound artifacts; unknown
+        entry-relevant truth yields `ENTRY_DISABLED`, and committed receipts contain no raw account ID.
 
 Historical panel admission additionally requires per-feature source dependencies, typed publication timestamps, entitlement metadata, and a common outcome path. The aggregate `DecisionSnapshot` alone does not establish those dependencies; the bridge therefore also requires and validates the exact feature-input and evidence-manifest bytes before issuing a permit.
 

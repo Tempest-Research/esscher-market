@@ -4,6 +4,9 @@
 
 ### Added
 
+- A strict, source-grounded Gate A organizer contract and separate sanitized account-capability
+	receipt covering competition rules, PAPER identity, account freshness, entitlements, option
+	level, multi-leg support, reset state, and required MCP tools.
 - Four pre-outcome scheduled-earnings replay manifests bound to one frozen event list and selection rule.
 - A strict data-only evidence-manifest v2 validator with event-context provenance and point-in-time gates.
 - Versioned, strict frozen-research-decision, point-in-time evidence-manifest, and feature-input contracts.
@@ -17,6 +20,9 @@
 
 ### Safety
 
+- Unknown or stale mark, cost, leverage, flattening, entitlement, endpoint, option-level,
+  multi-leg, account-freshness, reset, balance, or MCP-tool truth yields `ENTRY_DISABLED`; no raw
+  account identifier or credential is accepted.
 - Unknown fields/states, hash or provenance mismatch, post-cutoff dependencies, abstention, failed research gates, unsupported strategy shape, and excess paper risk fail closed before any broker session exists.
 - Evidence-manifest v2 remains ineligible for permit compilation and carries no post-cutoff path or outcome value.
 - Partial or contradictory package fills stop for reconciliation; missing fees remain explicit and raw broker/account identities never enter the receipt bundle.
