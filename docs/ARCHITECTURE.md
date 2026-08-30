@@ -87,6 +87,7 @@ Current modules:
 - `contracts/execution_policy.py`: the immutable paper-risk and official MCP protocol registry;
 - `contracts/research_to_permit.py`: the pure frozen-decision, provenance, and feature-dependency bridge;
 - `execution/models.py`: immutable opening and closing permits for one debit vertical;
+- `execution/option_compiler.py`: the deterministic quote-safe debit-vertical compiler emitting one permit-boundary package or explicit `NO_PACKAGE`;
 - `execution/host_mcp.py`: the host identity, startup capability/account preflight, sanitized observation, bounded runtime allowlist, and typed transport failures;
 - `execution/mcp.py`: the single Alpaca MCP request, readback, cancellation, atomic-close, and event-flat reconciliation boundary;
 - `execution/paper_demo.py`: exact approval, durable submit-once recovery, fill-economics classification, and sanitized terminal receipt bundle;
@@ -132,7 +133,7 @@ sanitized static public trace
 
 The real point-in-time event collection is frozen, and the static proof renderer now projects one v2 evidence manifest plus three separate scheduled lifecycle contract fixtures. No merged artifact causally joins that v2 event to a decision, permit, or terminal receipt, so the page renders those links as missing instead of splicing unrelated values. A future real causally joined public trace remains a separate reviewed artifact. The implemented bridge accepts only exact frozen artifacts that already passed the registered research gates; it does not create evidence, rescore a signal, or open an execution session. The implemented host boundary constructs only a preflighted PAPER session for the same official adapter. Missing or ambiguous information fails closed to rejection or reconciliation; it never selects another adapter.
 
-The Esscher v1 strategy policy is frozen (`docs/STRATEGY_V1.md`, `configs/strategy_v1.json`) with a hash-bound strict contract under `src/ringdown_market/strategy/`, the read-only point-in-time snapshot collector (`docs/STRATEGY_DATA_PIPELINE.md`) compiles `esscher.strategy_snapshot/v1` bytes under `src/ringdown_market/data/`, and the residual decision engine generates source-attributable `UP`/`DOWN`/`UNCERTAIN` decisions from those frozen snapshots through one injected reasoner route. The deterministic option-package compiler (#29) is the next integration step; hand-authored `candidate_signal` fixtures remain supplied test inputs, not strategy output.
+The Esscher v1 strategy policy is frozen (`docs/STRATEGY_V1.md`, `configs/strategy_v1.json`) with a hash-bound strict contract under `src/ringdown_market/strategy/`, the read-only point-in-time snapshot collector (`docs/STRATEGY_DATA_PIPELINE.md`) compiles `esscher.strategy_snapshot/v1` bytes under `src/ringdown_market/data/`, the residual decision engine generates source-attributable `UP`/`DOWN`/`UNCERTAIN` decisions from those frozen snapshots through one injected reasoner route, and the deterministic option compiler turns one validated direction plus one frozen option-chain snapshot into one quote-safe debit vertical or an explicit `NO_PACKAGE`. The account-level risk kernel and durable reservation ledger (#30) is the next integration step; hand-authored `candidate_signal` fixtures remain supplied test inputs, not strategy output.
 
 ## Core evaluation
 
