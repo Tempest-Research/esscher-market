@@ -5,6 +5,10 @@
 ### Added
 
 - Deterministic offline evidence-bundle diff reports for frozen JSON artifacts and directory bundles, exposed through `ringdown_market.audit` and `python -m ringdown_market.audit.bundle_diff` without rerunning research or opening a broker session.
+- A PAPER account risk kernel with an immutable risk-policy schema, Decimal-only exposure
+	calculations, a standard-library SQLite WAL reservation ledger, broker-observed truth snapshot
+	interfaces, startup and pre-permit reconciliation gates, entry-disabled/close-only/kill/manual
+	controls, and an append-only Trade Passport with a deterministic verifier.
 - A deterministic Gate D expression tournament comparing cash/no-trade, shares, one long option, and
 	a defined-risk debit vertical for the same frozen directional decisions, with failures kept in the
 	denominator and a canonical `NO_EXPRESSION` outcome when no expression meets the preregistered
