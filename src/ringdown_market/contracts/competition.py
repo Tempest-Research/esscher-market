@@ -8,6 +8,8 @@ import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from ipaddress import ip_address
+from typing import NoReturn
 from urllib.parse import urlsplit
 
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
@@ -83,7 +85,7 @@ class _DuplicateFieldError(ValueError):
     pass
 
 
-def _reject(path: str, detail: str) -> None:
+def _reject(path: str, detail: str) -> NoReturn:
     raise CompetitionContractRejected(f"{path}: {detail}")
 
 
@@ -153,8 +155,30 @@ def _timestamp(value: object, *, path: str) -> datetime:
 def _https_url(value: object, *, path: str) -> str:
     url = _text(value, path=path)
     parsed = urlsplit(url)
-    if parsed.scheme != "https" or not parsed.netloc or parsed.username or parsed.password:
-        _reject(path, "must be a public HTTPS URL without credentials")
+    if (
+        parsed.scheme != "https"
+        or not parsed.netloc
+        or parsed.username
+        or parsed.password
+        or parsed.query
+        or parsed.fragment
+    ):
+        _reject(
+            path,
+            "must be a public HTTPS URL without credentials, query, or fragment",
+        )
+    host = parsed.hostname
+    if host is None:
+        _reject(path, "must name a public host")
+    normalized = host.lower().rstrip(".")
+    if normalized == "localhost" or normalized.endswith(".localhost"):
+        _reject(path, "localhost is not a public source host")
+    try:
+        address = ip_address(normalized)
+    except ValueError:
+        return url
+    if not address.is_global:
+        _reject(path, "non-global IP literals are not public source hosts")
     return url
 
 

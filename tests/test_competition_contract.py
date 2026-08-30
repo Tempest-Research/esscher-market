@@ -391,6 +391,62 @@ def test_source_must_be_public_https_and_precede_freeze() -> None:
     assert "sources[0].source_url" in str(caught)
 
 
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://example.com/rules?account_id=fake-placeholder",
+        "https://example.com/rules?api_key=fake-placeholder",
+        "https://example.com/rules#token=fake-placeholder",
+        "https://example.com/rules?empty=&other=fake-placeholder#",
+        "https://localhost/rules",
+        "https://LOCALHOST/rules",
+        "https://internal.localhost/rules",
+        "https://127.0.0.1/rules",
+        "https://[::1]/rules",
+        "https://[::ffff:127.0.0.1]/rules",
+        "https://10.0.0.1/rules",
+        "https://192.168.1.1/rules",
+        "https://169.254.0.1/rules",
+        "https://[fe80::1]/rules",
+        "https://[fd00::1]/rules",
+        "https://:443/rules",
+    ],
+)
+def test_source_url_rejects_metadata_bearing_or_non_public_hosts(url: str) -> None:
+    document = _document()
+    sources = document["sources"]
+    assert isinstance(sources, list)
+    source = sources[0]
+    assert isinstance(source, dict)
+    source["source_url"] = url
+
+    caught = _rejected(document)
+
+    assert "sources[0].source_url" in str(caught)
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://example.com/rules",
+        "https://lablab.ai/ai-hackathons/alpaca-ai-trading-agents-hackathon",
+        "https://8.8.8.8/rules",
+    ],
+)
+def test_source_url_accepts_public_https_hosts(url: str) -> None:
+    document = _document()
+    sources = document["sources"]
+    assert isinstance(sources, list)
+    source = sources[0]
+    assert isinstance(source, dict)
+    source["source_url"] = url
+
+    validated = validate_competition_contract(_bytes(document))
+
+    assert validated.contract_id == "alpaca-ai-trading-agents-hackathon-2026"
+    assert validated.permit_eligible is False
+
+
 def test_source_verification_cannot_postdate_freeze() -> None:
     document = _document()
     sources = document["sources"]

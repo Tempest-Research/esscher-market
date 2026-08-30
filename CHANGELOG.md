@@ -24,6 +24,7 @@
 - Scheduled unknown, ambiguous, partial, overlapping, or integrity-invalid state fails closed without sequential-leg repair, guessed P&L, or another mutation.
 - The packaged trace is static and no-network; it rejects weakened labels or malformed PAPER receipt boundaries, escapes untrusted text, and leaves unsupported decision, permit, receipt, and P&L fields visibly missing.
 - Competition facts remain non-permit-eligible; unsupported schemas, unverifiable sources, unknown release facts, credential-bearing URLs, private account-identity fields, and weakened PAPER/privacy invariants fail closed.
+- Competition source URLs also fail closed on any query, fragment, localhost, or non-global IP-literal host, so accepted contracts cannot retain account or credential metadata.
 - Version impact is `minor`; the package stays at `0.2.0` while issue #11 consolidates the release-train bump to `0.3.0`.
 
 ## [0.2.0] - Unreleased
