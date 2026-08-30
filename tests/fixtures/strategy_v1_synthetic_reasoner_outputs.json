@@ -1,0 +1,96 @@
+{
+  "fixture_metadata": {
+    "artifact_class": "SYNTHETIC_CONTRACT_FIXTURE",
+    "limitations": [
+      "NOT_HISTORICAL_DATA",
+      "NOT_ALPHA_EVIDENCE",
+      "NO_BROKER_EXECUTION"
+    ],
+    "purpose": "Supplied synthetic reasoner outputs for Esscher v1 strategy contract development only. These are test inputs, not strategy output, not historical evidence, and never execution authority."
+  },
+  "reasoner_output_schema": "esscher.reasoner_output",
+  "reasoner_output_schema_version": 1,
+  "outputs": [
+    {
+      "case_id": "valid-up",
+      "direction": "UP",
+      "confidence": 0.72,
+      "citations": [
+        {
+          "citation_id": "c-1",
+          "evidence_id": "issuer-release",
+          "claim_sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+        }
+      ],
+      "falsifier": {
+        "falsifier_id": "f-1",
+        "evidence_id": "sec-filing",
+        "claim_sha256": "2222222222222222222222222222222222222222222222222222222222222222"
+      },
+      "arrived_after_deadline": false
+    },
+    {
+      "case_id": "valid-down",
+      "direction": "DOWN",
+      "confidence": 0.64,
+      "citations": [
+        {
+          "citation_id": "c-1",
+          "evidence_id": "issuer-release",
+          "claim_sha256": "3333333333333333333333333333333333333333333333333333333333333333"
+        }
+      ],
+      "falsifier": {
+        "falsifier_id": "f-1",
+        "evidence_id": "sec-filing",
+        "claim_sha256": "4444444444444444444444444444444444444444444444444444444444444444"
+      },
+      "arrived_after_deadline": false
+    },
+    {
+      "case_id": "uncertain-missing-evidence",
+      "direction": "UNCERTAIN",
+      "confidence": 0.5,
+      "citations": [],
+      "falsifier": null,
+      "arrived_after_deadline": false
+    },
+    {
+      "case_id": "late-output",
+      "direction": "UP",
+      "confidence": 0.9,
+      "citations": [
+        {
+          "citation_id": "c-1",
+          "evidence_id": "issuer-release",
+          "claim_sha256": "5555555555555555555555555555555555555555555555555555555555555555"
+        }
+      ],
+      "falsifier": {
+        "falsifier_id": "f-1",
+        "evidence_id": "issuer-release",
+        "claim_sha256": "6666666666666666666666666666666666666666666666666666666666666666"
+      },
+      "arrived_after_deadline": true
+    },
+    {
+      "case_id": "hostile-execution-fields",
+      "direction": "UP",
+      "confidence": 0.99,
+      "limit_price": "1.25",
+      "quantity": 5,
+      "symbol": "NVDA260918C00180000",
+      "citations": [],
+      "falsifier": null,
+      "arrived_after_deadline": false
+    },
+    {
+      "case_id": "invalid-direction",
+      "direction": "SIDEWAYS",
+      "confidence": 0.5,
+      "citations": [],
+      "falsifier": null,
+      "arrived_after_deadline": false
+    }
+  ]
+}

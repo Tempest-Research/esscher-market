@@ -1,0 +1,287 @@
+{
+  "schema": "esscher.strategy_policy",
+  "schema_version": 1,
+  "policy_id": "ESSCHER_STRATEGY_V1",
+  "policy_version": "esscher-strategy-v1",
+  "frozen": true,
+  "frozen_at": "2026-08-30T14:12:39Z",
+  "product_name": "Esscher",
+  "machine_package": "ringdown-market",
+  "hypothesis": {
+    "id": "residual-earnings-direction/v1",
+    "statement": "After a scheduled BMO/AMC earnings release, the residual underlying direction of the issuer over a bounded opening-window hold is partially predictable from timestamped primary earnings evidence and synchronized opening returns, after removing frozen market and sector components.",
+    "target": "RESIDUAL_UNDERLYING_DIRECTION",
+    "not_predicted": [
+      "OPTION_PRICES",
+      "FILL_QUALITY",
+      "PROFITABILITY"
+    ]
+  },
+  "universe": {
+    "listing": "US_LISTED_COMMON_EQUITY",
+    "optionable_required": true,
+    "minimum_price_usd": "10.00",
+    "scheduled_only": true,
+    "earnings_timing": [
+      "BMO",
+      "AMC"
+    ]
+  },
+  "timing": {
+    "timezone": "America/New_York",
+    "observation_window_start": "09:30:00",
+    "observation_window_end": "09:35:00",
+    "decision_cutoff_rule": "OBSERVATION_WINDOW_END",
+    "valid_signal_by": "09:36:05",
+    "no_open_submission_after": "09:37:00",
+    "close_all_positions_by": "15:30:00"
+  },
+  "information_set": {
+    "permitted_source_kinds": [
+      "ISSUER_PRIMARY",
+      "SEC_OFFICIAL",
+      "OFFICIAL_MARKET_DATA"
+    ],
+    "prohibited_sources": [
+      "COMPETITOR_SUBMISSION",
+      "SECONDARY_SUMMARY",
+      "UNOFFICIAL_AGGREGATOR",
+      "UNSOURCE_PROSE"
+    ],
+    "unknowns_must_be_explicit": true,
+    "imputation_forbidden": true,
+    "features": [
+      {
+        "feature_id": "earnings_numeric/v1",
+        "availability_rule": "PUBLISHED_AT_OR_BEFORE_CUTOFF",
+        "permitted_source_classes": [
+          "ISSUER_PRIMARY",
+          "SEC_OFFICIAL"
+        ],
+        "definition": "Timestamped numeric earnings facts (revenue, EPS, segments) and guidance figures disclosed by the issuer."
+      },
+      {
+        "feature_id": "guidance_statement/v1",
+        "availability_rule": "PUBLISHED_AT_OR_BEFORE_CUTOFF",
+        "permitted_source_classes": [
+          "ISSUER_PRIMARY",
+          "SEC_OFFICIAL"
+        ],
+        "definition": "Timestamped forward guidance statements and changes disclosed by the issuer, with explicit unknowns preserved."
+      },
+      {
+        "feature_id": "opening_return/v1",
+        "availability_rule": "OBSERVED_WITHIN_REGISTERED_OPENING_WINDOW",
+        "permitted_source_classes": [
+          "OFFICIAL_MARKET_DATA"
+        ],
+        "definition": "Log return of the underlying over the registered 09:30:00-09:35:00 America/New_York opening window of the reaction session, from synchronized adjusted bars."
+      },
+      {
+        "feature_id": "market_opening_return/v1",
+        "availability_rule": "OBSERVED_WITHIN_REGISTERED_OPENING_WINDOW",
+        "permitted_source_classes": [
+          "OFFICIAL_MARKET_DATA"
+        ],
+        "definition": "Log return of the SPY market proxy over the identical registered opening window, same adjusted-bar policy."
+      },
+      {
+        "feature_id": "sector_opening_return/v1",
+        "availability_rule": "OBSERVED_WITHIN_REGISTERED_OPENING_WINDOW",
+        "permitted_source_classes": [
+          "OFFICIAL_MARKET_DATA"
+        ],
+        "definition": "Log return of the frozen sector proxy over the identical registered opening window, same adjusted-bar policy."
+      },
+      {
+        "feature_id": "market_beta/v1",
+        "availability_rule": "FROZEN_BETA_POLICY_PRE_CUTOFF",
+        "permitted_source_classes": [
+          "OFFICIAL_MARKET_DATA"
+        ],
+        "definition": "Beta of the underlying to the market proxy under the frozen beta policy, estimated only from data available before the decision cutoff."
+      },
+      {
+        "feature_id": "sector_beta/v1",
+        "availability_rule": "FROZEN_BETA_POLICY_PRE_CUTOFF",
+        "permitted_source_classes": [
+          "OFFICIAL_MARKET_DATA"
+        ],
+        "definition": "Beta of the underlying to the frozen sector proxy under the frozen beta policy, estimated only from data available before the decision cutoff."
+      }
+    ]
+  },
+  "beta_policy": {
+    "version": "beta-freeze/v1",
+    "market_proxy": "SPY",
+    "sector_proxy_policy": "FROZEN_PER_EVENT_SECTOR",
+    "estimation_data_cutoff_rule": "FEATURE_SNAPSHOT_AT_OR_EARLIER",
+    "post_event_data_forbidden": true,
+    "reestimation_after_outcome_forbidden": true
+  },
+  "decision": {
+    "outputs": [
+      "UP",
+      "DOWN",
+      "UNCERTAIN"
+    ],
+    "abstain_output": "UNCERTAIN",
+    "confidence_authorizes_trade": false,
+    "prose_controls_arithmetic": false,
+    "no_fallback_signal": true,
+    "reaction_relation_values": [
+      "CONTINUE",
+      "REVERSE",
+      "NONE"
+    ],
+    "reaction_relation_computed_by": "DETERMINISTIC_CODE",
+    "abstention_rules": [
+      {
+        "code": "MISSING_EVIDENCE",
+        "condition": "A required earnings or guidance fact is absent from the admissible information set."
+      },
+      {
+        "code": "CONFLICTING_EVIDENCE",
+        "condition": "Independent admissible sources disagree and the conflict cannot be resolved by the registered source hierarchy."
+      },
+      {
+        "code": "STALE_INPUT",
+        "condition": "A snapshot, feature, or evidence timestamp is stale relative to the decision cutoff or the registered window."
+      },
+      {
+        "code": "CUTOFF_VIOLATION",
+        "condition": "Any input carries information published or observed after the decision cutoff."
+      },
+      {
+        "code": "INELIGIBLE_UNIVERSE",
+        "condition": "The event fails the universe rules (listing, optionability, price floor, scheduled BMO/AMC earnings)."
+      },
+      {
+        "code": "INELIGIBLE_TIMING",
+        "condition": "The event timing bucket or session calendar cannot be established safely."
+      },
+      {
+        "code": "LATE_REASONER_OUTPUT",
+        "condition": "The reasoner result arrives after valid_signal_by."
+      },
+      {
+        "code": "INVALID_REASONER_OUTPUT",
+        "condition": "The reasoner output is invalid, incomplete, canceled, or violates the frozen output schema."
+      },
+      {
+        "code": "UNBOUNDED_FALSIFIER",
+        "condition": "A falsifier is not bounded by admissible evidence or contradicts the accepted direction without resolution."
+      },
+      {
+        "code": "POLICY_HASH_MISMATCH",
+        "condition": "The strategy policy hash bound to the run differs from the frozen policy hash."
+      },
+      {
+        "code": "SNAPSHOT_HASH_MISMATCH",
+        "condition": "The strategy snapshot hash differs from the snapshot bytes consumed."
+      },
+      {
+        "code": "ROUTE_MISMATCH",
+        "condition": "The reasoner route identity differs from the single frozen registered route."
+      },
+      {
+        "code": "DUPLICATE_DECISION",
+        "condition": "A decision was already produced for the same event and policy identity."
+      },
+      {
+        "code": "NO_FALLBACK",
+        "condition": "No route or replacement signal may substitute for a failed decision path."
+      }
+    ]
+  },
+  "reasoner": {
+    "role": "CLASSIFY_RESIDUAL_DIRECTION_AND_CITE_EVIDENCE",
+    "prohibited_authorities": [
+      "CONTRACT_SELECTION",
+      "SIZING",
+      "ENTRY",
+      "EXIT"
+    ],
+    "route_count": 1,
+    "transparent_fallback": false,
+    "invalid_output_disposition": "UNCERTAIN",
+    "bound_by": [
+      "PROMPT_HASH",
+      "OUTPUT_SCHEMA_HASH",
+      "POLICY_HASH"
+    ]
+  },
+  "expression": {
+    "kind": "DEBIT_VERTICAL",
+    "quantity": 1,
+    "dte_min_days": 7,
+    "dte_max_days": 21,
+    "allowed_widths_usd": [
+      "2.50",
+      "5.00"
+    ],
+    "selection_authority": "DETERMINISTIC_OPTION_COMPILER_ONLY"
+  },
+  "exit": {
+    "hold_minutes": 60,
+    "hold_anchor": "RECONCILED_OPENING_FILL",
+    "model_exit": false,
+    "profit_take": false,
+    "stop_loss": false,
+    "close_style": "ATOMIC_MULTI_LEG",
+    "close_all_positions_by_rule": "BY_CLOSE_ALL_POSITIONS_BY_AND_BEFORE_EXPIRY"
+  },
+  "baselines": [
+    "always_abstain",
+    "gap_continue",
+    "gap_reverse",
+    "price_only",
+    "fundamental_rule",
+    "no_text_ablation"
+  ],
+  "residual_convention": {
+    "return_type": "LOG",
+    "formula": "residual_return = r_stock - beta_market * r_market - beta_sector * r_sector",
+    "window": "ACHIEVED_ENTRY_TO_FILL_RELATIVE_EXIT",
+    "unit_risk": "COMMON_UNIT_SIGNED_RESIDUAL_LOG_RETURN",
+    "abstention_signed_return": 0.0
+  },
+  "evidence_requirements": {
+    "panel_min_events": 20,
+    "panel_max_events": 30,
+    "qfast_minimum_events": 20,
+    "qfast_reject_reasons": [
+      "non_positive_mean",
+      "negative_median",
+      "loses_to_strongest_baseline",
+      "best_event_fragility"
+    ],
+    "latency_required_profile": "p95",
+    "zero_latency_and_p95_reported_separately": true,
+    "historical_confirmation_required_before_paper_mutation": true,
+    "prospective_shadow_required_before_paper_mutation": true,
+    "threshold_disposition_when_unmet": "REPORT_NOT_MET"
+  },
+  "event_sets": {
+    "development_event_ids": [
+      "KR-2026Q2-EARNINGS",
+      "GIS-2027Q1-EARNINGS",
+      "MU-2026Q4-EARNINGS",
+      "NKE-2027Q1-EARNINGS"
+    ],
+    "development_events_excluded_from_confirmation_panel": true,
+    "confirmation_panel": "UNTOUCHED_POINT_IN_TIME_PANEL",
+    "prospective_events": "POST_FREEZE_SHADOW_ONLY",
+    "separation_before_outcome_inspection": true
+  },
+  "boundaries": {
+    "execution_mode": "PAPER_ONLY",
+    "broker_boundary": "OFFICIAL_ALPACA_MCP_ONLY",
+    "real_money_mode": false,
+    "claim": "NOT_ALPHA_EVIDENCE",
+    "data_qualifiers": [
+      "INDICATIVE_DATA",
+      "NOT_ALPHA_EVIDENCE"
+    ]
+  }
+}

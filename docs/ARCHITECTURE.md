@@ -76,6 +76,8 @@ Current modules:
 - `alpha/evaluation.py`: eligible-path-observation and fill-relative evaluation;
 - `alpha/baselines.py`: deterministic frozen comparators, including abstention;
 - `alpha/qfast.py`: small-sample rejection and latency gates;
+- `strategy/policy.py`: the frozen Esscher v1 strategy policy identity, strict parser, and hash-bound immutability;
+- `strategy/decisions.py`: the immutable strategy decision contract with stable abstention codes, reaction relation, evidence citations, and lineage hashes;
 - `contracts/execution_policy.py`: the immutable paper-risk and official MCP protocol registry;
 - `contracts/research_to_permit.py`: the pure frozen-decision, provenance, and feature-dependency bridge;
 - `execution/models.py`: immutable opening and closing permits for one debit vertical;
@@ -124,6 +126,8 @@ sanitized static public trace
 
 The real point-in-time event collection is frozen, and the static proof renderer now projects one v2 evidence manifest plus three separate scheduled lifecycle contract fixtures. No merged artifact causally joins that v2 event to a decision, permit, or terminal receipt, so the page renders those links as missing instead of splicing unrelated values. A future real causally joined public trace remains a separate reviewed artifact. The implemented bridge accepts only exact frozen artifacts that already passed the registered research gates; it does not create evidence, rescore a signal, or open an execution session. The implemented host boundary constructs only a preflighted PAPER session for the same official adapter. Missing or ambiguous information fails closed to rejection or reconciliation; it never selects another adapter.
 
+The Esscher v1 strategy policy is frozen (`docs/STRATEGY_V1.md`, `configs/strategy_v1.json`) with a hash-bound strict contract under `src/ringdown_market/strategy/`. Snapshot collection (#27) and the strategy decision engine (#28) remain the next integration steps; hand-authored `candidate_signal` fixtures remain supplied test inputs, not strategy output.
+
 ## Core evaluation
 
 For event `i`, Esscher evaluates:
@@ -158,6 +162,7 @@ Historical panel admission additionally requires per-feature source dependencies
 ## Path ownership
 
 - `src/ringdown_market/alpha/`, evidence manifests, and replay fixtures: evidence lane.
+- `src/ringdown_market/strategy/`: frozen strategy policy and decision contract shared by the data and strategy lanes.
 - `src/ringdown_market/contracts/`: shared frozen decision, policy, and protocol boundary.
 - `src/ringdown_market/execution/`: runtime/integration lane.
 - `web/` and public presentation assets: proof/submission lane.
