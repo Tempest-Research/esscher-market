@@ -1372,6 +1372,27 @@ def compile_macro_snapshot(
         critical_unknown_codes=critical,
     )
     snapshot_bytes = strategy_snapshot_bytes(snapshot)
+    macro_public_timestamps = tuple(
+        receipt.published_at for receipt in packet.receipts if receipt.published_at is not None
+    )
+    if not macro_public_timestamps:
+        raise CollectorRejected(
+            CollectorReason.PUBLICATION_TIME_UNKNOWN,
+            "evidence.maximum_public_timestamp",
+            "the receipt requires at least one publisher timestamp",
+        )
+    macro_maximum_public_timestamp = max(macro_public_timestamps)
+    if macro_maximum_public_timestamp > clocks.decision_cutoff_at:
+        raise CollectorRejected(
+            CollectorReason.MAXIMUM_PUBLIC_TIMESTAMP_AFTER_CUTOFF,
+            "evidence.maximum_public_timestamp",
+            "public evidence cannot exceed the decision cutoff",
+        )
+    macro_receipt_evidence_ids = [*packet.evidence_ids()]
+    if configuration.lineage_receipt_sha256 is not None:
+        macro_receipt_evidence_ids.append(
+            f"LINEAGE_RECEIPT:{configuration.lineage_receipt_sha256}"
+        )
     receipt = FeatureReceipt(
         event_id=record.event_id,
         candidate_id=manifest.candidate_id,
@@ -1381,6 +1402,12 @@ def compile_macro_snapshot(
         producer_build_sha256=PRODUCER_BUILD_SHA256,
         created_at=configuration.capture_at,
         feature_snapshot_at=clocks.observation_window_end_at,
+        decision_cutoff_at=clocks.decision_cutoff_at,
+        maximum_public_timestamp=macro_maximum_public_timestamp,
+        data_health=snapshot.data_health,
+        health_reason_codes=snapshot.health_reason_codes,
+        evidence_ids=tuple(sorted(macro_receipt_evidence_ids)),
+        lineage_receipt_sha256=configuration.lineage_receipt_sha256,
         features=features,
     )
     receipt_bytes = feature_receipt_bytes(receipt)
