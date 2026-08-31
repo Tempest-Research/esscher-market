@@ -47,6 +47,15 @@
 - Explicit pagination, partial-retrieval, and duplicate-source-record handling in the evidence
 	packet with stable fail-closed reason codes, plus distinct BMO and AMC reaction-session selection.
 
+### Fixed
+
+- Gate D now binds declared policy digests to canonical policy bytes, applies the frozen spread
+  gate to vertical legs and atomic packages, and requires short legs to satisfy the same delta and
+  open-interest policy bounds as long legs.
+- Tournament rows now apply the compiler's pinned-feed, freshness, and spread gates before an
+  expression can count as comparable; short-share borrow/locate evidence must be pre-clock and
+  fresh within the frozen observation-age bound.
+
 ### Safety
 
 - Candidate snapshots must match an exact retained manifest record; unknown sources, clock drift,

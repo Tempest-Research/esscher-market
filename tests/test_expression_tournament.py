@@ -7,6 +7,7 @@ Decimal arithmetic, and every NO_PACKAGE rejection path.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
@@ -117,20 +118,27 @@ def _contract(
 def _up_chain() -> tuple[OptionContractObservation, ...]:
     return (
         _contract("KR260918C00061000", "CALL", "61", delta="0.45"),
-        _contract("KR260918C00062000", "CALL", "62", delta="0.30", bid="0.45", ask="0.48"),
+        _contract("KR260918C00062000", "CALL", "62", delta="0.30", bid="0.46", ask="0.48"),
         _contract("KR260918C00063500", "CALL", "63.5", delta="0.15", bid="0.20", ask="0.22"),
     )
 
 
 def _down_chain() -> tuple[OptionContractObservation, ...]:
     return (
-        _contract("KR260918P00060000", "PUT", "60", delta="-0.30", bid="0.40", ask="0.43"),
-        _contract("KR260918P00061000", "PUT", "61", delta="-0.45", bid="0.75", ask="0.79"),
+        _contract("KR260918P00060000", "PUT", "60", delta="-0.30", bid="0.41", ask="0.43"),
+        _contract("KR260918P00061000", "PUT", "61", delta="-0.45", bid="0.76", ask="0.79"),
     )
 
 
 def _package(
-    long_occ: str, short_occ: str, *, net_bid="0.32", net_ask="0.36", at=None
+    long_occ: str,
+    short_occ: str,
+    *,
+    net_bid="0.35",
+    net_ask="0.36",
+    at=None,
+    feed=PACKAGE_FEED,
+    data_class=EXECUTABLE_DATA,
 ) -> PackageObservation:
     return PackageObservation(
         package_id=f"{long_occ}+{short_occ}",
@@ -139,8 +147,8 @@ def _package(
         net_ask=Decimal(net_ask),
         size=10,
         observed_at=at or (CLOCK - timedelta(seconds=2)),
-        feed=PACKAGE_FEED,
-        data_class=EXECUTABLE_DATA,
+        feed=feed,
+        data_class=data_class,
     )
 
 
@@ -149,7 +157,7 @@ def _borrow() -> BorrowLocateEvidence:
         symbol="KR",
         located_quantity=100,
         source="SYNTHETIC_LOCATE_FEED",
-        observed_at=CLOCK - timedelta(minutes=5),
+        observed_at=CLOCK - timedelta(seconds=2),
         content_sha256=_H,
     )
 
@@ -619,6 +627,7 @@ def test_crossed_quote_fails_closed() -> None:
 def test_insufficient_size_fails_closed() -> None:
     kwargs = _compile_kwargs(kind=ExpressionKind.SHARES)
     kwargs["policy"] = _policy(ExpressionKind.SHARES, min_quote_size=500)
+    kwargs["policy_sha256"] = promoted_expression_policy_sha256(kwargs["policy"])
     status, result = compile_or_no_package(**kwargs)
     assert (status, result) == (NO_PACKAGE, ExpressionReason.INSUFFICIENT_SIZE)
 
@@ -627,6 +636,7 @@ def test_spread_too_wide_fails_closed() -> None:
     wide = _quote("61.00", "61.90")
     kwargs = _compile_kwargs(kind=ExpressionKind.SHARES)
     kwargs["policy"] = _policy(ExpressionKind.SHARES, spread_max_bps="10")
+    kwargs["policy_sha256"] = promoted_expression_policy_sha256(kwargs["policy"])
     kwargs["snapshot"] = _snapshot(
         share=_share(quote=wide),
         packages=[_package("KR260918C00061000", "KR260918C00062000")],
@@ -649,12 +659,13 @@ def test_asynchronous_leg_quotes_fail_closed() -> None:
         "CALL",
         "62",
         delta="0.30",
-        bid="0.45",
+        bid="0.46",
         ask="0.48",
-        quote=_quote("0.45", "0.48", at=CLOCK - timedelta(seconds=3)),
+        quote=_quote("0.46", "0.48", at=CLOCK - timedelta(seconds=3)),
     )
     kwargs = _compile_kwargs()
     kwargs["policy"] = _policy(ExpressionKind.DEBIT_VERTICAL, cross_leg_skew_max_ms=1000)
+    kwargs["policy_sha256"] = promoted_expression_policy_sha256(kwargs["policy"])
     kwargs["snapshot"] = _snapshot(
         chain=(long_contract, short_contract),
         packages=[_package("KR260918C00061000", "KR260918C00062000")],
@@ -680,6 +691,7 @@ def test_zero_dte_fails_closed() -> None:
     same_day = _contract("KR260911C00061000", "CALL", "61", delta="0.45", expiry=date(2026, 9, 11))
     kwargs = _compile_kwargs(kind=ExpressionKind.ONE_LONG_OPTION)
     kwargs["policy"] = _policy(ExpressionKind.ONE_LONG_OPTION, min_dte=0, max_dte=21)
+    kwargs["policy_sha256"] = promoted_expression_policy_sha256(kwargs["policy"])
     kwargs["snapshot"] = _snapshot(
         chain=(same_day,),
         packages=(),
@@ -692,6 +704,7 @@ def test_zero_dte_fails_closed() -> None:
 def test_width_out_of_bounds_fails_closed() -> None:
     kwargs = _compile_kwargs()
     kwargs["policy"] = _policy(ExpressionKind.DEBIT_VERTICAL, width_min="5", width_max="10")
+    kwargs["policy_sha256"] = promoted_expression_policy_sha256(kwargs["policy"])
     status, result = compile_or_no_package(**kwargs)
     assert (status, result) == (NO_PACKAGE, ExpressionReason.WIDTH_OUT_OF_BOUNDS)
 
@@ -734,6 +747,7 @@ def test_missing_borrow_locate_blocks_short_shares() -> None:
 def test_exposure_budget_exceeded_fails_closed() -> None:
     kwargs = _compile_kwargs(kind=ExpressionKind.SHARES)
     kwargs["policy"] = _policy(ExpressionKind.SHARES, operational_loss_budget="10")
+    kwargs["policy_sha256"] = promoted_expression_policy_sha256(kwargs["policy"])
     status, result = compile_or_no_package(**kwargs)
     assert (status, result) == (NO_PACKAGE, ExpressionReason.EXPOSURE_BUDGET_EXCEEDED)
 
@@ -829,6 +843,228 @@ def test_policy_rejects_duplicate_fields() -> None:
     duplicated = text.replace('"version":"v1"', '"version":"v1","version":"v1"', 1)
     with pytest.raises(ExpressionRejected):
         parse_promoted_expression_policy(duplicated.encode("utf-8"))
+
+
+# ---------------------------------------------------------------------------
+# Gate D repair regressions
+# ---------------------------------------------------------------------------
+
+
+def _event(snapshot: ExpressionMarketSnapshot) -> TournamentEvent:
+    return TournamentEvent(
+        event_id="KR-2026Q2-EARNINGS",
+        decision_direction="UP",
+        decision_sha256=_H,
+        outcome_direction="UP",
+        exit_clock_at=EXIT_CLOCK,
+        snapshot=snapshot,
+    )
+
+
+def _tournament(snapshot: ExpressionMarketSnapshot, *, policy=None):
+    actual_policy = policy or _policy()
+    return run_gate_d_tournament(
+        report_id="gate-d-test",
+        policy=actual_policy,
+        policy_sha256=promoted_expression_policy_sha256(actual_policy),
+        events=[_event(snapshot)],
+        evaluated_at=CLOCK,
+    )
+
+
+def _summary(report, kind: str):
+    return next(summary for summary in report.summaries if summary["expression_kind"] == kind)
+
+
+def test_compiler_rejects_policy_hash_from_different_canonical_policy() -> None:
+    kwargs = _compile_kwargs()
+    kwargs["policy_sha256"] = promoted_expression_policy_sha256(_policy(spread_max_bps="10"))
+    status, result = compile_or_no_package(**kwargs)
+    assert (status, result) == (NO_PACKAGE, ExpressionReason.POLICY_HASH_MISMATCH)
+
+
+def test_tournament_rejects_policy_hash_from_different_canonical_policy() -> None:
+    policy = _policy()
+    with pytest.raises(ExpressionRejected) as caught:
+        run_gate_d_tournament(
+            report_id="gate-d-test",
+            policy=policy,
+            policy_sha256=promoted_expression_policy_sha256(_policy(spread_max_bps="10")),
+            events=[
+                _event(_snapshot(packages=[_package("KR260918C00061000", "KR260918C00062000")]))
+            ],
+            evaluated_at=CLOCK,
+        )
+    assert caught.value.reason is ExpressionReason.POLICY_HASH_MISMATCH
+
+
+def test_vertical_rejects_wide_leg_spread() -> None:
+    wide_long = _contract("KR260918C00061000", "CALL", "61", delta="0.45", bid="0.10", ask="0.84")
+    short = _contract("KR260918C00062000", "CALL", "62", delta="0.30", bid="0.46", ask="0.48")
+    kwargs = _compile_kwargs()
+    kwargs["snapshot"] = _snapshot(
+        chain=(wide_long, short),
+        packages=[_package(wide_long.symbol, short.symbol)],
+        decision_sha256=sha256_bytes(kwargs["decision_bytes"]),
+    )
+    status, result = compile_or_no_package(**kwargs)
+    assert (status, result) == (NO_PACKAGE, ExpressionReason.SPREAD_TOO_WIDE)
+
+
+def test_vertical_rejects_wide_package_spread() -> None:
+    kwargs = _compile_kwargs()
+    kwargs["snapshot"] = _snapshot(
+        packages=[
+            _package("KR260918C00061000", "KR260918C00062000", net_bid="0.01", net_ask="0.36")
+        ],
+        decision_sha256=sha256_bytes(kwargs["decision_bytes"]),
+    )
+    status, result = compile_or_no_package(**kwargs)
+    assert (status, result) == (NO_PACKAGE, ExpressionReason.SPREAD_TOO_WIDE)
+
+
+@pytest.mark.parametrize(
+    ("delta", "open_interest"),
+    ((None, 200), ("0.30", 0)),
+    ids=("missing_delta", "insufficient_open_interest"),
+)
+def test_vertical_short_leg_requires_policy_eligibility(delta, open_interest) -> None:
+    long = _contract("KR260918C00061000", "CALL", "61", delta="0.45")
+    short = _contract(
+        "KR260918C00062000",
+        "CALL",
+        "62",
+        delta=delta,
+        open_interest=open_interest,
+        bid="0.45",
+        ask="0.48",
+    )
+    kwargs = _compile_kwargs()
+    kwargs["snapshot"] = _snapshot(
+        chain=(long, short),
+        packages=[_package(long.symbol, short.symbol)],
+        decision_sha256=sha256_bytes(kwargs["decision_bytes"]),
+    )
+    status, result = compile_or_no_package(**kwargs)
+    assert (status, result) == (NO_PACKAGE, ExpressionReason.GEOMETRY_INVALID)
+
+
+def test_snapshot_rejects_borrow_observed_after_its_clock() -> None:
+    late_borrow = replace(_borrow(), observed_at=CLOCK + timedelta(seconds=1))
+    with pytest.raises(ValueError, match="borrow/locate evidence cannot postdate"):
+        _snapshot(borrow=late_borrow)
+
+
+def test_short_shares_reject_stale_borrow_locate() -> None:
+    kwargs = _compile_kwargs(direction=Direction.DOWN, kind=ExpressionKind.SHARES)
+    kwargs["snapshot"] = replace(
+        kwargs["snapshot"],
+        borrow_locate=replace(_borrow(), observed_at=CLOCK - timedelta(seconds=6)),
+    )
+    status, result = compile_or_no_package(**kwargs)
+    assert (status, result) == (NO_PACKAGE, ExpressionReason.STALE_QUOTE)
+
+
+def test_tournament_rejects_stale_borrow_locate_for_down_shares() -> None:
+    policy = _policy()
+    snapshot = _snapshot(
+        chain=_down_chain(),
+        packages=[_package("KR260918P00061000", "KR260918P00060000")],
+        borrow=replace(_borrow(), observed_at=CLOCK - timedelta(seconds=6)),
+    )
+    event = TournamentEvent(
+        event_id="KR-2026Q2-EARNINGS",
+        decision_direction="DOWN",
+        decision_sha256=_H,
+        outcome_direction="DOWN",
+        exit_clock_at=EXIT_CLOCK,
+        snapshot=snapshot,
+    )
+    report = run_gate_d_tournament(
+        report_id="gate-d-test",
+        policy=policy,
+        policy_sha256=promoted_expression_policy_sha256(policy),
+        events=[event],
+        evaluated_at=CLOCK,
+    )
+    summary = _summary(report, "SHARES")
+    assert summary["events_compared"] == 0
+    assert summary["rejection_counts"] == [{"reason": "STALE_QUOTE", "count": 1}]
+
+
+@pytest.mark.parametrize("bad_source", ("share", "option", "package"))
+def test_tournament_rejects_unpinned_market_feeds(bad_source: str) -> None:
+    long = _contract("KR260918C00061000", "CALL", "61", delta="0.45")
+    short = _contract("KR260918C00062000", "CALL", "62", delta="0.30", bid="0.46", ask="0.48")
+    package = _package(long.symbol, short.symbol)
+    share = _share()
+    if bad_source == "share":
+        chain = (long, short)
+        share = replace(share, feed=UNPINNED_FEED)
+        rejected_kinds = ("SHARES",)
+    elif bad_source == "option":
+        chain = (replace(long, feed=UNPINNED_FEED), short)
+        rejected_kinds = ("ONE_LONG_OPTION", "DEBIT_VERTICAL")
+    else:
+        chain = (long, short)
+        package = replace(package, feed=UNPINNED_FEED)
+        rejected_kinds = ("DEBIT_VERTICAL",)
+    report = _tournament(_snapshot(chain=chain, packages=[package], share=share))
+    for kind in rejected_kinds:
+        summary = _summary(report, kind)
+        assert summary["events_compared"] == 0
+        assert summary["rejection_counts"] == [{"reason": "UNKNOWN_FEED", "count": 1}]
+
+
+@pytest.mark.parametrize("bad_source", ("share", "option", "package"))
+def test_tournament_rejects_stale_market_observations(bad_source: str) -> None:
+    long = _contract("KR260918C00061000", "CALL", "61", delta="0.45")
+    short = _contract("KR260918C00062000", "CALL", "62", delta="0.30", bid="0.46", ask="0.48")
+    package = _package(long.symbol, short.symbol)
+    share = _share()
+    if bad_source == "share":
+        chain = (long, short)
+        share = replace(share, quote=replace(share.quote, observed_at=CLOCK - timedelta(seconds=6)))
+        rejected_kinds = ("SHARES",)
+    elif bad_source == "option":
+        chain = (
+            replace(long, quote=replace(long.quote, observed_at=CLOCK - timedelta(seconds=6))),
+            short,
+        )
+        rejected_kinds = ("ONE_LONG_OPTION", "DEBIT_VERTICAL")
+    else:
+        chain = (long, short)
+        package = replace(package, observed_at=CLOCK - timedelta(seconds=6))
+        rejected_kinds = ("DEBIT_VERTICAL",)
+    report = _tournament(_snapshot(chain=chain, packages=[package], share=share))
+    for kind in rejected_kinds:
+        summary = _summary(report, kind)
+        assert summary["events_compared"] == 0
+        assert summary["rejection_counts"] == [{"reason": "STALE_QUOTE", "count": 1}]
+
+
+@pytest.mark.parametrize("bad_source", ("share", "option", "package"))
+def test_tournament_rejects_wide_market_spreads(bad_source: str) -> None:
+    long = _contract("KR260918C00061000", "CALL", "61", delta="0.45")
+    short = _contract("KR260918C00062000", "CALL", "62", delta="0.30", bid="0.46", ask="0.48")
+    package = _package(long.symbol, short.symbol)
+    share = _share()
+    if bad_source == "share":
+        chain = (long, short)
+        share = replace(share, quote=replace(share.quote, bid=Decimal("0.01")))
+        rejected_kinds = ("SHARES",)
+    elif bad_source == "option":
+        chain = (replace(long, quote=replace(long.quote, bid=Decimal("0.01"))), short)
+        rejected_kinds = ("ONE_LONG_OPTION", "DEBIT_VERTICAL")
+    else:
+        chain = (long, short)
+        package = replace(package, net_bid=Decimal("0.01"))
+        rejected_kinds = ("DEBIT_VERTICAL",)
+    report = _tournament(_snapshot(chain=chain, packages=[package], share=share))
+    for kind in rejected_kinds:
+        summary = _summary(report, kind)
+        assert summary["events_compared"] == 0
+        assert summary["rejection_counts"] == [{"reason": "SPREAD_TOO_WIDE", "count": 1}]
 
 
 # ---------------------------------------------------------------------------
