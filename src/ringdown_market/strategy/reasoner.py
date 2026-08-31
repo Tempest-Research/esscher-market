@@ -1,313 +1,286 @@
-"""Structured reasoner protocol, route identity, and inert route-smoke harness."""
+"""Structured, provider-neutral bounded reasoner routes.
+
+The route protocol is the only external reasoning boundary of the decision
+engine.  Routes are injected, bounded by the frozen route/prompt/output-schema
+and model-config hashes, carry no broker or account authority, and have no
+transparent fallback: every failure mode is recorded as a stable exchange
+status and reason code, never as a guessed direction.
+"""
 
 from __future__ import annotations
 
-import hashlib
-import json
-import re
-from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from enum import StrEnum
-from typing import Protocol, runtime_checkable
+from typing import Final, Protocol, runtime_checkable
 
 from ringdown_market.alpha.models import Direction
-
-from .decisions import FORBIDDEN_EXECUTION_FIELDS, EvidenceCitation, Falsifier
-
-REASONER_OUTPUT_SCHEMA = "esscher.reasoner_output"
-REASONER_OUTPUT_SCHEMA_VERSION = 1
-
-_SHA256 = re.compile(r"^[0-9a-f]{64}$")
-_CONFIDENCE = re.compile(r"^(?:0|1)(?:\.[0-9]{1,6})?$")
-
-
-class ReasonerRejectionReason(StrEnum):
-    """Stable fail-closed reasons a reasoner output cannot be accepted."""
-
-    INVALID_DOCUMENT = "INVALID_DOCUMENT"
-    UNSUPPORTED_SCHEMA = "UNSUPPORTED_SCHEMA"
-    UNKNOWN_FIELD = "UNKNOWN_FIELD"
-    MISSING_FIELD = "MISSING_FIELD"
-    INVALID_TYPE = "INVALID_TYPE"
-    INVALID_VALUE = "INVALID_VALUE"
-    EXECUTION_FIELD_FORBIDDEN = "EXECUTION_FIELD_FORBIDDEN"
-
-
-class ReasonerOutputRejected(ValueError):
-    """Raised when a reasoner output violates the frozen structured contract."""
-
-    def __init__(self, reason: ReasonerRejectionReason, path: str, detail: str) -> None:
-        super().__init__(f"{reason.value} at {path}: {detail}")
-        self.reason = reason
-        self.path = path
-        self.detail = detail
-
-
-def _reject(reason: ReasonerRejectionReason, path: str, detail: str) -> None:
-    raise ReasonerOutputRejected(reason, path, detail)
-
-
-def _canonical_json_bytes(value: object) -> bytes:
-    return json.dumps(
-        value,
-        sort_keys=True,
-        separators=(",", ":"),
-        ensure_ascii=False,
-        allow_nan=False,
-    ).encode("utf-8")
-
-
-@dataclass(frozen=True, slots=True)
-class ReasonerRoute:
-    """The single frozen reasoner route identity."""
-
-    route_id: str
-    prompt_sha256: str
-    output_schema_sha256: str
-
-    def __post_init__(self) -> None:
-        if not self.route_id.strip():
-            _reject(ReasonerRejectionReason.INVALID_TYPE, "route_id", "expected non-empty text")
-        for field in ("prompt_sha256", "output_schema_sha256"):
-            value = getattr(self, field)
-            if not _SHA256.match(value):
-                _reject(ReasonerRejectionReason.INVALID_TYPE, field, "expected a sha256 hex digest")
-
-    @property
-    def sha256(self) -> str:
-        payload = {
-            "schema": "esscher.reasoner_route",
-            "schema_version": 1,
-            "route_id": self.route_id,
-            "prompt_sha256": self.prompt_sha256,
-            "output_schema_sha256": self.output_schema_sha256,
-        }
-        return hashlib.sha256(_canonical_json_bytes(payload)).hexdigest()
-
-
-@dataclass(frozen=True, slots=True)
-class ReasonerOutput:
-    """One validated structured reasoner result; confidence never authorizes a trade."""
-
-    direction: Direction
-    confidence: Decimal
-    citations: tuple[EvidenceCitation, ...]
-    falsifier: Falsifier | None
-    raw_sha256: str
-
-    def __post_init__(self) -> None:
-        if not isinstance(self.confidence, Decimal) or not self.confidence.is_finite():
-            _reject(ReasonerRejectionReason.INVALID_TYPE, "confidence", "expected a finite decimal")
-        if not (Decimal(0) <= self.confidence <= Decimal(1)):
-            _reject(
-                ReasonerRejectionReason.INVALID_VALUE, "confidence", "confidence is bounded 0..1"
-            )
-        if not _SHA256.match(self.raw_sha256):
-            _reject(
-                ReasonerRejectionReason.INVALID_TYPE, "raw_sha256", "expected a sha256 hex digest"
-            )
-
-
-_OUTPUT_FIELDS = frozenset(
-    {"schema", "schema_version", "direction", "confidence", "citations", "falsifier"}
+from ringdown_market.strategy.contracts import (
+    canonical_json_bytes,
+    reasoner_model_config_sha256,
+    reasoner_policy_hashes,
+    sha256_bytes,
 )
+from ringdown_market.strategy.models import (
+    DecodingParameters,
+    ExchangeStatus,
+    FeatureStatus,
+    ReasonerExchange,
+    StrategyInput,
+)
+from ringdown_market.strategy.policy import load_strategy_policy
+
+FAKE_PROVIDER: Final = "esscher.synthetic_provider"
+FAKE_MODEL: Final = "deterministic-fake-v1"
+FAKE_SEED: Final = 7
+_EARNINGS_CANDIDATE: Final = "EARNINGS_RESIDUAL_CONTINUATION_V1"
+_MACRO_CANDIDATE: Final = "MACRO_SPY_CONTINUATION_CHALLENGER_V1"
+_EARNINGS_CONFIRMATION: Final = "market.opening_residual_log_return.v1"
+_MACRO_CONFIRMATION: Final = "market.spy_event_zscore_60.v1"
 
 
-def parse_reasoner_output(raw: bytes) -> ReasonerOutput:
-    """Parse strict structured reasoner bytes; execution fields fail closed."""
+class FakeFailure(StrEnum):
+    """Injectable deterministic failure modes for the fake route."""
 
-    if not isinstance(raw, (bytes, bytearray)):
-        raise ReasonerOutputRejected(
-            ReasonerRejectionReason.INVALID_DOCUMENT, "output", "reasoner bytes are required"
-        )
-    try:
-        payload = json.loads(bytes(raw).decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError) as error:
-        _reject(ReasonerRejectionReason.INVALID_DOCUMENT, "output", f"invalid JSON: {error}")
-    if not isinstance(payload, Mapping):
-        _reject(ReasonerRejectionReason.INVALID_TYPE, "output", "expected an object")
-    for key in payload:
-        if key in FORBIDDEN_EXECUTION_FIELDS:
-            _reject(
-                ReasonerRejectionReason.EXECUTION_FIELD_FORBIDDEN,
-                f"output.{key}",
-                "reasoner output cannot carry order, permit, or contract fields",
-            )
-        if key not in _OUTPUT_FIELDS:
-            _reject(ReasonerRejectionReason.UNKNOWN_FIELD, f"output.{key}", "unknown field")
-    for key in _OUTPUT_FIELDS:
-        if key not in payload:
-            _reject(
-                ReasonerRejectionReason.MISSING_FIELD, f"output.{key}", "missing required field"
-            )
+    NONE = "NONE"
+    TIMEOUT = "TIMEOUT"
+    CANCELED = "CANCELED"
+    PROVIDER_ERROR = "PROVIDER_ERROR"
+    LATE_RESPONSE = "LATE_RESPONSE"
+    MALFORMED_JSON = "MALFORMED_JSON"
+    HOSTILE_FIELDS = "HOSTILE_FIELDS"
+    RAW_HASH_DRIFT = "RAW_HASH_DRIFT"
 
-    if payload["schema"] != REASONER_OUTPUT_SCHEMA:
-        _reject(ReasonerRejectionReason.UNSUPPORTED_SCHEMA, "output.schema", "unsupported schema")
-    if payload["schema_version"] != REASONER_OUTPUT_SCHEMA_VERSION:
-        _reject(
-            ReasonerRejectionReason.UNSUPPORTED_SCHEMA,
-            "output.schema_version",
-            "unsupported schema version",
-        )
-    try:
-        direction = Direction(payload["direction"])
-    except ValueError:
-        _reject(ReasonerRejectionReason.INVALID_VALUE, "output.direction", "unknown direction")
 
-    confidence_value = payload["confidence"]
-    if not isinstance(confidence_value, str) or not _CONFIDENCE.match(confidence_value):
-        _reject(
-            ReasonerRejectionReason.INVALID_TYPE,
-            "output.confidence",
-            "expected canonical decimal confidence text in [0,1]",
+@dataclass(frozen=True, slots=True)
+class RouteIdentity:
+    """Configured provider/model identity bound into every exchange receipt."""
+
+    provider: str
+    model: str
+    model_revision: str | None = None
+
+    def decoding(self) -> DecodingParameters:
+        call_policy = load_strategy_policy().data["reasoner"]["call_policy"]
+        return DecodingParameters(
+            temperature=Decimal(str(call_policy["temperature"])),
+            top_p=Decimal("1"),
+            max_output_tokens=int(call_policy["max_output_tokens"]),
+            seed=FAKE_SEED,
         )
 
-    citations_value = payload["citations"]
-    if not isinstance(citations_value, list):
-        _reject(ReasonerRejectionReason.INVALID_TYPE, "output.citations", "expected a list")
-    citations: list[EvidenceCitation] = []
-    for index, item in enumerate(citations_value):
-        path = f"output.citations[{index}]"
-        if not isinstance(item, Mapping):
-            _reject(ReasonerRejectionReason.INVALID_TYPE, path, "expected an object")
-        fields = frozenset({"citation_id", "evidence_id", "claim_sha256"})
-        for key in item:
-            if key not in fields:
-                _reject(ReasonerRejectionReason.UNKNOWN_FIELD, f"{path}.{key}", "unknown field")
-        for key in fields:
-            if key not in item:
-                _reject(ReasonerRejectionReason.MISSING_FIELD, f"{path}.{key}", "missing field")
-        citations.append(
-            EvidenceCitation(
-                citation_id=item["citation_id"],  # type: ignore[arg-type]
-                evidence_id=item["evidence_id"],  # type: ignore[arg-type]
-                claim_sha256=item["claim_sha256"],  # type: ignore[arg-type]
-            )
+    def model_config_sha256(self) -> str:
+        return reasoner_model_config_sha256(
+            provider=self.provider,
+            model=self.model,
+            model_revision=self.model_revision,
+            decoding=self.decoding(),
         )
 
-    falsifier: Falsifier | None = None
-    falsifier_value = payload["falsifier"]
-    if falsifier_value is not None:
-        if not isinstance(falsifier_value, Mapping):
-            _reject(
-                ReasonerRejectionReason.INVALID_TYPE,
-                "output.falsifier",
-                "expected an object or null",
-            )
-        fields = frozenset({"falsifier_id", "evidence_id", "claim_sha256"})
-        for key in falsifier_value:
-            if key not in fields:
-                _reject(
-                    ReasonerRejectionReason.UNKNOWN_FIELD,
-                    f"output.falsifier.{key}",
-                    "unknown field",
-                )
-        for key in fields:
-            if key not in falsifier_value:
-                _reject(
-                    ReasonerRejectionReason.MISSING_FIELD,
-                    f"output.falsifier.{key}",
-                    "missing field",
-                )
-        falsifier = Falsifier(
-            falsifier_id=falsifier_value["falsifier_id"],  # type: ignore[arg-type]
-            evidence_id=falsifier_value["evidence_id"],  # type: ignore[arg-type]
-            claim_sha256=falsifier_value["claim_sha256"],  # type: ignore[arg-type]
-        )
 
-    return ReasonerOutput(
-        direction=direction,
-        confidence=Decimal(confidence_value),
-        citations=tuple(citations),
-        falsifier=falsifier,
-        raw_sha256=hashlib.sha256(bytes(raw)).hexdigest(),
-    )
+SYNTHETIC_ROUTE_IDENTITY: Final = RouteIdentity(provider=FAKE_PROVIDER, model=FAKE_MODEL)
+
+
+@dataclass(frozen=True, slots=True)
+class ReasonerRouteRequest:
+    """One bounded reasoner invocation request with supplied clocks only."""
+
+    strategy_input: StrategyInput
+    started_at: datetime
+    ablate_text: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class ReasonerRouteResult:
+    """Immutable exchange receipt plus the exact raw provider bytes."""
+
+    exchange: ReasonerExchange
+    raw_response_bytes: bytes | None
 
 
 @runtime_checkable
-class Reasoner(Protocol):
-    """Structured reasoner boundary: one route, injected, bounded, no fallback."""
+class ReasonerRoute(Protocol):
+    """Injected structured reasoner boundary; implementations must be bounded."""
 
-    def reason(self, snapshot_payload: Mapping[str, object]) -> bytes: ...
-
-
-class FakeReasoner:
-    """Deterministic fake reasoner returning one fixed structured output."""
-
-    def __init__(self, output_payload: Mapping[str, object]) -> None:
-        self._raw = _canonical_json_bytes(dict(output_payload))
-
-    def reason(self, snapshot_payload: Mapping[str, object]) -> bytes:
-        return self._raw
+    def __call__(self, request: ReasonerRouteRequest) -> ReasonerRouteResult: ...
 
 
-class RouteSmokeResult:
-    """Inert latency/schema record for one reasoner route probe."""
-
-    def __init__(
-        self,
-        *,
-        route_sha256: str,
-        attempts: int,
-        schema_valid: int,
-        schema_invalid: int,
-        latencies_ms: Sequence[int],
-    ) -> None:
-        self.route_sha256 = route_sha256
-        self.attempts = attempts
-        self.schema_valid = schema_valid
-        self.schema_invalid = schema_invalid
-        self.latencies_ms = tuple(latencies_ms)
-
-    @property
-    def p95_latency_ms(self) -> int | None:
-        if not self.latencies_ms:
-            return None
-        ordered = sorted(self.latencies_ms)
-        index = min(len(ordered) - 1, round(0.95 * (len(ordered) - 1)))
-        return ordered[index]
+def hard_timeout_seconds() -> int:
+    return int(load_strategy_policy().data["reasoner"]["call_policy"]["hard_timeout_seconds"])
 
 
-def run_route_smoke(
-    *,
-    route: ReasonerRoute,
-    reasoner: Reasoner,
-    snapshot_payload: Mapping[str, object],
-    attempts: int,
-    clock_ms,
-) -> RouteSmokeResult:
-    """Probe a route's latency and schema validity without any broker authority."""
-
-    if attempts < 1:
-        raise ReasonerOutputRejected(
-            ReasonerRejectionReason.INVALID_VALUE, "attempts", "attempts must be positive"
-        )
-    valid = 0
-    invalid = 0
-    latencies: list[int] = []
-    for _ in range(attempts):
-        start = clock_ms()
-        raw = reasoner.reason(snapshot_payload)
-        elapsed = clock_ms() - start
-        latencies.append(int(elapsed))
-        try:
-            parse_reasoner_output(raw)
-        except ReasonerOutputRejected:
-            invalid += 1
-        else:
-            valid += 1
-    return RouteSmokeResult(
-        route_sha256=route.sha256,
-        attempts=attempts,
-        schema_valid=valid,
-        schema_invalid=invalid,
-        latencies_ms=latencies,
+def deadline_for(strategy_input: StrategyInput, started_at: datetime) -> datetime:
+    return min(
+        started_at + timedelta(seconds=hard_timeout_seconds()),
+        strategy_input.snapshot.decision_cutoff_at,
     )
 
 
-def validate_output_deadline(arrived_at: datetime, deadline: datetime) -> bool:
-    """Return True when the reasoner result arrived by the valid-signal deadline."""
+def _numeric_direction(strategy_input: StrategyInput) -> Direction:
+    feature_id = (
+        _EARNINGS_CONFIRMATION
+        if strategy_input.snapshot.candidate_id == _EARNINGS_CANDIDATE
+        else _MACRO_CONFIRMATION
+    )
+    feature = strategy_input.feature_by_id.get(feature_id)
+    if (
+        feature is None
+        or feature.status is not FeatureStatus.PRESENT
+        or not isinstance(feature.value, Decimal)
+        or feature.value == 0
+    ):
+        return Direction.UNCERTAIN
+    return Direction.UP if feature.value > 0 else Direction.DOWN
 
-    return arrived_at <= deadline
+
+def _cited_evidence_ids(strategy_input: StrategyInput) -> tuple[str, ...]:
+    primary = sorted(
+        ref.evidence_id for ref in strategy_input.snapshot.evidence_refs if ref.role.is_primary
+    )
+    market = sorted(
+        ref.evidence_id for ref in strategy_input.snapshot.evidence_refs if ref.role.is_market
+    )
+    if not primary or not market:
+        return ()
+    return tuple(sorted({primary[0], market[0]}))
+
+
+def fake_decision_payload(strategy_input: StrategyInput, *, ablate_text: bool) -> dict[str, object]:
+    """Deterministic synthetic reasoner output derived from frozen features."""
+
+    cited = _cited_evidence_ids(strategy_input)
+    direction = _numeric_direction(strategy_input)
+    if not cited:
+        direction = Direction.UNCERTAIN
+    market_id = cited[-1] if cited else None
+    summary = (
+        "Numeric-only ablation: structured feature records and data-health facts only."
+        if ablate_text
+        else "The synchronized opening reaction and primary evidence agree on direction."
+    )
+    return {
+        "contradictions": [],
+        "decision": direction.value,
+        "evidence_ids": list(cited),
+        "strongest_falsifier": (
+            None
+            if market_id is None
+            else {
+                "evidence_id": market_id,
+                "summary": "The confirmed reaction could fade after the decision cutoff.",
+            }
+        ),
+        "summary": summary,
+        "unknowns": [],
+    }
+
+
+class DeterministicFakeReasoner:
+    """Offline fake route with injectable failure modes; no network or broker."""
+
+    def __init__(
+        self,
+        failure: FakeFailure = FakeFailure.NONE,
+        identity: RouteIdentity = SYNTHETIC_ROUTE_IDENTITY,
+    ) -> None:
+        self._failure = failure
+        self._identity = identity
+
+    def __call__(self, request: ReasonerRouteRequest) -> ReasonerRouteResult:
+        strategy_input = request.strategy_input
+        started_at = request.started_at
+        deadline_at = deadline_for(strategy_input, started_at)
+        route_sha256, prompt_sha256, output_schema_sha256 = reasoner_policy_hashes(
+            strategy_input.snapshot.candidate_id
+        )
+        decoding = self._identity.decoding()
+        request_sha256 = sha256_bytes(
+            canonical_json_bytes(
+                {
+                    "ablate_text": request.ablate_text,
+                    "candidate_id": strategy_input.snapshot.candidate_id,
+                    "event_id": strategy_input.snapshot.event_id,
+                    "feature_receipt_sha256": strategy_input.feature_receipt_sha256,
+                    "model_config_sha256": self._identity.model_config_sha256(),
+                    "output_schema_sha256": output_schema_sha256,
+                    "policy_sha256": strategy_input.snapshot.policy_sha256,
+                    "prompt_sha256": prompt_sha256,
+                    "route_sha256": route_sha256,
+                    "strategy_snapshot_sha256": strategy_input.snapshot_sha256,
+                }
+            )
+        )
+        common = {
+            "event_id": strategy_input.snapshot.event_id,
+            "candidate_id": strategy_input.snapshot.candidate_id,
+            "policy_sha256": strategy_input.snapshot.policy_sha256,
+            "strategy_snapshot_sha256": strategy_input.snapshot_sha256,
+            "feature_receipt_sha256": strategy_input.feature_receipt_sha256,
+            "evidence_packet_sha256": strategy_input.snapshot.evidence_packet_sha256,
+            "route_sha256": route_sha256,
+            "prompt_sha256": prompt_sha256,
+            "output_schema_sha256": output_schema_sha256,
+            "model_config_sha256": self._identity.model_config_sha256(),
+            "request_sha256": request_sha256,
+            "provider": self._identity.provider,
+            "model": self._identity.model,
+            "model_revision": self._identity.model_revision,
+            "decoding": decoding,
+            "started_at": started_at,
+            "deadline_at": deadline_at,
+            "producer_build_sha256": sha256_bytes(
+                canonical_json_bytes(
+                    {
+                        "producer": "esscher.strategy.deterministic_fake_reasoner",
+                        "contract": "esscher.reasoner_exchange",
+                        "version": 1,
+                    }
+                )
+            ),
+            "created_at": deadline_at,
+        }
+
+        failure = self._failure
+        if failure in (FakeFailure.TIMEOUT, FakeFailure.CANCELED, FakeFailure.PROVIDER_ERROR):
+            status = {
+                FakeFailure.TIMEOUT: ExchangeStatus.TIMEOUT,
+                FakeFailure.CANCELED: ExchangeStatus.CANCELED,
+                FakeFailure.PROVIDER_ERROR: ExchangeStatus.PROVIDER_ERROR,
+            }[failure]
+            exchange = ReasonerExchange(
+                **common,
+                raw_response_sha256=None,
+                responded_at=None,
+                status=status,
+                error_code={
+                    ExchangeStatus.TIMEOUT: "REASONER_TIMEOUT",
+                    ExchangeStatus.CANCELED: "REASONER_CANCELED",
+                    ExchangeStatus.PROVIDER_ERROR: "REASONER_PROVIDER_ERROR",
+                }[status],
+            )
+            return ReasonerRouteResult(exchange=exchange, raw_response_bytes=None)
+
+        payload = fake_decision_payload(strategy_input, ablate_text=request.ablate_text)
+        if failure is FakeFailure.HOSTILE_FIELDS:
+            payload = {**payload, "quantity": 1, "strike": 100}
+        if failure is FakeFailure.MALFORMED_JSON:
+            raw = b"{not canonical json"
+        else:
+            raw = canonical_json_bytes(payload)
+        raw_sha256 = sha256_bytes(raw)
+        if failure is FakeFailure.RAW_HASH_DRIFT:
+            raw_sha256 = sha256_bytes(b"drifted provider bytes")
+        responded_at = (
+            deadline_at + timedelta(seconds=1)
+            if failure is FakeFailure.LATE_RESPONSE
+            else started_at + timedelta(seconds=min(5, hard_timeout_seconds() - 1))
+        )
+        exchange = ReasonerExchange(
+            **common,
+            raw_response_sha256=raw_sha256,
+            responded_at=responded_at,
+            status=ExchangeStatus.COMPLETED,
+            error_code=None,
+        )
+        return ReasonerRouteResult(exchange=exchange, raw_response_bytes=raw)

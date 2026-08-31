@@ -11,8 +11,6 @@ from datetime import UTC, datetime
 from enum import StrEnum
 
 from ..contracts.execution_policy import RESEARCH_DECISION_PROTOCOL_SHA256
-from ..data.snapshot import STRATEGY_SNAPSHOT_PROTOCOL_SHA256
-from ..strategy.policy import STRATEGY_POLICY_V1_SHA256
 
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _UTC_TIMESTAMP = re.compile(
@@ -38,12 +36,8 @@ P0_CONTRACT_DEVELOPMENT_EVENT_IDS = frozenset(
 )
 P0_EXCLUSION_REASON_CODE = "P0_CONTRACT_DEVELOPMENT_EVENT"
 
-# Registered upstream contract identities. The frozen strategy policy (#26) and the
-# point-in-time snapshot protocol (#27) are merged on this branch, so their exact
-# hashes are registered here. A real panel manifest must bind one of these hashes;
-# anything else fails closed as UPSTREAM_CONTRACT_MISSING.
-KNOWN_STRATEGY_POLICY_SHA256: frozenset[str] = frozenset({STRATEGY_POLICY_V1_SHA256})
-KNOWN_SNAPSHOT_PROTOCOL_SHA256: frozenset[str] = frozenset({STRATEGY_SNAPSHOT_PROTOCOL_SHA256})
+KNOWN_STRATEGY_POLICY_SHA256: frozenset[str] = frozenset()
+KNOWN_SNAPSHOT_PROTOCOL_SHA256: frozenset[str] = frozenset()
 
 PANEL_CLAIM_BOUNDARY = frozenset(
     {

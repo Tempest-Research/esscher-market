@@ -1,193 +1,487 @@
 from __future__ import annotations
 
-from decimal import Decimal
+import ast
+import hashlib
+import json
+from collections.abc import Mapping
+from dataclasses import fields, is_dataclass
+from importlib.resources import files
 from pathlib import Path
 
 import pytest
 
-from ringdown_market.alpha.baselines import BaselineName
 from ringdown_market.strategy import (
-    STRATEGY_POLICY_V1_SHA256,
-    STRATEGY_POLICY_VERSION,
-    AbstentionReason,
-    PolicyRejectionReason,
-    StrategyPolicyRejected,
-    parse_frozen_strategy_policy_v1,
+    load_strategy_policy,
     parse_strategy_policy,
+    reasoner_policy_hashes,
+    strategy_policy_bytes,
     strategy_policy_sha256,
 )
 
-POLICY_PATH = Path(__file__).resolve().parents[1] / "configs" / "strategy_v1.json"
+ROOT = Path(__file__).parents[1]
+POLICY_RESOURCE = "policies/accepted_event_policy_v1.json"
+SYNTHETIC_BUNDLE_PATH = (
+    ROOT / "tests" / "contract_fixtures" / "synthetic_strategy_development_v1.json"
+)
+EXPECTED_POLICY_SHA256 = "afce93b52b96e0d8c71deeb80027a1c87a4cf3623e9417db14de00279fc23bca"
+EXPECTED_REASONER_POLICY_HASHES = {
+    "EARNINGS_RESIDUAL_CONTINUATION_V1": (
+        "af801a9baf24cff5b1f093e3802834855e8b82d56491b7244bba59ba357b30e3",
+        "617897661b723c2315f3cb60fbb15b6e57dfc571098a4be4563b324cd6a0354f",
+        "08dd5302e8e03e01a7012acb59048329516e6a801f8b24827066f43430c04fa4",
+    ),
+    "MACRO_SPY_CONTINUATION_CHALLENGER_V1": (
+        "c2dd3668be1595f6658506f830ccad06b92b532c36732fff667f7f59ce641dd2",
+        "52f7b1c152128414363225aa441bf40e3b099ff045952891d9b2743bb3bccfec",
+        "08dd5302e8e03e01a7012acb59048329516e6a801f8b24827066f43430c04fa4",
+    ),
+}
+EXPECTED_TOP_LEVEL_FIELDS = {
+    "amendment",
+    "authority",
+    "baselines",
+    "candidates",
+    "claims",
+    "gate_a",
+    "legacy_infrastructure",
+    "policy_id",
+    "policy_version",
+    "reasoner",
+    "schema",
+    "schema_version",
+}
+FORBIDDEN_IMPORT_PREFIXES = (
+    "aiohttp",
+    "alpaca",
+    "http",
+    "httpx",
+    "mcp",
+    "requests",
+    "ringdown_market.contracts.execution_policy",
+    "ringdown_market.execution",
+    "ringdown_market.runtime",
+    "socket",
+    "subprocess",
+    "urllib",
+)
+EARNINGS_CANDIDATE = "EARNINGS_RESIDUAL_CONTINUATION_V1"
+MACRO_CANDIDATE = "MACRO_SPY_CONTINUATION_CHALLENGER_V1"
+EXPECTED_CANDIDATE_IDS = (EARNINGS_CANDIDATE, MACRO_CANDIDATE)
+EXPECTED_COHORT_IDS = {
+    EARNINGS_CANDIDATE: ("BMO", "AMC"),
+    MACRO_CANDIDATE: ("BLS_JOLTS", "BLS_EMPLOYMENT_SITUATION"),
+}
+EXPECTED_BASELINE_IDS = (
+    "CASH_ALWAYS_UNCERTAIN",
+    "PRICE_CONTINUATION",
+    "PRICE_REVERSAL",
+    "DETERMINISTIC_PARSER",
+    "BOUNDED_LLM",
+    "NO_TEXT_ABLATION",
+    "OPPOSITE_LLM_PLACEBO",
+    "SEEDED_RANDOM_PLACEBO_256",
+)
+EXPECTED_PARTITION_IDS = {
+    EARNINGS_CANDIDATE: (
+        "DEVELOPMENT_2020_2023",
+        "VALIDATION_2024",
+        "UNTOUCHED_2025_2026H1",
+        "PROSPECTIVE_POST_FREEZE",
+    ),
+    MACRO_CANDIDATE: (
+        "DEVELOPMENT_2016_2021",
+        "VALIDATION_2022_2023",
+        "UNTOUCHED_2024_2026H1",
+        "PROSPECTIVE_POST_FREEZE",
+    ),
+}
+EXPECTED_GATE_A_FACT_IDS = {
+    "official_scoring_objective",
+    "base_capital",
+    "competition_horizon_and_deadline",
+    "official_mark_source",
+    "official_cost_treatment",
+    "allowed_instruments",
+    "leverage_rules",
+    "drawdown_flatten_and_intervention_rules",
+    "dedicated_paper_account_state",
+    "equity_and_option_data_entitlements",
+    "option_level_and_atomic_multileg_paper_capability",
+    "account_reset_and_broker_state_assumptions",
+}
+EXPECTED_CLOCK_FIELDS = {
+    "BMO": {
+        "clock_id": "EARNINGS_BMO_CLOCK_V1",
+        "observation_start": "09:30:00",
+        "observation_end": "09:35:00",
+        "evidence_cutoff": "09:35:15",
+        "decision_cutoff": "09:36:05",
+        "candidate_entry_deadline": "09:37:00",
+    },
+    "AMC": {
+        "clock_id": "EARNINGS_AMC_CLOCK_V1",
+        "observation_start": "09:30:00",
+        "observation_end": "09:35:00",
+        "evidence_cutoff": "09:35:15",
+        "decision_cutoff": "09:36:05",
+        "candidate_entry_deadline": "09:37:00",
+    },
+    "BLS_JOLTS": {
+        "clock_id": "BLS_JOLTS_CLOCK_V1",
+        "observation_start": "10:00:00",
+        "observation_end": "10:15:00",
+        "evidence_cutoff": "10:15:15",
+        "decision_cutoff": "10:16:05",
+        "candidate_entry_deadline": "10:17:00",
+    },
+    "BLS_EMPLOYMENT_SITUATION": {
+        "clock_id": "BLS_EMPLOYMENT_SITUATION_CLOCK_V1",
+        "observation_start": "09:30:00",
+        "observation_end": "09:45:00",
+        "evidence_cutoff": "09:45:15",
+        "decision_cutoff": "09:46:05",
+        "candidate_entry_deadline": "09:47:00",
+    },
+}
+EXPECTED_PROHIBITED_LLM_CONTROLS = {
+    "symbol_eligibility",
+    "instrument",
+    "contract",
+    "strike",
+    "expiry",
+    "quantity",
+    "price",
+    "risk",
+    "entry",
+    "exit",
+    "account",
+    "broker_tool",
+    "policy_or_prompt_mutation",
+}
+FORBIDDEN_EXECUTION_PARAMETER_KEYS = {
+    "account",
+    "account_id",
+    "broker",
+    "contract",
+    "contracts",
+    "debit",
+    "dte",
+    "expiry",
+    "hold_seconds",
+    "instrument",
+    "limit_price",
+    "maximum_loss_usd",
+    "order",
+    "package_type",
+    "permit",
+    "quantity",
+    "risk_percentage",
+    "strike",
+    "width",
+}
 
 
-def raw_policy() -> bytes:
-    return POLICY_PATH.read_bytes()
+def _resource_bytes() -> bytes:
+    return files("ringdown_market.strategy").joinpath(POLICY_RESOURCE).read_bytes()
 
 
-def mutated_policy(old: bytes, new: bytes) -> bytes:
-    raw = raw_policy()
-    assert old in raw, "mutation anchor missing from canonical policy"
-    mutated = raw.replace(old, new, 1)
-    assert mutated != raw
-    return mutated
+def _payload() -> dict[str, object]:
+    value = json.loads(strategy_policy_bytes())
+    assert isinstance(value, dict)
+    return value
 
 
-def parse_mutated(raw: bytes) -> object:
-    return parse_strategy_policy(raw, expected_sha256=strategy_policy_sha256(raw))
+def _canonical_bytes(value: object) -> bytes:
+    return json.dumps(
+        value,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    ).encode("utf-8")
 
 
-def assert_policy_rejected(raw: bytes, reason: PolicyRejectionReason) -> StrategyPolicyRejected:
-    with pytest.raises(StrategyPolicyRejected) as caught:
-        parse_mutated(raw)
-    assert caught.value.reason is reason
-    return caught.value
+def _values_for_key(value: object, key: str) -> tuple[object, ...]:
+    found: list[object] = []
+    if isinstance(value, Mapping):
+        if key in value:
+            found.append(value[key])
+        for item in value.values():
+            found.extend(_values_for_key(item, key))
+    elif isinstance(value, (list, tuple)):
+        for item in value:
+            found.extend(_values_for_key(item, key))
+    return tuple(found)
 
 
-def test_canonical_policy_bytes_match_pinned_frozen_identity() -> None:
-    raw = raw_policy()
-    assert strategy_policy_sha256(raw) == STRATEGY_POLICY_V1_SHA256
-
-    policy = parse_frozen_strategy_policy_v1(raw)
-    assert policy.policy_version == STRATEGY_POLICY_VERSION
-    assert policy.frozen is True
-    assert policy.sha256 == STRATEGY_POLICY_V1_SHA256
-
-
-def test_policy_parse_is_deterministic() -> None:
-    first = parse_frozen_strategy_policy_v1(raw_policy())
-    second = parse_frozen_strategy_policy_v1(raw_policy())
-    assert first == second
-    assert first.sha256 == second.sha256
+def _mapping_records(value: object) -> tuple[Mapping[str, object], ...]:
+    records: list[Mapping[str, object]] = []
+    if isinstance(value, Mapping):
+        records.append(value)
+        for item in value.values():
+            records.extend(_mapping_records(item))
+    elif isinstance(value, (list, tuple)):
+        for item in value:
+            records.extend(_mapping_records(item))
+    return tuple(records)
 
 
-def test_policy_freezes_issue_contract_values() -> None:
-    policy = parse_frozen_strategy_policy_v1(raw_policy())
+def _all_keys(value: object) -> set[str]:
+    result: set[str] = set()
+    for record in _mapping_records(value):
+        result.update(record)
+    return result
 
-    assert policy.universe.minimum_price == Decimal("10.00")
-    assert policy.universe.earnings_timing == ("BMO", "AMC")
-    assert policy.timing.timezone == "America/New_York"
-    assert policy.timing.observation_window_start == "09:30:00"
-    assert policy.timing.observation_window_end == "09:35:00"
-    assert policy.timing.valid_signal_by == "09:36:05"
-    assert policy.timing.no_open_submission_after == "09:37:00"
-    assert policy.timing.close_all_positions_by == "15:30:00"
-    assert policy.decision.outputs == ("UP", "DOWN", "UNCERTAIN")
-    assert policy.decision.confidence_authorizes_trade is False
-    assert policy.decision.prose_controls_arithmetic is False
-    assert policy.decision.no_fallback_signal is True
-    assert policy.decision.reaction_relation_values == ("CONTINUE", "REVERSE", "NONE")
-    assert policy.reasoner.route_count == 1
-    assert policy.reasoner.transparent_fallback is False
-    assert policy.expression.kind == "DEBIT_VERTICAL"
-    assert policy.expression.quantity == 1
-    assert policy.expression.dte_min_days == 7
-    assert policy.expression.dte_max_days == 21
-    assert policy.expression.allowed_widths_usd == (Decimal("2.50"), Decimal("5.00"))
-    assert policy.exit.hold_minutes == 60
-    assert policy.exit.hold_anchor == "RECONCILED_OPENING_FILL"
-    assert policy.exit.model_exit is False
-    assert policy.exit.profit_take is False
-    assert policy.exit.stop_loss is False
-    assert policy.evidence_requirements.panel_min_events == 20
-    assert policy.evidence_requirements.panel_max_events == 30
-    assert policy.evidence_requirements.latency_required_profile == "p95"
-    assert policy.evidence_requirements.historical_confirmation_required_before_paper_mutation
-    assert policy.evidence_requirements.prospective_shadow_required_before_paper_mutation
-    assert policy.event_sets.development_event_ids == (
-        "KR-2026Q2-EARNINGS",
-        "GIS-2027Q1-EARNINGS",
-        "MU-2026Q4-EARNINGS",
-        "NKE-2027Q1-EARNINGS",
+
+def _assert_deeply_immutable(value: object, *, path: str = "policy") -> None:
+    if is_dataclass(value) and not isinstance(value, type):
+        params = type(value).__dataclass_params__
+        assert params.frozen, f"{path} dataclass must be frozen"
+        for field in fields(value):
+            _assert_deeply_immutable(getattr(value, field.name), path=f"{path}.{field.name}")
+        return
+    if isinstance(value, Mapping):
+        assert not isinstance(value, dict), f"{path} exposes a mutable dict"
+        for key, item in value.items():
+            _assert_deeply_immutable(key, path=f"{path}.<key>")
+            _assert_deeply_immutable(item, path=f"{path}.{key}")
+        return
+    if isinstance(value, (tuple, frozenset)):
+        for index, item in enumerate(value):
+            _assert_deeply_immutable(item, path=f"{path}[{index}]")
+        return
+    assert not isinstance(value, (bytearray, list, set)), f"{path} is mutable"
+
+
+def test_packaged_policy_bytes_are_canonical_and_hash_bound() -> None:
+    raw = strategy_policy_bytes()
+    digest = hashlib.sha256(raw).hexdigest()
+
+    assert raw == _resource_bytes()
+    assert raw == _canonical_bytes(json.loads(raw))
+    assert not raw.endswith(b"\n")
+    assert digest == EXPECTED_POLICY_SHA256
+    assert digest == strategy_policy_sha256()
+    assert load_strategy_policy().sha256 == digest
+
+
+def test_synthetic_development_bundle_has_no_evidence_or_execution_claim() -> None:
+    fixture = json.loads(SYNTHETIC_BUNDLE_PATH.read_bytes())
+
+    assert fixture["schema"] == "esscher.synthetic_strategy_development_bundle"
+    assert fixture["schema_version"] == 1
+    assert fixture["data_class"] == "SYNTHETIC_CONTRACT_FIXTURE"
+    assert fixture["claim_labels"] == [
+        "NOT_ALPHA_EVIDENCE",
+        "NOT_HISTORICAL_DATA",
+        "NO_BROKER_EXECUTION",
+        "NO_EXECUTION_AUTHORITY",
+    ]
+
+
+def test_policy_has_the_exact_frozen_top_level_shape() -> None:
+    assert set(_payload()) == EXPECTED_TOP_LEVEL_FIELDS
+
+
+def test_reasoner_policy_identities_match_the_frozen_registry() -> None:
+    assert {
+        candidate_id: reasoner_policy_hashes(candidate_id)
+        for candidate_id in EXPECTED_CANDIDATE_IDS
+    } == EXPECTED_REASONER_POLICY_HASHES
+
+
+def test_loader_and_strict_parser_return_the_same_deeply_immutable_policy() -> None:
+    loaded = load_strategy_policy()
+    parsed = parse_strategy_policy(strategy_policy_bytes())
+
+    assert parsed == loaded
+    assert parsed.data == loaded.data
+    _assert_deeply_immutable(loaded)
+
+
+def test_policy_freezes_exact_candidates_cohorts_and_separate_clocks() -> None:
+    policy = load_strategy_policy()
+
+    assert policy.candidate_ids == EXPECTED_CANDIDATE_IDS
+    for candidate_id, cohort_ids in EXPECTED_COHORT_IDS.items():
+        assert policy.cohort_ids(candidate_id) == cohort_ids
+
+    clock_records = [
+        record
+        for candidate_id in EXPECTED_CANDIDATE_IDS
+        for record in _mapping_records(policy.candidate(candidate_id)["clocks"])
+        if "cohort_id" in record and "clock_id" in record
+    ]
+    clocks_by_cohort = {
+        cohort_id: {
+            record["clock_id"] for record in clock_records if record["cohort_id"] == cohort_id
+        }
+        for cohort_ids in EXPECTED_COHORT_IDS.values()
+        for cohort_id in cohort_ids
+    }
+
+    assert all(clocks_by_cohort.values())
+    assert clocks_by_cohort["BMO"].isdisjoint(clocks_by_cohort["AMC"])
+    assert clocks_by_cohort["BLS_JOLTS"].isdisjoint(clocks_by_cohort["BLS_EMPLOYMENT_SITUATION"])
+    assert (
+        set()
+        .union(clocks_by_cohort["BMO"], clocks_by_cohort["AMC"])
+        .isdisjoint(
+            set().union(
+                clocks_by_cohort["BLS_JOLTS"],
+                clocks_by_cohort["BLS_EMPLOYMENT_SITUATION"],
+            )
+        )
     )
-    assert policy.event_sets.development_events_excluded_from_confirmation_panel is True
-    assert policy.boundaries.execution_mode == "PAPER_ONLY"
-    assert policy.boundaries.real_money_mode is False
 
 
-def test_policy_baselines_align_with_alpha_plane() -> None:
-    policy = parse_frozen_strategy_policy_v1(raw_policy())
-    assert policy.baselines == tuple(baseline.value for baseline in BaselineName)
-
-
-def test_policy_abstention_codes_align_with_decision_contract() -> None:
-    policy = parse_frozen_strategy_policy_v1(raw_policy())
-    config_codes = {rule.code for rule in policy.decision.abstention_rules}
-    assert config_codes == {reason.value for reason in AbstentionReason}
-
-
-def test_policy_document_is_inert() -> None:
-    raw = raw_policy()
-    for marker in (b"http://", b"https://", b"ftp://", b"file://"):
-        assert marker not in raw
-
-
-def test_policy_mutation_after_freeze_rejected() -> None:
-    mutated = mutated_policy(b'"hold_minutes": 60', b'"hold_minutes": 61')
-    with pytest.raises(StrategyPolicyRejected) as caught:
-        parse_frozen_strategy_policy_v1(mutated)
-    assert caught.value.reason is PolicyRejectionReason.POLICY_HASH_MISMATCH
-
-
-def test_policy_rejects_unfrozen_document() -> None:
-    assert_policy_rejected(
-        mutated_policy(b'"frozen": true', b'"frozen": false'),
-        PolicyRejectionReason.UNFROZEN_POLICY,
+def test_macro_clocks_bind_specific_release_families_and_schedule_tolerance() -> None:
+    macro = load_strategy_policy().candidate(MACRO_CANDIDATE)
+    clocks = {record["cohort_id"]: record for record in _mapping_records(macro["clocks"])}
+    schedule_rule = next(
+        record
+        for record in _mapping_records(macro["data_health"]["rules"])
+        if record["rule_id"] == "official_publication_schedule_delta_max"
     )
 
-
-def test_policy_rejects_unknown_field() -> None:
-    mutated = mutated_policy(
-        b'"policy_id": "ESSCHER_STRATEGY_V1",',
-        b'"policy_id": "ESSCHER_STRATEGY_V1",\n  "tuning_knob": 1,',
-    )
-    assert_policy_rejected(mutated, PolicyRejectionReason.UNKNOWN_FIELD)
-
-
-def test_policy_rejects_missing_field() -> None:
-    mutated = mutated_policy(b'  "product_name": "Esscher",\n', b"")
-    assert_policy_rejected(mutated, PolicyRejectionReason.MISSING_FIELD)
-
-
-def test_policy_rejects_duplicate_key() -> None:
-    mutated = mutated_policy(
-        b'"policy_id": "ESSCHER_STRATEGY_V1",',
-        b'"policy_id": "ESSCHER_STRATEGY_V1",\n  "policy_id": "ESSCHER_STRATEGY_V1",',
-    )
-    assert_policy_rejected(mutated, PolicyRejectionReason.DUPLICATE_KEY)
+    assert {
+        "BLS_JOLTS": clocks["BLS_JOLTS"]["release_family"],
+        "BLS_EMPLOYMENT_SITUATION": clocks["BLS_EMPLOYMENT_SITUATION"]["release_family"],
+    } == {
+        "BLS_JOLTS": "BLS_JOLTS",
+        "BLS_EMPLOYMENT_SITUATION": "BLS_EMPLOYMENT_SITUATION",
+    }
+    assert schedule_rule == {
+        "operator": "LTE",
+        "rule_id": "official_publication_schedule_delta_max",
+        "unit": "SECONDS",
+        "value": 60,
+    }
 
 
-def test_policy_rejects_non_finite_value() -> None:
-    mutated = mutated_policy(
-        b'"abstention_signed_return": 0.0',
-        b'"abstention_signed_return": NaN',
-    )
-    assert_policy_rejected(mutated, PolicyRejectionReason.NON_FINITE_VALUE)
+def test_gate_a_is_explicitly_unverified_and_blocks_assumptions() -> None:
+    gate_a = load_strategy_policy().data["gate_a"]
+    assert gate_a["overall_status"] == "UNVERIFIED"
+    facts = gate_a["facts"]
+    assert facts
+    assert {fact["status"] for fact in facts} == {"UNVERIFIED"}
 
 
-def test_policy_rejects_future_timestamp() -> None:
-    mutated = mutated_policy(
-        b'"frozen_at": "2026-08-30T14:12:39Z"',
-        b'"frozen_at": "2999-01-01T00:00:00Z"',
-    )
-    assert_policy_rejected(mutated, PolicyRejectionReason.FUTURE_TIMESTAMP)
+def test_policy_freezes_the_exact_baseline_families() -> None:
+    baselines = load_strategy_policy().data["baselines"]
+
+    assert set(_values_for_key(baselines, "baseline_id")) == set(EXPECTED_BASELINE_IDS)
 
 
-def test_policy_rejects_invalid_decimal_text() -> None:
-    mutated = mutated_policy(b'"minimum_price_usd": "10.00"', b'"minimum_price_usd": "10.005"')
-    assert_policy_rejected(mutated, PolicyRejectionReason.INVALID_TYPE)
+def test_candidates_keep_distinct_chronological_partitions() -> None:
+    policy = load_strategy_policy()
+
+    for candidate_id, expected_ids in EXPECTED_PARTITION_IDS.items():
+        partitions = policy.candidate(candidate_id)["partitions"]
+        assert set(_values_for_key(partitions, "partition_id")) == set(expected_ids)
 
 
-def test_policy_rejects_broken_timing_order() -> None:
-    mutated = mutated_policy(b'"valid_signal_by": "09:36:05"', b'"valid_signal_by": "09:34:00"')
-    assert_policy_rejected(mutated, PolicyRejectionReason.INVALID_VALUE)
+def test_expression_exit_and_risk_are_unselected_without_execution_constants() -> None:
+    policy = load_strategy_policy()
+
+    for candidate_id in EXPECTED_CANDIDATE_IDS:
+        expression = policy.candidate(candidate_id)["expression_and_exit"]
+        assert expression["production_allowed"] == ()
+        assert expression["expression_status"] == "UNSELECTED"
+        assert expression["exit_status"] == "UNSELECTED"
+        assert expression["risk_status"] == "UNSELECTED"
+        assert _all_keys(expression).isdisjoint(FORBIDDEN_EXECUTION_PARAMETER_KEYS)
 
 
-def test_policy_rejects_quantity_greater_than_one() -> None:
-    mutated = mutated_policy(b'"quantity": 1', b'"quantity": 2')
-    assert_policy_rejected(mutated, PolicyRejectionReason.INVALID_VALUE)
+@pytest.mark.parametrize("value", ["not bytes", bytearray(b"{}"), memoryview(b"{}"), None])
+def test_policy_parser_requires_exact_immutable_bytes(value: object) -> None:
+    with pytest.raises(ValueError):
+        parse_strategy_policy(value)  # type: ignore[arg-type]
 
 
-def test_policy_rejects_non_bytes_input() -> None:
-    with pytest.raises(StrategyPolicyRejected) as caught:
-        parse_strategy_policy("not-bytes", expected_sha256="0" * 64)  # type: ignore[arg-type]
-    assert caught.value.reason is PolicyRejectionReason.INVALID_DOCUMENT
+@pytest.mark.parametrize(
+    "raw",
+    [
+        b"\xff\xfe\x00",
+        b"[]",
+        b'{"schema_version":NaN}',
+        b'{"schema_version":Infinity}',
+        b'{"schema_version":-Infinity}',
+    ],
+)
+def test_policy_parser_rejects_invalid_documents_and_nonfinite_numbers(raw: bytes) -> None:
+    with pytest.raises(ValueError):
+        parse_strategy_policy(raw)
+
+
+def test_policy_parser_rejects_duplicate_fields() -> None:
+    raw = strategy_policy_bytes()
+    duplicate = b'{"schema":"duplicate",' + raw[1:]
+
+    with pytest.raises(ValueError):
+        parse_strategy_policy(duplicate)
+
+
+def test_policy_parser_rejects_unknown_and_missing_fields() -> None:
+    payload = _payload()
+    payload["unexpected_authority"] = "BROKER"
+    unknown = _canonical_bytes(payload)
+    del payload["unexpected_authority"]
+    del payload["schema"]
+    missing = _canonical_bytes(payload)
+
+    with pytest.raises(ValueError):
+        parse_strategy_policy(unknown)
+    with pytest.raises(ValueError):
+        parse_strategy_policy(missing)
+
+
+def test_policy_parser_rejects_nested_unknown_missing_and_boolean_version() -> None:
+    payload = _payload()
+    candidate = payload["candidates"][0]
+    candidate["clocks"][0]["unexpected_clock_field"] = "09:31"
+    nested_unknown = _canonical_bytes(payload)
+    del candidate["clocks"][0]["unexpected_clock_field"]
+    del candidate["clocks"][0]["evidence_cutoff"]
+    nested_missing = _canonical_bytes(payload)
+    payload = _payload()
+    payload["schema_version"] = True
+    boolean_version = _canonical_bytes(payload)
+
+    for raw in (nested_unknown, nested_missing, boolean_version):
+        with pytest.raises(ValueError):
+            parse_strategy_policy(raw)
+
+
+def test_policy_parser_rejects_noncanonical_equivalent_bytes() -> None:
+    pretty = json.dumps(_payload(), indent=2, ensure_ascii=False).encode("utf-8")
+
+    assert json.loads(pretty) == json.loads(strategy_policy_bytes())
+    with pytest.raises(ValueError):
+        parse_strategy_policy(pretty)
+
+
+def test_policy_parser_rejects_post_freeze_mutation() -> None:
+    payload = _payload()
+    payload["policy_id"] = f"{payload['policy_id']}-mutated"
+
+    with pytest.raises(ValueError):
+        parse_strategy_policy(_canonical_bytes(payload))
+
+
+def test_strategy_package_has_no_execution_runtime_network_or_broker_imports() -> None:
+    strategy_root = ROOT / "src" / "ringdown_market" / "strategy"
+    violations: list[str] = []
+    for path in sorted(strategy_root.rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            imported: list[str] = []
+            if isinstance(node, ast.Import):
+                imported.extend(alias.name for alias in node.names)
+            elif isinstance(node, ast.ImportFrom) and node.module is not None:
+                imported.append(node.module)
+            for module in imported:
+                if module.startswith(FORBIDDEN_IMPORT_PREFIXES):
+                    violations.append(f"{path.relative_to(ROOT)} imports {module}")
+
+    assert violations == []

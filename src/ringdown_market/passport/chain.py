@@ -48,6 +48,19 @@ def _canonical_json_bytes(value: object) -> bytes:
     ).encode("utf-8")
 
 
+def _unique_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    payload: dict[str, object] = {}
+    for key, value in pairs:
+        if key in payload:
+            raise PassportChainError(f"duplicate JSON field: {key}")
+        payload[key] = value
+    return payload
+
+
+def _reject_json_constant(value: str) -> None:
+    raise PassportChainError(f"non-canonical JSON constant: {value}")
+
+
 def _utc_text(value: datetime) -> str:
     if value.tzinfo is None or value.utcoffset() is None:
         raise ValueError("passport timestamps must be timezone-aware")
@@ -175,8 +188,12 @@ def parse_passport_bytes(raw: bytes) -> tuple[PassportEntry, ...]:
     """Parse canonical passport bytes into entries; structural drift raises."""
 
     try:
-        payload = json.loads(bytes(raw).decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        payload = json.loads(
+            bytes(raw).decode("utf-8"),
+            object_pairs_hook=_unique_object,
+            parse_constant=_reject_json_constant,
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
         raise PassportChainError(f"passport bytes are not valid JSON: {error}") from None
     if not isinstance(payload, Mapping):
         raise PassportChainError("passport must be an object")

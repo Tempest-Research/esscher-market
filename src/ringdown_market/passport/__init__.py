@@ -1,4 +1,4 @@
-"""Attributable Trade Passport: append-only hash-linked lifecycle trace."""
+"""Offline, append-only Trade Passport contracts."""
 
 from ringdown_market.passport.chain import (
     GENESIS_PREV_SHA256,
@@ -11,39 +11,29 @@ from ringdown_market.passport.chain import (
     compute_entry_sha256,
     parse_passport_bytes,
 )
-from ringdown_market.passport.slice import (
-    SLICE_NOW,
-    SLICE_ROUTE,
-    SliceInputs,
-    SliceRejected,
-    build_offline_causal_slice,
-    slice_payload_json,
-)
-from ringdown_market.passport.verifier import (
-    FULL_TRACE_STAGES,
-    VerdictReason,
-    VerificationResult,
-    verify_passport,
+from ringdown_market.passport.paper import (
+    PaperPassportRejected,
+    PaperPassportStage,
+    PaperPassportVerdictReason,
+    PaperPassportVerification,
+    build_paper_trade_passport,
+    verify_paper_trade_passport,
 )
 
 __all__ = [
-    "FULL_TRACE_STAGES",
     "GENESIS_PREV_SHA256",
     "PASSPORT_SCHEMA",
     "PASSPORT_SCHEMA_VERSION",
-    "SLICE_NOW",
-    "SLICE_ROUTE",
+    "PaperPassportRejected",
+    "PaperPassportStage",
+    "PaperPassportVerdictReason",
+    "PaperPassportVerification",
     "PassportChainError",
     "PassportEntry",
     "PassportStage",
-    "SliceInputs",
-    "SliceRejected",
     "TradePassport",
-    "VerdictReason",
-    "VerificationResult",
-    "build_offline_causal_slice",
+    "build_paper_trade_passport",
     "compute_entry_sha256",
     "parse_passport_bytes",
-    "slice_payload_json",
-    "verify_passport",
+    "verify_paper_trade_passport",
 ]

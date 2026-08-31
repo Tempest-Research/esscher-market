@@ -76,33 +76,19 @@ Current modules:
 - `alpha/evaluation.py`: eligible-path-observation and fill-relative evaluation;
 - `alpha/baselines.py`: deterministic frozen comparators, including abstention;
 - `alpha/qfast.py`: small-sample rejection and latency gates;
-- `strategy/policy.py`: the frozen Esscher v1 strategy policy identity, strict parser, and hash-bound immutability;
-- `strategy/decisions.py`: the immutable strategy decision contract with stable abstention codes, reaction relation, evidence citations, and lineage hashes;
-- `strategy/reasoner.py`: the structured reasoner output contract, single-route identity, fake reasoner, and inert route-smoke harness;
-- `strategy/engine.py`: the pure residual decision engine generating source-attributable decisions from frozen snapshots;
-- `data/provenance.py`: read-only source evidence, adjusted-bar, corporate-action, and estimation provenance contracts;
-- `data/adapters.py`: the read-only adapter boundary, credential-rejecting host-config validation, and deterministic fake adapters;
-- `data/snapshot.py`: the strict `esscher.strategy_snapshot/v1` compiler with synchronized return/beta feature construction and stable fail-closed reason codes;
-- `data/capture.py`: the inert capture orchestration that turns one strict capture request into one deterministic snapshot;
-- `data/panel.py`: the untouched confirmation-panel contract and deterministic zero-latency/p95 Q-FAST report builder;
+- `strategy/`: the canonical accepted research policy plus strict candidate-manifest, snapshot,
+  feature, reasoner-exchange, and direction-only decision contracts;
+- `contracts/source_matrix.py` and `sourcedata/rights_gate.py`: the authenticated source-rights
+  matrix, upstream binding checks, and candidate-specific capture preflight;
+- `sourcedata/capture.py`: an explicit-fixture, offline-only snapshot command with no alternate
+  matrix, live-provider, account, broker, MCP, or trading path;
 - `contracts/execution_policy.py`: the immutable paper-risk and official MCP protocol registry;
 - `contracts/research_to_permit.py`: the pure frozen-decision, provenance, and feature-dependency bridge;
 - `execution/models.py`: immutable opening and closing permits for one debit vertical;
-- `execution/option_compiler.py`: the deterministic quote-safe debit-vertical compiler emitting one permit-boundary package or explicit `NO_PACKAGE`;
-- `risk/policy.py`: the immutable frozen PAPER risk limits and Decimal-only effective-cap derivation;
-- `risk/ledger.py`: the standard-library SQLite WAL reservation ledger with transactional reservation, one-use permit binding, control state, and idempotent migration;
-- `risk/kernel.py`: the account-level risk evaluation binding one durable reservation before any mutation;
-- `risk/truth.py`: broker-observed account, position, and order truth contracts with freshness gates;
 - `execution/host_mcp.py`: the host identity, startup capability/account preflight, sanitized observation, bounded runtime allowlist, and typed transport failures;
 - `execution/mcp.py`: the single Alpaca MCP request, readback, cancellation, atomic-close, and event-flat reconciliation boundary;
 - `execution/paper_demo.py`: exact approval, durable submit-once recovery, fill-economics classification, and sanitized terminal receipt bundle;
 - `runtime/scheduled.py`: strict one-event manifest and due-window validation, cross-process overlap lock, atomic hash-bound restart state, terminal no-op, and manual-reconciliation boundary;
-- `runtime/lifecycle.py`: the durable monitored lifecycle worker with the 60-minute fill-relative hold, deterministic close, bounded repricing, and restart-safe state machine over the risk ledger;
-- `evaluation/shadow.py`: the immutable shadow event records, stage outcomes, and deterministic hash-bound shadow report;
-- `evaluation/orchestrator.py`: the read-only orchestrator running the frozen decision, package, and risk stack without order authority;
-- `passport/chain.py`: the append-only hash-linked Trade Passport entries and chain builder;
-- `passport/verifier.py`: the deterministic passport verifier proving linkage, stage order, causal bindings, policy identities, and flatness;
-- `passport/slice.py`: the offline causal slice from source bytes to a final-flat fake-broker passport;
 - `demo/judge_trace.py`: deterministic self-contained HTML projection over byte-identical frozen evidence and scheduled lifecycle artifacts, with strict PAPER/claim validation and inert source attribution;
 - `cli.py`: labeled research input parsing, one-shot scheduled runtime command, offline trace rendering, deterministic output, and package-version output.
 
@@ -144,7 +130,12 @@ sanitized static public trace
 
 The real point-in-time event collection is frozen, and the static proof renderer now projects one v2 evidence manifest plus three separate scheduled lifecycle contract fixtures. No merged artifact causally joins that v2 event to a decision, permit, or terminal receipt, so the page renders those links as missing instead of splicing unrelated values. A future real causally joined public trace remains a separate reviewed artifact. The implemented bridge accepts only exact frozen artifacts that already passed the registered research gates; it does not create evidence, rescore a signal, or open an execution session. The implemented host boundary constructs only a preflighted PAPER session for the same official adapter. Missing or ambiguous information fails closed to rejection or reconciliation; it never selects another adapter.
 
-The Esscher v1 strategy policy is frozen (`docs/STRATEGY_V1.md`, `configs/strategy_v1.json`) with a hash-bound strict contract under `src/ringdown_market/strategy/`, the read-only point-in-time snapshot collector (`docs/STRATEGY_DATA_PIPELINE.md`) compiles `esscher.strategy_snapshot/v1` bytes under `src/ringdown_market/data/`, the residual decision engine generates source-attributable `UP`/`DOWN`/`UNCERTAIN` decisions from those frozen snapshots through one injected reasoner route, the deterministic option compiler turns one validated direction plus one frozen option-chain snapshot into one quote-safe debit vertical or an explicit `NO_PACKAGE`, the account-level risk kernel under `src/ringdown_market/risk/` persists one durable reservation and one-use permit binding before any mutation, and the monitored lifecycle runtime under `src/ringdown_market/runtime/lifecycle.py` drives the 60-minute fill-relative hold to a deterministic close or `MANUAL_REQUIRED`. The confirmation panel (`docs/research/qfast-confirmation-panel.md`) is frozen and honestly empty under recorded stop conditions, the prospective shadow ledger under `src/ringdown_market/evaluation/` retains every abstention, rejection, and shadow hold without order authority, and the Trade Passport under `src/ringdown_market/passport/` binds the full trace from permitted source bytes to a final-flat fake-broker receipt in one independently readable, tamper-evident chain. One explicitly approved PAPER open-to-flat lifecycle (#9) remains gated on real evidence collection, a host-measured p95 latency profile, and Ben's current authorization; hand-authored `candidate_signal` fixtures remain supplied test inputs, not strategy output.
+The strategy policy and its new contracts are implemented, but the real candidate collector,
+provider-backed reasoner call, expression compiler, and account reservation ledger are not. The
+new validated-decision contract ends at `UP`, `DOWN`, or `UNCERTAIN`. The older
+`ringdown.frozen_research_decision/v1` bridge still embeds a synthetic debit-vertical package and
+is retained only as inert compatibility infrastructure; it is not the production interface for the
+accepted strategy.
 
 ## Core evaluation
 
@@ -174,17 +165,56 @@ The residual return removes frozen market and sector components measured over th
 14. Public artifacts are static, sanitized, and incapable of mutation.
 15. Each scheduled invocation handles one exact `event_run_id`; non-terminal restart reconciles deterministic broker identity, terminal repeats are no-ops, and a second active event is rejected.
 16. Local scheduled state is an atomic integrity-checked restart cursor; broker order and position readback remains authority, and ambiguous or partial truth stops for manual reconciliation.
+17. Every strategy snapshot binds exact candidate-manifest bytes, and its event, issuer, security,
+    ticker, cohort, eligibility, and freeze must match one retained manifest record.
+18. A validated strategy decision has direction-only authority; contract, quantity, price, risk,
+    account, permit, order, and exit fields are not part of its schema.
 
 Historical panel admission additionally requires per-feature source dependencies, typed publication timestamps, entitlement metadata, and a common outcome path. The aggregate `DecisionSnapshot` alone does not establish those dependencies; the bridge therefore also requires and validates the exact feature-input and evidence-manifest bytes before issuing a permit.
+
+## Source-rights capture boundary
+
+```text
+explicit synthetic fixture + explicit UTC capture clock + explicit host authorization
+        |
+        v
+exact policy candidate selection
+        |
+        v
+packaged source matrix SHA + policy/Gate A rebinding
+        |
+        +--> unknown, blocked, or unmet source condition: deterministic rejection
+        |
+        v
+offline fixture adapters
+        |
+        v
+canonical snapshot, receipts, and feasibility manifest
+```
+
+The matrix is a single packaged resource with SHA-256
+`888447640aa705510bc0594abc9a78f22c988e961282ff82a6f44337181d04ca`, bound to
+accepted-policy SHA-256
+`afce93b52b96e0d8c71deeb80027a1c87a4cf3623e9417db14de00279fc23bca` and Gate A
+programme-contract SHA-256
+`40c2e780c684bdde671b028dbdd8c9b13268e659c24e98a2d452ff7c8692f955`. The
+rights gate evaluates the source classes of the selected candidate, not a
+hard-coded earnings lane. Its timestamp parser accepts only explicit
+zero-offset UTC values; its paid-plan records require a valid `APPROVED`
+decision, a stable identity, and non-inverted approval chronology.
+
+No alternative source-matrix path is exposed by the capture command. The
+installed wheel requires an explicit fixture supplied by the caller, and that
+loaded fixture is passed into the adapters. `--live` remains an explicit
+failure; this module provides no provider session, direct data route, account,
+broker, MCP, order, or trading authority.
 
 ## Path ownership
 
 - `src/ringdown_market/alpha/`, evidence manifests, and replay fixtures: evidence lane.
-- `src/ringdown_market/data/`: read-only point-in-time snapshot collection (evidence lane).
-- `src/ringdown_market/strategy/`: frozen strategy policy and decision contract shared by the data and strategy lanes.
+- `src/ringdown_market/strategy/`: strategy-contract lane.
 - `src/ringdown_market/contracts/`: shared frozen decision, policy, and protocol boundary.
 - `src/ringdown_market/execution/`: runtime/integration lane.
-- `src/ringdown_market/risk/`: account-level risk and durable reservations (runtime/integration lane).
 - `web/` and public presentation assets: proof/submission lane.
 - `.github/`, packaging, shared contracts, and final integration: Ben.
 

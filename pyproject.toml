@@ -12,7 +12,9 @@ license = { text = "MIT" }
 authors = [
   { name = "Benedict Anokye-Davies", email = "bbeennyy860@gmail.com" }
 ]
-dependencies = []
+dependencies = [
+  "tzdata==2025.2"
+]
 
 [project.optional-dependencies]
 dev = [

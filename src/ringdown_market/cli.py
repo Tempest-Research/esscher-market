@@ -25,8 +25,6 @@ from .alpha.qfast import (
     evaluate_latency_gate,
     run_qfast,
 )
-from .data.adapters import HostConfigRejected, validate_capture_host_config
-from .data.capture import CaptureRequestRejected, run_capture_request
 from .demo.judge_trace import load_packaged_trace_inputs, render_judge_trace
 from .runtime.scheduled import (
     ScheduledEventManifest,
@@ -36,7 +34,6 @@ from .runtime.scheduled import (
     ScheduledRunError,
     run_scheduled_event_command,
 )
-from .strategy.policy import STRATEGY_POLICY_V1_SHA256, parse_frozen_strategy_policy_v1
 
 ALLOWED_DATA_CLASSES = {
     "SYNTHETIC_CONTRACT_FIXTURE",
@@ -273,31 +270,6 @@ def _build_parser() -> argparse.ArgumentParser:
         help="render the packaged offline read-only evidence-to-receipt walkthrough",
     )
     trace.add_argument("--output", type=Path, required=True)
-    capture = subparsers.add_parser(
-        "capture-snapshot",
-        help=(
-            "compile one read-only point-in-time strategy snapshot from an explicit "
-            "host configuration and capture request; performs no broker mutation and no "
-            "network access"
-        ),
-    )
-    capture.add_argument("--host-config", type=Path, required=True)
-    capture.add_argument("--policy", type=Path, required=True)
-    capture.add_argument("--input", type=Path, required=True)
-    capture.add_argument("--output", type=Path, required=True)
-    passport = subparsers.add_parser(
-        "passport-slice",
-        help=(
-            "build the offline causal slice from source bytes to a final-flat fake-broker "
-            "Trade Passport; file reads only, no broker mutation, no network access"
-        ),
-    )
-    passport.add_argument("--policy", type=Path, required=True)
-    passport.add_argument("--capture-request", type=Path, required=True)
-    passport.add_argument("--reasoner-outputs", type=Path, required=True)
-    passport.add_argument("--chain", type=Path, required=True)
-    passport.add_argument("--ledger", type=Path, required=True)
-    passport.add_argument("--output", type=Path, required=True)
     return parser
 
 
@@ -405,87 +377,5 @@ def main(
             print(error.to_json_bytes().decode("utf-8"))
             return 3 if is_manual else 4
         print(result.to_json_bytes().decode("utf-8"))
-        return 0
-    if args.command == "capture-snapshot":
-        try:
-            host_config = json.loads(args.host_config.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            print("capture host configuration is missing or not valid JSON")
-            return 2
-        try:
-            validate_capture_host_config(host_config)
-        except HostConfigRejected as error:
-            print(f"capture host configuration rejected: {error}")
-            return 2
-        try:
-            policy = parse_frozen_strategy_policy_v1(args.policy.read_bytes())
-        except Exception as error:
-            print(f"capture policy rejected: {error}")
-            return 3
-        try:
-            snapshot = run_capture_request(
-                args.input.read_bytes(),
-                policy=policy,
-                expected_policy_sha256=STRATEGY_POLICY_V1_SHA256,
-            )
-        except CaptureRequestRejected as error:
-            print(f"capture request rejected: {error}")
-            return 3
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_bytes(snapshot.raw)
-        print(
-            _canonical_json(
-                {
-                    "schema": snapshot.payload["schema"],
-                    "schema_version": snapshot.payload["schema_version"],
-                    "event_id": snapshot.payload["event_id"],
-                    "eligibility": snapshot.payload["eligibility"],
-                    "rejection_reasons": snapshot.payload["rejection_reasons"],
-                    "snapshot_sha256": snapshot.sha256,
-                    "mode": "READ_ONLY_CAPTURE",
-                    "claims": ["NO_BROKER_EXECUTION", "NOT_ALPHA_EVIDENCE", "INDICATIVE_DATA"],
-                }
-            ).decode("utf-8")
-        )
-        return 0
-    if args.command == "passport-slice":
-        from .passport import (
-            SliceInputs,
-            SliceRejected,
-            build_offline_causal_slice,
-            verify_passport,
-        )
-
-        try:
-            passport = build_offline_causal_slice(
-                SliceInputs(
-                    policy_bytes=args.policy.read_bytes(),
-                    capture_request_bytes=args.capture_request.read_bytes(),
-                    reasoner_outputs_bytes=args.reasoner_outputs.read_bytes(),
-                    chain_bytes=args.chain.read_bytes(),
-                    ledger_path=args.ledger,
-                )
-            )
-        except (OSError, SliceRejected, ValueError) as error:
-            print(f"passport slice rejected: {error}")
-            return 3
-        payload_bytes = passport.payload_bytes()
-        verdict = verify_passport(payload_bytes)
-        if not verdict.valid:
-            print(f"passport slice failed independent verification: {verdict.reasons}")
-            return 3
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_bytes(payload_bytes + b"\n")
-        print(
-            _canonical_json(
-                {
-                    "mode": "OFFLINE_CAUSAL_SLICE",
-                    "entries": len(passport.entries),
-                    "passport_sha256": passport.passport_sha256(),
-                    "verified": verdict.valid,
-                    "claims": ["NO_BROKER_EXECUTION", "NOT_ALPHA_EVIDENCE", "PAPER"],
-                }
-            ).decode("utf-8")
-        )
         return 0
     raise AssertionError("argparse accepted an unknown command")

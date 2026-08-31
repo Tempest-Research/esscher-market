@@ -1,452 +1,271 @@
-"""Pure Esscher v1 decision engine over frozen point-in-time snapshots."""
+"""Bounded decision engine over frozen strategy inputs.
+
+The engine orchestrates the readable trace
+``INPUT -> FEATURE -> REASONER/BASELINE -> VALIDATOR/VETO -> OUTPUT`` with
+stable reason codes.  It never reads a wall clock, never retries, invokes the
+injected route at most once per joined input, and records every preflight
+abort, duplicate call, or provider failure as ``UNCERTAIN``.  It cannot choose
+a security, instrument, contract, quantity, price, account, risk, entry, exit,
+or broker action.
+"""
 
 from __future__ import annotations
 
-import hashlib
-import json
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import datetime, timedelta
-from decimal import Decimal
+from datetime import datetime
 from enum import StrEnum
+from typing import Final
 
-from ringdown_market.alpha.baselines import BaselineName
-from ringdown_market.alpha.models import Direction
-from ringdown_market.data.snapshot import SNAPSHOT_SCHEMA, SNAPSHOT_SCHEMA_VERSION
-
-from .decisions import (
-    TRACE_STAGES,
-    AbstentionReason,
-    ReactionRelation,
+from ringdown_market.strategy.contracts import (
+    canonical_json_bytes,
+    reasoner_exchange_payload,
+    reasoner_policy_hashes,
+    sha256_bytes,
+    strategy_decision_bytes,
+    validate_reasoner_response,
+    validate_strategy_decision,
+)
+from ringdown_market.strategy.models import (
+    DataHealthState,
+    EligibilityState,
+    ExchangeStatus,
+    ReasonerExchange,
     StrategyDecision,
-    StrategyDecisionState,
+    StrategyInput,
 )
-from .policy import STRATEGY_POLICY_VERSION, StrategyPolicy
-from .reasoner import (
-    Reasoner,
-    ReasonerOutputRejected,
+from ringdown_market.strategy.reasoner import (
+    SYNTHETIC_ROUTE_IDENTITY,
     ReasonerRoute,
-    parse_reasoner_output,
+    ReasonerRouteRequest,
+    RouteIdentity,
+    deadline_for,
 )
 
-_REQUIRED_FEATURE_IDS = (
-    "earnings_numeric/v1",
-    "guidance_statement/v1",
-    "opening_return/v1",
-    "market_opening_return/v1",
-    "sector_opening_return/v1",
-    "market_beta/v1",
-    "sector_beta/v1",
+ENGINE_BUILD_SHA256: Final = sha256_bytes(
+    canonical_json_bytes(
+        {
+            "producer": "esscher.strategy.bounded_decision_engine",
+            "contract": "esscher.validated_decision",
+            "version": 1,
+        }
+    )
 )
-_NUMERIC_FEATURE_IDS = (
-    "opening_return/v1",
-    "market_opening_return/v1",
-    "sector_opening_return/v1",
-    "market_beta/v1",
-    "sector_beta/v1",
-)
+_TRACE_SCHEMA: Final = "esscher.decision_trace"
+_TRACE_SCHEMA_VERSION: Final = 1
 
 
-class EngineRejectionReason(StrEnum):
-    """Stable reasons the engine refuses to process a snapshot at all."""
+class EngineReason(StrEnum):
+    """Stable engine-local reason codes for aborts before or instead of a call."""
 
-    INVALID_SNAPSHOT_DOCUMENT = "INVALID_SNAPSHOT_DOCUMENT"
-    UNSUPPORTED_SNAPSHOT_SCHEMA = "UNSUPPORTED_SNAPSHOT_SCHEMA"
-
-
-class EngineRejected(ValueError):
-    """Raised for structural snapshot violations the engine cannot represent."""
-
-    def __init__(self, reason: EngineRejectionReason, detail: str) -> None:
-        super().__init__(f"{reason.value}: {detail}")
-        self.reason = reason
-        self.detail = detail
+    PREFLIGHT_INELIGIBLE = "PREFLIGHT_INELIGIBLE"
+    PREFLIGHT_DATA_HEALTH = "PREFLIGHT_DATA_HEALTH"
+    START_BEFORE_FEATURE_RECEIPT = "START_BEFORE_FEATURE_RECEIPT"
+    START_AFTER_DECISION_CUTOFF = "START_AFTER_DECISION_CUTOFF"
+    DUPLICATE_REASONER_CALL = "DUPLICATE_REASONER_CALL"
 
 
 @dataclass(frozen=True, slots=True)
-class SnapshotView:
-    """Validated read-only view of one snapshot payload."""
+class EngineOutcome:
+    """One deterministic engine pass: decision, exchange receipt, and trace."""
 
-    payload: Mapping[str, object]
-    sha256: str
-    event_id: str
-    issuer: str
-    ticker: str
-    decision_cutoff: datetime
-    eligible: bool
-    rejection_reasons: tuple[str, ...]
-    evidence_ids: frozenset[str]
-    features: Mapping[str, Mapping[str, object]]
+    decision: StrategyDecision
+    exchange: ReasonerExchange
+    trace: Mapping[str, object]
+    route_invoked: bool
 
+    @property
+    def decision_bytes(self) -> bytes:
+        return strategy_decision_bytes(self.decision)
 
-def _parse_snapshot_timestamp(value: object) -> datetime:
-    if not isinstance(value, str):
-        raise EngineRejected(
-            EngineRejectionReason.INVALID_SNAPSHOT_DOCUMENT, "snapshot timestamp must be text"
-        )
-    try:
-        parsed = datetime.fromisoformat(value)
-    except ValueError:
-        raise EngineRejected(
-            EngineRejectionReason.INVALID_SNAPSHOT_DOCUMENT, "snapshot timestamp is invalid"
-        ) from None
-    if parsed.tzinfo is None or parsed.utcoffset() is None:
-        raise EngineRejected(
-            EngineRejectionReason.INVALID_SNAPSHOT_DOCUMENT, "snapshot timestamp must be aware"
-        )
-    return parsed
+    @property
+    def trace_bytes(self) -> bytes:
+        return canonical_json_bytes(self.trace)
 
 
-def view_snapshot(snapshot_bytes: bytes) -> SnapshotView:
-    """Parse snapshot bytes into a validated read-only view."""
-
-    if not isinstance(snapshot_bytes, (bytes, bytearray)) or not snapshot_bytes:
-        raise EngineRejected(
-            EngineRejectionReason.INVALID_SNAPSHOT_DOCUMENT, "snapshot bytes are required"
-        )
-    try:
-        payload = json.loads(bytes(snapshot_bytes).decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError):
-        raise EngineRejected(
-            EngineRejectionReason.INVALID_SNAPSHOT_DOCUMENT, "snapshot is not valid JSON"
-        ) from None
-    if not isinstance(payload, Mapping):
-        raise EngineRejected(
-            EngineRejectionReason.INVALID_SNAPSHOT_DOCUMENT, "snapshot must be an object"
-        )
-    if (
-        payload.get("schema") != SNAPSHOT_SCHEMA
-        or payload.get("schema_version") != SNAPSHOT_SCHEMA_VERSION
-    ):
-        raise EngineRejected(
-            EngineRejectionReason.UNSUPPORTED_SNAPSHOT_SCHEMA, "unsupported snapshot schema"
-        )
-    features_value = payload.get("features")
-    features: dict[str, Mapping[str, object]] = {}
-    if isinstance(features_value, list):
-        for feature in features_value:
-            if isinstance(feature, Mapping) and isinstance(feature.get("feature_id"), str):
-                features[feature["feature_id"]] = feature
-    evidence_value = payload.get("evidence")
-    evidence_ids: set[str] = set()
-    if isinstance(evidence_value, list):
-        for record in evidence_value:
-            if isinstance(record, Mapping) and isinstance(record.get("evidence_id"), str):
-                evidence_ids.add(record["evidence_id"])
-    reasons_value = payload.get("rejection_reasons")
-    reasons: tuple[str, ...] = (
-        tuple(str(item) for item in reasons_value) if isinstance(reasons_value, list) else ()
-    )
-    return SnapshotView(
-        payload=payload,
-        sha256=hashlib.sha256(bytes(snapshot_bytes)).hexdigest(),
-        event_id=str(payload.get("event_id", "")),
-        issuer=str(payload.get("issuer", "")),
-        ticker=str(payload.get("ticker", "")),
-        decision_cutoff=_parse_snapshot_timestamp(payload.get("decision_cutoff")),
-        eligible=payload.get("eligibility") == "ELIGIBLE",
-        rejection_reasons=reasons,
-        evidence_ids=frozenset(evidence_ids),
-        features=features,
-    )
-
-
-def _feature_decimal(view: SnapshotView, feature_id: str) -> Decimal | None:
-    feature = view.features.get(feature_id)
-    if not isinstance(feature, Mapping):
-        return None
-    value_text = feature.get("value_text")
-    if not isinstance(value_text, str):
-        return None
-    try:
-        return Decimal(value_text)
-    except ArithmeticError:
-        return None
-
-
-def compute_opening_residual(view: SnapshotView) -> Decimal | None:
-    """Compute the frozen opening residual from snapshot features only."""
-
-    opening = _feature_decimal(view, "opening_return/v1")
-    market = _feature_decimal(view, "market_opening_return/v1")
-    sector = _feature_decimal(view, "sector_opening_return/v1")
-    market_beta = _feature_decimal(view, "market_beta/v1")
-    sector_beta = _feature_decimal(view, "sector_beta/v1")
-    if None in (opening, market, sector, market_beta, sector_beta):
-        return None
-    return opening - market_beta * market - sector_beta * sector
-
-
-def build_snapshot_baselines(opening_residual: Decimal | None) -> dict[BaselineName, Direction]:
-    """Frozen baseline directions derivable from the strategy information set.
-
-    Score-based baselines abstain because their score features are not part of the
-    frozen v1 information set; abstentions remain in the denominator with zero return.
-    """
-
-    def _sign(value: Decimal) -> Direction:
-        if value > 0:
-            return Direction.UP
-        if value < 0:
-            return Direction.DOWN
-        return Direction.UNCERTAIN
-
-    gap = _sign(opening_residual) if opening_residual is not None else Direction.UNCERTAIN
-    reverse = {
-        Direction.UP: Direction.DOWN,
-        Direction.DOWN: Direction.UP,
-        Direction.UNCERTAIN: Direction.UNCERTAIN,
-    }[gap]
-    return {
-        BaselineName.ALWAYS_ABSTAIN: Direction.UNCERTAIN,
-        BaselineName.GAP_CONTINUE: gap,
-        BaselineName.GAP_REVERSE: reverse,
-        BaselineName.PRICE_ONLY: Direction.UNCERTAIN,
-        BaselineName.FUNDAMENTAL_RULE: Direction.UNCERTAIN,
-        BaselineName.NO_TEXT_ABLATION: Direction.UNCERTAIN,
-    }
-
-
-def _reaction_relation(direction: Direction, residual: Decimal | None) -> ReactionRelation:
-    if direction is Direction.UNCERTAIN or residual is None or residual == 0:
-        return ReactionRelation.NONE
-    positive_residual = residual > 0
-    positive_direction = direction is Direction.UP
-    return (
-        ReactionRelation.CONTINUE
-        if positive_residual == positive_direction
-        else ReactionRelation.REVERSE
-    )
-
-
-def _valid_signal_deadline(policy: StrategyPolicy, cutoff: datetime) -> datetime:
-    start = policy.timing.observation_window_end
-    deadline = policy.timing.valid_signal_by
-
-    def _seconds(value: str) -> int:
-        hours, minutes, seconds = (int(part) for part in value.split(":"))
-        return hours * 3600 + minutes * 60 + seconds
-
-    allowance = _seconds(deadline) - _seconds(start)
-    if allowance <= 0:
-        allowance += 24 * 3600
-    return cutoff + timedelta(seconds=allowance)
-
-
-class DecisionEngine:
-    """One-route deterministic engine; abstains instead of falling back."""
+class BoundedDecisionEngine:
+    """Injects one bounded reasoner route and applies the frozen validator."""
 
     def __init__(
         self,
-        *,
-        policy: StrategyPolicy,
         route: ReasonerRoute,
-        reasoner: Reasoner,
-    ) -> None:
-        self._policy = policy
-        self._route = route
-        self._reasoner = reasoner
-        self._decided: set[tuple[str, str, str]] = set()
-
-    @property
-    def policy(self) -> StrategyPolicy:
-        return self._policy
-
-    @property
-    def route(self) -> ReasonerRoute:
-        return self._route
-
-    def _abstain(
-        self,
         *,
-        view: SnapshotView,
-        reasons: tuple[AbstentionReason, ...],
-        decided_at: datetime,
-        deadline: datetime,
-        output_sha256: str,
-        opening_residual: Decimal | None,
-    ) -> StrategyDecision:
-        return StrategyDecision(
-            event_id=view.event_id,
-            issuer=view.issuer,
-            ticker=view.ticker,
-            decision_cutoff=view.decision_cutoff,
-            feature_snapshot_at=view.decision_cutoff,
-            decided_at=min(decided_at, deadline),
-            decision_deadline=deadline,
-            direction=Direction.UNCERTAIN,
-            decision_state=StrategyDecisionState.ABSTAIN,
-            abstention_reasons=reasons,
-            reaction_relation=ReactionRelation.NONE,
-            opening_residual=opening_residual or Decimal("0"),
-            evidence_citations=(),
-            strongest_falsifier=None,
-            snapshot_sha256=view.sha256,
-            policy_version=self._policy.policy_version,
-            policy_sha256=self._policy.sha256,
-            route_sha256=self._route.sha256,
-            reasoner_output_sha256=output_sha256,
-            trace_stages=TRACE_STAGES,
+        identity: RouteIdentity = SYNTHETIC_ROUTE_IDENTITY,
+    ) -> None:
+        self._route = route
+        self._identity = identity
+        self._invoked_keys: set[tuple[str, ...]] = set()
+
+    def _call_key(self, strategy_input: StrategyInput) -> tuple[str, ...]:
+        route_sha256, prompt_sha256, output_schema_sha256 = reasoner_policy_hashes(
+            strategy_input.snapshot.candidate_id
+        )
+        return (
+            strategy_input.snapshot.event_id,
+            strategy_input.snapshot_sha256,
+            strategy_input.feature_receipt_sha256,
+            route_sha256,
+            prompt_sha256,
+            output_schema_sha256,
+            self._identity.model_config_sha256(),
         )
 
-    def generate_decision(self, *, snapshot_bytes: bytes, decided_at: datetime) -> StrategyDecision:
-        """Generate one source-attributable decision or explicit abstention."""
+    def _aborted_exchange(
+        self,
+        strategy_input: StrategyInput,
+        started_at: datetime,
+        code: EngineReason,
+    ) -> ReasonerExchange:
+        snapshot = strategy_input.snapshot
+        route_sha256, prompt_sha256, output_schema_sha256 = reasoner_policy_hashes(
+            snapshot.candidate_id
+        )
+        deadline_at = deadline_for(strategy_input, started_at)
+        effective_started = min(started_at, deadline_at)
+        return ReasonerExchange(
+            event_id=snapshot.event_id,
+            candidate_id=snapshot.candidate_id,
+            policy_sha256=snapshot.policy_sha256,
+            strategy_snapshot_sha256=strategy_input.snapshot_sha256,
+            feature_receipt_sha256=strategy_input.feature_receipt_sha256,
+            evidence_packet_sha256=snapshot.evidence_packet_sha256,
+            route_sha256=route_sha256,
+            prompt_sha256=prompt_sha256,
+            output_schema_sha256=output_schema_sha256,
+            model_config_sha256=self._identity.model_config_sha256(),
+            request_sha256=sha256_bytes(
+                canonical_json_bytes({"aborted": code.value, "route_invoked": False})
+            ),
+            raw_response_sha256=None,
+            provider=self._identity.provider,
+            model=self._identity.model,
+            model_revision=self._identity.model_revision,
+            decoding=self._identity.decoding(),
+            started_at=effective_started,
+            responded_at=None,
+            deadline_at=deadline_at,
+            status=ExchangeStatus.CANCELED,
+            error_code=code.value,
+            producer_build_sha256=ENGINE_BUILD_SHA256,
+            created_at=deadline_at,
+        )
 
-        view = view_snapshot(snapshot_bytes)
-        deadline = _valid_signal_deadline(self._policy, view.decision_cutoff)
-        residual = compute_opening_residual(view)
-        identity = (view.event_id, self._policy.sha256, view.sha256)
+    def _preflight_code(
+        self, strategy_input: StrategyInput, started_at: datetime
+    ) -> EngineReason | None:
+        snapshot = strategy_input.snapshot
+        if snapshot.eligibility is not EligibilityState.ELIGIBLE:
+            return EngineReason.PREFLIGHT_INELIGIBLE
+        if snapshot.data_health is not DataHealthState.VALID:
+            return EngineReason.PREFLIGHT_DATA_HEALTH
+        if started_at < strategy_input.feature_receipt.created_at:
+            return EngineReason.START_BEFORE_FEATURE_RECEIPT
+        if started_at > snapshot.decision_cutoff_at:
+            return EngineReason.START_AFTER_DECISION_CUTOFF
+        return None
 
-        if view.payload.get("policy_sha256") != self._policy.sha256:
-            return self._abstain(
-                view=view,
-                reasons=(AbstentionReason.POLICY_HASH_MISMATCH,),
-                decided_at=decided_at,
-                deadline=deadline,
-                output_sha256="0" * 64,
-                opening_residual=residual,
-            )
-        if view.payload.get("policy_version") != STRATEGY_POLICY_VERSION:
-            return self._abstain(
-                view=view,
-                reasons=(AbstentionReason.POLICY_HASH_MISMATCH,),
-                decided_at=decided_at,
-                deadline=deadline,
-                output_sha256="0" * 64,
-                opening_residual=residual,
-            )
-        if identity in self._decided:
-            return self._abstain(
-                view=view,
-                reasons=(AbstentionReason.DUPLICATE_DECISION,),
-                decided_at=decided_at,
-                deadline=deadline,
-                output_sha256="0" * 64,
-                opening_residual=residual,
-            )
+    def decide(
+        self,
+        strategy_input: StrategyInput,
+        *,
+        started_at: datetime,
+        ablate_text: bool = False,
+    ) -> EngineOutcome:
+        """Run one bounded pass and return the validated decision with a trace."""
 
-        if not view.eligible:
-            self._decided.add(identity)
-            reason = (
-                AbstentionReason.STALE_INPUT
-                if any(
-                    code in view.rejection_reasons
-                    for code in ("POST_CUTOFF_EVIDENCE", "STALE_OBSERVATION")
+        snapshot = strategy_input.snapshot
+        key = self._call_key(strategy_input)
+        preflight = self._preflight_code(strategy_input, started_at)
+        duplicate = key in self._invoked_keys
+        route_invoked = False
+
+        if preflight is not None or duplicate:
+            code = preflight if preflight is not None else EngineReason.DUPLICATE_REASONER_CALL
+            exchange = self._aborted_exchange(strategy_input, started_at, code)
+            decision = validate_strategy_decision(
+                strategy_input,
+                exchange,
+                None,
+                validator_build_sha256=ENGINE_BUILD_SHA256,
+                reasoner_error_code=code.value,
+            )
+        else:
+            result = self._route(
+                ReasonerRouteRequest(
+                    strategy_input=strategy_input,
+                    started_at=started_at,
+                    ablate_text=ablate_text,
                 )
-                else AbstentionReason.MISSING_EVIDENCE
             )
-            return self._abstain(
-                view=view,
-                reasons=(reason,),
-                decided_at=decided_at,
-                deadline=deadline,
-                output_sha256="0" * 64,
-                opening_residual=residual,
-            )
-        if set(_REQUIRED_FEATURE_IDS) - set(view.features):
-            self._decided.add(identity)
-            return self._abstain(
-                view=view,
-                reasons=(AbstentionReason.MISSING_EVIDENCE,),
-                decided_at=decided_at,
-                deadline=deadline,
-                output_sha256="0" * 64,
-                opening_residual=residual,
-            )
-        if residual is None:
-            self._decided.add(identity)
-            return self._abstain(
-                view=view,
-                reasons=(AbstentionReason.STALE_INPUT,),
-                decided_at=decided_at,
-                deadline=deadline,
-                output_sha256="0" * 64,
-                opening_residual=None,
+            route_invoked = True
+            self._invoked_keys.add(key)
+            exchange = result.exchange
+            decision = validate_reasoner_response(
+                strategy_input,
+                exchange,
+                result.raw_response_bytes,
+                validator_build_sha256=ENGINE_BUILD_SHA256,
             )
 
-        if decided_at > deadline:
-            self._decided.add(identity)
-            return self._abstain(
-                view=view,
-                reasons=(AbstentionReason.LATE_REASONER_OUTPUT,),
-                decided_at=decided_at,
-                deadline=deadline,
-                output_sha256="0" * 64,
-                opening_residual=residual,
-            )
-
-        try:
-            raw_output = self._reasoner.reason(view.payload)
-            output = parse_reasoner_output(raw_output)
-        except ReasonerOutputRejected:
-            self._decided.add(identity)
-            return self._abstain(
-                view=view,
-                reasons=(AbstentionReason.INVALID_REASONER_OUTPUT,),
-                decided_at=decided_at,
-                deadline=deadline,
-                output_sha256="0" * 64,
-                opening_residual=residual,
-            )
-
-        if output.direction is not Direction.UNCERTAIN and not output.citations:
-            self._decided.add(identity)
-            return self._abstain(
-                view=view,
-                reasons=(AbstentionReason.INVALID_REASONER_OUTPUT,),
-                decided_at=decided_at,
-                deadline=deadline,
-                output_sha256=output.raw_sha256,
-                opening_residual=residual,
-            )
-        unknown_evidence = {
-            citation.evidence_id
-            for citation in output.citations
-            if citation.evidence_id not in view.evidence_ids
+        trace = {
+            "schema": _TRACE_SCHEMA,
+            "schema_version": _TRACE_SCHEMA_VERSION,
+            "event_id": snapshot.event_id,
+            "candidate_id": snapshot.candidate_id,
+            "cohort_id": snapshot.cohort_id,
+            "ablate_text": ablate_text,
+            "stages": [
+                {
+                    "stage": "INPUT",
+                    "policy_sha256": snapshot.policy_sha256,
+                    "candidate_manifest_sha256": strategy_input.candidate_manifest_sha256,
+                    "strategy_snapshot_sha256": strategy_input.snapshot_sha256,
+                    "feature_receipt_sha256": strategy_input.feature_receipt_sha256,
+                },
+                {
+                    "stage": "FEATURE",
+                    "data_health": snapshot.data_health.value,
+                    "health_reason_codes": list(snapshot.health_reason_codes),
+                    "eligibility": snapshot.eligibility.value,
+                    "feature_ids": [
+                        feature.feature_id for feature in strategy_input.feature_receipt.features
+                    ],
+                    "feature_statuses": {
+                        feature.feature_id: feature.status.value
+                        for feature in strategy_input.feature_receipt.features
+                    },
+                },
+                {
+                    "stage": "REASONER",
+                    "route_invoked": route_invoked,
+                    "ablate_text": ablate_text,
+                    "reasoner_exchange_sha256": sha256_bytes(
+                        canonical_json_bytes(reasoner_exchange_payload(exchange))
+                    ),
+                    "status": exchange.status.value,
+                    "error_code": exchange.error_code,
+                },
+                {
+                    "stage": "VALIDATOR",
+                    "disposition": decision.disposition.value,
+                    "reaction_relation": decision.reaction_relation.value,
+                    "reason_codes": list(decision.reason_codes),
+                },
+                {
+                    "stage": "OUTPUT",
+                    "direction": decision.direction.value,
+                    "reasoner_direction": (
+                        None
+                        if decision.reasoner_direction is None
+                        else decision.reasoner_direction.value
+                    ),
+                    "decision_sha256": sha256_bytes(strategy_decision_bytes(decision)),
+                },
+            ],
         }
-        if output.falsifier is not None and output.falsifier.evidence_id not in view.evidence_ids:
-            unknown_evidence.add(output.falsifier.evidence_id)
-        if unknown_evidence:
-            self._decided.add(identity)
-            return self._abstain(
-                view=view,
-                reasons=(AbstentionReason.UNBOUNDED_FALSIFIER,),
-                decided_at=decided_at,
-                deadline=deadline,
-                output_sha256=output.raw_sha256,
-                opening_residual=residual,
-            )
-
-        self._decided.add(identity)
-        if output.direction is Direction.UNCERTAIN:
-            return self._abstain(
-                view=view,
-                reasons=(AbstentionReason.INVALID_REASONER_OUTPUT,),
-                decided_at=decided_at,
-                deadline=deadline,
-                output_sha256=output.raw_sha256,
-                opening_residual=residual,
-            )
-
-        return StrategyDecision(
-            event_id=view.event_id,
-            issuer=view.issuer,
-            ticker=view.ticker,
-            decision_cutoff=view.decision_cutoff,
-            feature_snapshot_at=view.decision_cutoff,
-            decided_at=decided_at,
-            decision_deadline=deadline,
-            direction=output.direction,
-            decision_state=StrategyDecisionState.APPROVED,
-            abstention_reasons=(),
-            reaction_relation=_reaction_relation(output.direction, residual),
-            opening_residual=residual,
-            evidence_citations=output.citations,
-            strongest_falsifier=output.falsifier,
-            snapshot_sha256=view.sha256,
-            policy_version=self._policy.policy_version,
-            policy_sha256=self._policy.sha256,
-            route_sha256=self._route.sha256,
-            reasoner_output_sha256=output.raw_sha256,
-            trace_stages=TRACE_STAGES,
+        return EngineOutcome(
+            decision=decision,
+            exchange=exchange,
+            trace=trace,
+            route_invoked=route_invoked,
         )

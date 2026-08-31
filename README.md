@@ -29,7 +29,33 @@ Given a point-in-time event fixture and frozen latency profile, the harness prod
 
 Synthetic fixtures are contract tests only. They are never financial evidence.
 
-Given exact frozen decision, point-in-time evidence-manifest, and feature-input bytes, the pure contract bridge:
+The accepted event-strategy research policy now freezes the systematic earnings-primary and
+macro-challenger candidates, complete-denominator universe rules, separate cohort clocks,
+permitted source classes, deterministic features and confirmation vetoes, reasoner schema,
+baselines, chronological partitions, and promotion thresholds. Exact canonical policy bytes and
+typed candidate-manifest, snapshot, feature, reasoner-exchange, and direction-only decision
+contracts live under `ringdown_market.strategy`. Gate A facts remain explicitly `UNVERIFIED`, so
+the policy grants no expression, risk, permit, order, or broker authority.
+
+### Source-rights capture boundary
+
+The offline snapshot collector is constrained by the authenticated
+`esscher.source_matrix/v1` resource (SHA-256
+`888447640aa705510bc0594abc9a78f22c988e961282ff82a6f44337181d04ca`). Every
+capture rebinds that matrix to the accepted policy
+`afce93b52b96e0d8c71deeb80027a1c87a4cf3623e9417db14de00279fc23bca` and the
+Gate A programme contract
+`40c2e780c684bdde671b028dbdd8c9b13268e659c24e98a2d452ff7c8692f955`. A change
+to any of those bytes fails closed before a snapshot exists.
+
+Capture first selects the exact earnings or macro candidate and checks that
+candidate's required source classes. It accepts only an explicit synthetic
+fixture, an explicit zero-offset UTC clock, explicit host authorization, and
+declared rights conditions. There is no alternate matrix option, default
+repository-fixture fallback, direct data-provider path, live capture, account,
+broker, or trading authority. See the [source-rights contract](docs/contracts/source-matrix.md).
+
+Given an exact frozen decision, point-in-time evidence-manifest, and feature-input bytes, the pure contract bridge:
 
 - rejects duplicate, missing, unknown, mutable, or unsupported schema values;
 - verifies exact decision, evidence, input, protocol, and policy identities;
@@ -92,6 +118,8 @@ The page requires no server, JavaScript, network access, credential, or broker s
 - [Team onboarding](docs/TEAM_ONBOARDING.md) — required research and lane ownership.
 - [Source and claim policy](docs/SOURCE_AND_CLAIM_POLICY.md) — evidence metadata and permitted claims.
 - [Point-in-time evidence gate](docs/research/point-in-time-evidence-gate.md) — timing, provenance, residualization, denominator, and options-data contract.
+- [Accepted strategy contract](docs/STRATEGY_V1.md) — exact candidates, clocks, features, baselines, thresholds, authority, and unresolved gates.
+- [Source-rights contract](docs/contracts/source-matrix.md) — packaged matrix identity, evidence limits, candidate-specific preflight, and offline capture boundary.
 - [Research-to-permit contract](docs/contracts/research-to-permit.md) — exact schemas, identity mapping, rejection reasons, and frozen policy.
 - [PAPER demonstration runbook](docs/PAPER_DEMO_RUNBOOK.md) — read-only preflight, exact approval, bounded mutation envelope, recovery, and receipt interpretation.
 - [Scheduled-event runbook](docs/SCHEDULED_EVENT_RUNBOOK.md) — one-shot manifest, dry run, armed invocation, restart reconciliation, and stop conditions.
