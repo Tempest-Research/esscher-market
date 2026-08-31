@@ -1,0 +1,47 @@
+{
+ "schema": "esscher.lineage_evidence",
+ "schema_version": 1,
+ "evidence_id": "LR3_META_SYMBOL_CHANGE_2022",
+ "title": "EDGAR 8-K record of a development-partition trading-symbol change under one stable CIK",
+ "lineage_class": "SYMBOL_CHANGE_RECORD",
+ "data_class": "SOURCE_FEASIBILITY_PROBE",
+ "claims": [
+  "DEV_ONLY",
+  "NOT_ALPHA_EVIDENCE",
+  "NO_BROKER_EXECUTION",
+  "NOT_HISTORICAL_DATA"
+ ],
+ "partition": "DEVELOPMENT",
+ "reproducibility": "IMMUTABLE_ACCESSION_BYTES",
+ "capture_note": "The filing primary document carries the old ticker prefix in its file name while the issuer CIK remains constant, demonstrating that CIK-rooted identity survives a trading-symbol change.",
+ "artifacts": [
+  {
+   "file": "artifacts/meta-symbol-change-0001326801-22-000070-index.json",
+   "url": "https://www.sec.gov/Archives/edgar/data/1326801/000132680122000070/index.json",
+   "retrieved_at": "2026-08-30T22:47:01Z",
+   "sha256": "94359eabf31f4ea4758268feee3e8442d5ea44e689b4956f8872b6a411eb438d",
+   "bytes": 1876,
+   "redistribution": "PUBLIC_DOMAIN_REDISTRIBUTABLE"
+  },
+  {
+   "file": "artifacts/meta-symbol-change-8k-primary.htm",
+   "url": "https://www.sec.gov/Archives/edgar/data/1326801/000132680122000070/fb-20220531.htm",
+   "retrieved_at": "2026-08-30T22:47:01Z",
+   "sha256": "144ee0ca8d9ba46b0f548501aae654265b3d6145b6ef14cd1077b6bc68644294",
+   "bytes": 36251,
+   "redistribution": "PUBLIC_DOMAIN_REDISTRIBUTABLE"
+  }
+ ],
+ "retrieval_agent": "declared-user-agent HTTPS GET (SEC fair-access policy)",
+ "provenance_facts": {
+  "accession_number": "0001326801-22-000070",
+  "cik": "0001326801",
+  "form": "8-K",
+  "items": [
+   "8.01",
+   "9.01"
+  ],
+  "file_date": "2022-05-31",
+  "lineage_relevance": "issuer identity (CIK) unchanged across the trading-symbol transition; the symbol change is a ticker attribute, not an identity change"
+ }
+}

@@ -20,6 +20,7 @@ CAPTURE_OUTPUT_NAMES = (
     "data_feasibility_manifest.json",
     "source_receipts.jsonl",
     "corporate_action_receipts.jsonl",
+    "lineage_receipts.jsonl",
     "capture_identity.json",
 )
 

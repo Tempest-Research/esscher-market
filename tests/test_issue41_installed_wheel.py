@@ -21,6 +21,7 @@ EXPECTED_ARTIFACTS = {
     "corporate_action_receipts.jsonl",
     "data_feasibility_manifest.json",
     "feature_receipt.json",
+    "lineage_receipts.jsonl",
     "source_receipts.jsonl",
     "strategy_snapshot.json",
 }

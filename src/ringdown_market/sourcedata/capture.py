@@ -23,7 +23,7 @@ from ctypes import wintypes
 from datetime import UTC, datetime
 from pathlib import Path
 
-from ringdown_market.contracts.source_matrix import CONDITIONS
+from ringdown_market.contracts.source_matrix import CONDITIONS, source_matrix_bytes
 from ringdown_market.sourcedata.compiler import (
     EARNINGS_CANDIDATE,
     MACRO_CANDIDATE,
@@ -45,6 +45,7 @@ from ringdown_market.sourcedata.fakes import (
     load_macro_fixture,
 )
 from ringdown_market.sourcedata.feasibility import feasibility_manifest_bytes
+from ringdown_market.sourcedata.lineage_gate import evaluate_lineage, lineage_receipt_bytes
 from ringdown_market.sourcedata.reasons import CollectorReason, CollectorRejected
 from ringdown_market.sourcedata.receipts import (
     corporate_action_receipt_bytes,
@@ -62,6 +63,7 @@ _CAPTURE_OUTPUT_NAMES = (
     "data_feasibility_manifest.json",
     "source_receipts.jsonl",
     "corporate_action_receipts.jsonl",
+    "lineage_receipts.jsonl",
     "capture_identity.json",
 )
 
@@ -577,10 +579,16 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 2
         satisfied.add(condition)
     candidate = MACRO_CANDIDATE if args.event_id.startswith("BLS-") else EARNINGS_CANDIDATE
+    matrix_bytes = source_matrix_bytes()
     try:
         rights_report = evaluate_capture_rights(
             candidate_id=candidate,
+            matrix_bytes=matrix_bytes,
             satisfied_conditions=frozenset(satisfied),
+        )
+        lineage_report = evaluate_lineage(
+            event_id=args.event_id,
+            matrix_bytes=matrix_bytes,
         )
     except CollectorRejected as error:
         print(str(error), file=sys.stderr)
@@ -606,6 +614,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "feature_receipt_sha256": joined.feature_receipt_sha256,
         "candidate_manifest_sha256": joined.candidate_manifest_sha256,
         "source_matrix_sha256": rights_report.source_matrix_sha256,
+        "security_lineage_sha256": lineage_report.security_lineage_sha256,
     }
     receipts = b"".join(
         source_receipt_bytes(receipt) + b"\n" for receipt in compiled.source_receipts
@@ -613,6 +622,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     action_receipts = b"".join(
         corporate_action_receipt_bytes(receipt) + b"\n" for receipt in compiled.action_receipts
     )
+    lineage_receipt = lineage_receipt_bytes(lineage_report.resolution) + b"\n"
     outputs = (
         ("strategy_snapshot.json", compiled.strategy_snapshot_bytes),
         ("feature_receipt.json", compiled.feature_receipt_bytes),
@@ -620,6 +630,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         ("data_feasibility_manifest.json", feasibility_manifest_bytes(feasibility_manifest)),
         ("source_receipts.jsonl", receipts),
         ("corporate_action_receipts.jsonl", action_receipts),
+        ("lineage_receipts.jsonl", lineage_receipt),
         (
             "capture_identity.json",
             json.dumps(joined_identity, sort_keys=True, indent=1).encode("utf-8") + b"\n",
