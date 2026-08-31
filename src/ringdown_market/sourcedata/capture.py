@@ -10,10 +10,13 @@ MCP server version and tool schemas.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import re
+import stat
 import sys
+import uuid
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
@@ -50,6 +53,15 @@ from ringdown_market.sourcedata.rights_gate import evaluate_capture_rights
 HOST_AUTHORIZATION_VARIABLE = "ESSCHER_CAPTURE_AUTHORIZED"
 HOST_AUTHORIZATION_VALUE = "yes"
 _UTC_TIMESTAMP = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|\+00:00)$")
+_CAPTURE_OUTPUT_NAMES = (
+    "strategy_snapshot.json",
+    "feature_receipt.json",
+    "candidate_manifest.json",
+    "data_feasibility_manifest.json",
+    "source_receipts.jsonl",
+    "corporate_action_receipts.jsonl",
+    "capture_identity.json",
+)
 
 
 def _capture_timestamp(value: str) -> datetime:
@@ -95,6 +107,223 @@ def run_capture(configuration: CaptureConfiguration, candidate: str, fixture) ->
     evidence = FixtureEvidenceSource(fixture)
     market = FixtureMarketDataSource(fixture)
     return compile_strategy_snapshot(configuration, evidence, market)
+
+
+def _unsafe_output_path(detail: str) -> CollectorRejected:
+    """Return the stable rejection used for every capture-output boundary."""
+
+    return CollectorRejected(CollectorReason.UNSAFE_OUTPUT_PATH, "output_dir", detail)
+
+
+def _lstat(path: Path) -> os.stat_result:
+    """Inspect a path itself, never the object a link would resolve to."""
+
+    return os.lstat(path)
+
+
+def _is_link_or_reparse_point(status: os.stat_result) -> bool:
+    """Treat POSIX links and Windows reparse points as output indirections."""
+
+    return stat.S_ISLNK(status.st_mode) or bool(
+        getattr(status, "st_file_attributes", 0) & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0)
+    )
+
+
+def _absolute_output_directory(output_dir: Path) -> Path:
+    """Normalize only lexical path components so links remain visible to lstat."""
+
+    if ".." in output_dir.parts:
+        raise _unsafe_output_path("output directory must not contain a parent traversal")
+    return Path(os.path.abspath(output_dir))
+
+
+def _validate_output_directory(output_dir: Path) -> Path:
+    """Require a real, pre-existing directory with no redirecting component."""
+
+    absolute = _absolute_output_directory(output_dir)
+    component = Path(absolute.anchor)
+    for part in absolute.parts[1:]:
+        component = component / part
+        try:
+            status = _lstat(component)
+        except OSError as error:
+            raise _unsafe_output_path(f"cannot inspect output component '{component}'") from error
+        if _is_link_or_reparse_point(status):
+            raise _unsafe_output_path(f"output component '{component}' is a link or reparse point")
+        if not stat.S_ISDIR(status.st_mode):
+            raise _unsafe_output_path(f"output component '{component}' is not a directory")
+    return absolute
+
+
+def _validate_output_destinations(
+    output_dir: Path, names: Sequence[str], *, require_existing: bool = False
+) -> None:
+    """Reject non-regular existing artifact paths before they can be replaced."""
+
+    for name in names:
+        destination = output_dir / name
+        try:
+            status = _lstat(destination)
+        except FileNotFoundError:
+            if require_existing:
+                raise _unsafe_output_path(
+                    f"published output '{name}' disappeared during capture"
+                ) from None
+            continue
+        except OSError as error:
+            raise _unsafe_output_path(f"cannot inspect capture output '{name}'") from error
+        if _is_link_or_reparse_point(status):
+            raise _unsafe_output_path(f"capture output '{name}' is a link or reparse point")
+        if not stat.S_ISREG(status.st_mode):
+            raise _unsafe_output_path(f"capture output '{name}' is not a regular file")
+
+
+def _supports_secure_directory_fds() -> bool:
+    """Return whether the platform can publish files through a no-follow dirfd."""
+
+    return (
+        os.name != "nt"
+        and os.open in os.supports_dir_fd
+        # os.replace accepts dirfds on POSIX but is not listed in this capability set.
+        and os.rename in os.supports_dir_fd
+        and os.stat in os.supports_dir_fd
+        and os.stat in os.supports_follow_symlinks
+        and bool(getattr(os, "O_DIRECTORY", 0))
+        and bool(getattr(os, "O_NOFOLLOW", 0))
+    )
+
+
+def _open_secure_output_directory(output_dir: Path) -> int:
+    """Open every POSIX component without following a replacement symlink."""
+
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    descriptor = os.open(output_dir.anchor, flags)
+    try:
+        for part in output_dir.parts[1:]:
+            next_descriptor = os.open(part, flags, dir_fd=descriptor)
+            os.close(descriptor)
+            descriptor = next_descriptor
+        return descriptor
+    except OSError:
+        os.close(descriptor)
+        raise
+
+
+def _validate_destination_at(
+    directory_fd: int, name: str, *, require_existing: bool = False
+) -> None:
+    """Validate one destination through an already no-follow directory handle."""
+
+    try:
+        status = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
+    except FileNotFoundError:
+        if require_existing:
+            raise _unsafe_output_path(
+                f"published output '{name}' disappeared during capture"
+            ) from None
+        return
+    except OSError as error:
+        raise _unsafe_output_path(f"cannot inspect capture output '{name}'") from error
+    if _is_link_or_reparse_point(status):
+        raise _unsafe_output_path(f"capture output '{name}' is a link or reparse point")
+    if not stat.S_ISREG(status.st_mode):
+        raise _unsafe_output_path(f"capture output '{name}' is not a regular file")
+
+
+def _write_file_descriptor(descriptor: int, contents: bytes) -> None:
+    """Write already-open staging output without resolving its path again."""
+
+    with os.fdopen(descriptor, "wb") as output:
+        output.write(contents)
+        output.flush()
+
+
+def _write_outputs_with_directory_fd(
+    directory_fd: int, outputs: Sequence[tuple[str, bytes]]
+) -> None:
+    """Stage and atomically publish outputs through a pinned POSIX directory."""
+
+    staged: list[str] = []
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW
+    try:
+        for name, contents in outputs:
+            _validate_destination_at(directory_fd, name)
+            temporary_name = f".{name}.{uuid.uuid4().hex}.tmp"
+            descriptor = os.open(temporary_name, flags, 0o600, dir_fd=directory_fd)
+            staged.append(temporary_name)
+            _write_file_descriptor(descriptor, contents)
+        for temporary_name, (name, _) in zip(staged, outputs, strict=True):
+            _validate_destination_at(directory_fd, name)
+            os.replace(
+                temporary_name,
+                name,
+                src_dir_fd=directory_fd,
+                dst_dir_fd=directory_fd,
+            )
+            _validate_destination_at(directory_fd, name, require_existing=True)
+    except OSError as error:
+        raise _unsafe_output_path("unable to stage or publish capture output safely") from error
+    finally:
+        for temporary_name in staged:
+            with contextlib.suppress(FileNotFoundError):
+                os.unlink(temporary_name, dir_fd=directory_fd)
+
+
+def _write_temporary_output(path: Path, contents: bytes) -> None:
+    """Create a fresh staging file without following an existing leaf link."""
+
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(path, flags, 0o600)
+    _write_file_descriptor(descriptor, contents)
+
+
+def _write_outputs_with_path_checks(output_dir: Path, outputs: Sequence[tuple[str, bytes]]) -> None:
+    """Use checked staging where directory file descriptors are unavailable."""
+
+    staging_directory = _validate_output_directory(output_dir.parent)
+    staged: list[Path] = []
+    try:
+        for name, contents in outputs:
+            temporary_path = staging_directory / f".{output_dir.name}.{name}.{uuid.uuid4().hex}.tmp"
+            staged.append(temporary_path)
+            _write_temporary_output(temporary_path, contents)
+        for temporary_path, (name, _) in zip(staged, outputs, strict=True):
+            _validate_output_directory(output_dir)
+            _validate_output_destinations(output_dir, (name,))
+            os.replace(temporary_path, output_dir / name)
+            _validate_output_directory(output_dir)
+            _validate_output_destinations(output_dir, (name,), require_existing=True)
+    except OSError as error:
+        raise _unsafe_output_path("unable to stage or publish capture output safely") from error
+    finally:
+        for temporary_path in staged:
+            with contextlib.suppress(FileNotFoundError):
+                temporary_path.unlink()
+
+
+def _write_capture_outputs(output_dir: Path, outputs: Sequence[tuple[str, bytes]]) -> None:
+    """Write every canonical artifact without crossing an output indirection."""
+
+    names = tuple(name for name, _ in outputs)
+    if names != _CAPTURE_OUTPUT_NAMES:
+        raise _unsafe_output_path("capture output set does not match the frozen canonical names")
+    safe_output_dir = _validate_output_directory(output_dir)
+    _validate_output_destinations(safe_output_dir, names)
+    if _supports_secure_directory_fds():
+        safe_output_dir = _validate_output_directory(safe_output_dir)
+        _validate_output_destinations(safe_output_dir, names)
+        try:
+            directory_fd = _open_secure_output_directory(safe_output_dir)
+        except OSError as error:
+            raise _unsafe_output_path(
+                "cannot pin output directory without following links"
+            ) from error
+        try:
+            _write_outputs_with_directory_fd(directory_fd, outputs)
+        finally:
+            os.close(directory_fd)
+        return
+    _write_outputs_with_path_checks(safe_output_dir, outputs)
 
 
 def _build_feasibility(candidate: str, fixture, compiled, capture_at):
@@ -226,54 +455,35 @@ def main(argv: Sequence[str] | None = None) -> int:
     except CollectorRejected as error:
         print(str(error), file=sys.stderr)
         return 2
-    output_dir = args.output_dir
-    if not output_dir.exists() or not output_dir.is_dir():
-        print(
-            str(
-                CollectorRejected(
-                    CollectorReason.UNSUPPORTED_INPUT,
-                    "output_dir",
-                    "output directory must already exist",
-                )
-            ),
-            file=sys.stderr,
-        )
-        return 2
-    if args.output_dir.joinpath("capture.json").is_symlink():
-        print(
-            str(
-                CollectorRejected(
-                    CollectorReason.UNSUPPORTED_INPUT,
-                    "output_dir",
-                    "output paths must not be symbolic links",
-                )
-            ),
-            file=sys.stderr,
-        )
-        return 2
     joined_identity = {
         "snapshot_sha256": joined.snapshot_sha256,
         "feature_receipt_sha256": joined.feature_receipt_sha256,
         "candidate_manifest_sha256": joined.candidate_manifest_sha256,
         "source_matrix_sha256": rights_report.source_matrix_sha256,
     }
-    output_dir.joinpath("strategy_snapshot.json").write_bytes(compiled.strategy_snapshot_bytes)
-    output_dir.joinpath("feature_receipt.json").write_bytes(compiled.feature_receipt_bytes)
-    output_dir.joinpath("candidate_manifest.json").write_bytes(compiled.candidate_manifest_bytes)
-    output_dir.joinpath("data_feasibility_manifest.json").write_bytes(
-        feasibility_manifest_bytes(feasibility_manifest)
-    )
     receipts = b"".join(
         source_receipt_bytes(receipt) + b"\n" for receipt in compiled.source_receipts
     )
-    output_dir.joinpath("source_receipts.jsonl").write_bytes(receipts)
     action_receipts = b"".join(
         corporate_action_receipt_bytes(receipt) + b"\n" for receipt in compiled.action_receipts
     )
-    output_dir.joinpath("corporate_action_receipts.jsonl").write_bytes(action_receipts)
-    output_dir.joinpath("capture_identity.json").write_bytes(
-        json.dumps(joined_identity, sort_keys=True, indent=1).encode("utf-8") + b"\n"
+    outputs = (
+        ("strategy_snapshot.json", compiled.strategy_snapshot_bytes),
+        ("feature_receipt.json", compiled.feature_receipt_bytes),
+        ("candidate_manifest.json", compiled.candidate_manifest_bytes),
+        ("data_feasibility_manifest.json", feasibility_manifest_bytes(feasibility_manifest)),
+        ("source_receipts.jsonl", receipts),
+        ("corporate_action_receipts.jsonl", action_receipts),
+        (
+            "capture_identity.json",
+            json.dumps(joined_identity, sort_keys=True, indent=1).encode("utf-8") + b"\n",
+        ),
     )
+    try:
+        _write_capture_outputs(args.output_dir, outputs)
+    except CollectorRejected as error:
+        print(str(error), file=sys.stderr)
+        return 2
     print(f"captured {joined.snapshot.event_id}: snapshot_sha256={joined.snapshot_sha256}")
     return 0
 
