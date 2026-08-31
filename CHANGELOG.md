@@ -15,6 +15,9 @@
 - Strict share, option-chain, package, and borrow/locate observation schemas with pinned feed
 	identities, quote freshness/skew bounds, crossed/size/spread checks, and indicative-data isolation.
 - Read-only adapter documentation with no live capture in unit tests.
+- An offline append-only Trade Passport API that binds an already-validated PAPER permit and
+  sanitized terminal receipt, rejects duplicate JSON and non-derivative event identifiers, and
+  preserves PAPER-only/indicative-data/no-network boundaries without adding execution authority.
 
 - A canonical accepted event-strategy V1 policy with deterministic bytes/hash, strict parsing,
 	separate earnings and macro cohorts, frozen features, baselines, partitions, and promotion gates.
