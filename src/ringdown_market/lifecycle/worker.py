@@ -97,10 +97,7 @@ def issue_close_permit(
             "close_permit.event_run_id",
             "close permit must bind the opening permit's event",
         )
-    if (
-        policy_sha256 != open_permit.policy_sha256
-        or snapshot_sha256 != open_permit.snapshot_sha256
-    ):
+    if policy_sha256 != open_permit.policy_sha256 or snapshot_sha256 != open_permit.snapshot_sha256:
         raise _reject(
             LifecycleReason.BROKER_TRUTH_MISMATCH,
             "close_permit",
@@ -398,9 +395,7 @@ class MonitoredPaperLifecycle:
         )
 
     def _record_intent(self, request: BrokerOrderRequest, *, expected_qty: int) -> None:
-        request_payload = broker_order_request_payload(
-            request, expected_quantity=expected_qty
-        )
+        request_payload = broker_order_request_payload(request, expected_quantity=expected_qty)
         request_json = canonical_json_bytes(request_payload).decode("utf-8")
         try:
             self.ledger.record_lifecycle_intent(
@@ -416,9 +411,7 @@ class MonitoredPaperLifecycle:
                 account_class=request.account_class,
                 order_class=request.order_class,
                 client_order_id=request.client_order_id,
-                request_sha256=broker_order_request_sha256(
-                    request, expected_quantity=expected_qty
-                ),
+                request_sha256=broker_order_request_sha256(request, expected_quantity=expected_qty),
                 request_json=request_json,
                 now=self._now(),
             )
@@ -473,9 +466,7 @@ class MonitoredPaperLifecycle:
                 "a submitted durable lifecycle intent is required",
             )
         expected_correlation = (
-            self.correlation
-            if phase == "OPEN"
-            else self.correlation.with_close_permit(permit_id)
+            self.correlation if phase == "OPEN" else self.correlation.with_close_permit(permit_id)
         )
         try:
             payload = json.loads(request_json)
@@ -489,8 +480,7 @@ class MonitoredPaperLifecycle:
                 f"stored request cannot be restored: {error}",
             ) from None
         if (
-            broker_order_request_sha256(request, expected_quantity=expected_qty)
-            != request_hash
+            broker_order_request_sha256(request, expected_quantity=expected_qty) != request_hash
             or request.permit_id != permit_id
             or request.phase != phase
             or request.event_run_id != self.correlation.event_run_id
@@ -827,9 +817,7 @@ class MonitoredPaperLifecycle:
             reason=LifecycleReason.CLOSE_PERMIT_UNAVAILABLE,
         )
         if (
-            self.ledger.lifecycle_intent_for_event_phase(
-                self.correlation.event_run_id, "CLOSE"
-            )
+            self.ledger.lifecycle_intent_for_event_phase(self.correlation.event_run_id, "CLOSE")
             is not None
         ):
             raise _reject(

@@ -905,9 +905,7 @@ def test_passport_persists_the_full_request_before_and_after_each_broker_ack(tmp
     _, open_order_id = asyncio.run(worker.open(permit))
     _advance_to_time_exit(worker, broker)
     close_permit = _close_permit(permit)
-    _, close_order_id = asyncio.run(
-        worker.close(permit, close_permit, open_order_id=open_order_id)
-    )
+    _, close_order_id = asyncio.run(worker.close(permit, close_permit, open_order_id=open_order_id))
 
     events = worker.ledger.passport_events()
     assert verify_passport(events) == len(events)
