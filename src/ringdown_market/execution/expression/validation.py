@@ -9,7 +9,7 @@ or account authority.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 
 from ringdown_market.execution.expression.observations import (
@@ -73,20 +73,20 @@ def validate_executable_data(data_class: str, path: str) -> None:
         )
 
 
-def _observation_age_ms(
+def _observation_age(
     observed_at: datetime,
     *,
     snapshot: ExpressionMarketSnapshot,
     path: str,
-) -> int:
-    age_ms = int((snapshot.observation_clock_at - observed_at).total_seconds() * 1000)
-    if age_ms < 0:
+) -> timedelta:
+    age = snapshot.observation_clock_at - observed_at
+    if age < timedelta():
         raise _reject(
             ExpressionReason.TIME_INCONSISTENT,
             path,
             "observation postdates the snapshot clock",
         )
-    return age_ms
+    return age
 
 
 def validate_quote(
@@ -98,12 +98,12 @@ def validate_quote(
 ) -> None:
     """Require a fresh, two-sided, sized, bounded-spread quote."""
 
-    age_ms = _observation_age_ms(quote.observed_at, snapshot=snapshot, path=path)
-    if age_ms > policy.quote_max_age_ms:
+    age = _observation_age(quote.observed_at, snapshot=snapshot, path=path)
+    if age > timedelta(milliseconds=policy.quote_max_age_ms):
         raise _reject(
             ExpressionReason.STALE_QUOTE,
             path,
-            f"quote age {age_ms}ms exceeds the frozen bound",
+            f"quote age {age} exceeds the frozen bound",
         )
     if quote.bid <= 0 or quote.ask <= 0:
         raise _reject(ExpressionReason.NO_QUOTE, path, "quote has no two-sided market")
@@ -134,12 +134,12 @@ def validate_cross_leg_skew(
     if len(quotes) < 2:
         return
     times = sorted(quote.observed_at for quote, _ in quotes)
-    skew_ms = int((times[-1] - times[0]).total_seconds() * 1000)
-    if skew_ms > policy.cross_leg_skew_max_ms:
+    skew = times[-1] - times[0]
+    if skew > timedelta(milliseconds=policy.cross_leg_skew_max_ms):
         raise _reject(
             ExpressionReason.ASYNCHRONOUS_QUOTES,
             "snapshot.skew",
-            f"cross-leg skew {skew_ms}ms exceeds the frozen bound",
+            f"cross-leg skew {skew} exceeds the frozen bound",
         )
 
 
@@ -154,12 +154,12 @@ def validate_package(
 
     validate_feed(package.feed, f"{path}.feed")
     validate_executable_data(package.data_class, f"{path}.data_class")
-    age_ms = _observation_age_ms(package.observed_at, snapshot=snapshot, path=path)
-    if age_ms > policy.quote_max_age_ms:
+    age = _observation_age(package.observed_at, snapshot=snapshot, path=path)
+    if age > timedelta(milliseconds=policy.quote_max_age_ms):
         raise _reject(
             ExpressionReason.STALE_QUOTE,
             path,
-            f"package age {age_ms}ms exceeds the frozen bound",
+            f"package age {age} exceeds the frozen bound",
         )
     if package.net_bid <= 0 or package.net_ask <= 0:
         raise _reject(ExpressionReason.PACKAGE_UNAVAILABLE, path, "package has no two-sided market")
@@ -195,10 +195,10 @@ def validate_borrow_locate(
             path,
             "short shares require explicit borrow/locate evidence",
         )
-    age_ms = _observation_age_ms(borrow_locate.observed_at, snapshot=snapshot, path=path)
-    if age_ms > policy.quote_max_age_ms:
+    age = _observation_age(borrow_locate.observed_at, snapshot=snapshot, path=path)
+    if age > timedelta(milliseconds=policy.quote_max_age_ms):
         raise _reject(
             ExpressionReason.STALE_QUOTE,
             path,
-            f"borrow/locate age {age_ms}ms exceeds the frozen bound",
+            f"borrow/locate age {age} exceeds the frozen bound",
         )
