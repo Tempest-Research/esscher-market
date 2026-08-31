@@ -5,6 +5,11 @@
 ### Added
 
 - Deterministic offline evidence-bundle diff reports for frozen JSON artifacts and directory bundles, exposed through `ringdown_market.audit` and `python -m ringdown_market.audit.bundle_diff` without rerunning research or opening a broker session.
+- A monitored PAPER lifecycle worker driving one risk-approved expression through its frozen exit
+	plan, with a fail-closed exit-plan clock schema, a durable state machine, a deterministic
+	close-permit issuer, an exposure-aware reducer preserving unknown/partial states, restart recovery
+	from broker/ledger truth, and duplicate-tick prevention. Actual PAPER mutation stays blocked behind
+	the later approval gate; the immediate-close demo and fixed 60-minute hold are not preserved.
 - A PAPER account risk kernel with an immutable risk-policy schema, Decimal-only exposure
 	calculations, a standard-library SQLite WAL reservation ledger, broker-observed truth snapshot
 	interfaces, startup and pre-permit reconciliation gates, entry-disabled/close-only/kill/manual

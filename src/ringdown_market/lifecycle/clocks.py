@@ -115,10 +115,16 @@ class LifecycleClocks:
 
     @property
     def source_verified(self) -> bool:
-        """The clocks are usable only when their source is bound."""
+        """The clocks are usable only when their source is bound.
+
+        An all-zero source digest is the unbound placeholder and is treated as
+        unverified; there is no fallback.
+        """
 
         value = self.source_sha256
-        return len(value) == 64 and all(c in "0123456789abcdef" for c in value)
+        if len(value) != 64 or value == "0" * 64:
+            return False
+        return all(c in "0123456789abcdef" for c in value)
 
 
 def lifecycle_clocks_payload(value: LifecycleClocks) -> dict[str, object]:

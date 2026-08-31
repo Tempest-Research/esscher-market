@@ -16,7 +16,7 @@ and every test uses a deterministic fake with zero real MCP/broker calls.
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
 from typing import Protocol
@@ -148,6 +148,8 @@ class MonitoredPaperLifecycle:
     correlation: CorrelationIdentity
     mutation_gate: MutationGate
     clock: Callable[[], datetime]
+    _submitted_open_permits: set[str] = field(default_factory=set)
+    _submitted_close_permits: set[str] = field(default_factory=set)
 
     def _now(self) -> datetime:
         observed = self.clock()
@@ -189,6 +191,13 @@ class MonitoredPaperLifecycle:
                 "the entry deadline has passed before submission",
             )
         self._require_mutation()
+        if open_permit.permit_id in self._submitted_open_permits:
+            raise _reject(
+                LifecycleReason.DUPLICATE_TICK,
+                f"open.{open_permit.permit_id}",
+                "this opening permit was already submitted; a tick cannot duplicate it",
+            )
+        self._submitted_open_permits.add(open_permit.permit_id)
 
         state = next_lifecycle_state(state, LifecycleTrigger.OPEN_SUBMIT)
         try:
@@ -256,6 +265,13 @@ class MonitoredPaperLifecycle:
 
         self._require_clocks_verified()
         self._require_mutation()
+        if close_permit.permit_id in self._submitted_close_permits:
+            raise _reject(
+                LifecycleReason.DUPLICATE_TICK,
+                f"close.{close_permit.permit_id}",
+                "this close permit was already submitted; a tick cannot duplicate it",
+            )
+        self._submitted_close_permits.add(close_permit.permit_id)
         state = next_lifecycle_state(LifecycleState.CLOSE_DUE, LifecycleTrigger.CLOSE_SUBMIT)
         try:
             ack = await self.broker.submit_close(open_permit, close_permit)
