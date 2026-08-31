@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import ctypes
+import hashlib
 import json
 import os
 import re
@@ -111,7 +112,9 @@ def _capture_timestamp(value: str) -> datetime:
     return parsed.astimezone(UTC)
 
 
-def _configuration(args: argparse.Namespace, fixture, manifest_builder) -> CaptureConfiguration:
+def _configuration(
+    args: argparse.Namespace, fixture, manifest_builder, *, lineage_receipt_sha256: str
+) -> CaptureConfiguration:
     capture_at = _capture_timestamp(args.capture_at)
     return CaptureConfiguration(
         candidate_manifest_bytes=manifest_builder(fixture),
@@ -120,6 +123,7 @@ def _configuration(args: argparse.Namespace, fixture, manifest_builder) -> Captu
         market_publisher=str(fixture["market_publisher"]),
         market_entitlement=str(fixture["market_entitlement"]),
         market_redistribution=str(fixture["market_redistribution"]),
+        lineage_receipt_sha256=lineage_receipt_sha256,
     )
 
 
@@ -593,6 +597,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     except CollectorRejected as error:
         print(str(error), file=sys.stderr)
         return 2
+    lineage_receipt_bytes_value = lineage_receipt_bytes(lineage_report.resolution)
+    lineage_receipt_sha256 = hashlib.sha256(lineage_receipt_bytes_value).hexdigest()
     if candidate == MACRO_CANDIDATE:
         fixture = load_macro_fixture(args.fixture)
         manifest_builder = build_macro_candidate_manifest
@@ -600,7 +606,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         fixture = load_fixture(args.fixture)
         manifest_builder = build_candidate_manifest
     try:
-        configuration = _configuration(args, fixture, manifest_builder)
+        configuration = _configuration(
+            args,
+            fixture,
+            manifest_builder,
+            lineage_receipt_sha256=lineage_receipt_sha256,
+        )
         compiled = run_capture(configuration, candidate, fixture)
         joined = compiled_strategy_input(compiled)
         feasibility_manifest = _build_feasibility(
@@ -622,7 +633,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     action_receipts = b"".join(
         corporate_action_receipt_bytes(receipt) + b"\n" for receipt in compiled.action_receipts
     )
-    lineage_receipt = lineage_receipt_bytes(lineage_report.resolution) + b"\n"
+    lineage_receipt = lineage_receipt_bytes_value + b"\n"
     outputs = (
         ("strategy_snapshot.json", compiled.strategy_snapshot_bytes),
         ("feature_receipt.json", compiled.feature_receipt_bytes),

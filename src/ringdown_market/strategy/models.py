@@ -536,6 +536,12 @@ class FeatureReceipt:
     producer_build_sha256: str
     created_at: datetime
     feature_snapshot_at: datetime
+    decision_cutoff_at: datetime
+    maximum_public_timestamp: datetime
+    data_health: DataHealthState
+    health_reason_codes: tuple[str, ...]
+    evidence_ids: tuple[str, ...]
+    lineage_receipt_sha256: str | None
     features: tuple[FeatureValue, ...]
 
     def __post_init__(self) -> None:
@@ -543,10 +549,26 @@ class FeatureReceipt:
             _require_identifier(getattr(self, field), field)
         for field in ("policy_sha256", "strategy_snapshot_sha256", "producer_build_sha256"):
             _require_sha256(getattr(self, field), field)
+        if self.lineage_receipt_sha256 is not None:
+            _require_sha256(self.lineage_receipt_sha256, "lineage_receipt_sha256")
         _require_utc(self.created_at, "created_at")
         _require_utc(self.feature_snapshot_at, "feature_snapshot_at")
+        _require_utc(self.decision_cutoff_at, "decision_cutoff_at")
+        _require_utc(self.maximum_public_timestamp, "maximum_public_timestamp")
         if self.created_at < self.feature_snapshot_at:
             raise ValueError("feature receipt cannot be created before its snapshot time")
+        if self.feature_snapshot_at > self.decision_cutoff_at:
+            raise ValueError("feature snapshot cannot exceed the decision cutoff")
+        if self.maximum_public_timestamp > self.decision_cutoff_at:
+            raise ValueError("public evidence cannot exceed the decision cutoff")
+        _require_reason_codes(self.health_reason_codes, "health_reason_codes")
+        if self.data_health is DataHealthState.VALID:
+            if self.health_reason_codes:
+                raise ValueError("valid receipts cannot carry health rejection codes")
+        elif not self.health_reason_codes:
+            raise ValueError("invalid receipts require a health reason code")
+        if not self.evidence_ids or tuple(sorted(set(self.evidence_ids))) != self.evidence_ids:
+            raise ValueError("evidence_ids must be non-empty, sorted, and unique")
         feature_ids = tuple(feature.feature_id for feature in self.features)
         if feature_ids != tuple(sorted(set(feature_ids))) or not feature_ids:
             raise ValueError("features must be non-empty, sorted, and unique by ID")

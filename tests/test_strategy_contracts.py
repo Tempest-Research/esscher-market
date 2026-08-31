@@ -325,8 +325,14 @@ def _feature_receipt(snapshot: StrategySnapshot) -> FeatureReceipt:
         policy_sha256=snapshot.policy_sha256,
         strategy_snapshot_sha256=strategy_snapshot_sha256(snapshot),
         producer_build_sha256=HASH_C,
-        created_at=snapshot.evidence_cutoff_at,
-        feature_snapshot_at=snapshot.evidence_cutoff_at,
+        created_at=_at("2026-09-11T13:35:15Z"),
+        feature_snapshot_at=_at("2026-09-11T13:35:15Z"),
+        decision_cutoff_at=snapshot.decision_cutoff_at,
+        maximum_public_timestamp=snapshot.event_published_at,
+        data_health=snapshot.data_health,
+        health_reason_codes=snapshot.health_reason_codes,
+        evidence_ids=tuple(sorted(ref.evidence_id for ref in snapshot.evidence_refs)),
+        lineage_receipt_sha256=None,
         features=tuple(features),
     )
 
@@ -501,6 +507,12 @@ def _macro_strategy_input(*, vwap_distance: Decimal):
         producer_build_sha256=HASH_C,
         created_at=_at("2026-09-01T14:15:15Z"),
         feature_snapshot_at=_at("2026-09-01T14:15:15Z"),
+        decision_cutoff_at=snapshot.decision_cutoff_at,
+        maximum_public_timestamp=snapshot.event_published_at,
+        data_health=snapshot.data_health,
+        health_reason_codes=snapshot.health_reason_codes,
+        evidence_ids=tuple(sorted(ref.evidence_id for ref in snapshot.evidence_refs)),
+        lineage_receipt_sha256=None,
         features=tuple(features),
     )
     return build_strategy_input(
