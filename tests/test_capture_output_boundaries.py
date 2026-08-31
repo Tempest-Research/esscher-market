@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from ringdown_market.sourcedata import capture
+from ringdown_market.sourcedata.reasons import CollectorRejected
 
 REPO_ROOT = Path(__file__).parent.parent
 FIXTURE_PATH = REPO_ROOT / "tests" / "fixtures" / "sourcedata" / "synthetic_snapshot_inputs_v1.json"
@@ -169,6 +170,103 @@ def test_capture_replaces_existing_regular_outputs_without_leaving_staging_files
         (output_dir / output_name).read_bytes() != b"stale output"
         for output_name in CAPTURE_OUTPUT_NAMES
     )
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows directory handles are required")
+def test_windows_capture_pins_output_directory_against_junction_swap(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A post-check junction swap cannot redirect the first published artifact."""
+
+    output_dir = tmp_path / "capture-output"
+    outside_dir = tmp_path / "outside"
+    output_dir.mkdir()
+    outside_dir.mkdir()
+    original_replace = capture.os.replace
+    swap_attempted = False
+    swap_blocked = False
+
+    def replace_after_swap(
+        source: os.PathLike[str] | str, destination: os.PathLike[str] | str
+    ) -> None:
+        nonlocal swap_attempted, swap_blocked
+        if not swap_attempted:
+            swap_attempted = True
+            try:
+                output_dir.rmdir()
+            except PermissionError as error:
+                assert error.winerror == 32
+                swap_blocked = True
+            else:
+                _junction_or_skip(output_dir, outside_dir)
+        original_replace(source, destination)
+
+    monkeypatch.setattr(capture.os, "replace", replace_after_swap)
+    monkeypatch.setenv("ESSCHER_CAPTURE_AUTHORIZED", "yes")
+
+    assert capture.main(_capture_args(output_dir)) == 0
+    assert swap_attempted
+    assert swap_blocked
+    assert tuple(outside_dir.iterdir()) == ()
+    assert {path.name for path in output_dir.iterdir()} == set(CAPTURE_OUTPUT_NAMES)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows directory handles are required")
+def test_windows_capture_pins_existing_parent_against_junction_swap(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The pinned output handle also prevents its existing parent from being moved."""
+
+    output_parent = tmp_path / "capture-parent"
+    output_dir = output_parent / "capture-output"
+    outside_parent = tmp_path / "outside-parent"
+    moved_parent = tmp_path / "moved-parent"
+    output_dir.mkdir(parents=True)
+    outside_parent.mkdir()
+    original_replace = capture.os.replace
+    swap_attempted = False
+    swap_blocked = False
+
+    def replace_after_parent_swap(
+        source: os.PathLike[str] | str, destination: os.PathLike[str] | str
+    ) -> None:
+        nonlocal swap_attempted, swap_blocked
+        if not swap_attempted:
+            swap_attempted = True
+            try:
+                output_parent.rename(moved_parent)
+            except PermissionError as error:
+                assert error.winerror == 5
+                swap_blocked = True
+            else:
+                _junction_or_skip(output_parent, outside_parent)
+        original_replace(source, destination)
+
+    monkeypatch.setattr(capture.os, "replace", replace_after_parent_swap)
+    monkeypatch.setenv("ESSCHER_CAPTURE_AUTHORIZED", "yes")
+
+    assert capture.main(_capture_args(output_dir)) == 0
+    assert swap_attempted
+    assert swap_blocked
+    assert tuple(outside_parent.iterdir()) == ()
+    assert {path.name for path in output_dir.iterdir()} == set(CAPTURE_OUTPUT_NAMES)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows directory handles are required")
+def test_windows_pin_rejects_parent_junction_resolved_during_acquisition(tmp_path: Path) -> None:
+    """The native pin detects a parent redirect that races after lexical validation."""
+
+    outside_parent = tmp_path / "outside-parent"
+    outside_output = outside_parent / "capture-output"
+    outside_output.mkdir(parents=True)
+    redirected_parent = tmp_path / "redirected-parent"
+    _junction_or_skip(redirected_parent, outside_parent)
+
+    with (
+        pytest.raises(CollectorRejected, match="resolved to a different directory"),
+        capture._pin_windows_output_directory(redirected_parent / "capture-output"),
+    ):
+        pass
 
 
 def test_capture_rejects_destination_replaced_with_link_before_publish(

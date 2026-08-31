@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import ctypes
 import json
 import os
 import re
@@ -18,6 +19,7 @@ import stat
 import sys
 import uuid
 from collections.abc import Sequence
+from ctypes import wintypes
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -62,6 +64,29 @@ _CAPTURE_OUTPUT_NAMES = (
     "corporate_action_receipts.jsonl",
     "capture_identity.json",
 )
+
+_WINDOWS_FILE_READ_ATTRIBUTES = 0x80
+_WINDOWS_DELETE = 0x10000
+_WINDOWS_FILE_SHARE_READ = 0x1
+_WINDOWS_FILE_SHARE_WRITE = 0x2
+_WINDOWS_OPEN_EXISTING = 3
+_WINDOWS_FILE_FLAG_BACKUP_SEMANTICS = 0x02000000
+_WINDOWS_FILE_FLAG_OPEN_REPARSE_POINT = 0x00200000
+_WINDOWS_FILE_ATTRIBUTE_DIRECTORY = 0x10
+_WINDOWS_FILE_ATTRIBUTE_REPARSE_POINT = 0x400
+_WINDOWS_FILE_BASIC_INFO = 0
+
+
+class _WindowsFileBasicInfo(ctypes.Structure):
+    """Subset of FILE_BASIC_INFO returned by GetFileInformationByHandleEx."""
+
+    _fields_ = [
+        ("creation_time", ctypes.c_longlong),
+        ("last_access_time", ctypes.c_longlong),
+        ("last_write_time", ctypes.c_longlong),
+        ("change_time", ctypes.c_longlong),
+        ("file_attributes", wintypes.DWORD),
+    ]
 
 
 def _capture_timestamp(value: str) -> datetime:
@@ -153,6 +178,118 @@ def _validate_output_directory(output_dir: Path) -> Path:
         if not stat.S_ISDIR(status.st_mode):
             raise _unsafe_output_path(f"output component '{component}' is not a directory")
     return absolute
+
+
+def _windows_kernel32():
+    """Bind the small Win32 surface needed to hold an output directory in place."""
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.CreateFileW.argtypes = [
+        wintypes.LPCWSTR,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        ctypes.c_void_p,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.HANDLE,
+    ]
+    kernel32.CreateFileW.restype = wintypes.HANDLE
+    kernel32.GetFileInformationByHandleEx.argtypes = [
+        wintypes.HANDLE,
+        ctypes.c_int,
+        ctypes.c_void_p,
+        wintypes.DWORD,
+    ]
+    kernel32.GetFileInformationByHandleEx.restype = wintypes.BOOL
+    kernel32.GetFinalPathNameByHandleW.argtypes = [
+        wintypes.HANDLE,
+        wintypes.LPWSTR,
+        wintypes.DWORD,
+        wintypes.DWORD,
+    ]
+    kernel32.GetFinalPathNameByHandleW.restype = wintypes.DWORD
+    kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel32.CloseHandle.restype = wintypes.BOOL
+    return kernel32
+
+
+def _normalize_windows_path(value: str) -> str:
+    """Compare DOS and extended-length paths without permitting a target redirect."""
+
+    if value.startswith("\\\\?\\UNC\\"):
+        value = "\\\\" + value[8:]
+    elif value.startswith("\\\\?\\"):
+        value = value[4:]
+    return os.path.normcase(os.path.normpath(value))
+
+
+def _windows_final_path(kernel32, handle: int) -> str:
+    """Read the kernel-resolved location of an already-open directory handle."""
+
+    length = kernel32.GetFinalPathNameByHandleW(handle, None, 0, 0)
+    if not length:
+        raise OSError(ctypes.get_last_error(), "cannot inspect pinned output directory")
+    buffer = ctypes.create_unicode_buffer(length + 1)
+    if not kernel32.GetFinalPathNameByHandleW(handle, buffer, len(buffer), 0):
+        raise OSError(ctypes.get_last_error(), "cannot read pinned output directory path")
+    return buffer.value
+
+
+def _open_windows_output_directory(kernel32, output_dir: Path) -> int:
+    """Open a real output directory and deny replacement until the handle closes."""
+
+    handle = kernel32.CreateFileW(
+        str(output_dir),
+        _WINDOWS_FILE_READ_ATTRIBUTES | _WINDOWS_DELETE,
+        _WINDOWS_FILE_SHARE_READ | _WINDOWS_FILE_SHARE_WRITE,
+        None,
+        _WINDOWS_OPEN_EXISTING,
+        _WINDOWS_FILE_FLAG_BACKUP_SEMANTICS | _WINDOWS_FILE_FLAG_OPEN_REPARSE_POINT,
+        None,
+    )
+    if handle == ctypes.c_void_p(-1).value:
+        raise OSError(ctypes.get_last_error(), "cannot pin output directory")
+
+    opened = False
+    try:
+        information = _WindowsFileBasicInfo()
+        if not kernel32.GetFileInformationByHandleEx(
+            handle,
+            _WINDOWS_FILE_BASIC_INFO,
+            ctypes.byref(information),
+            ctypes.sizeof(information),
+        ):
+            raise OSError(ctypes.get_last_error(), "cannot inspect pinned output directory")
+        if not information.file_attributes & _WINDOWS_FILE_ATTRIBUTE_DIRECTORY:
+            raise _unsafe_output_path("pinned output path is not a directory")
+        if information.file_attributes & _WINDOWS_FILE_ATTRIBUTE_REPARSE_POINT:
+            raise _unsafe_output_path("pinned output path is a link or reparse point")
+        actual_path = _normalize_windows_path(_windows_final_path(kernel32, handle))
+        expected_path = _normalize_windows_path(str(output_dir))
+        if actual_path != expected_path:
+            raise _unsafe_output_path("output path resolved to a different directory while pinning")
+        opened = True
+        return handle
+    finally:
+        if not opened:
+            kernel32.CloseHandle(handle)
+
+
+@contextlib.contextmanager
+def _pin_windows_output_directory(output_dir: Path):
+    """Keep the output directory and ancestor tree fixed while publishing.
+
+    Holding DELETE access without FILE_SHARE_DELETE makes Windows reject attempts
+    to remove or move this directory, including moves of an ancestor that contains
+    it. The resolved-handle comparison closes the race before that pin is acquired.
+    """
+
+    kernel32 = _windows_kernel32()
+    handle = _open_windows_output_directory(kernel32, output_dir)
+    try:
+        yield
+    finally:
+        kernel32.CloseHandle(handle)
 
 
 def _validate_output_destinations(
@@ -322,6 +459,15 @@ def _write_capture_outputs(output_dir: Path, outputs: Sequence[tuple[str, bytes]
             _write_outputs_with_directory_fd(directory_fd, outputs)
         finally:
             os.close(directory_fd)
+        return
+    if os.name == "nt":
+        try:
+            with _pin_windows_output_directory(safe_output_dir):
+                _write_outputs_with_path_checks(safe_output_dir, outputs)
+        except OSError as error:
+            raise _unsafe_output_path(
+                "cannot pin output directory against Windows replacement"
+            ) from error
         return
     _write_outputs_with_path_checks(safe_output_dir, outputs)
 
