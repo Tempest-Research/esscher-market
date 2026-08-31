@@ -1,106 +1,25 @@
 # Changelog
 
-## [Unreleased]
+## [0.3.0] - Unreleased
 
 ### Added
 
-- A deterministic monitored PAPER lifecycle that persists a canonical full
-  request intent before every broker mutation, binds fresh account/order/position
-  truth before any fill or flat result, and records the full request and broker
-  acknowledgement in the hash-linked Trade Passport.
-- A deterministic Gate D expression tournament comparing cash/no-trade, shares, one long option, and
-	a defined-risk debit vertical for the same frozen directional decisions, with failures kept in the
-	denominator and a canonical `NO_EXPRESSION` outcome when no expression meets the preregistered
-	after-cost objective and evidence threshold.
-- A production expression compiler consuming one validated UP/DOWN decision, one immutable market
-	snapshot, and one frozen promoted-expression policy; it emits one deterministic compiled expression
-	or stable `NO_PACKAGE`, never reaches compilation from `UNCERTAIN`, and carries no account, order,
-	position, mutation, model, or policy-promotion authority.
-- Strict share, option-chain, package, and borrow/locate observation schemas with pinned feed
-	identities, quote freshness/skew bounds, crossed/size/spread checks, and indicative-data isolation.
-- Read-only adapter documentation with no live capture in unit tests.
-- An offline append-only Trade Passport API that binds an already-validated PAPER permit and
-  sanitized terminal receipt, rejects duplicate JSON and non-derivative event identifiers, and
-  preserves PAPER-only/indicative-data/no-network boundaries without adding execution authority.
+- A deterministic offline chain from point-in-time source-rights and CIK-rooted security lineage through feature receipts, bounded decisions, Gate D expression selection, PAPER risk controls, and monitored lifecycle state reduction.
+- Security-lineage receipts that bind issuer, security, listing, corporate-action, and option-adjustment evidence to the decision cutoff; current-ticker fallback, conflicting lineage, and unresolved option adjustments fail closed.
+- A feature-receipt contract that binds preregistered features, data health, public-timestamp maximum, evidence IDs, and lineage identity without a provider, model, account, or broker surface.
+- A read-only expression tournament plus deterministic compiled-expression boundary, an isolated SQLite WAL risk ledger and hash-linked Trade Passport, and a persisted monitored PAPER lifecycle contract.
+- `docs/INTEGRATION_MANIFEST.json`, mapping every reviewed source head in the release train to its final integration relationship.
 
-- A canonical accepted event-strategy V1 policy with deterministic bytes/hash, strict parsing,
-	separate earnings and macro cohorts, frozen features, baselines, partitions, and promotion gates.
-- Immutable candidate-manifest, strategy-snapshot, feature-receipt, reasoner-exchange, and
-	direction-only decision contracts with a labeled synthetic development bundle.
-- Deterministic offline evidence-bundle diff reports for frozen JSON artifacts and directory bundles, exposed through `ringdown_market.audit` and `python -m ringdown_market.audit.bundle_diff` without rerunning research or opening a broker session.
-- Four pre-outcome scheduled-earnings replay manifests bound to one frozen event list and selection rule.
-- A strict data-only evidence-manifest v2 validator with event-context provenance and point-in-time gates.
-- Versioned, strict frozen-research-decision, point-in-time evidence-manifest, and feature-input contracts.
-- Pure deterministic mapping from one eligible research decision to one immutable PAPER debit-vertical permit.
-- Exact decision, evidence, input, protocol, and policy lineage in serialized permits and downstream MCP identity checks.
-- Inert paper-demo orchestration with exact permit/capability approval, durable submit-once recovery markers, and a bounded official-MCP mutation envelope.
-- Sanitized deterministic terminal receipt bundles with broker-observed `ZERO_NO_FILL`, exact gross `PAPER_REALIZED_PNL`, or explicit `PAPER_PNL_UNAVAILABLE` classification.
-- One-shot scheduled `PAPER` event execution with strict manifest/due-window identity, atomic restart state, deterministic broker reconciliation, terminal no-ops, overlap rejection, and mutation-free dry run.
-- Synthetic contract fixtures for terminal-flat, rejected-before-mutation, and manual-reconciliation scheduled outcomes.
-- A deterministic self-contained offline evidence-to-receipt trace with visible JSON-pointer attribution, terminal, rejected, and manual-reconciliation contract views.
-- A read-only point-in-time strategy snapshot collector that compiles canonical snapshots and
-	feature receipts from permitted primary evidence and synchronized equity market data, bound to
-	the accepted event-policy hash and joined through the frozen strategy-input contract.
-- Deterministic fake evidence and market-data adapters with one frozen synthetic fixture,
-	canonical source and corporate-action receipts, a frozen decimal beta estimator, and an inert
-	capture command that requires explicit host authorization and never carries credentials.
-- A strategy data-pipeline document fixing exact source classes, clocks, adjustment, entitlement,
-	and recovery rules for the collector lane.
-- A macro-challenger snapshot lane compiling all twenty frozen macro features from official BLS
-	releases, first-vintage fields, explicit revision vectors, and synchronized SPY windows, with
-	distinct BLS_JOLTS and BLS_EMPLOYMENT_SITUATION clocks.
-- Candidate-specific Gate B data-feasibility manifests with fail-closed FEASIBLE/INFEASIBLE
-	verdicts, bound sample-receipt hashes, and a no-trade-authorization macro fallback for an
-	infeasible earnings contract.
-- Explicit pagination, partial-retrieval, and duplicate-source-record handling in the evidence
-	packet with stable fail-closed reason codes, plus distinct BMO and AMC reaction-session selection.
-- A frozen ex-ante Q-FAST panel selection rule with fixed 20/30 eligible-event bounds, required P0 exclusions, and the frozen claim boundary.
-- A strict panel-manifest validator and deterministic fail-closed panel assembler behind the inert `ringdown assemble-panel` command, hash-bound to the strategy-policy, snapshot, and research-decision protocols.
-- Synthetic Q-FAST panel fixtures and mutation-negative tests proving leak, exclusion, size, latency, and byte-determinism gates.
-- A frozen untouched Q-FAST panel universe: 23 historical BMO/AMC earnings events with EDGAR primary-source provenance, preserved exclusions, and hash-bound synchronized issuer/SPY/sector one-minute window records.
-- A frozen source-rights matrix with exact policy and Gate A bindings, development-only evidence
-  bundles, candidate-specific rights preflight, and an explicit-fixture offline capture boundary.
+### Changed
 
-### Fixed
-
-- Gate D now binds declared policy digests to canonical policy bytes, applies the frozen spread
-  gate to vertical legs and atomic packages, and requires short legs to satisfy the same delta and
-  open-interest policy bounds as long legs.
-- Tournament rows now apply the compiler's pinned-feed, freshness, and spread gates before an
-  expression can count as comparable; short-share borrow/locate evidence must be pre-clock and
-  fresh within the frozen observation-age bound.
-- Gate D freshness and vertical-skew limits now compare exact UTC durations: the policy limit is
-  inclusive, but a one-microsecond overage or post-clock observation fails closed.
-- A strict, hash-addressed competition-facts contract that separates confirmed organizer facts from blocking unknowns without embedding account identities or broker authority.
+- The canonical repository is `Tempest-Research/esscher-market`; the `ringdown-market` distribution, `ringdown_market` import package, and `ringdown` CLI remain compatibility interfaces.
+- The release train version advances from `0.2.0` to `0.3.0` in the canonical `pyproject.toml` source.
 
 ### Safety
 
-- Lifecycle requests remain permanently PAPER-only: exact active permit and
-  exit-plan event/policy bindings, one durable OPEN/CLOSE intent per event,
-  frozen time-exit enforcement, atomic multi-leg account/order boundaries, and
-  restart recovery from durable request plus fresh broker truth all fail closed.
-- Candidate snapshots must match an exact retained manifest record; unknown sources, clock drift,
-  post-cutoff evidence, missing conditional features, and reasoner-supplied execution fields fail
-  closed before downstream trade construction.
-- Gate A remains `UNVERIFIED`, and the accepted strategy policy grants no expression, exit, risk,
-  permit, order, account, or broker authority.
-- Unknown fields/states, hash or provenance mismatch, post-cutoff dependencies, abstention, failed research gates, unsupported strategy shape, and excess paper risk fail closed before any broker session exists.
-- Source-health audits return deterministic findings for malformed `redistribution_status` values and incomplete `published_at_interval` objects instead of raising.
-- Source-health manifests containing unpaired Unicode surrogate code points fail closed as `PARSE_FAILED` before canonical report serialization.
-- `ringdown_market.audit` exposes the source-health and bundle-diff report serializers under explicit names while retaining its existing bundle-diff `canonical_report_bytes` compatibility export.
-- Evidence-manifest v2 remains ineligible for permit compilation and carries no post-cutoff path or outcome value.
-- Partial or contradictory package fills stop for reconciliation; missing fees remain explicit and raw broker/account identities never enter the receipt bundle.
-- Scheduled unknown, ambiguous, partial, overlapping, or integrity-invalid state fails closed without sequential-leg repair, guessed P&L, or another mutation.
-- The packaged trace is static and no-network; it rejects weakened labels or malformed PAPER receipt boundaries, escapes untrusted text, and leaves unsupported decision, permit, receipt, and P&L fields visibly missing.
-- Real Q-FAST panel assembly fails closed with `UPSTREAM_CONTRACT_MISSING` while issues #26, #27, and #28 remain unmerged and unregistered.
-- P0 contract-development events, sub-20 or above-30 event panels, unmeasured p95 latency profiles, and post-cutoff or post-freeze timestamps fail closed with stable reason codes before any evaluation runs.
-- Historical panel evidence is admitted only through EDGAR-accessioned preservation anchors with every publication bound preceding the decision cutoff; raw licensed market bars stay host-side and only metadata and SHA-256 bindings are redistributed.
-- Source rights are fixed to one authenticated packaged matrix. Candidate-specific preflight, upstream
-  binding checks, strict UTC clocks, and structured paid-plan approval records fail closed before
-  any offline snapshot is written; the capture command has no alternate-matrix or live-data path.
-- Competition facts remain non-permit-eligible; unsupported schemas, unverifiable sources, unknown release facts, credential-bearing URLs, private account-identity fields, and weakened PAPER/privacy invariants fail closed.
-- Competition source URLs also fail closed on any query, fragment, localhost, or non-global IP-literal host, so accepted contracts cannot retain account or credential metadata.
-- Version impact is `minor`; the package stays at `0.2.0` while issue #11 consolidates the release-train bump to `0.3.0`.
+- Gate A remains `UNVERIFIED`; policy, expression, risk, and lifecycle contracts do not grant data-provider, account, broker, or PAPER-mutation authority.
+- All capture, risk, and lifecycle tests use explicit fixtures or fake brokers. The monitored lifecycle's mutation gate remains closed, so this release is not evidence of a live PAPER fill, executable historical option pricing, alpha, or real-money capability.
+- Missing, stale, post-cutoff, contradictory, partial, or unresolved evidence and broker truth fail closed to rejection, close-only, or manual reconciliation rather than creating a fallback path.
 
 ## [0.2.0] - Unreleased
 
@@ -121,7 +40,6 @@
 
 - Adopted Esscher as the public product name while retaining the `ringdown-market` distribution, `ringdown_market` import package, and `ringdown` CLI for compatibility.
 - Retained the legacy report `project: "Ringdown"` value and added `product_name: "Esscher"` as an additive display alias.
-- Documented the post-merge repository rename checklist and added a deterministic stale-public-brand check.
 
 ## [0.1.0]
 

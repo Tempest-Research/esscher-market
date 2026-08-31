@@ -1,8 +1,8 @@
 # Architecture
 
-This document separates implemented behavior from remaining integration work. A roadmap is not a runtime receipt.
+This document separates implemented behavior from remaining live-authority gates. A roadmap is not a runtime receipt.
 
-## Implemented in the `0.2.0` draft
+## Implemented in the `0.3.0` integration draft
 
 Esscher has two connected, permanently paper-only planes.
 
@@ -80,8 +80,16 @@ Current modules:
   feature, reasoner-exchange, and direction-only decision contracts;
 - `contracts/source_matrix.py` and `sourcedata/rights_gate.py`: the authenticated source-rights
   matrix, upstream binding checks, and candidate-specific capture preflight;
+- `contracts/security_lineage.py` and `sourcedata/lineage_gate.py`: CIK-rooted issuer, security,
+  listing, and corporate-action lineage at the frozen decision cutoff;
 - `sourcedata/capture.py`: an explicit-fixture, offline-only snapshot command with no alternate
-  matrix, live-provider, account, broker, MCP, or trading path;
+  matrix or lineage path, live-provider, account, broker, MCP, or trading path;
+- `execution/expression/`: a read-only Gate D tournament and deterministic promoted-expression
+  compiler with no account, order, position, or policy-promotion authority;
+- `risk/`: an isolated SQLite WAL reservation ledger, fail-closed PAPER risk kernel, and
+  append-only hash-linked Trade Passport;
+- `lifecycle/`: deterministic monitored PAPER lifecycle state reduction and persisted
+  request-intent/reconciliation boundary; its mutation gate remains closed;
 - `contracts/execution_policy.py`: the immutable paper-risk and official MCP protocol registry;
 - `contracts/research_to_permit.py`: the pure frozen-decision, provenance, and feature-dependency bridge;
 - `execution/models.py`: immutable opening and closing permits for one debit vertical;
@@ -98,7 +106,7 @@ The adapter, host boundary, inert paper-demo runner, and one-shot scheduled runt
 
 ## Product and machine-interface naming
 
-Esscher is the human-facing product name. The `0.2.0` draft deliberately keeps the `ringdown-market` distribution, `ringdown_market` import package, `ringdown` command and version prefix, configuration keys, report schema keys, and receipt identifiers. The repository remains `Tempest-Research/ringdown-market` until the separately approved post-merge cutover.
+Esscher is the human-facing product name. The `0.3.0` integration draft deliberately keeps the `ringdown-market` distribution, `ringdown_market` import package, `ringdown` command and version prefix, configuration keys, report schema keys, and receipt identifiers. The canonical repository is `Tempest-Research/esscher-market`.
 
 The deterministic report keeps the legacy `project: "Ringdown"` value and adds `product_name: "Esscher"` for public display. This is an additive alias; existing schema keys and values remain available.
 
@@ -130,12 +138,14 @@ sanitized static public trace
 
 The real point-in-time event collection is frozen, and the static proof renderer now projects one v2 evidence manifest plus three separate scheduled lifecycle contract fixtures. No merged artifact causally joins that v2 event to a decision, permit, or terminal receipt, so the page renders those links as missing instead of splicing unrelated values. A future real causally joined public trace remains a separate reviewed artifact. The implemented bridge accepts only exact frozen artifacts that already passed the registered research gates; it does not create evidence, rescore a signal, or open an execution session. The implemented host boundary constructs only a preflighted PAPER session for the same official adapter. Missing or ambiguous information fails closed to rejection or reconciliation; it never selects another adapter.
 
-The strategy policy and its new contracts are implemented, but the real candidate collector,
-provider-backed reasoner call, expression compiler, and account reservation ledger are not. The
-new validated-decision contract ends at `UP`, `DOWN`, or `UNCERTAIN`. The older
-`ringdown.frozen_research_decision/v1` bridge still embeds a synthetic debit-vertical package and
-is retained only as inert compatibility infrastructure; it is not the production interface for the
-accepted strategy.
+The integration now connects the policy-controlled offline collector to CIK-rooted security
+lineage, deterministic feature receipts, the Gate D expression boundary, a fail-closed PAPER risk
+kernel, and a monitored lifecycle reducer. Each step carries exact hashes and explicit UTC clocks;
+missing, stale, contradictory, or post-cutoff truth rejects rather than guessing. The validated
+decision remains direction-only, Gate A remains `UNVERIFIED`, and the lifecycle mutation gate is
+closed: this repository state has no live provider, account, broker, MCP, or PAPER-mutation
+authority. The older `ringdown.frozen_research_decision/v1` bridge remains inert compatibility
+infrastructure rather than the accepted strategy's production authority path.
 
 ## Core evaluation
 
@@ -169,6 +179,16 @@ The residual return removes frozen market and sector components measured over th
     ticker, cohort, eligibility, and freeze must match one retained manifest record.
 18. A validated strategy decision has direction-only authority; contract, quantity, price, risk,
     account, permit, order, and exit fields are not part of its schema.
+19. Capture identity binds one authenticated source matrix and one CIK-rooted security-lineage
+    receipt at the exact cutoff; current tickers and caller-selected alternate paths are not trusted.
+20. Feature receipts bind the preregistered registry, public-timestamp maximum, decision cutoff,
+    evidence IDs, data-health state, and lineage digest; model prose cannot supply arithmetic.
+21. Gate D emits a compiled expression or `NO_PACKAGE` only; it has no account, order, position,
+    broker, or policy-promotion surface.
+22. Risk starts `ENTRY_DISABLED`, accepts only fresh reconciled PAPER truth, and records every
+    reservation and permit in an append-only hash-linked passport.
+23. Lifecycle intent is persisted before a possible mutation and broker truth is required before
+    fill or flat claims; the repository's mutation gate remains closed.
 
 Historical panel admission additionally requires per-feature source dependencies, typed publication timestamps, entitlement metadata, and a common outcome path. The aggregate `DecisionSnapshot` alone does not establish those dependencies; the bridge therefore also requires and validates the exact feature-input and evidence-manifest bytes before issuing a permit.
 
@@ -189,7 +209,7 @@ packaged source matrix SHA + policy/Gate A rebinding
 offline fixture adapters
         |
         v
-canonical snapshot, receipts, and feasibility manifest
+canonical snapshot, source/lineage receipts, feature receipt, and feasibility manifest
 ```
 
 The matrix is a single packaged resource with SHA-256

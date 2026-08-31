@@ -1,0 +1,176 @@
+{
+  "schema": "esscher.integration_manifest/v1",
+  "integration": {
+    "pull_request": 52,
+    "branch": "integration/issue-33-trade-passport",
+    "base_branch": "main",
+    "base_commit": "8e4b335e963511d9d333b6a4a4569c86aabe1125",
+    "recorded_integration_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+    "version": "0.3.0",
+    "version_source": "pyproject.toml",
+    "version_impact": "minor",
+    "publication": "not performed"
+  },
+  "source_prs": [
+    {
+      "pr": 34,
+      "url": "https://github.com/Tempest-Research/esscher-market/pull/34",
+      "reviewed_source_head": "0b04029df7aee95b3a3804cddd6f1cde8b4d0c48",
+      "source_status": "MERGED",
+      "version_impact": "none",
+      "integration_relationship": "normal_merge",
+      "is_ancestor_of_recorded_integration_head": true,
+      "integration_merge_commit": "57030a29aa8c68cc3ded13b938865085a17da66b"
+    },
+    {
+      "pr": 35,
+      "url": "https://github.com/Tempest-Research/esscher-market/pull/35",
+      "reviewed_source_head": "2e61446b846a0cc6853b8038cba5062f54ee1db5",
+      "source_status": "MERGED",
+      "version_impact": "minor",
+      "integration_relationship": "normal_merge",
+      "is_ancestor_of_recorded_integration_head": true,
+      "integration_merge_commit": "ad7d2b932abc362bf6f4d873efa731a454eb1e71"
+    },
+    {
+      "pr": 37,
+      "url": "https://github.com/Tempest-Research/esscher-market/pull/37",
+      "reviewed_source_head": "9ecba056bc1e8e9427962b8a82dd96124962571a",
+      "source_status": "MERGED",
+      "version_impact": "minor",
+      "integration_relationship": "normal_merge",
+      "is_ancestor_of_recorded_integration_head": true,
+      "integration_merge_commit": "7f5ca4c106c4d6c9d0ec83d607941de044088fd5"
+    },
+    {
+      "pr": 39,
+      "url": "https://github.com/Tempest-Research/esscher-market/pull/39",
+      "reviewed_source_head": "dfc98f00a0eadeafc327141cb387fa40dc193860",
+      "source_status": "MERGED",
+      "version_impact": "none",
+      "integration_relationship": "normal_merge",
+      "is_ancestor_of_recorded_integration_head": true,
+      "integration_merge_commit": "97a783239523586f37e813c5f1fe635f4aa8d66c"
+    },
+    {
+      "pr": 51,
+      "url": "https://github.com/Tempest-Research/esscher-market/pull/51",
+      "reviewed_source_head": "267f13088b9216b8a9a434241a185feed1862963",
+      "source_status": "MERGED",
+      "version_impact": "minor",
+      "integration_relationship": "normal_merge",
+      "is_ancestor_of_recorded_integration_head": true,
+      "integration_merge_commit": "29ccfcce71c526a08134d7ba35d7448f957783a6"
+    },
+    {
+      "pr": 53,
+      "url": "https://github.com/Tempest-Research/esscher-market/pull/53",
+      "reviewed_source_head": "eb958641aa64e4ac43b322a74456b7ba49a3e661",
+      "source_status": "CLOSED",
+      "version_impact": "minor",
+      "integration_relationship": "already_integrated_by_ancestry",
+      "is_ancestor_of_recorded_integration_head": true,
+      "status_comment": "https://github.com/Tempest-Research/esscher-market/pull/53#issuecomment-5474803169"
+    },
+    {
+      "pr": 54,
+      "url": "https://github.com/Tempest-Research/esscher-market/pull/54",
+      "reviewed_source_head": "e80bae37165ffc5f209d7a69d6f2f3b8530154fb",
+      "source_status": "CLOSED",
+      "version_impact": "none",
+      "integration_relationship": "already_integrated_by_ancestry",
+      "is_ancestor_of_recorded_integration_head": true,
+      "status_comment": "https://github.com/Tempest-Research/esscher-market/pull/54#issuecomment-5474808640"
+    },
+    {
+      "pr": 56,
+      "url": "https://github.com/Tempest-Research/esscher-market/pull/56",
+      "reviewed_source_head": "8bd929ddb9a0278f2c3169e8aba5cb099c24cec8",
+      "source_status": "CLOSED",
+      "version_impact": "minor",
+      "integration_relationship": "already_integrated_by_ancestry",
+      "is_ancestor_of_recorded_integration_head": true,
+      "status_comment": "https://github.com/Tempest-Research/esscher-market/pull/56#issuecomment-5474809497"
+    },
+    {
+      "pr": 38,
+      "url": "https://github.com/Tempest-Research/esscher-market/pull/38",
+      "reviewed_source_head": "18b4a3dc2052c3b3ea3194aeb65fe0a3f1276cb3",
+      "source_status": "MERGED",
+      "version_impact": "minor",
+      "integration_relationship": "normal_merge",
+      "is_ancestor_of_recorded_integration_head": true,
+      "integration_merge_commit": "3f5c07572f9babdb334d8a815b19e81c5775a9e3"
+    },
+    {
+      "pr": 58,
+      "url": "https://github.com/Tempest-Research/esscher-market/pull/58",
+      "reviewed_source_head": "73f5cfd4eabfd5b89189560580ee12ca5b890af8",
+      "source_status": "MERGED",
+      "version_impact": "minor",
+      "integration_relationship": "normal_merge",
+      "is_ancestor_of_recorded_integration_head": true,
+      "integration_merge_commit": "12ffabcea7f4d0cc895d8551aad59088bca6af46"
+    },
+    {
+      "pr": 59,
+      "url": "https://github.com/Tempest-Research/esscher-market/pull/59",
+      "reviewed_source_head": "30c9fb6e99bc38d238ef599900f4f27907fc6b38",
+      "source_status": "MERGED",
+      "version_impact": "minor",
+      "integration_relationship": "normal_merge",
+      "is_ancestor_of_recorded_integration_head": true,
+      "integration_merge_commit": "f1fc3aa625ff9309976eac5cc9cdb99a9c66e303"
+    },
+    {
+      "pr": 62,
+      "url": "https://github.com/Tempest-Research/esscher-market/pull/62",
+      "reviewed_source_head": "f44d4c5e7902ab4b59e4782a9452f423a69fcc87",
+      "source_status": "MERGED",
+      "version_impact": "minor",
+      "integration_relationship": "normal_merge",
+      "is_ancestor_of_recorded_integration_head": true,
+      "integration_merge_commit": "88f0e7598627c24a96b62ad6b0a4866b408d0083"
+    },
+    {
+      "pr": 55,
+      "url": "https://github.com/Tempest-Research/esscher-market/pull/55",
+      "reviewed_source_head": "c3c00513d43ae8edae29dcb5db1f12ef7f6456b5",
+      "source_status": "CLOSED",
+      "version_impact": "minor",
+      "integration_relationship": "already_integrated_by_ancestry_after_pr_62",
+      "is_ancestor_of_recorded_integration_head": true,
+      "status_comment": "https://github.com/Tempest-Research/esscher-market/pull/55#issuecomment-5474910546"
+    },
+    {
+      "pr": 57,
+      "url": "https://github.com/Tempest-Research/esscher-market/pull/57",
+      "reviewed_source_head": "4355c80ef9221554a3274424ecbfebfd0e29cbf2",
+      "source_status": "MERGED",
+      "version_impact": "none",
+      "integration_relationship": "normal_merge",
+      "is_ancestor_of_recorded_integration_head": true,
+      "integration_merge_commit": "245ad41bcac5fd05e53c3eb81aa6c3ee8755d27f"
+    },
+    {
+      "pr": 60,
+      "url": "https://github.com/Tempest-Research/esscher-market/pull/60",
+      "reviewed_source_head": "241f377da3831e28122b3e29fb33769cb3fe08f4",
+      "source_status": "MERGED",
+      "version_impact": "minor",
+      "integration_relationship": "normal_merge",
+      "is_ancestor_of_recorded_integration_head": true,
+      "integration_merge_commit": "5466502047b58e97097ae95fff4592850b93c9dd"
+    },
+    {
+      "pr": 61,
+      "url": "https://github.com/Tempest-Research/esscher-market/pull/61",
+      "reviewed_source_head": "aed132c1aaf38a99a7459ea41fcc0307dd276074",
+      "source_status": "MERGED",
+      "version_impact": "minor",
+      "integration_relationship": "normal_merge",
+      "is_ancestor_of_recorded_integration_head": true,
+      "integration_merge_commit": "ec774e44908b0211fdc6baacafdb8af268714692"
+    }
+  ]
+}
