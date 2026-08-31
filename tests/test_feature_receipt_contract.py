@@ -455,3 +455,70 @@ def test_ac6_receipt_carries_no_execution_authority_fields(compiled) -> None:
         "exit",
     }
     assert forbidden.isdisjoint(payload.keys())
+
+
+def test_ac1_macro_compiler_binds_complete_feature_provenance_without_hidden_fields() -> None:
+    """Direct macro compilation has the same explicit receipt boundary as earnings."""
+
+    from ringdown_market.sourcedata.compiler import compile_macro_snapshot
+    from ringdown_market.sourcedata.fakes import (
+        FixtureMacroEvidenceSource,
+        FixtureMacroMarketDataSource,
+        FixtureMacroReleaseSource,
+        build_macro_candidate_manifest,
+        load_macro_fixture,
+    )
+    from ringdown_market.strategy.contracts import sha256_bytes
+
+    fixture = load_macro_fixture()
+    configuration = CaptureConfiguration(
+        candidate_manifest_bytes=build_macro_candidate_manifest(fixture),
+        event_id="BLS-JOLTS-2026-07",
+        capture_at=_at("2026-09-09T14:15:10Z"),
+        market_publisher=str(fixture["market_publisher"]),
+        market_entitlement=str(fixture["market_entitlement"]),
+        market_redistribution=str(fixture["market_redistribution"]),
+        lineage_receipt_sha256=LINEAGE_SHA,
+    )
+    evidence = FixtureMacroEvidenceSource(fixture)
+    compiled_macro = compile_macro_snapshot(
+        configuration,
+        evidence.sessions,
+        FixtureMacroReleaseSource(fixture),
+        FixtureMacroMarketDataSource(fixture),
+    )
+    receipt = compiled_macro.feature_receipt
+    payload = json.loads(compiled_macro.feature_receipt_bytes.decode("utf-8"))
+
+    assert receipt.strategy_snapshot_sha256 == sha256_bytes(compiled_macro.strategy_snapshot_bytes)
+    assert receipt.policy_sha256 == compiled_macro.snapshot.policy_sha256
+    assert receipt.producer_build_sha256 == compiled_macro.snapshot.producer_build_sha256
+    assert receipt.decision_cutoff_at == compiled_macro.snapshot.decision_cutoff_at
+    assert receipt.maximum_public_timestamp == max(
+        item.published_at
+        for item in compiled_macro.evidence_packet.receipts
+        if item.published_at is not None
+    )
+    assert receipt.lineage_receipt_sha256 == LINEAGE_SHA
+    assert receipt.evidence_ids == tuple(sorted(set(receipt.evidence_ids)))
+    assert f"LINEAGE_RECEIPT:{LINEAGE_SHA}" in receipt.evidence_ids
+    assert parse_feature_receipt(compiled_macro.feature_receipt_bytes) == receipt
+    assert set(payload) == {
+        "candidate_id",
+        "cohort_id",
+        "created_at",
+        "data_health",
+        "decision_cutoff_at",
+        "event_id",
+        "evidence_ids",
+        "feature_snapshot_at",
+        "features",
+        "health_reason_codes",
+        "lineage_receipt_sha256",
+        "maximum_public_timestamp",
+        "policy_sha256",
+        "producer_build_sha256",
+        "schema",
+        "schema_version",
+        "strategy_snapshot_sha256",
+    }

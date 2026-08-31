@@ -83,8 +83,8 @@ Current modules:
 - `contracts/security_lineage.py` and `sourcedata/lineage_gate.py`: CIK-rooted
   issuer/security/listing/action lineage, options-adjustment checks, and a fail-closed cutoff gate;
 - `sourcedata/capture.py`: an explicit-fixture, offline-only snapshot command with one shared
-  matrix binding, symlink-safe output publication, and no live-provider, account, broker, MCP, or
-  trading path;
+  matrix binding, exact lineage-receipt digest threading, symlink-safe output publication, and no
+  live-provider, account, broker, MCP, or trading path;
 - `contracts/execution_policy.py`: the immutable paper-risk and official MCP protocol registry;
 - `contracts/research_to_permit.py`: the pure frozen-decision, provenance, and feature-dependency bridge;
 - `execution/models.py`: immutable opening and closing permits for one debit vertical;
@@ -175,6 +175,8 @@ The residual return removes frozen market and sector components measured over th
 19. Each capture uses the one authenticated source-matrix byte sequence for rights preflight,
     lineage verification, and identity; every canonical output, including the lineage receipt,
     is rejected if its directory or destination is a link or reparse point.
+20. Capture computes the SHA-256 of the canonical lineage receipt bytes before compilation and
+    binds it through the configuration into the feature receipt and its sorted evidence IDs.
 
 Historical panel admission additionally requires per-feature source dependencies, typed publication timestamps, entitlement metadata, and a common outcome path. The aggregate `DecisionSnapshot` alone does not establish those dependencies; the bridge therefore also requires and validates the exact feature-input and evidence-manifest bytes before issuing a permit.
 

@@ -135,6 +135,7 @@ The page requires no server, JavaScript, network access, credential, or broker s
 - [Accepted strategy contract](docs/STRATEGY_V1.md) — exact candidates, clocks, features, baselines, thresholds, authority, and unresolved gates.
 - [Source-rights contract](docs/contracts/source-matrix.md) — packaged matrix identity, evidence limits, candidate-specific preflight, and offline capture boundary.
 - [Security-lineage contract](docs/contracts/security-lineage.md) — CIK-rooted identity, corporate-action records, options adjustments, and capture gate.
+- [Feature-receipt contract](docs/contracts/feature-receipt.md) — deterministic feature provenance, cutoff, health, and lineage-receipt bindings.
 - [Research-to-permit contract](docs/contracts/research-to-permit.md) — exact schemas, identity mapping, rejection reasons, and frozen policy.
 - [PAPER demonstration runbook](docs/PAPER_DEMO_RUNBOOK.md) — read-only preflight, exact approval, bounded mutation envelope, recovery, and receipt interpretation.
 - [Scheduled-event runbook](docs/SCHEDULED_EVENT_RUNBOOK.md) — one-shot manifest, dry run, armed invocation, restart reconciliation, and stop conditions.

@@ -23,8 +23,8 @@ Every receipt binds:
 - `data_health` and `health_reason_codes` mirrored from the bound snapshot;
 - `evidence_ids` — the sorted packet evidence IDs plus, when the issue #42
   lineage gate runs, a `LINEAGE_RECEIPT:<sha256>` identity;
-- `lineage_receipt_sha256` — the issue #42 lineage receipt digest when
-  supplied by the capture boundary.
+- `lineage_receipt_sha256` — the SHA-256 of the exact canonical issue #42
+  lineage receipt bytes, computed and supplied by the capture boundary.
 
 ## Preregistration
 
@@ -54,6 +54,7 @@ compilation — and receipt payloads carry no execution-authority fields.
 
 ```bash
 uv run --extra dev pytest tests/test_feature_receipt_contract.py -q
+uv run --extra dev pytest tests/test_capture_lineage_receipt.py -q
 uv run --extra dev python scripts/check_repo_hygiene.py
 ```
 

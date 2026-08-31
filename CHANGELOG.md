@@ -38,6 +38,8 @@
   bundles, candidate-specific rights preflight, and an explicit-fixture offline capture boundary.
 - A CIK-rooted security-lineage contract with byte-pinned development evidence, corporate-action
   and listed-option adjustment checks, shared source-matrix binding, and a canonical lineage receipt.
+- Canonical deterministic feature receipts that bind exact snapshot, policy, build, cutoff,
+  evidence-health, and issue #42 lineage-receipt identities for both earnings and macro captures.
 
 ### Safety
 
@@ -57,6 +59,8 @@
 - Security lineage uses that same authenticated matrix for rights, lineage, and capture identity;
   alternate matrix/lineage paths, inactive listings, symbol reuse, conflicting actions, and unsafe
   lineage-receipt destinations fail closed before a snapshot is written.
+- Capture computes the SHA-256 of the exact canonical lineage receipt bytes before compilation, so
+  the configuration, feature receipt, and sorted evidence identities cannot silently diverge.
 - Version impact is `minor`; the package stays at `0.2.0` while issue #11 consolidates the release-train bump to `0.3.0`.
 
 ## [0.2.0] - Unreleased
