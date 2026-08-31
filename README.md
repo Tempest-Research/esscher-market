@@ -113,6 +113,7 @@ The page requires no server, JavaScript, network access, credential, or broker s
 <<<<<<< HEAD
 >>>>>>> d0134c6
 - [Security lineage contract](docs/contracts/security-lineage.md) — CIK-rooted point-in-time identity, corporate-action lineage, option adjustments, and the capture lineage gate.
+- [Feature receipt contract](docs/contracts/feature-receipt.md) — the deterministic arithmetic boundary between immutable evidence and every decision arm.
 - [Research-to-permit contract](docs/contracts/research-to-permit.md) — exact schemas, identity mapping, rejection reasons, and frozen policy.
 - [PAPER demonstration runbook](docs/PAPER_DEMO_RUNBOOK.md) — read-only preflight, exact approval, bounded mutation envelope, recovery, and receipt interpretation.
 - [Scheduled-event runbook](docs/SCHEDULED_EVENT_RUNBOOK.md) — one-shot manifest, dry run, armed invocation, restart reconciliation, and stop conditions.

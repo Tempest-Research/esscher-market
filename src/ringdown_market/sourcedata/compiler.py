@@ -9,6 +9,7 @@ imputes a missing fact.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
@@ -78,6 +79,7 @@ EARNINGS_CANDIDATE: Final = "EARNINGS_RESIDUAL_CONTINUATION_V1"
 MACRO_CANDIDATE: Final = "MACRO_SPY_CONTINUATION_CHALLENGER_V1"
 MARKET_PROXY: Final = "SPY"
 TRADING_TIMEZONE: Final = ZoneInfo("America/New_York")
+_SHA256_PATTERN: Final = re.compile(r"^[0-9a-f]{64}$")
 _PRODUCER_LABEL: Final = {
     "producer": "esscher.sourcedata.snapshot_compiler",
     "contract": "esscher.strategy_snapshot",
@@ -108,6 +110,7 @@ class CaptureConfiguration:
     market_entitlement: str
     market_redistribution: str
     retrieval_pages: Mapping[str, tuple[int, int]] = MappingProxyType({})
+    lineage_receipt_sha256: str | None = None
 
     def __post_init__(self) -> None:
         if self.capture_at.tzinfo != UTC:
@@ -145,6 +148,15 @@ class CaptureConfiguration:
                     f"retrieval_pages.{evidence_id}",
                     "pagination must be a pair of positive integers",
                 )
+        if self.lineage_receipt_sha256 is not None and (
+            not isinstance(self.lineage_receipt_sha256, str)
+            or _SHA256_PATTERN.fullmatch(self.lineage_receipt_sha256) is None
+        ):
+            raise CollectorRejected(
+                CollectorReason.UNSUPPORTED_INPUT,
+                "lineage_receipt_sha256",
+                "lineage receipt identity must be a lowercase SHA-256 hex digest",
+            )
 
     def pages_for(self, evidence_id: str) -> tuple[int, int]:
         return self.retrieval_pages.get(evidence_id, (1, 1))
@@ -751,6 +763,39 @@ def compile_strategy_snapshot(
     )
     features = build_earnings_features(feature_inputs)
 
+    registered_feature_ids = tuple(
+        sorted(
+            str(item["feature_id"]) for item in policy.candidate(manifest.candidate_id)["features"]
+        )
+    )
+    compiled_feature_ids = tuple(feature.feature_id for feature in features)
+    if compiled_feature_ids != registered_feature_ids:
+        raise CollectorRejected(
+            CollectorReason.FEATURE_REGISTRY_MISMATCH,
+            "features.registry",
+            "compiled features must exactly match the preregistered policy feature set;"
+            " no discretionary indicators and no data-dependent selection",
+        )
+    public_timestamps = tuple(
+        receipt.published_at for receipt in packet.receipts if receipt.published_at is not None
+    )
+    if not public_timestamps:
+        raise CollectorRejected(
+            CollectorReason.PUBLICATION_TIME_UNKNOWN,
+            "evidence.maximum_public_timestamp",
+            "the receipt requires at least one publisher timestamp",
+        )
+    maximum_public_timestamp = max(public_timestamps)
+    if maximum_public_timestamp > clocks.decision_cutoff_at:
+        raise CollectorRejected(
+            CollectorReason.MAXIMUM_PUBLIC_TIMESTAMP_AFTER_CUTOFF,
+            "evidence.maximum_public_timestamp",
+            "public evidence cannot exceed the decision cutoff",
+        )
+    receipt_evidence_ids = [*packet.evidence_ids()]
+    if configuration.lineage_receipt_sha256 is not None:
+        receipt_evidence_ids.append(f"LINEAGE_RECEIPT:{configuration.lineage_receipt_sha256}")
+
     reasoner = policy.data["reasoner"]
     tolerated = tuple(sorted(reasoner["tolerated_unknown_codes"]))
     critical = tuple(sorted(reasoner["critical_unknown_codes"]))
@@ -802,6 +847,12 @@ def compile_strategy_snapshot(
         producer_build_sha256=PRODUCER_BUILD_SHA256,
         created_at=configuration.capture_at,
         feature_snapshot_at=clocks.observation_window_end_at,
+        decision_cutoff_at=clocks.decision_cutoff_at,
+        maximum_public_timestamp=maximum_public_timestamp,
+        data_health=snapshot.data_health,
+        health_reason_codes=snapshot.health_reason_codes,
+        evidence_ids=tuple(sorted(receipt_evidence_ids)),
+        lineage_receipt_sha256=configuration.lineage_receipt_sha256,
         features=features,
     )
     receipt_bytes = feature_receipt_bytes(receipt)

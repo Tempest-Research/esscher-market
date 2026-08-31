@@ -51,6 +51,10 @@
 	receipts and an OCC access-boundary receipt.
 - A fail-closed capture-boundary lineage gate rejecting missing, delisted, reused, or conflicted
 	lineage with stable reason codes and binding the lineage digest into the capture identity.
+- An extended deterministic feature-receipt boundary binding decision cutoff, maximum public
+	timestamp, data health, evidence IDs, and the issue #42 lineage receipt digest, with exact
+	preregistered-feature registry enforcement, BMO/AMC/macro clock separation, and negative
+	network/LLM/broker capability proofs.
 - Four pre-outcome scheduled-earnings replay manifests bound to one frozen event list and selection rule.
 - A strict data-only evidence-manifest v2 validator with event-context provenance and point-in-time gates.
 - Versioned, strict frozen-research-decision, point-in-time evidence-manifest, and feature-input contracts.
@@ -105,6 +109,9 @@
 >>>>>>> d0134c6
 - Security identity is never ticker-rooted; reused symbols, delisted listings, conflicting
   lineage, and splits without OCC option adjustments fail closed before any snapshot.
+- Feature receipts compile only preregistered features, never exceed the decision cutoff, carry
+  no execution-authority field, and admit no network, LLM, account, order, position, or broker
+  capability.
 - Unknown fields/states, hash or provenance mismatch, post-cutoff dependencies, abstention, failed research gates, unsupported strategy shape, and excess paper risk fail closed before any broker session exists.
 - Source-health audits return deterministic findings for malformed `redistribution_status` values and incomplete `published_at_interval` objects instead of raising.
 - Evidence-manifest v2 remains ineligible for permit compilation and carries no post-cutoff path or outcome value.

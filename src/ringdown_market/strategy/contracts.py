@@ -862,6 +862,12 @@ _FEATURE_RECEIPT_FIELDS = frozenset(
         "producer_build_sha256",
         "created_at",
         "feature_snapshot_at",
+        "decision_cutoff_at",
+        "maximum_public_timestamp",
+        "data_health",
+        "health_reason_codes",
+        "evidence_ids",
+        "lineage_receipt_sha256",
         "features",
     }
 )
@@ -975,9 +981,15 @@ def feature_receipt_payload(value: FeatureReceipt) -> dict[str, object]:
         "candidate_id": value.candidate_id,
         "cohort_id": value.cohort_id,
         "created_at": _timestamp_text(value.created_at),
+        "data_health": value.data_health.value,
+        "decision_cutoff_at": _timestamp_text(value.decision_cutoff_at),
         "event_id": value.event_id,
+        "evidence_ids": list(value.evidence_ids),
         "feature_snapshot_at": _timestamp_text(value.feature_snapshot_at),
         "features": [_feature_payload(item) for item in value.features],
+        "health_reason_codes": list(value.health_reason_codes),
+        "lineage_receipt_sha256": value.lineage_receipt_sha256,
+        "maximum_public_timestamp": _timestamp_text(value.maximum_public_timestamp),
         "policy_sha256": value.policy_sha256,
         "producer_build_sha256": value.producer_build_sha256,
         "schema": FEATURE_RECEIPT_SCHEMA,
@@ -1016,8 +1028,22 @@ def parse_feature_receipt(raw: bytes) -> FeatureReceipt:
     feature_snapshot_at = _timestamp(
         payload["feature_snapshot_at"], path="feature_receipt.feature_snapshot_at"
     )
+    decision_cutoff_at = _timestamp(
+        payload["decision_cutoff_at"], path="feature_receipt.decision_cutoff_at"
+    )
+    maximum_public_timestamp = _timestamp(
+        payload["maximum_public_timestamp"], path="feature_receipt.maximum_public_timestamp"
+    )
     assert created_at is not None
     assert feature_snapshot_at is not None
+    assert decision_cutoff_at is not None
+    assert maximum_public_timestamp is not None
+    lineage_value = payload["lineage_receipt_sha256"]
+    lineage_receipt_sha256: str | None = None
+    if lineage_value is not None:
+        lineage_receipt_sha256 = _sha256(
+            lineage_value, path="feature_receipt.lineage_receipt_sha256"
+        )
     result = _wrap_model_error(
         "feature_receipt",
         lambda: FeatureReceipt(
@@ -1034,6 +1060,17 @@ def parse_feature_receipt(raw: bytes) -> FeatureReceipt:
             ),
             created_at=created_at,
             feature_snapshot_at=feature_snapshot_at,
+            decision_cutoff_at=decision_cutoff_at,
+            maximum_public_timestamp=maximum_public_timestamp,
+            data_health=_enum(
+                DataHealthState, payload["data_health"], path="feature_receipt.data_health"
+            ),
+            health_reason_codes=_string_list(
+                payload["health_reason_codes"],
+                path="feature_receipt.health_reason_codes",
+            ),
+            evidence_ids=_string_list(payload["evidence_ids"], path="feature_receipt.evidence_ids"),
+            lineage_receipt_sha256=lineage_receipt_sha256,
             features=tuple(
                 _parse_feature(item, path=f"feature_receipt.features[{index}]")
                 for index, item in enumerate(features_value)

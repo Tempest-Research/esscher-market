@@ -88,6 +88,8 @@ Current modules:
         every required source category before collector implementation;
 - `contracts/security_lineage.py`: strict CIK-rooted point-in-time security master and
         corporate-action lineage with fail-closed identity resolution;
+- `strategy/contracts.py` feature receipt: strict `esscher.feature_receipt/v1` binding snapshot,
+        policy, build identity, cutoffs, evidence IDs, maximum public timestamp, and health;
 - `sourcedata/lineage_gate.py`: the capture-boundary gate failing closed on missing, delisted,
         reused, or conflicted lineage;
 - `sourcedata/rights_gate.py`: the capture-boundary gate failing closed on blocked, drifted, or
@@ -193,6 +195,9 @@ The residual return removes frozen market and sector components measured over th
 21. Security identity is CIK-rooted and never ticker-rooted; a capture proceeds only when the
     event chain resolves as-of the cutoff against an active listing, and missing, reused, or
     conflicted lineage fails closed with a stable reason code.
+22. Feature receipts compile only preregistered features, never exceed the decision cutoff,
+    and carry no execution-authority field; identical input, policy, and compiler bytes always
+    produce byte-identical receipts.
 
 Historical panel admission additionally requires per-feature source dependencies, typed publication timestamps, entitlement metadata, and a common outcome path. The aggregate `DecisionSnapshot` alone does not establish those dependencies; the bridge therefore also requires and validates the exact feature-input and evidence-manifest bytes before issuing a permit.
 
