@@ -19,7 +19,7 @@ from ringdown_market.risk.passport import GENESIS_SHA256, PassportEventType
 from ringdown_market.risk.reasons import ControlState, RiskReason, _reject
 from ringdown_market.strategy.contracts import canonical_json_bytes, sha256_bytes
 
-SCHEMA_VERSION: int = 2
+SCHEMA_VERSION: int = 3
 
 _MIGRATIONS: dict[int, str] = {
     1: """
@@ -110,6 +110,31 @@ _MIGRATIONS: dict[int, str] = {
     );
     CREATE INDEX IF NOT EXISTS submissions_broker_order_id_idx
         ON submissions(broker_order_id);
+    """,
+    3: """
+    CREATE TABLE IF NOT EXISTS lifecycle_intents (
+        permit_id TEXT PRIMARY KEY,
+        phase TEXT NOT NULL CHECK(phase IN ('OPEN','CLOSE')),
+        event_id TEXT NOT NULL,
+        open_permit_id TEXT NOT NULL,
+        reservation_id TEXT NOT NULL,
+        correlation_sha256 TEXT NOT NULL,
+        policy_sha256 TEXT NOT NULL,
+        snapshot_sha256 TEXT NOT NULL,
+        account_id TEXT NOT NULL,
+        account_class TEXT NOT NULL,
+        order_class TEXT NOT NULL,
+        client_order_id TEXT NOT NULL,
+        request_sha256 TEXT NOT NULL,
+        request_json TEXT NOT NULL,
+        broker_order_id TEXT UNIQUE,
+        state TEXT NOT NULL CHECK(state IN ('INTENDED','SUBMITTED','RECONCILED')),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        UNIQUE(event_id, phase)
+    );
+    CREATE INDEX IF NOT EXISTS lifecycle_intents_event_id_idx
+        ON lifecycle_intents(event_id);
     """,
 }
 
@@ -835,6 +860,284 @@ class RiskLedger:
             self._rollback()
             raise
 
+    def record_lifecycle_intent(
+        self,
+        *,
+        permit_id: str,
+        phase: str,
+        event_id: str,
+        open_permit_id: str,
+        reservation_id: str,
+        correlation_sha256: str,
+        policy_sha256: str,
+        snapshot_sha256: str,
+        account_id: str,
+        account_class: str,
+        order_class: str,
+        client_order_id: str,
+        request_sha256: str,
+        request_json: str,
+        now: datetime,
+    ) -> None:
+        """Durably claim one lifecycle permit before its broker mutation.
+
+        The unique permit key closes the process-crash replay gap between a
+        permit's original risk approval and a broker acknowledgement. It records
+        no broker result and therefore cannot be mistaken for a fill claim.
+        """
+
+        permit = _identifier(permit_id, "lifecycle_intent.permit_id")
+        phase_text = _identifier(phase, "lifecycle_intent.phase")
+        if phase_text not in {"OPEN", "CLOSE"}:
+            raise _reject(
+                RiskReason.UNSUPPORTED_INPUT,
+                "lifecycle_intent.phase",
+                "must be OPEN or CLOSE",
+            )
+        event = _identifier(event_id, "lifecycle_intent.event_id")
+        open_permit = _identifier(open_permit_id, "lifecycle_intent.open_permit_id")
+        reservation = _identifier(reservation_id, "lifecycle_intent.reservation_id")
+        correlation = _sha256(correlation_sha256, "lifecycle_intent.correlation_sha256")
+        policy = _sha256(policy_sha256, "lifecycle_intent.policy_sha256")
+        snapshot = _sha256(snapshot_sha256, "lifecycle_intent.snapshot_sha256")
+        account = _identifier(account_id, "lifecycle_intent.account_id")
+        account_type = _identifier(account_class, "lifecycle_intent.account_class")
+        order_type = _identifier(order_class, "lifecycle_intent.order_class")
+        client_order = _identifier(client_order_id, "lifecycle_intent.client_order_id")
+        request_hash = _sha256(request_sha256, "lifecycle_intent.request_sha256")
+        if not isinstance(request_json, str):
+            raise _reject(
+                RiskReason.UNSUPPORTED_INPUT,
+                "lifecycle_intent.request_json",
+                "must be canonical JSON text",
+            )
+        try:
+            request_payload = json.loads(request_json)
+        except (TypeError, ValueError) as error:
+            raise _reject(
+                RiskReason.UNSUPPORTED_INPUT,
+                "lifecycle_intent.request_json",
+                f"must be valid canonical JSON: {error}",
+            ) from None
+        if (
+            not isinstance(request_payload, Mapping)
+            or canonical_json_bytes(request_payload).decode("utf-8") != request_json
+            or sha256_bytes(canonical_json_bytes(request_payload)) != request_hash
+        ):
+            raise _reject(
+                RiskReason.UNSUPPORTED_INPUT,
+                "lifecycle_intent.request_json",
+                "must match its canonical request hash",
+            )
+        expected_request_fields = {
+            "permit_id": permit,
+            "open_permit_id": open_permit,
+            "phase": phase_text,
+            "event_run_id": event,
+            "reservation_id": reservation,
+            "correlation_sha256": correlation,
+            "policy_sha256": policy,
+            "snapshot_sha256": snapshot,
+            "account_id": account,
+            "account_class": account_type,
+            "order_class": order_type,
+            "client_order_id": client_order,
+        }
+        if any(
+            request_payload.get(field) != expected
+            for field, expected in expected_request_fields.items()
+        ):
+            raise _reject(
+                RiskReason.UNSUPPORTED_INPUT,
+                "lifecycle_intent.request_json",
+                "request identity differs from durable intent columns",
+            )
+        created = datetime.fromisoformat(
+            _timestamp(now, "lifecycle_intent.created_at").replace("Z", "+00:00")
+        )
+        self._begin()
+        try:
+            created_text = _timestamp(created, "lifecycle_intent.created_at")
+            self._conn.execute(
+                (
+                    "INSERT INTO lifecycle_intents (permit_id, phase, event_id, open_permit_id, "
+                    "reservation_id, correlation_sha256, policy_sha256, snapshot_sha256, "
+                    "account_id, "
+                    "account_class, order_class, client_order_id, request_sha256, request_json, "
+                    "state, created_at, updated_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'INTENDED', ?, ?)"
+                ),
+                (
+                    permit,
+                    phase_text,
+                    event,
+                    open_permit,
+                    reservation,
+                    correlation,
+                    policy,
+                    snapshot,
+                    account,
+                    account_type,
+                    order_type,
+                    client_order,
+                    request_hash,
+                    request_json,
+                    created_text,
+                    created_text,
+                ),
+            )
+            self._append_passport(
+                event_type=PassportEventType.ORDER_INTENDED.value,
+                payload={**dict(request_payload), "request_sha256": request_hash},
+                now=created,
+            )
+            self._conn.execute("COMMIT")
+        except sqlite3.IntegrityError as error:
+            self._rollback()
+            raise _reject(
+                RiskReason.PERMIT_LIFECYCLE_INVALID,
+                f"lifecycle_intent.{permit}",
+                f"duplicate lifecycle intent: {error}",
+            ) from None
+        except Exception:
+            self._rollback()
+            raise
+
+    def lifecycle_intent_for_permit(self, permit_id: str) -> Mapping[str, object] | None:
+        """Return one immutable lifecycle intent and its current durable state."""
+
+        permit = _identifier(permit_id, "lifecycle_intent.permit_id")
+        row = self._conn.execute(
+            (
+                "SELECT permit_id, phase, event_id, open_permit_id, reservation_id, "
+                "correlation_sha256, policy_sha256, snapshot_sha256, account_id, account_class, "
+                "order_class, client_order_id, request_sha256, request_json, broker_order_id, "
+                "state, created_at, updated_at "
+                "FROM lifecycle_intents WHERE permit_id=?"
+            ),
+            (permit,),
+        ).fetchone()
+        return None if row is None else dict(row)
+
+    def lifecycle_intent_for_event_phase(
+        self, event_id: str, phase: str
+    ) -> Mapping[str, object] | None:
+        """Return the one durable OPEN or CLOSE intent for one lifecycle event."""
+
+        event = _identifier(event_id, "lifecycle_intent.event_id")
+        phase_text = _identifier(phase, "lifecycle_intent.phase")
+        if phase_text not in {"OPEN", "CLOSE"}:
+            raise _reject(
+                RiskReason.UNSUPPORTED_INPUT,
+                "lifecycle_intent.phase",
+                "must be OPEN or CLOSE",
+            )
+        row = self._conn.execute(
+            (
+                "SELECT permit_id, phase, event_id, open_permit_id, reservation_id, "
+                "correlation_sha256, policy_sha256, snapshot_sha256, account_id, account_class, "
+                "order_class, client_order_id, request_sha256, request_json, broker_order_id, "
+                "state, created_at, updated_at "
+                "FROM lifecycle_intents WHERE event_id=? AND phase=?"
+            ),
+            (event, phase_text),
+        ).fetchone()
+        return None if row is None else dict(row)
+
+    def bind_lifecycle_intent(
+        self,
+        *,
+        permit_id: str,
+        phase: str,
+        broker_order_id: str,
+        now: datetime,
+    ) -> None:
+        """Bind an acknowledged broker order to exactly one prior intent."""
+
+        permit = _identifier(permit_id, "lifecycle_intent.permit_id")
+        phase_text = _identifier(phase, "lifecycle_intent.phase")
+        order = _identifier(broker_order_id, "lifecycle_intent.broker_order_id")
+        updated = datetime.fromisoformat(
+            _timestamp(now, "lifecycle_intent.updated_at").replace("Z", "+00:00")
+        )
+        self._begin()
+        try:
+            intent = self.lifecycle_intent_for_permit(permit)
+            if (
+                intent is None
+                or str(intent["phase"]) != phase_text
+                or str(intent["state"]) != "INTENDED"
+            ):
+                raise _reject(
+                    RiskReason.PERMIT_LIFECYCLE_INVALID,
+                    f"lifecycle_intent.{permit}",
+                    "an unbound matching durable intent is required",
+                )
+            self._conn.execute(
+                "UPDATE lifecycle_intents SET broker_order_id=?, state='SUBMITTED', updated_at=? "
+                "WHERE permit_id=?",
+                (order, _timestamp(updated, "lifecycle_intent.updated_at"), permit),
+            )
+            try:
+                request_payload = json.loads(str(intent["request_json"]))
+            except (TypeError, ValueError) as error:
+                raise _reject(
+                    RiskReason.PERMIT_LIFECYCLE_INVALID,
+                    f"lifecycle_intent.{permit}.request_json",
+                    f"stored request payload is malformed: {error}",
+                ) from None
+            if not isinstance(request_payload, Mapping):
+                raise _reject(
+                    RiskReason.PERMIT_LIFECYCLE_INVALID,
+                    f"lifecycle_intent.{permit}.request_json",
+                    "stored request payload is not an object",
+                )
+            self._append_passport(
+                event_type=PassportEventType.ORDER_SUBMITTED.value,
+                payload={
+                    **dict(request_payload),
+                    "request_sha256": str(intent["request_sha256"]),
+                    "broker_order_id": order,
+                },
+                now=updated,
+            )
+            self._conn.execute("COMMIT")
+        except sqlite3.IntegrityError as error:
+            self._rollback()
+            raise _reject(
+                RiskReason.PERMIT_LIFECYCLE_INVALID,
+                f"lifecycle_intent.{permit}",
+                f"duplicate lifecycle broker order: {error}",
+            ) from None
+        except Exception:
+            self._rollback()
+            raise
+
+    def mark_lifecycle_intent_reconciled(self, *, permit_id: str, now: datetime) -> None:
+        """Mark a previously bound lifecycle intent reconciled after broker proof."""
+
+        permit = _identifier(permit_id, "lifecycle_intent.permit_id")
+        updated = datetime.fromisoformat(
+            _timestamp(now, "lifecycle_intent.updated_at").replace("Z", "+00:00")
+        )
+        self._begin()
+        try:
+            intent = self.lifecycle_intent_for_permit(permit)
+            if intent is None or str(intent["state"]) != "SUBMITTED":
+                raise _reject(
+                    RiskReason.PERMIT_LIFECYCLE_INVALID,
+                    f"lifecycle_intent.{permit}",
+                    "only a bound lifecycle intent can be reconciled",
+                )
+            self._conn.execute(
+                "UPDATE lifecycle_intents SET state='RECONCILED', updated_at=? WHERE permit_id=?",
+                (_timestamp(updated, "lifecycle_intent.updated_at"), permit),
+            )
+            self._conn.execute("COMMIT")
+        except Exception:
+            self._rollback()
+            raise
+
     def record_submission(
         self,
         *,
@@ -842,6 +1145,7 @@ class RiskLedger:
         permit_id: str,
         broker_order_id: str,
         now: datetime,
+        append_passport: bool = True,
     ) -> None:
         """Bind an ISSUED permit to exactly one external broker order identity."""
 
@@ -882,11 +1186,16 @@ class RiskLedger:
                 "VALUES (?, ?, ?, ?)",
                 (permit_id, event, order_id, _timestamp(submitted, "submission.submitted_at")),
             )
-            self._append_passport(
-                event_type=PassportEventType.ORDER_SUBMITTED.value,
-                payload={"event_id": event, "permit_id": permit_id, "broker_order_id": order_id},
-                now=submitted,
-            )
+            if append_passport:
+                self._append_passport(
+                    event_type=PassportEventType.ORDER_SUBMITTED.value,
+                    payload={
+                        "event_id": event,
+                        "permit_id": permit_id,
+                        "broker_order_id": order_id,
+                    },
+                    now=submitted,
+                )
             self._conn.execute("COMMIT")
         except sqlite3.IntegrityError as error:
             self._rollback()
@@ -908,6 +1217,11 @@ class RiskLedger:
             (permit_id,),
         ).fetchone()
         return None if row is None else dict(row)
+
+    def submission_for_permit(self, permit_id: str) -> Mapping[str, object] | None:
+        """Return the durable broker-order identity for one submitted permit."""
+
+        return self._submission_for_permit(_identifier(permit_id, "submission.permit_id"))
 
     def record_fill(
         self,
