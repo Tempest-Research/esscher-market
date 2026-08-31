@@ -8,8 +8,9 @@
 - A monitored PAPER lifecycle worker driving one risk-approved expression through its frozen exit
 	plan, with a fail-closed exit-plan clock schema, a durable state machine, a deterministic
 	close-permit issuer, an exposure-aware reducer preserving unknown/partial states, restart recovery
-	from broker/ledger truth, and duplicate-tick prevention. Actual PAPER mutation stays blocked behind
-	the later approval gate; the immediate-close demo and fixed 60-minute hold are not preserved.
+	from broker/ledger truth, duplicate-tick prevention, stale-truth and clock-jump fail-closed checks,
+	and a flattening-deadline guard. Actual PAPER mutation stays blocked behind the later approval gate;
+	the immediate-close demo and fixed 60-minute hold are not preserved.
 - A PAPER account risk kernel with an immutable risk-policy schema, Decimal-only exposure
 	calculations, a standard-library SQLite WAL reservation ledger, broker-observed truth snapshot
 	interfaces, startup and pre-permit reconciliation gates, entry-disabled/close-only/kill/manual

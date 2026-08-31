@@ -60,6 +60,11 @@ new entries while preserving reconciliation and close authority.
   sequential option legging; they stop for manual reconciliation.
 - **Non-flat close:** a close whose position truth still carries a leg is
   `MANUAL_REQUIRED`, never declared flat.
+- **Stale truth:** flatness is never confirmed from position truth older than
+  the truth-max-age bound (`STALE_QUOTE`); future-dated truth fails with
+  `CLOCK_JUMP`.
+- **Clock jump past flattening:** a close attempted after the frozen
+  flattening deadline fails with `FLATTENING_DEADLINE_PASSED`.
 - **Mutation gate:** `ClosedMutationGate` keeps actual PAPER mutation blocked;
   `open()`/`close()` fail with `MUTATION_GATE_CLOSED` until the later approval
   gate opens.
@@ -74,4 +79,5 @@ The two are never conflated.
 
 All tests use `FakePaperBroker` and make zero real MCP/broker calls. Coverage
 spans every transition, timeout, restart point, duplicate tick, partial fill,
-broker outage, stale/naive clock, non-flat close, and the mutation gate.
+broker outage, stale/future-dated truth, clock jump past flattening, non-flat
+close, and the mutation gate.

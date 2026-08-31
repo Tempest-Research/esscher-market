@@ -51,6 +51,11 @@ OPEN_UNFILLED_TERMINAL_STATES = frozenset(
 )
 
 
+# Deterministic default truth clock for the fake broker. Real wall time is never
+# used so unit tests stay reproducible.
+FAKE_BROKER_EPOCH: datetime = datetime(2026, 9, 11, 14, 0, tzinfo=UTC)
+
+
 class BrokerOutage(RuntimeError):
     """Raised when the broker cannot be reached or answers ambiguously."""
 
@@ -134,7 +139,7 @@ class FakePaperBroker:
     positions_flat_after_close: bool = True
     residual_position_symbols: tuple[str, ...] = ()
     account: AccountTruth | None = None
-    clock: Callable[[], datetime] = field(default=lambda: datetime.now(UTC))
+    clock: Callable[[], datetime] = field(default=lambda: FAKE_BROKER_EPOCH)
     open_submissions: int = 0
     close_submissions: int = 0
     cancel_attempts: int = 0

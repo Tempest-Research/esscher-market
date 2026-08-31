@@ -1390,9 +1390,7 @@ def compile_macro_snapshot(
         )
     macro_receipt_evidence_ids = [*packet.evidence_ids()]
     if configuration.lineage_receipt_sha256 is not None:
-        macro_receipt_evidence_ids.append(
-            f"LINEAGE_RECEIPT:{configuration.lineage_receipt_sha256}"
-        )
+        macro_receipt_evidence_ids.append(f"LINEAGE_RECEIPT:{configuration.lineage_receipt_sha256}")
     receipt = FeatureReceipt(
         event_id=record.event_id,
         candidate_id=manifest.candidate_id,

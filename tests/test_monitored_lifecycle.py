@@ -152,7 +152,7 @@ def _worker(
 ) -> MonitoredPaperLifecycle:
     permit = _open_permit()
     return MonitoredPaperLifecycle(
-        broker=broker or FakePaperBroker(),
+        broker=broker or FakePaperBroker(clock=clock),
         ledger=RiskLedger(tmp_path / "risk.sqlite3"),
         clocks=clocks or _clocks(),
         correlation=_correlation(permit),
@@ -559,3 +559,27 @@ def test_naive_clock_fails_closed(tmp_path) -> None:
     with pytest.raises(LifecycleRejected) as caught:
         asyncio.run(worker.open(_open_permit()))
     assert caught.value.reason is LifecycleReason.UNSUPPORTED_INPUT
+
+
+def test_close_rejects_stale_position_truth(tmp_path) -> None:
+    def stale_clock() -> datetime:
+        return NOW - timedelta(seconds=60)
+
+    broker = FakePaperBroker(
+        positions_flat_after_close=False,
+        residual_position_symbols=("LEG_A",),
+        clock=stale_clock,
+    )
+    worker = _worker(tmp_path, broker=broker)
+    permit = _open_permit()
+    with pytest.raises(LifecycleRejected) as caught:
+        asyncio.run(worker.close(permit, _close_permit(permit), open_order_id="fake-open-order-1"))
+    assert caught.value.reason is LifecycleReason.STALE_QUOTE
+
+
+def test_close_after_flattening_deadline_fails_closed(tmp_path) -> None:
+    worker = _worker(tmp_path, clock=lambda: NOW + timedelta(minutes=60))
+    permit = _open_permit()
+    with pytest.raises(LifecycleRejected) as caught:
+        asyncio.run(worker.close(permit, _close_permit(permit), open_order_id="fake-open-order-1"))
+    assert caught.value.reason is LifecycleReason.FLATTENING_DEADLINE_PASSED

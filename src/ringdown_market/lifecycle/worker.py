@@ -41,6 +41,10 @@ from ringdown_market.risk.ledger import RiskLedger
 from ringdown_market.risk.passport import PassportEventType
 from ringdown_market.strategy.contracts import canonical_json_bytes, sha256_bytes
 
+# Conservative bound on how old broker position/account truth may be before the
+# lifecycle treats it as stale and refuses to confirm flatness from it.
+DEFAULT_TRUTH_MAX_AGE_SECONDS: int = 30
+
 
 class MutationGate(Protocol):
     """The approval gate that keeps actual PAPER mutation blocked until #9."""
@@ -148,6 +152,7 @@ class MonitoredPaperLifecycle:
     correlation: CorrelationIdentity
     mutation_gate: MutationGate
     clock: Callable[[], datetime]
+    truth_max_age_seconds: int = DEFAULT_TRUTH_MAX_AGE_SECONDS
     _submitted_open_permits: set[str] = field(default_factory=set)
     _submitted_close_permits: set[str] = field(default_factory=set)
 
@@ -265,6 +270,13 @@ class MonitoredPaperLifecycle:
 
         self._require_clocks_verified()
         self._require_mutation()
+        now = self._now()
+        if now > self.clocks.flattening_deadline_at:
+            raise _reject(
+                LifecycleReason.FLATTENING_DEADLINE_PASSED,
+                "clocks.flattening_deadline_at",
+                "the flattening deadline has passed; deterministic close is no longer safe",
+            )
         if close_permit.permit_id in self._submitted_close_permits:
             raise _reject(
                 LifecycleReason.DUPLICATE_TICK,
@@ -287,6 +299,7 @@ class MonitoredPaperLifecycle:
         )
 
         positions = await self._read_positions_or_outage()
+        self._require_positions_fresh(positions)
         state = reduce_close_order(ack, positions, expected_qty=open_permit.quantity)
         if state is LifecycleState.CLOSE_PARTIAL:
             raise _reject(
@@ -317,6 +330,25 @@ class MonitoredPaperLifecycle:
             return await self.broker.read_positions()
         except BrokerOutage as error:
             raise _reject(LifecycleReason.BROKER_OUTAGE, "read_positions", str(error)) from error
+
+    def _require_positions_fresh(self, positions) -> None:
+        """Refuse to confirm flatness from stale position truth."""
+
+        now = self._now()
+        for position in positions:
+            age = (now - position.observed_at).total_seconds()
+            if age < 0:
+                raise _reject(
+                    LifecycleReason.CLOCK_JUMP,
+                    f"position.{position.symbol}.observed_at",
+                    "position truth is from the future",
+                )
+            if age > self.truth_max_age_seconds:
+                raise _reject(
+                    LifecycleReason.STALE_QUOTE,
+                    f"position.{position.symbol}.observed_at",
+                    f"position truth age {age:.0f}s exceeds {self.truth_max_age_seconds}s",
+                )
 
     # -- recovery ------------------------------------------------------------
 
