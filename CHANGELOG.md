@@ -67,6 +67,7 @@
   fresh within the frozen observation-age bound.
 - Gate D freshness and vertical-skew limits now compare exact UTC durations: the policy limit is
   inclusive, but a one-microsecond overage or post-clock observation fails closed.
+- A strict, hash-addressed competition-facts contract that separates confirmed organizer facts from blocking unknowns without embedding account identities or broker authority.
 
 ### Safety
 
@@ -89,6 +90,8 @@
 - Source rights are fixed to one authenticated packaged matrix. Candidate-specific preflight, upstream
   binding checks, strict UTC clocks, and structured paid-plan approval records fail closed before
   any offline snapshot is written; the capture command has no alternate-matrix or live-data path.
+- Competition facts remain non-permit-eligible; unsupported schemas, unverifiable sources, unknown release facts, credential-bearing URLs, private account-identity fields, and weakened PAPER/privacy invariants fail closed.
+- Competition source URLs also fail closed on any query, fragment, localhost, or non-global IP-literal host, so accepted contracts cannot retain account or credential metadata.
 - Version impact is `minor`; the package stays at `0.2.0` while issue #11 consolidates the release-train bump to `0.3.0`.
 
 ## [0.2.0] - Unreleased
