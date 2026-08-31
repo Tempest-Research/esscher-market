@@ -1,3 +1,4 @@
+import hashlib
 import importlib
 import importlib.util
 import json
@@ -11,6 +12,45 @@ import pytest
 from ringdown_market.cli import main
 
 ROOT = Path(__file__).parents[1]
+
+
+def _set_json_path(
+    payload: dict[str, object],
+    path: tuple[str | int, ...],
+    value: object,
+) -> None:
+    target: object = payload
+    for part in path[:-1]:
+        if isinstance(part, str):
+            assert isinstance(target, dict)
+            target = target[part]
+        else:
+            assert isinstance(target, list)
+            target = target[part]
+    final = path[-1]
+    if isinstance(final, str):
+        assert isinstance(target, dict)
+        target[final] = value
+    else:
+        assert isinstance(target, list)
+        target[final] = value
+
+
+def _rehash_receipt(accepted: dict[str, object]) -> None:
+    artifact = accepted["artifact"]
+    assert isinstance(artifact, dict)
+    receipt = artifact["receipt"]
+    assert isinstance(receipt, dict)
+    unsigned = dict(receipt)
+    unsigned.pop("receipt_sha256")
+    canonical = json.dumps(
+        unsigned,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    ).encode("utf-8")
+    receipt["receipt_sha256"] = hashlib.sha256(canonical).hexdigest()
 
 
 class _TagAudit(HTMLParser):
@@ -156,7 +196,7 @@ def test_untrusted_text_is_escaped_and_never_becomes_an_html_attribute() -> None
     inputs = judge_trace.load_packaged_trace_inputs()
     evidence = json.loads(inputs.evidence_bytes)
     evidence["issuer"] = "</dd><img src=x onerror=alert(1)>"
-    evidence["records"][1]["source_url"] = 'javascript:alert(2)" autofocus onfocus="alert(3)'
+    evidence["limitations"][1] = 'javascript:alert(2)" autofocus onfocus="alert(3)'
     attacked = replace(
         inputs,
         evidence_bytes=json.dumps(evidence, ensure_ascii=False).encode("utf-8"),
@@ -165,6 +205,7 @@ def test_untrusted_text_is_escaped_and_never_becomes_an_html_attribute() -> None
     page = judge_trace.render_judge_trace(attacked).decode("utf-8")
 
     assert "&lt;/dd&gt;&lt;img src=x onerror=alert(1)&gt;" in page
+    assert 'javascript:alert(2)" autofocus onfocus="alert(3)' in page
     audit = _TagAudit()
     audit.feed(page)
     assert all(tag not in {"img", "script"} for tag, _ in audit.tags)
@@ -222,6 +263,58 @@ def test_renderer_rejects_an_unsupported_evidence_contract() -> None:
         judge_trace.render_judge_trace(unsupported)
 
 
+@pytest.mark.parametrize(
+    ("path", "invalid_value"),
+    [
+        (("event_id",), ""),
+        (("issuer",), 42),
+        (("decision_cutoff",), "not-a-timestamp"),
+        (("event_context", "scheduled_event_at"), "2026-09-11T12:00:01Z"),
+        (("records",), []),
+        (("records", 1, "published_at"), "not-a-timestamp"),
+        (("records", 1, "published_at"), "2099-01-01T00:00:00Z"),
+        (("records", 1, "content_sha256"), "not-a-sha256"),
+        (("records", 1, "source_url"), 42),
+        (("records", 1, "source_url"), "javascript:alert(1)"),
+        (("records", 1, "source_url"), "http://example.com/source"),
+        (("records", 1, "source_url"), "https://user:secret@example.com/source"),
+        (("records", 1, "source_url"), "https://example.com:notaport/source"),
+        (("limitations", 1), ""),
+    ],
+    ids=(
+        "missing-event-id",
+        "non-text-issuer",
+        "malformed-cutoff",
+        "scheduled-event-mismatch",
+        "missing-records",
+        "malformed-publication-time",
+        "post-cutoff-publication",
+        "malformed-content-digest",
+        "non-text-source",
+        "non-https-source-scheme",
+        "non-https-source",
+        "credentialed-source",
+        "malformed-source-port",
+        "missing-displayed-limitation",
+    ),
+)
+def test_renderer_rejects_malformed_displayed_evidence_provenance(
+    path: tuple[str | int, ...],
+    invalid_value: object,
+) -> None:
+    judge_trace = importlib.import_module("ringdown_market.demo.judge_trace")
+    inputs = judge_trace.load_packaged_trace_inputs()
+    evidence = json.loads(inputs.evidence_bytes)
+    _set_json_path(evidence, path, invalid_value)
+    malformed = replace(
+        inputs,
+        evidence_bytes=json.dumps(evidence, ensure_ascii=False).encode("utf-8"),
+    )
+
+    with pytest.raises(judge_trace.JudgeTraceInputError, match="evidence provenance"):
+        judge_trace.render_judge_trace(malformed)
+
+
 def test_renderer_rejects_an_accepted_outcome_without_a_terminal_receipt() -> None:
     judge_trace = importlib.import_module("ringdown_market.demo.judge_trace")
     inputs = judge_trace.load_packaged_trace_inputs()
@@ -271,6 +364,77 @@ def test_renderer_rejects_a_receipt_outside_the_paper_boundary() -> None:
         match="terminal receipt boundary",
     ):
         judge_trace.render_judge_trace(nonpaper)
+
+
+@pytest.mark.parametrize(
+    ("path", "invalid_value"),
+    [
+        (("schema_version",), 1.0),
+        (("schema_version",), True),
+        (("open_permit_id",), ""),
+        (("close_permit_id",), " permit-close-test-001"),
+        (("final_flat_observed_at",), "not-a-timestamp"),
+        (("final_flat_observed_at",), "2026-08-29T20:00:00Z"),
+        (("paper_pnl", "gross_realized_pnl"), "guaranteed-profit"),
+        (("paper_pnl", "gross_realized_pnl"), "NaN"),
+        (("paper_pnl", "gross_realized_pnl"), "35.0"),
+        (("paper_pnl", "open_filled_at"), "2026-08-29T19:59:59+00:00"),
+        (("paper_pnl", "close_filled_at"), "2026-08-29T20:00:01+00:00"),
+    ],
+    ids=(
+        "non-integer-schema-version",
+        "boolean-schema-version",
+        "empty-open-permit-id",
+        "unnormalized-close-permit-id",
+        "malformed-final-flat-time",
+        "non-canonical-final-flat-time",
+        "non-decimal-pnl",
+        "non-finite-pnl",
+        "non-canonical-pnl",
+        "close-before-open",
+        "final-flat-before-close",
+    ),
+)
+def test_renderer_rejects_a_rehashed_semantically_invalid_terminal_receipt(
+    path: tuple[str | int, ...],
+    invalid_value: object,
+) -> None:
+    judge_trace = importlib.import_module("ringdown_market.demo.judge_trace")
+    inputs = judge_trace.load_packaged_trace_inputs()
+    accepted = json.loads(inputs.accepted_bytes)
+    artifact = accepted["artifact"]
+    assert isinstance(artifact, dict)
+    receipt = artifact["receipt"]
+    assert isinstance(receipt, dict)
+    _set_json_path(receipt, path, invalid_value)
+    _rehash_receipt(accepted)
+    malformed = replace(
+        inputs,
+        accepted_bytes=json.dumps(accepted, ensure_ascii=False).encode("utf-8"),
+    )
+
+    with pytest.raises(judge_trace.JudgeTraceInputError, match="terminal receipt boundary"):
+        judge_trace.render_judge_trace(malformed)
+
+
+def test_renderer_rejects_a_rehashed_receipt_with_a_missing_event_identity() -> None:
+    judge_trace = importlib.import_module("ringdown_market.demo.judge_trace")
+    inputs = judge_trace.load_packaged_trace_inputs()
+    accepted = json.loads(inputs.accepted_bytes)
+    artifact = accepted["artifact"]
+    assert isinstance(artifact, dict)
+    receipt = artifact["receipt"]
+    assert isinstance(receipt, dict)
+    artifact["event_run_id"] = None
+    receipt["event_run_id"] = None
+    _rehash_receipt(accepted)
+    malformed = replace(
+        inputs,
+        accepted_bytes=json.dumps(accepted, ensure_ascii=False).encode("utf-8"),
+    )
+
+    with pytest.raises(judge_trace.JudgeTraceInputError, match="terminal receipt boundary"):
+        judge_trace.render_judge_trace(malformed)
 
 
 def test_cli_writes_a_byte_stable_self_contained_trace(tmp_path: Path) -> None:
