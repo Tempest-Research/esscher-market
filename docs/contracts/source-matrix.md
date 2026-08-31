@@ -1,99 +1,82 @@
 # Source rights and point-in-time feasibility contract
 
-Issue #41 decides, before any collector implementation, whether every required
-source is lawful, point-in-time reproducible, and operationally usable. The
-canonical matrix is packaged as
-`ringdown_market/contracts/policies/source_matrix_v1.json` with SHA-256
-`87d552d96599818f4a996748318e75944286f17166a58e4b596fee35d5b518c7` and binds
-the accepted event policy digest `3234017de2fec6c33dce20508f483d649d4614130e76cdc6f57af8185e05d05e`
-and the Gate A contract digest `40c2e780c684bdde671b028dbdd8c9b13268e659c24e98a2d452ff7c8692f955`.
-The contract grants no collection, trading, or publication authority.
+Issue #41 fixes the source-rights decision before a snapshot can be compiled. It is a local, deterministic contract boundary: it grants no collection, trading, publication, account, broker, MCP, or network authority.
 
-## Verdicts
+## Canonical binding
 
-Every source ends in exactly one of:
+The only capture matrix is the packaged `esscher.source_matrix/v1` resource:
 
-- `FEASIBLE`: lawful, reproducible, and operationally usable within the
-  recorded limits;
-- `FEASIBLE_WITH_LIMITATIONS`: usable only with the recorded limitations and
-  conditions, each of which fails closed when unmet;
-- `BLOCKED`: ambiguous rights, unverified entitlement, or a paid plan without
-  recorded human approval.
+- resource: `ringdown_market/contracts/policies/source_matrix_v1.json`
+- matrix SHA-256: `888447640aa705510bc0594abc9a78f22c988e961282ff82a6f44337181d04ca`
+- accepted event-policy SHA-256: `afce93b52b96e0d8c71deeb80027a1c87a4cf3623e9417db14de00279fc23bca`
+- Gate A programme-contract SHA-256: `40c2e780c684bdde671b028dbdd8c9b13268e659c24e98a2d452ff7c8692f955`
+- matrix decision time: `2026-08-30T21:55:00Z`
 
-Rights ambiguity is always `BLOCKED`, and no paid plan is ever selected
-without a recorded human approval. A `BLOCKED` verdict is a terminal decision,
-not a failure of this contract: it blocks the dependent lane before
-implementation cost is incurred.
+Every rights evaluation authenticates the packaged matrix and then rebinds its stored policy and Gate A hashes to the currently authenticated packaged upstream bytes. A changed policy or Gate A resource is therefore rejected as `SOURCE_MATRIX_DRIFT` until the matrix is intentionally amended and re-reviewed.
 
-## Category verdicts
+There is no production `--source-matrix` option. The internal byte seam accepts only the exact frozen matrix digest for deterministic tests; it cannot select an alternative rights decision.
 
-| Category | Verdict summary | Lane effect |
-| --- | --- | --- |
-| Earnings-calendar revisions | FEASIBLE (issuer IR + EDGAR 8-K); FEASIBLE_WITH_LIMITATIONS (NYSE session calendar) | earnings lane open with documented capture limits |
-| Issuer/SEC bytes | FEASIBLE | immutable accession bytes with acceptance-time clocks |
-| News | BLOCKED | lane-safe: v1 features never consume news; consensus-free citations stand |
-| Consensus | BLOCKED | lane-safe: features report UNAVAILABLE and the frozen SUE path substitutes |
-| Fundamentals | FEASIBLE | EDGAR XBRL with acceptance-time point-in-time clocks |
-| Stock/market/sector observations | FEASIBLE_WITH_LIMITATIONS | historical SIP verified on the development account; real-time SIP requires a paid plan that stays unapproved; competition-account entitlement unverified per Gate A |
-| Macro vintages | FEASIBLE | BLS schedules, releases, and revision evidence are public domain |
-| Current options | FEASIBLE (contract master); FEASIBLE_WITH_LIMITATIONS (indicative snapshots); BLOCKED (OPRA) | indicative data only; never OPRA/NBBO evidence |
-| Historical option BBO | BLOCKED | blocks historical option-expression evidence only; the underlying-direction lane does not depend on it |
+## Matrix scope and verdicts
 
-## Records
+The matrix records 21 sources across all nine required categories:
 
-Each source records endpoint, identifiers, publisher/availability clock,
-timestamp precision, revision policy, depth, adjustment policy, completeness,
-entitlement, retention/redistribution rights, rate limits, the paid-plan flag
-and any human approval, the verdict, limitations, conditions, and at least one
-evidence record. Evidence is either a `DOCUMENT` receipt (URL, retrieval time,
-content hash, exact quote) or a `BUNDLE` reference into the golden-bundle
-registry. Direct Alpaca hosts are rejected from committed endpoint strings.
+1. earnings-calendar revisions;
+2. issuer and SEC bytes;
+3. news;
+4. consensus;
+5. fundamentals;
+6. equity, market, and sector observations;
+7. macro vintages;
+8. current options; and
+9. historical option BBO.
 
-The strict parser rejects unknown, missing, and duplicate fields, unknown
-verdicts or conditions, malformed digests, and evidence without retrieval
-times. Ambiguous entitlement or redistribution rights with a non-blocked
-verdict fail as `RIGHTS_AMBIGUOUS`; paid plans without approval fail as
-`PAID_PLAN_UNAPPROVED`; uncovered categories fail as `MATRIX_INCOMPLETE`.
+Each record carries its endpoint description, identifiers, availability clock, timestamp precision, revision and adjustment policy, depth, completeness, entitlement, retention/redistribution status, rate limits, evidence, limitations, and conditions. It ends in exactly one verdict:
 
-## Golden bundles
+- `FEASIBLE`;
+- `FEASIBLE_WITH_LIMITATIONS`; or
+- `BLOCKED`.
 
-Three to five development-only golden bundles under
-`data/source-feasibility/golden-bundles/` prove reproducible capture without
-consuming the untouched panel:
+Ambiguous rights always remain `BLOCKED`. A capture must satisfy every condition on its selected non-blocked source; unmet conditions fail closed as `SOURCE_RIGHTS_LIMITATION_UNMET`. A required class covered only by blocked records fails as `SOURCE_RIGHTS_BLOCKED`.
 
-- `GB1_EDGAR_AAPL_20230202` — immutable EDGAR accession bytes for one
-  development-partition AMC earnings event, including the full-text-search
-  discovery receipt;
-- `GB2_BLS_JOLTS_202110` — archived JOLTS release, revision narrative, and
-  official 2021 release schedule;
-- `GB3_NYSE_SESSION_CALENDAR` — official NYSE Trading Days document bytes;
-- `GB4_ALPACA_EQUITY_OBSERVATIONS` — hash-only receipts proving historical SIP
-  bars and quotes succeed while real-time SIP fails closed with the
-  subscription message on the Basic plan;
-- `GB5_ALPACA_CURRENT_OPTIONS` — hash-only receipts proving the option
-  contract master and indicative snapshots on the Basic plan.
+## Candidate-specific preflight
 
-Bundle events fall only in development partitions; tests assert they never
-fall inside any frozen untouched partition and never reuse the four P0
-contract-development events. Licensed market-data bytes are never committed:
-Alpaca probes retain only endpoint paths, parameters, statuses, byte counts,
-and SHA-256 receipts.
+The capture command determines the accepted candidate before it evaluates rights. Earnings captures therefore use their five earnings source classes, while macro captures use the BLS calendar, release, revision-table, SPY-trade, and SPY-quote classes from `MACRO_SPY_CONTINUATION_CHALLENGER_V1`. No macro capture may reuse the earnings preflight.
 
-## Capture boundary
+All matrix timestamps must use an explicit zero-offset UTC form (`Z` or `+00:00`). Naive timestamps and non-zero offsets are rejected, so parsing never depends on the host timezone.
 
-The snapshot collector consumes the matrix at its capture command: every
-required earnings source class must map to a non-blocked source, and every
-condition on the chosen source must be declared satisfied by the host. The
-capture identity binds the matrix digest. Unknown conditions, missing matrix
-files, drifted upstream contracts, blocked classes, and unmet limitations all
-fail closed before any snapshot exists.
+A paid record can be non-blocked only with a structured approval record: decision `APPROVED`, a stable uppercase approver identifier, and an approval timestamp at or before the matrix decision time. Any other decision, missing identity, or inverted chronology fails closed.
 
-## Reproduction
+## Development evidence
+
+Five committed golden bundles provide development-only, reproducible evidence. They are labelled `NOT_ALPHA_EVIDENCE`, `NO_BROKER_EXECUTION`, and `NOT_HISTORICAL_DATA`; licensed market-data bundles retain hash receipts rather than payload bytes. The bundle partition checks prevent their events from becoming untouched evaluation evidence.
+
+Direct provider endpoints are not committed as a live capture path. The matrix does not contain credentials, direct provider hosts, account identifiers, or broker authority.
+
+## Offline capture boundary
+
+The command operates only with an explicit synthetic fixture path, an explicit UTC capture clock, explicit host authorization, and explicitly declared matrix conditions. The fixture is passed through to the compiler adapters; an installed wheel never looks for a repository test-fixture path.
 
 ```bash
-uv run --extra dev pytest tests/test_source_matrix_contract.py tests/test_source_rights_gate.py -q
+ESSCHER_CAPTURE_AUTHORIZED=yes uv run python -m ringdown_market.sourcedata.capture \
+  --event-id KR-2026Q2-EARNINGS \
+  --fixture tests/fixtures/sourcedata/synthetic_snapshot_inputs_v1.json \
+  --capture-at 2026-09-11T13:35:10Z \
+  --output-dir build/issue41-capture \
+  --condition-satisfied HUMAN_VERIFIED_CAPTURE \
+  --condition-satisfied PER_RECORD_PRIMARY_PROVENANCE \
+  --condition-satisfied GATE_A_EQUITY_ENTITLEMENT_RECEIPT
+```
+
+This replays only committed synthetic adapters. `--live` remains rejected until a separate reviewed boundary pins the exact read-only server and schema surface. The command never opens a provider, broker, account, MCP, or trading session.
+
+## Verification
+
+```bash
+uv run --extra dev pytest \
+  tests/test_source_matrix_contract.py \
+  tests/test_source_rights_gate.py \
+  tests/test_issue41_capture_boundary.py -q
 uv run --extra dev python scripts/check_repo_hygiene.py
 ```
 
-Tests use the packaged matrix, the committed golden bundles, and canonical
-fixtures; they make no network, account, MCP, or broker call.
+The tests use only packaged resources, committed development bundles, explicit synthetic fixtures, and local temporary output directories.

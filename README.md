@@ -37,7 +37,25 @@ typed candidate-manifest, snapshot, feature, reasoner-exchange, and direction-on
 contracts live under `ringdown_market.strategy`. Gate A facts remain explicitly `UNVERIFIED`, so
 the policy grants no expression, risk, permit, order, or broker authority.
 
-Given exact frozen decision, point-in-time evidence-manifest, and feature-input bytes, the pure contract bridge:
+### Source-rights capture boundary
+
+The offline snapshot collector is constrained by the authenticated
+`esscher.source_matrix/v1` resource (SHA-256
+`888447640aa705510bc0594abc9a78f22c988e961282ff82a6f44337181d04ca`). Every
+capture rebinds that matrix to the accepted policy
+`afce93b52b96e0d8c71deeb80027a1c87a4cf3623e9417db14de00279fc23bca` and the
+Gate A programme contract
+`40c2e780c684bdde671b028dbdd8c9b13268e659c24e98a2d452ff7c8692f955`. A change
+to any of those bytes fails closed before a snapshot exists.
+
+Capture first selects the exact earnings or macro candidate and checks that
+candidate's required source classes. It accepts only an explicit synthetic
+fixture, an explicit zero-offset UTC clock, explicit host authorization, and
+declared rights conditions. There is no alternate matrix option, default
+repository-fixture fallback, direct data-provider path, live capture, account,
+broker, or trading authority. See the [source-rights contract](docs/contracts/source-matrix.md).
+
+Given an exact frozen decision, point-in-time evidence-manifest, and feature-input bytes, the pure contract bridge:
 
 - rejects duplicate, missing, unknown, mutable, or unsupported schema values;
 - verifies exact decision, evidence, input, protocol, and policy identities;
@@ -60,11 +78,6 @@ Given an immutable opening permit and a separately authorized closing permit, th
 Before exposing that session to the adapter, the host boundary checks the six required tools from the pinned official surface and reads sanitized account status through `get_account_info`. Missing tools, malformed responses, blocked accounts, and any environment other than PAPER fail closed before a mutation. Runtime calls are limited to the adapter's five official order and position tools; secret-like application arguments are rejected before reaching the host.
 
 The MCP boundary is implemented and contract-tested with injected fake sessions. No real broker call is part of the test suite. This is not evidence of a real paper fill, strategy profitability, or executable historical option pricing.
-
-The Gate A programme contract records source-grounded organizer rules separately from one
-short-lived sanitized account-capability receipt. Unknown mark, cost, leverage, flattening,
-entitlement, endpoint, option-level, or account-freshness truth yields `ENTRY_DISABLED`; no default
-is inferred and no account identifier enters committed artifacts.
 
 The inert paper-demo runner adds a separate short-lived approval bound to the exact permit and host capability proof, durable submit-once markers for restart recovery, exact broker fill-economics classification, and a deterministic sanitized terminal bundle. See [the PAPER demonstration runbook](docs/PAPER_DEMO_RUNBOOK.md). No demonstration has been run by the test suite or by this repository state.
 
@@ -106,12 +119,7 @@ The page requires no server, JavaScript, network access, credential, or broker s
 - [Source and claim policy](docs/SOURCE_AND_CLAIM_POLICY.md) — evidence metadata and permitted claims.
 - [Point-in-time evidence gate](docs/research/point-in-time-evidence-gate.md) — timing, provenance, residualization, denominator, and options-data contract.
 - [Accepted strategy contract](docs/STRATEGY_V1.md) — exact candidates, clocks, features, baselines, thresholds, authority, and unresolved gates.
-- [Gate A contract](docs/contracts/gate-a.md) — organizer facts, capability receipt, unresolved rules, and entry-disable semantics.
-<<<<<<< HEAD
-=======
-- [Gate A contract](docs/contracts/gate-a.md) — organizer facts, capability receipt, unresolved rules, and entry-disable semantics.
-- [Source matrix contract](docs/contracts/source-matrix.md) — source rights, point-in-time feasibility verdicts, golden bundles, and the capture rights gate.
->>>>>>> e4e1b64 (data: decide source rights and point-in-time feasibility (#41))
+- [Source-rights contract](docs/contracts/source-matrix.md) — packaged matrix identity, evidence limits, candidate-specific preflight, and offline capture boundary.
 - [Research-to-permit contract](docs/contracts/research-to-permit.md) — exact schemas, identity mapping, rejection reasons, and frozen policy.
 - [PAPER demonstration runbook](docs/PAPER_DEMO_RUNBOOK.md) — read-only preflight, exact approval, bounded mutation envelope, recovery, and receipt interpretation.
 - [Scheduled-event runbook](docs/SCHEDULED_EVENT_RUNBOOK.md) — one-shot manifest, dry run, armed invocation, restart reconciliation, and stop conditions.

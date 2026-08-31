@@ -12,7 +12,7 @@ missing fact and never claims alpha, profitability, or executable fills.
 
 The collector consumes the exact strategy input contract frozen by issue #26
 (`accepted_event_policy_v1.json`, SHA-256
-`3234017de2fec6c33dce20508f483d649d4614130e76cdc6f57af8185e05d05e`) and emits
+`afce93b52b96e0d8c71deeb80027a1c87a4cf3623e9417db14de00279fc23bca`) and emits
 the canonical `esscher.strategy_snapshot/v1`, `esscher.feature_receipt/v1`,
 source receipts, corporate-action receipts, and one
 `esscher.data_feasibility_manifest/v1` per candidate, all of which
@@ -50,18 +50,6 @@ class fails closed with `FEATURE_DEPENDENCY_MISSING`; an unregistered class
 fails with `UNPERMITTED_SOURCE_CLASS`; unverified entitlement fails with
 `SOURCE_RIGHTS_UNVERIFIED`.
 
-Before any capture, the capture command also runs the source-rights gate from
-issue #41 ([source matrix contract](contracts/source-matrix.md)): every
-required class must map to a non-blocked source in the frozen matrix
-(`esscher.source_matrix/v1`), and every condition on the chosen source must be
-declared satisfied by the host. A blocked class fails with
-`SOURCE_RIGHTS_BLOCKED`, an unmet condition with
-`SOURCE_RIGHTS_LIMITATION_UNMET`, a missing or drifted matrix with
-`SOURCE_MATRIX_MISSING` or `SOURCE_MATRIX_DRIFT`, and the capture identity
-binds the matrix digest. Consensus and news remain `BLOCKED` in the matrix
-without harming this slice: consensus features report `UNAVAILABLE` and no v1
-feature consumes news.
-
 Provenance fields stay separate: publisher time (`published_at`) and its
 precision, retrieval time (`retrieved_at`), content identity
 (`content_sha256`), entitlement, and redistribution status. SEC acceptance
@@ -84,6 +72,29 @@ All five classes are required for every macro snapshot. The schedule is never
 inferred from a normal release time: the frozen official schedule entry must
 match the manifest `scheduled_at` exactly, or the event fails with
 `SCHEDULE_NOT_FROZEN`.
+
+## Source-rights preflight
+
+Before loading an adapter, capture identifies the exact accepted candidate and
+evaluates only that candidate's required source classes against the one
+packaged `esscher.source_matrix/v1` resource. Its fixed SHA-256 is
+`888447640aa705510bc0594abc9a78f22c988e961282ff82a6f44337181d04ca`; each
+preflight rebinds its policy and Gate A digests before source selection.
+
+Every covering source must be non-blocked and all of its recorded conditions
+must be explicitly satisfied. A blocked class yields `SOURCE_RIGHTS_BLOCKED`;
+an unmet condition yields `SOURCE_RIGHTS_LIMITATION_UNMET`; a changed packaged
+matrix or upstream binding yields `SOURCE_MATRIX_DRIFT`. There is no
+caller-selected matrix path. Consensus and news remain `BLOCKED` without
+changing this slice because consensus is represented as `UNAVAILABLE` and no
+v1 feature consumes news.
+
+The capture command requires an explicit synthetic fixture. It passes that
+loaded fixture into the compiler adapters, allowing an installed wheel to run
+the same offline capture without a repository test-fixture fallback. Capture
+clocks are explicit zero-offset UTC values only. The command never opens a
+network, provider, broker, account, MCP, order, or trading path; `--live`
+remains an explicit fail-closed boundary.
 
 ## Retrieval integrity
 
@@ -269,20 +280,20 @@ synthetic fixture so every test stays deterministic and offline.
 
 ## Verification
 
-Exact commands observed during implementation:
+Exact commands observed during the corrected local forward-port:
 
 ```text
 command: uv run pytest tests/test_strategy_snapshot_collector.py -q
-result: 57 passed in 12.75s
+result: 60 passed
 
 command: uv run pytest -q
-result: 345 passed in 12.78s
+result: 362 passed
 
 command: uv run ruff check .
 result: All checks passed!
 
 command: uv run ruff format --check .
-result: 84 files already formatted
+result: 85 files already formatted
 
 command: uv run python scripts/check_repo_hygiene.py
 result: repository hygiene: PASS (117 visible files checked)

@@ -78,17 +78,11 @@ Current modules:
 - `alpha/qfast.py`: small-sample rejection and latency gates;
 - `strategy/`: the canonical accepted research policy plus strict candidate-manifest, snapshot,
   feature, reasoner-exchange, and direction-only decision contracts;
+- `contracts/source_matrix.py` and `sourcedata/rights_gate.py`: the authenticated source-rights
+  matrix, upstream binding checks, and candidate-specific capture preflight;
+- `sourcedata/capture.py`: an explicit-fixture, offline-only snapshot command with no alternate
+  matrix, live-provider, account, broker, MCP, or trading path;
 - `contracts/execution_policy.py`: the immutable paper-risk and official MCP protocol registry;
-- `contracts/gate_a.py`: strict organizer-fact and sanitized account-capability contracts plus the
-        pure fail-closed Gate A evaluator;
-=======
-- `contracts/gate_a.py`: strict organizer-fact and sanitized account-capability contracts plus the
-        pure fail-closed Gate A evaluator;
-- `contracts/source_matrix.py`: strict source-rights and point-in-time feasibility matrix deciding
-        every required source category before collector implementation;
-- `sourcedata/rights_gate.py`: the capture-boundary gate failing closed on blocked, drifted, or
-        condition-unmet source classes;
->>>>>>> e4e1b64 (data: decide source rights and point-in-time feasibility (#41))
 - `contracts/research_to_permit.py`: the pure frozen-decision, provenance, and feature-dependency bridge;
 - `execution/models.py`: immutable opening and closing permits for one debit vertical;
 - `execution/host_mcp.py`: the host identity, startup capability/account preflight, sanitized observation, bounded runtime allowlist, and typed transport failures;
@@ -175,16 +169,45 @@ The residual return removes frozen market and sector components measured over th
     ticker, cohort, eligibility, and freeze must match one retained manifest record.
 18. A validated strategy decision has direction-only authority; contract, quantity, price, risk,
     account, permit, order, and exit fields are not part of its schema.
-17. Gate A organizer facts and account capabilities are separate hash-bound artifacts; unknown
-        entry-relevant truth yields `ENTRY_DISABLED`, and committed receipts contain no raw account ID.
-<<<<<<< HEAD
-19. Gate A organizer facts and account capabilities are separate hash-bound artifacts; unknown
-    entry-relevant truth yields `ENTRY_DISABLED`, and committed receipts contain no raw account ID.
-20. Source rights ambiguity always yields `BLOCKED`; no paid plan is selected without a recorded
-    human approval; a capture proceeds only when every required source class maps to a non-blocked
-    matrix source whose conditions are declared satisfied.
 
 Historical panel admission additionally requires per-feature source dependencies, typed publication timestamps, entitlement metadata, and a common outcome path. The aggregate `DecisionSnapshot` alone does not establish those dependencies; the bridge therefore also requires and validates the exact feature-input and evidence-manifest bytes before issuing a permit.
+
+## Source-rights capture boundary
+
+```text
+explicit synthetic fixture + explicit UTC capture clock + explicit host authorization
+        |
+        v
+exact policy candidate selection
+        |
+        v
+packaged source matrix SHA + policy/Gate A rebinding
+        |
+        +--> unknown, blocked, or unmet source condition: deterministic rejection
+        |
+        v
+offline fixture adapters
+        |
+        v
+canonical snapshot, receipts, and feasibility manifest
+```
+
+The matrix is a single packaged resource with SHA-256
+`888447640aa705510bc0594abc9a78f22c988e961282ff82a6f44337181d04ca`, bound to
+accepted-policy SHA-256
+`afce93b52b96e0d8c71deeb80027a1c87a4cf3623e9417db14de00279fc23bca` and Gate A
+programme-contract SHA-256
+`40c2e780c684bdde671b028dbdd8c9b13268e659c24e98a2d452ff7c8692f955`. The
+rights gate evaluates the source classes of the selected candidate, not a
+hard-coded earnings lane. Its timestamp parser accepts only explicit
+zero-offset UTC values; its paid-plan records require a valid `APPROVED`
+decision, a stable identity, and non-inverted approval chronology.
+
+No alternative source-matrix path is exposed by the capture command. The
+installed wheel requires an explicit fixture supplied by the caller, and that
+loaded fixture is passed into the adapters. `--live` remains an explicit
+failure; this module provides no provider session, direct data route, account,
+broker, MCP, order, or trading authority.
 
 ## Path ownership
 

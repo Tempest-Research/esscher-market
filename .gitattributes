@@ -2,4 +2,4 @@
 
 # Source-feasibility golden bundles are captured evidence bytes and must
 # remain byte-identical across platforms; never normalize line endings.
-data/source-feasibility/** -text
+data/source-feasibility/** -text -whitespace
