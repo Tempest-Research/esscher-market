@@ -10,7 +10,6 @@ MCP server version and tool schemas.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
 import sys
@@ -20,17 +19,26 @@ from pathlib import Path
 
 from ringdown_market.contracts.source_matrix import CONDITIONS
 from ringdown_market.sourcedata.compiler import (
+    EARNINGS_CANDIDATE,
+    MACRO_CANDIDATE,
     CaptureConfiguration,
     CompiledSnapshot,
+    compile_macro_snapshot,
     compile_strategy_snapshot,
     compiled_strategy_input,
 )
 from ringdown_market.sourcedata.fakes import (
     FixtureEvidenceSource,
+    FixtureMacroEvidenceSource,
+    FixtureMacroMarketDataSource,
+    FixtureMacroReleaseSource,
     FixtureMarketDataSource,
     build_candidate_manifest,
+    build_macro_candidate_manifest,
     load_fixture,
+    load_macro_fixture,
 )
+from ringdown_market.sourcedata.feasibility import feasibility_manifest_bytes
 from ringdown_market.sourcedata.lineage_gate import (
     evaluate_lineage,
     lineage_receipt_bytes,
@@ -46,28 +54,50 @@ HOST_AUTHORIZATION_VARIABLE = "ESSCHER_CAPTURE_AUTHORIZED"
 HOST_AUTHORIZATION_VALUE = "yes"
 
 
-def _configuration(
-    args: argparse.Namespace, fixture, lineage_receipt_sha256: str | None
-) -> CaptureConfiguration:
+def _configuration(args: argparse.Namespace, fixture, manifest_builder) -> CaptureConfiguration:
     capture_at = datetime.fromisoformat(args.capture_at.replace("Z", "+00:00")).astimezone(UTC)
     return CaptureConfiguration(
-        candidate_manifest_bytes=build_candidate_manifest(fixture),
+        candidate_manifest_bytes=manifest_builder(fixture),
         event_id=args.event_id,
         capture_at=capture_at,
         market_publisher=str(fixture["market_publisher"]),
         market_entitlement=str(fixture["market_entitlement"]),
         market_redistribution=str(fixture["market_redistribution"]),
-        lineage_receipt_sha256=lineage_receipt_sha256,
     )
 
 
-def run_capture(configuration: CaptureConfiguration) -> CompiledSnapshot:
+def run_capture(configuration: CaptureConfiguration, candidate: str) -> CompiledSnapshot:
     """Run one offline capture over the frozen synthetic adapters."""
 
+    if candidate == MACRO_CANDIDATE:
+        fixture = load_macro_fixture()
+        evidence = FixtureMacroEvidenceSource(fixture)
+        macro = FixtureMacroReleaseSource(fixture)
+        market = FixtureMacroMarketDataSource(fixture)
+        return compile_macro_snapshot(configuration, evidence.sessions, macro, market)
     fixture = load_fixture()
     evidence = FixtureEvidenceSource(fixture)
     market = FixtureMarketDataSource(fixture)
     return compile_strategy_snapshot(configuration, evidence, market)
+
+
+def _build_feasibility(candidate: str, fixture, compiled, capture_at):
+    """Build the candidate-specific Gate B feasibility manifest."""
+
+    from ringdown_market.sourcedata.fakes import load_feasibility_declarations
+    from ringdown_market.sourcedata.feasibility import build_feasibility_for_candidate
+    from ringdown_market.strategy.policy import load_strategy_policy
+
+    fallback = MACRO_CANDIDATE if candidate == EARNINGS_CANDIDATE else None
+    return build_feasibility_for_candidate(
+        policy=load_strategy_policy(),
+        candidate_id=candidate,
+        declarations=load_feasibility_declarations(fixture),
+        source_receipts=compiled.source_receipts,
+        evaluated_at=capture_at,
+        producer_build_sha256=compiled.snapshot.producer_build_sha256,
+        fallback_candidate_id=fallback,
+    )
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -208,14 +238,20 @@ def main(argv: Sequence[str] | None = None) -> int:
     except CollectorRejected as error:
         print(str(error), file=sys.stderr)
         return 2
-    lineage_receipt_digest = hashlib.sha256(
-        lineage_receipt_bytes(lineage_report.resolution)
-    ).hexdigest()
     fixture = load_fixture(args.fixture)
+    candidate = MACRO_CANDIDATE if args.event_id.startswith("BLS-") else EARNINGS_CANDIDATE
+    if candidate == MACRO_CANDIDATE:
+        fixture = load_macro_fixture(args.fixture)
+        manifest_builder = build_macro_candidate_manifest
+    else:
+        manifest_builder = build_candidate_manifest
     try:
-        configuration = _configuration(args, fixture, lineage_receipt_digest)
-        compiled = run_capture(configuration)
+        configuration = _configuration(args, fixture, manifest_builder)
+        compiled = run_capture(configuration, candidate)
         joined = compiled_strategy_input(compiled)
+        feasibility_manifest = _build_feasibility(
+            candidate, fixture, compiled, configuration.capture_at
+        )
     except CollectorRejected as error:
         print(str(error), file=sys.stderr)
         return 2
@@ -254,6 +290,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     output_dir.joinpath("strategy_snapshot.json").write_bytes(compiled.strategy_snapshot_bytes)
     output_dir.joinpath("feature_receipt.json").write_bytes(compiled.feature_receipt_bytes)
     output_dir.joinpath("candidate_manifest.json").write_bytes(compiled.candidate_manifest_bytes)
+    output_dir.joinpath("data_feasibility_manifest.json").write_bytes(
+        feasibility_manifest_bytes(feasibility_manifest)
+    )
     receipts = b"".join(
         source_receipt_bytes(receipt) + b"\n" for receipt in compiled.source_receipts
     )
