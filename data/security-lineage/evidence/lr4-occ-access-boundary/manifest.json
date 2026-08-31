@@ -1,0 +1,39 @@
+{
+ "schema": "esscher.lineage_evidence",
+ "schema_version": 1,
+ "evidence_id": "LR4_OCC_ACCESS_BOUNDARY",
+ "title": "OCC info-memo access-boundary receipt: automated retrieval fails closed with HTTP 403",
+ "lineage_class": "ACCESS_BOUNDARY",
+ "data_class": "SOURCE_FEASIBILITY_PROBE",
+ "claims": [
+  "DEV_ONLY",
+  "NOT_ALPHA_EVIDENCE",
+  "NO_BROKER_EXECUTION",
+  "NOT_HISTORICAL_DATA",
+  "HASH_RECEIPTS_ONLY"
+ ],
+ "partition": "DEVELOPMENT",
+ "reproducibility": "ACCESS_BOUNDARY_RECEIPT",
+ "capture_note": "The OCC info-memo program is the authoritative public record of option adjustments, but its web and API surfaces reject automated retrieval with HTTP 403. Capture therefore requires a human-initiated session under the HUMAN_VERIFIED_CAPTURE condition, exactly as the NYSE session-calendar source does in the #41 matrix. Option-adjustment lineage in synthetic fixtures models the memo shape meanwhile.",
+ "artifacts": [
+  {
+   "file": "occ-access-boundary.json",
+   "url": "https://infomemo.theocc.com/",
+   "retrieved_at": "2026-08-30T22:47:02Z",
+   "sha256": "d9ad87adf61cdfc67e6e4c83d59dfb0ecbdafb3f820f37eb5c4c78154245f51f",
+   "bytes": 533,
+   "redistribution": "PUBLIC_DOMAIN_REDISTRIBUTABLE"
+  }
+ ],
+ "retrieval_agent": "declared-user-agent HTTPS GET; all three probes returned HTTP 403",
+ "provenance_facts": {
+  "authoritative_program": "OCC info memos (option adjustment record of the Options Clearing Corporation)",
+  "access_status": "AUTOMATED_RETRIEVAL_BLOCKED",
+  "required_condition": "HUMAN_VERIFIED_CAPTURE",
+  "observed_statuses": {
+   "https://infomemo.theocc.com/": 403,
+   "https://www.theocc.com/about/publications/infomemos-search.jsp": 403,
+   "https://infomemo.theocc.com/api/InfoMemos/GetInfoMemos": 403
+  }
+ }
+}

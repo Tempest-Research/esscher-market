@@ -55,6 +55,20 @@ declared rights conditions. There is no alternate matrix option, default
 repository-fixture fallback, direct data-provider path, live capture, account,
 broker, or trading authority. See the [source-rights contract](docs/contracts/source-matrix.md).
 
+### Security-lineage gate
+
+Before an offline fixture is compiled, the same authenticated source-matrix
+bytes used by rights preflight and `capture_identity.json` bind the packaged
+CIK-rooted security-lineage contract (SHA-256
+`b400453a62ced05dacaa338dd59b90bceeba04853d9aef572ebfbcd16cb97ff5`). The
+gate resolves issuer, security, listing, ticker, corporate-action, and
+listed-option adjustment identity as of the event cutoff. Missing chains,
+reused symbols, delisted listings, conflicting records, and upstream drift
+fail closed before an artifact exists. The command accepts no caller-selected
+matrix or lineage file; `lineage_receipts.jsonl` is published through the
+same symlink-safe output boundary as every other capture artifact. See the
+[security-lineage contract](docs/contracts/security-lineage.md).
+
 Given an exact frozen decision, point-in-time evidence-manifest, and feature-input bytes, the pure contract bridge:
 
 - rejects duplicate, missing, unknown, mutable, or unsupported schema values;
@@ -120,6 +134,7 @@ The page requires no server, JavaScript, network access, credential, or broker s
 - [Point-in-time evidence gate](docs/research/point-in-time-evidence-gate.md) — timing, provenance, residualization, denominator, and options-data contract.
 - [Accepted strategy contract](docs/STRATEGY_V1.md) — exact candidates, clocks, features, baselines, thresholds, authority, and unresolved gates.
 - [Source-rights contract](docs/contracts/source-matrix.md) — packaged matrix identity, evidence limits, candidate-specific preflight, and offline capture boundary.
+- [Security-lineage contract](docs/contracts/security-lineage.md) — CIK-rooted identity, corporate-action records, options adjustments, and capture gate.
 - [Research-to-permit contract](docs/contracts/research-to-permit.md) — exact schemas, identity mapping, rejection reasons, and frozen policy.
 - [PAPER demonstration runbook](docs/PAPER_DEMO_RUNBOOK.md) — read-only preflight, exact approval, bounded mutation envelope, recovery, and receipt interpretation.
 - [Scheduled-event runbook](docs/SCHEDULED_EVENT_RUNBOOK.md) — one-shot manifest, dry run, armed invocation, restart reconciliation, and stop conditions.

@@ -96,6 +96,19 @@ clocks are explicit zero-offset UTC values only. The command never opens a
 network, provider, broker, account, MCP, order, or trading path; `--live`
 remains an explicit fail-closed boundary.
 
+## Point-in-time security lineage
+
+After rights preflight and before fixture adapters run, capture resolves the
+packaged CIK-rooted lineage against the same canonical source-matrix bytes
+used by the rights gate and `capture_identity.json`. The lineage resource
+(SHA-256 `b400453a62ced05dacaa338dd59b90bceeba04853d9aef572ebfbcd16cb97ff5`)
+binds the current accepted-policy and matrix bytes, preserving issuer,
+security, listing, ticker, corporate-action, and listed-option adjustment
+identity at the cutoff. A caller cannot select an alternate matrix or lineage
+file. Missing, inactive, reused, contradictory, or drifted identity fails
+closed before a snapshot exists; `lineage_receipts.jsonl` is emitted only via
+the canonical symlink-safe output set.
+
 ## Retrieval integrity
 
 Pagination, partial retrieval, and duplicate source records are explicit and

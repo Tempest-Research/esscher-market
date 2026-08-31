@@ -80,8 +80,11 @@ Current modules:
   feature, reasoner-exchange, and direction-only decision contracts;
 - `contracts/source_matrix.py` and `sourcedata/rights_gate.py`: the authenticated source-rights
   matrix, upstream binding checks, and candidate-specific capture preflight;
-- `sourcedata/capture.py`: an explicit-fixture, offline-only snapshot command with no alternate
-  matrix, live-provider, account, broker, MCP, or trading path;
+- `contracts/security_lineage.py` and `sourcedata/lineage_gate.py`: CIK-rooted
+  issuer/security/listing/action lineage, options-adjustment checks, and a fail-closed cutoff gate;
+- `sourcedata/capture.py`: an explicit-fixture, offline-only snapshot command with one shared
+  matrix binding, symlink-safe output publication, and no live-provider, account, broker, MCP, or
+  trading path;
 - `contracts/execution_policy.py`: the immutable paper-risk and official MCP protocol registry;
 - `contracts/research_to_permit.py`: the pure frozen-decision, provenance, and feature-dependency bridge;
 - `execution/models.py`: immutable opening and closing permits for one debit vertical;
@@ -169,6 +172,9 @@ The residual return removes frozen market and sector components measured over th
     ticker, cohort, eligibility, and freeze must match one retained manifest record.
 18. A validated strategy decision has direction-only authority; contract, quantity, price, risk,
     account, permit, order, and exit fields are not part of its schema.
+19. Each capture uses the one authenticated source-matrix byte sequence for rights preflight,
+    lineage verification, and identity; every canonical output, including the lineage receipt,
+    is rejected if its directory or destination is a link or reparse point.
 
 Historical panel admission additionally requires per-feature source dependencies, typed publication timestamps, entitlement metadata, and a common outcome path. The aggregate `DecisionSnapshot` alone does not establish those dependencies; the bridge therefore also requires and validates the exact feature-input and evidence-manifest bytes before issuing a permit.
 
@@ -184,6 +190,11 @@ exact policy candidate selection
 packaged source matrix SHA + policy/Gate A rebinding
         |
         +--> unknown, blocked, or unmet source condition: deterministic rejection
+        |
+        v
+CIK-rooted lineage + same matrix binding + active listing check
+        |
+        +--> missing, reused, conflicted, adjusted-option, or drifted lineage: rejection
         |
         v
 offline fixture adapters

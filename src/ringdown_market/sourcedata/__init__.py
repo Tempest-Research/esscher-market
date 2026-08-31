@@ -15,6 +15,10 @@ from ringdown_market.sourcedata.compiler import (
     compiled_strategy_input,
     derive_clocks,
 )
+from ringdown_market.sourcedata.lineage_gate import (
+    LineageGateReport,
+    evaluate_lineage,
+)
 from ringdown_market.sourcedata.reasons import CollectorReason, CollectorRejected
 from ringdown_market.sourcedata.rights_gate import CaptureRightsReport, evaluate_capture_rights
 
@@ -26,8 +30,10 @@ __all__ = [
     "CollectorReason",
     "CollectorRejected",
     "CompiledSnapshot",
+    "LineageGateReport",
     "compile_strategy_snapshot",
     "compiled_strategy_input",
     "derive_clocks",
     "evaluate_capture_rights",
+    "evaluate_lineage",
 ]

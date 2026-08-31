@@ -36,6 +36,8 @@
   packet with stable fail-closed reason codes, plus distinct BMO and AMC reaction-session selection.
 - A frozen source-rights matrix with exact policy and Gate A bindings, development-only evidence
   bundles, candidate-specific rights preflight, and an explicit-fixture offline capture boundary.
+- A CIK-rooted security-lineage contract with byte-pinned development evidence, corporate-action
+  and listed-option adjustment checks, shared source-matrix binding, and a canonical lineage receipt.
 
 ### Safety
 
@@ -52,6 +54,9 @@
 - Source rights are fixed to one authenticated packaged matrix. Candidate-specific preflight, upstream
   binding checks, strict UTC clocks, and structured paid-plan approval records fail closed before
   any offline snapshot is written; the capture command has no alternate-matrix or live-data path.
+- Security lineage uses that same authenticated matrix for rights, lineage, and capture identity;
+  alternate matrix/lineage paths, inactive listings, symbol reuse, conflicting actions, and unsafe
+  lineage-receipt destinations fail closed before a snapshot is written.
 - Version impact is `minor`; the package stays at `0.2.0` while issue #11 consolidates the release-train bump to `0.3.0`.
 
 ## [0.2.0] - Unreleased

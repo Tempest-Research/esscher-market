@@ -247,3 +247,22 @@ def test_capture_command_threads_the_explicit_fixture_to_adapters(
 
     assert exit_code == 2
     assert not (tmp_path / "strategy_snapshot.json").exists()
+
+
+def test_capture_command_uses_a_valid_alternate_fixture_manifest(
+    tmp_path: Path, monkeypatch
+) -> None:
+    from ringdown_market.sourcedata.capture import main
+
+    fixture = copy.deepcopy(json.loads(FIXTURE_PATH.read_text(encoding="utf-8")))
+    fixture["candidate_manifest"]["producer_build_sha256"] = "c" * 64
+    explicit_fixture = tmp_path / "alternate-fixture.json"
+    explicit_fixture.write_text(json.dumps(fixture), encoding="utf-8")
+    output_dir = tmp_path / "capture-output"
+    output_dir.mkdir()
+
+    monkeypatch.setenv("ESSCHER_CAPTURE_AUTHORIZED", "yes")
+    assert main(_capture_args(explicit_fixture, output_dir)) == 0
+
+    candidate_manifest = json.loads((output_dir / "candidate_manifest.json").read_text())
+    assert candidate_manifest["producer_build_sha256"] == "c" * 64

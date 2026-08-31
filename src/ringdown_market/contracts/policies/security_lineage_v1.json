@@ -1,0 +1,439 @@
+{
+ "actions": [
+  {
+   "action_id": "MU-SPLIT-20210419",
+   "action_type": "SPLIT",
+   "ex_date": "2021-04-19",
+   "issuer_id": "0000723125",
+   "memo_id": null,
+   "provenance": {
+    "content_sha256": null,
+    "record_id": "ESSCHER_LINEAGE_DEV_SLICE",
+    "retrieved_at": "2026-08-30T22:47:00Z",
+    "source_class": "SYNTHETIC_FIXTURE"
+   },
+   "ratio_denominator": 1,
+   "ratio_numerator": 2,
+   "successor_issuer_id": null,
+   "symbol_from": null,
+   "symbol_to": null
+  },
+  {
+   "action_id": "MU-OPTADJ-20210419",
+   "action_type": "OPTION_ADJUSTMENT",
+   "ex_date": "2021-04-19",
+   "issuer_id": "0000723125",
+   "memo_id": "SYN-OCC-MEMO-2021-0419",
+   "provenance": {
+    "content_sha256": null,
+    "record_id": "SYN-OCC-MEMO-2021-0419",
+    "retrieved_at": "2026-08-30T22:47:00Z",
+    "source_class": "OCC_INFO_MEMO"
+   },
+   "ratio_denominator": null,
+   "ratio_numerator": null,
+   "successor_issuer_id": null,
+   "symbol_from": null,
+   "symbol_to": null
+  },
+  {
+   "action_id": "KR-DIVIDEND-20220610",
+   "action_type": "CASH_DIVIDEND",
+   "ex_date": "2022-06-10",
+   "issuer_id": "0000056873",
+   "memo_id": null,
+   "provenance": {
+    "content_sha256": null,
+    "record_id": "ESSCHER_LINEAGE_DEV_SLICE",
+    "retrieved_at": "2026-08-30T22:47:00Z",
+    "source_class": "SYNTHETIC_FIXTURE"
+   },
+   "ratio_denominator": null,
+   "ratio_numerator": null,
+   "successor_issuer_id": null,
+   "symbol_from": null,
+   "symbol_to": null
+  }
+ ],
+ "adjustment_policy": {
+  "cross_series_rule": "ISSUER_ACTIONS_NEVER_ADJUST_MARKET_OR_SECTOR_SERIES",
+  "option_adjustment_authority": "OCC_INFO_MEMO",
+  "price_adjusting_actions": [
+   "SPLIT"
+  ],
+  "record_only_actions": [
+   "CASH_DIVIDEND"
+  ]
+ },
+ "chains": [
+  {
+   "asof": "2026-06-01T00:00:00Z",
+   "event_id": "KR-2026Q2-EARNINGS",
+   "issuer_id": "0000056873",
+   "listed_option_exists": true,
+   "listing_id": "LST-KR-XNYS",
+   "provenance_links": [
+    {
+     "content_sha256": null,
+     "record_id": "ESSCHER_LINEAGE_DEV_SLICE",
+     "retrieved_at": "2026-08-30T22:47:00Z",
+     "source_class": "SYNTHETIC_FIXTURE"
+    }
+   ],
+   "security_id": "0000056873:COMMON",
+   "ticker_at_cutoff": "KR"
+  },
+  {
+   "asof": "2026-06-01T00:00:00Z",
+   "event_id": "GIS-2027Q1-EARNINGS",
+   "issuer_id": "0000040704",
+   "listed_option_exists": true,
+   "listing_id": "LST-GIS-XNYS",
+   "provenance_links": [
+    {
+     "content_sha256": null,
+     "record_id": "ESSCHER_LINEAGE_DEV_SLICE",
+     "retrieved_at": "2026-08-30T22:47:00Z",
+     "source_class": "SYNTHETIC_FIXTURE"
+    }
+   ],
+   "security_id": "0000040704:COMMON",
+   "ticker_at_cutoff": "GIS"
+  },
+  {
+   "asof": "2026-06-01T00:00:00Z",
+   "event_id": "MU-2026Q4-EARNINGS",
+   "issuer_id": "0000723125",
+   "listed_option_exists": true,
+   "listing_id": "LST-MU-XNAS",
+   "provenance_links": [
+    {
+     "content_sha256": null,
+     "record_id": "ESSCHER_LINEAGE_DEV_SLICE",
+     "retrieved_at": "2026-08-30T22:47:00Z",
+     "source_class": "SYNTHETIC_FIXTURE"
+    }
+   ],
+   "security_id": "0000723125:COMMON",
+   "ticker_at_cutoff": "MU"
+  },
+  {
+   "asof": "2026-06-01T00:00:00Z",
+   "event_id": "NKE-2027Q1-EARNINGS",
+   "issuer_id": "0000320187",
+   "listed_option_exists": true,
+   "listing_id": "LST-NKE-XNYS",
+   "provenance_links": [
+    {
+     "content_sha256": null,
+     "record_id": "ESSCHER_LINEAGE_DEV_SLICE",
+     "retrieved_at": "2026-08-30T22:47:00Z",
+     "source_class": "SYNTHETIC_FIXTURE"
+    }
+   ],
+   "security_id": "0000320187:COMMON",
+   "ticker_at_cutoff": "NKE"
+  },
+  {
+   "asof": "2026-06-01T00:00:00Z",
+   "event_id": "BLS-JOLTS-2026-07",
+   "issuer_id": "0000884394",
+   "listed_option_exists": false,
+   "listing_id": "LST-SPY-ARCX",
+   "provenance_links": [
+    {
+     "content_sha256": null,
+     "record_id": "ESSCHER_LINEAGE_DEV_SLICE",
+     "retrieved_at": "2026-08-30T22:47:00Z",
+     "source_class": "SYNTHETIC_FIXTURE"
+    }
+   ],
+   "security_id": "0000884394:COMMON",
+   "ticker_at_cutoff": "SPY"
+  }
+ ],
+ "decided_at": "2026-08-31T00:00:00Z",
+ "identity_rule": "CIK_ROOTED_IDENTITY",
+ "issuers": [
+  {
+   "issuer_id": "0000056873",
+   "names": [
+    {
+     "effective_from": "2000-01-01T00:00:00Z",
+     "name": "Kroger Co.",
+     "provenance": {
+      "content_sha256": null,
+      "record_id": "ESSCHER_LINEAGE_DEV_SLICE",
+      "retrieved_at": "2026-08-30T22:47:00Z",
+      "source_class": "SYNTHETIC_FIXTURE"
+     }
+    }
+   ],
+   "tickers": [
+    {
+     "provenance": {
+      "content_sha256": null,
+      "record_id": "ESSCHER_LINEAGE_DEV_SLICE",
+      "retrieved_at": "2026-08-30T22:47:00Z",
+      "source_class": "SYNTHETIC_FIXTURE"
+     },
+     "security_id": "0000056873:COMMON",
+     "ticker": "KR",
+     "valid_from": "2000-01-01",
+     "valid_to": null
+    }
+   ]
+  },
+  {
+   "issuer_id": "0000040704",
+   "names": [
+    {
+     "effective_from": "2000-01-01T00:00:00Z",
+     "name": "General Mills, Inc.",
+     "provenance": {
+      "content_sha256": null,
+      "record_id": "ESSCHER_LINEAGE_DEV_SLICE",
+      "retrieved_at": "2026-08-30T22:47:00Z",
+      "source_class": "SYNTHETIC_FIXTURE"
+     }
+    }
+   ],
+   "tickers": [
+    {
+     "provenance": {
+      "content_sha256": null,
+      "record_id": "ESSCHER_LINEAGE_DEV_SLICE",
+      "retrieved_at": "2026-08-30T22:47:00Z",
+      "source_class": "SYNTHETIC_FIXTURE"
+     },
+     "security_id": "0000040704:COMMON",
+     "ticker": "GIS",
+     "valid_from": "2000-01-01",
+     "valid_to": null
+    }
+   ]
+  },
+  {
+   "issuer_id": "0000723125",
+   "names": [
+    {
+     "effective_from": "2000-01-01T00:00:00Z",
+     "name": "Micron Technology, Inc.",
+     "provenance": {
+      "content_sha256": null,
+      "record_id": "ESSCHER_LINEAGE_DEV_SLICE",
+      "retrieved_at": "2026-08-30T22:47:00Z",
+      "source_class": "SYNTHETIC_FIXTURE"
+     }
+    }
+   ],
+   "tickers": [
+    {
+     "provenance": {
+      "content_sha256": null,
+      "record_id": "ESSCHER_LINEAGE_DEV_SLICE",
+      "retrieved_at": "2026-08-30T22:47:00Z",
+      "source_class": "SYNTHETIC_FIXTURE"
+     },
+     "security_id": "0000723125:COMMON",
+     "ticker": "MU",
+     "valid_from": "2000-01-01",
+     "valid_to": null
+    }
+   ]
+  },
+  {
+   "issuer_id": "0000320187",
+   "names": [
+    {
+     "effective_from": "2000-01-01T00:00:00Z",
+     "name": "NIKE, Inc.",
+     "provenance": {
+      "content_sha256": null,
+      "record_id": "ESSCHER_LINEAGE_DEV_SLICE",
+      "retrieved_at": "2026-08-30T22:47:00Z",
+      "source_class": "SYNTHETIC_FIXTURE"
+     }
+    }
+   ],
+   "tickers": [
+    {
+     "provenance": {
+      "content_sha256": null,
+      "record_id": "ESSCHER_LINEAGE_DEV_SLICE",
+      "retrieved_at": "2026-08-30T22:47:00Z",
+      "source_class": "SYNTHETIC_FIXTURE"
+     },
+     "security_id": "0000320187:COMMON",
+     "ticker": "NKE",
+     "valid_from": "2000-01-01",
+     "valid_to": null
+    }
+   ]
+  },
+  {
+   "issuer_id": "0000884394",
+   "names": [
+    {
+     "effective_from": "1993-01-29T00:00:00Z",
+     "name": "State Street SPDR S&P 500 ETF Trust",
+     "provenance": {
+      "content_sha256": null,
+      "record_id": "ESSCHER_LINEAGE_DEV_SLICE",
+      "retrieved_at": "2026-08-30T22:47:00Z",
+      "source_class": "SYNTHETIC_FIXTURE"
+     }
+    }
+   ],
+   "tickers": [
+    {
+     "provenance": {
+      "content_sha256": null,
+      "record_id": "ESSCHER_LINEAGE_DEV_SLICE",
+      "retrieved_at": "2026-08-30T22:47:00Z",
+      "source_class": "SYNTHETIC_FIXTURE"
+     },
+     "security_id": "0000884394:COMMON",
+     "ticker": "SPY",
+     "valid_from": "1993-01-29",
+     "valid_to": null
+    }
+   ]
+  }
+ ],
+ "lineage_id": "ESSCHER_SECURITY_LINEAGE_V1",
+ "lineage_version": "2026-08-31",
+ "listings": [
+  {
+   "delisting_reason": null,
+   "exchange_mic": "XNYS",
+   "listed_from": "2000-01-01",
+   "listed_to": null,
+   "listing_id": "LST-KR-XNYS",
+   "provenance": {
+    "content_sha256": null,
+    "record_id": "ESSCHER_LINEAGE_DEV_SLICE",
+    "retrieved_at": "2026-08-30T22:47:00Z",
+    "source_class": "SYNTHETIC_FIXTURE"
+   },
+   "security_id": "0000056873:COMMON"
+  },
+  {
+   "delisting_reason": null,
+   "exchange_mic": "XNYS",
+   "listed_from": "2000-01-01",
+   "listed_to": null,
+   "listing_id": "LST-GIS-XNYS",
+   "provenance": {
+    "content_sha256": null,
+    "record_id": "ESSCHER_LINEAGE_DEV_SLICE",
+    "retrieved_at": "2026-08-30T22:47:00Z",
+    "source_class": "SYNTHETIC_FIXTURE"
+   },
+   "security_id": "0000040704:COMMON"
+  },
+  {
+   "delisting_reason": null,
+   "exchange_mic": "XNAS",
+   "listed_from": "2000-01-01",
+   "listed_to": null,
+   "listing_id": "LST-MU-XNAS",
+   "provenance": {
+    "content_sha256": null,
+    "record_id": "ESSCHER_LINEAGE_DEV_SLICE",
+    "retrieved_at": "2026-08-30T22:47:00Z",
+    "source_class": "SYNTHETIC_FIXTURE"
+   },
+   "security_id": "0000723125:COMMON"
+  },
+  {
+   "delisting_reason": null,
+   "exchange_mic": "XNYS",
+   "listed_from": "2000-01-01",
+   "listed_to": null,
+   "listing_id": "LST-NKE-XNYS",
+   "provenance": {
+    "content_sha256": null,
+    "record_id": "ESSCHER_LINEAGE_DEV_SLICE",
+    "retrieved_at": "2026-08-30T22:47:00Z",
+    "source_class": "SYNTHETIC_FIXTURE"
+   },
+   "security_id": "0000320187:COMMON"
+  },
+  {
+   "delisting_reason": null,
+   "exchange_mic": "ARCX",
+   "listed_from": "1993-01-29",
+   "listed_to": null,
+   "listing_id": "LST-SPY-ARCX",
+   "provenance": {
+    "content_sha256": null,
+    "record_id": "ESSCHER_LINEAGE_DEV_SLICE",
+    "retrieved_at": "2026-08-30T22:47:00Z",
+    "source_class": "SYNTHETIC_FIXTURE"
+   },
+   "security_id": "0000884394:COMMON"
+  }
+ ],
+ "policy_sha256": "afce93b52b96e0d8c71deeb80027a1c87a4cf3623e9417db14de00279fc23bca",
+ "schema": "esscher.security_lineage",
+ "schema_version": 1,
+ "securities": [
+  {
+   "issuer_id": "0000056873",
+   "provenance": {
+    "content_sha256": null,
+    "record_id": "ESSCHER_LINEAGE_DEV_SLICE",
+    "retrieved_at": "2026-08-30T22:47:00Z",
+    "source_class": "SYNTHETIC_FIXTURE"
+   },
+   "security_id": "0000056873:COMMON",
+   "security_type": "US_COMMON_STOCK"
+  },
+  {
+   "issuer_id": "0000040704",
+   "provenance": {
+    "content_sha256": null,
+    "record_id": "ESSCHER_LINEAGE_DEV_SLICE",
+    "retrieved_at": "2026-08-30T22:47:00Z",
+    "source_class": "SYNTHETIC_FIXTURE"
+   },
+   "security_id": "0000040704:COMMON",
+   "security_type": "US_COMMON_STOCK"
+  },
+  {
+   "issuer_id": "0000723125",
+   "provenance": {
+    "content_sha256": null,
+    "record_id": "ESSCHER_LINEAGE_DEV_SLICE",
+    "retrieved_at": "2026-08-30T22:47:00Z",
+    "source_class": "SYNTHETIC_FIXTURE"
+   },
+   "security_id": "0000723125:COMMON",
+   "security_type": "US_COMMON_STOCK"
+  },
+  {
+   "issuer_id": "0000320187",
+   "provenance": {
+    "content_sha256": null,
+    "record_id": "ESSCHER_LINEAGE_DEV_SLICE",
+    "retrieved_at": "2026-08-30T22:47:00Z",
+    "source_class": "SYNTHETIC_FIXTURE"
+   },
+   "security_id": "0000320187:COMMON",
+   "security_type": "US_COMMON_STOCK"
+  },
+  {
+   "issuer_id": "0000884394",
+   "provenance": {
+    "content_sha256": null,
+    "record_id": "ESSCHER_LINEAGE_DEV_SLICE",
+    "retrieved_at": "2026-08-30T22:47:00Z",
+    "source_class": "SYNTHETIC_FIXTURE"
+   },
+   "security_id": "0000884394:COMMON",
+   "security_type": "US_ETF"
+  }
+ ],
+ "source_matrix_sha256": "888447640aa705510bc0594abc9a78f22c988e961282ff82a6f44337181d04ca"
+}
