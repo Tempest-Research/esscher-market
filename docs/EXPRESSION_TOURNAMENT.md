@@ -43,9 +43,11 @@ identities are never inferred. Observations labeled `INDICATIVE_DATA` never
 become executable-fill evidence (`INDICATIVE_ONLY`).
 
 The compiler and tournament apply the same pinned-feed, freshness, two-sided
-size, and spread bounds to shares, option legs, and atomic packages. A short
-share also needs explicit borrow/locate evidence dated no later than the
-snapshot clock and fresh within the frozen observation-age bound.
+size, and spread bounds to shares, option legs, and atomic packages. Freshness
+and vertical-skew bounds are inclusive at the exact policy limit and compare
+exact UTC durations, so any one-microsecond overage fails closed. A short share
+also needs explicit borrow/locate evidence dated no later than the snapshot
+clock and fresh within the frozen observation-age bound.
 
 ## Quote-side economics
 

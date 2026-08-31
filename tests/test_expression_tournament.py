@@ -14,6 +14,7 @@ from decimal import Decimal
 import pytest
 
 from ringdown_market.execution.expression import (
+    COMPILED,
     EXECUTABLE_DATA,
     INDICATIVE_DATA,
     NO_PACKAGE,
@@ -41,6 +42,7 @@ from ringdown_market.execution.expression import (
     run_gate_d_tournament,
 )
 from ringdown_market.execution.expression.compiler import no_package_payload
+from ringdown_market.execution.expression.validation import _observation_age
 from ringdown_market.execution.models import VerticalType
 from ringdown_market.strategy.contracts import sha256_bytes, strategy_decision_bytes
 from ringdown_market.strategy.models import (
@@ -612,6 +614,43 @@ def test_stale_quote_fails_closed() -> None:
     assert (status, result) == (NO_PACKAGE, ExpressionReason.STALE_QUOTE)
 
 
+def test_quote_at_exact_freshness_limit_is_allowed() -> None:
+    exact_limit_quote = _quote("61.40", "61.44", at=CLOCK - timedelta(milliseconds=5000))
+    kwargs = _compile_kwargs(kind=ExpressionKind.SHARES)
+    kwargs["snapshot"] = _snapshot(
+        share=_share(quote=exact_limit_quote),
+        packages=[_package("KR260918C00061000", "KR260918C00062000")],
+        decision_sha256=sha256_bytes(kwargs["decision_bytes"]),
+    )
+    status, result = compile_or_no_package(**kwargs)
+    assert status == COMPILED
+    assert result.expression_kind is ExpressionKind.SHARES
+
+
+def test_quote_one_microsecond_over_freshness_limit_fails_closed() -> None:
+    just_stale_quote = _quote(
+        "61.40", "61.44", at=CLOCK - timedelta(milliseconds=5000, microseconds=1)
+    )
+    kwargs = _compile_kwargs(kind=ExpressionKind.SHARES)
+    kwargs["snapshot"] = _snapshot(
+        share=_share(quote=just_stale_quote),
+        packages=[_package("KR260918C00061000", "KR260918C00062000")],
+        decision_sha256=sha256_bytes(kwargs["decision_bytes"]),
+    )
+    status, result = compile_or_no_package(**kwargs)
+    assert (status, result) == (NO_PACKAGE, ExpressionReason.STALE_QUOTE)
+
+
+def test_future_observation_is_rejected_without_microsecond_rounding() -> None:
+    with pytest.raises(ExpressionRejected) as caught:
+        _observation_age(
+            CLOCK + timedelta(microseconds=1),
+            snapshot=_snapshot(),
+            path="share.KR.quote",
+        )
+    assert caught.value.reason is ExpressionReason.TIME_INCONSISTENT
+
+
 def test_crossed_quote_fails_closed() -> None:
     crossed = _quote("61.50", "61.40")
     kwargs = _compile_kwargs(kind=ExpressionKind.SHARES)
@@ -669,6 +708,61 @@ def test_asynchronous_leg_quotes_fail_closed() -> None:
     kwargs["snapshot"] = _snapshot(
         chain=(long_contract, short_contract),
         packages=[_package("KR260918C00061000", "KR260918C00062000")],
+        decision_sha256=sha256_bytes(kwargs["decision_bytes"]),
+    )
+    status, result = compile_or_no_package(**kwargs)
+    assert (status, result) == (NO_PACKAGE, ExpressionReason.ASYNCHRONOUS_QUOTES)
+
+
+def test_cross_leg_skew_at_exact_limit_is_allowed() -> None:
+    long_contract = _contract(
+        "KR260918C00061000",
+        "CALL",
+        "61",
+        delta="0.45",
+        quote=_quote("0.80", "0.84", at=CLOCK - timedelta(seconds=1)),
+    )
+    short_contract = _contract(
+        "KR260918C00062000",
+        "CALL",
+        "62",
+        delta="0.30",
+        bid="0.46",
+        ask="0.48",
+        quote=_quote("0.46", "0.48", at=CLOCK - timedelta(seconds=2)),
+    )
+    kwargs = _compile_kwargs()
+    kwargs["snapshot"] = _snapshot(
+        chain=(long_contract, short_contract),
+        packages=[_package(long_contract.symbol, short_contract.symbol)],
+        decision_sha256=sha256_bytes(kwargs["decision_bytes"]),
+    )
+    status, result = compile_or_no_package(**kwargs)
+    assert status == COMPILED
+    assert result.expression_kind is ExpressionKind.DEBIT_VERTICAL
+
+
+def test_cross_leg_skew_one_microsecond_over_limit_fails_closed() -> None:
+    long_contract = _contract(
+        "KR260918C00061000",
+        "CALL",
+        "61",
+        delta="0.45",
+        quote=_quote("0.80", "0.84", at=CLOCK - timedelta(seconds=1)),
+    )
+    short_contract = _contract(
+        "KR260918C00062000",
+        "CALL",
+        "62",
+        delta="0.30",
+        bid="0.46",
+        ask="0.48",
+        quote=_quote("0.46", "0.48", at=CLOCK - timedelta(seconds=2, microseconds=1)),
+    )
+    kwargs = _compile_kwargs()
+    kwargs["snapshot"] = _snapshot(
+        chain=(long_contract, short_contract),
+        packages=[_package(long_contract.symbol, short_contract.symbol)],
         decision_sha256=sha256_bytes(kwargs["decision_bytes"]),
     )
     status, result = compile_or_no_package(**kwargs)

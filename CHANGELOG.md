@@ -59,6 +59,8 @@
 - Tournament rows now apply the compiler's pinned-feed, freshness, and spread gates before an
   expression can count as comparable; short-share borrow/locate evidence must be pre-clock and
   fresh within the frozen observation-age bound.
+- Gate D freshness and vertical-skew limits now compare exact UTC durations: the policy limit is
+  inclusive, but a one-microsecond overage or post-clock observation fails closed.
 
 ### Safety
 
