@@ -76,6 +76,9 @@
 - Gate A remains `UNVERIFIED`, and the accepted strategy policy grants no expression, exit, risk,
   permit, order, account, or broker authority.
 - Unknown fields/states, hash or provenance mismatch, post-cutoff dependencies, abstention, failed research gates, unsupported strategy shape, and excess paper risk fail closed before any broker session exists.
+- Source-health audits return deterministic findings for malformed `redistribution_status` values and incomplete `published_at_interval` objects instead of raising.
+- Source-health manifests containing unpaired Unicode surrogate code points fail closed as `PARSE_FAILED` before canonical report serialization.
+- `ringdown_market.audit` exposes the source-health and bundle-diff report serializers under explicit names while retaining its existing bundle-diff `canonical_report_bytes` compatibility export.
 - Evidence-manifest v2 remains ineligible for permit compilation and carries no post-cutoff path or outcome value.
 - Partial or contradictory package fills stop for reconciliation; missing fees remain explicit and raw broker/account identities never enter the receipt bundle.
 - Scheduled unknown, ambiguous, partial, overlapping, or integrity-invalid state fails closed without sequential-leg repair, guessed P&L, or another mutation.
