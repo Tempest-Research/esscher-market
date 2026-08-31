@@ -50,13 +50,16 @@ from ringdown_market.lifecycle import (
     LifecycleReason,
     LifecycleRejected,
     LifecycleState,
+    issue_close_permit,
 )
 from ringdown_market.risk import (
     ControlState,
+    PassportEventType,
     RiskKernel,
     RiskLedger,
     RiskPolicy,
     risk_policy_sha256,
+    verify_passport,
 )
 from ringdown_market.risk.snapshots import AccountSnapshot, OrderSnapshot, PositionSnapshot
 from ringdown_market.sourcedata import CaptureConfiguration
@@ -129,6 +132,8 @@ class FakeHostMcp:
         self.calls: list[tuple[str, Mapping[str, object]]] = []
         self._client_order_id: str | None = None
         self._open_legs: list[Mapping[str, object]] = []
+        self._orders: dict[str, Mapping[str, object]] = {}
+        self._positions_open = False
         self.ambiguous_open = False
 
     async def list_tools(self) -> tuple[str, ...]:
@@ -152,24 +157,42 @@ class FakeHostMcp:
                 "equity": "100000.00",
                 "buying_power": "100000.00",
             }
-        if name in (OPEN_TOOL, READBACK_TOOL, ORDER_BY_ID_TOOL):
-            if name == OPEN_TOOL:
-                client_order_id = arguments.get("client_order_id")
-                assert isinstance(client_order_id, str)
-                self._client_order_id = client_order_id
-                legs = arguments.get("legs")
-                assert isinstance(legs, list)
-                self._open_legs = list(legs)
-                if self.ambiguous_open:
-                    raise TimeoutError("simulated open timeout")
-            return {
-                "id": "paper-order-1",
-                "client_order_id": self._client_order_id,
+        if name == OPEN_TOOL:
+            client_order_id = arguments.get("client_order_id")
+            assert isinstance(client_order_id, str)
+            self._client_order_id = client_order_id
+            legs = arguments.get("legs")
+            assert isinstance(legs, list)
+            closing = client_order_id.startswith("close-")
+            order_id = "paper-close-order-1" if closing else "paper-order-1"
+            order = {
+                "id": order_id,
+                "client_order_id": client_order_id,
                 "status": "filled",
                 "filled_qty": "1",
-                "limit_price": "0.36",
+                "limit_price": arguments["limit_price"],
             }
+            self._orders[order_id] = order
+            if closing:
+                self._positions_open = False
+            else:
+                self._open_legs = list(legs)
+                self._positions_open = True
+                if self.ambiguous_open:
+                    raise TimeoutError("simulated open timeout")
+            return order
+        if name == READBACK_TOOL:
+            client_order_id = arguments.get("client_order_id")
+            return next(
+                order
+                for order in self._orders.values()
+                if order["client_order_id"] == client_order_id
+            )
+        if name == ORDER_BY_ID_TOOL:
+            return self._orders[str(arguments["order_id"])]
         if name == POSITIONS_TOOL:
+            if not self._positions_open:
+                return []
             return [
                 {
                     "symbol": leg["symbol"],
@@ -425,12 +448,13 @@ def test_prepare_binds_capture_to_closed_lifecycle_without_provider_or_broker_mu
     assert host.calls == []
 
 
-def test_open_host_causally_joins_prepared_pipeline_to_the_one_guarded_mcp_door(tmp_path) -> None:
-    """The explicit test gate reaches only the prepared host adapter with fakes."""
+def test_open_and_close_host_join_pipeline_to_flat_hash_linked_passport(tmp_path) -> None:
+    """The explicit test gate reaches flatness only through the guarded fake host door."""
 
     host = FakeHostMcp()
     host_session = _prepared_host(host)
     host.calls.clear()
+    current = [CLOCK]
     reasoner = FakeHostReasoner()
     capture, fixture = _capture_configuration()
     risk_policy = _risk_policy()
@@ -463,7 +487,7 @@ def test_open_host_causally_joins_prepared_pipeline_to_the_one_guarded_mcp_door(
         service.open_host(
             prepared=prepared,
             host_session=host_session,
-            clock=lambda: CLOCK,
+            clock=lambda: current[0],
             mutation_gate=OpenMutationGate(),
         )
     )
@@ -481,6 +505,53 @@ def test_open_host_causally_joins_prepared_pipeline_to_the_one_guarded_mcp_door(
     ]
     opening = host.calls[0][1]
     assert opening["client_order_id"].startswith(f"open-{prepared.permit.permit_id}-")
+    assert all("secret" not in str(arguments).lower() for _, arguments in host.calls)
+
+    current[0] = datetime(2026, 9, 11, 14, 0, 5, tzinfo=UTC)
+    close_permit = issue_close_permit(
+        open_permit=prepared.permit,
+        event_run_id=prepared.permit.event_run_id,
+        policy_sha256=prepared.permit.policy_sha256,
+        snapshot_sha256=prepared.permit.snapshot_sha256,
+        issued_at=current[0],
+        expires_at=current[0] + timedelta(minutes=1),
+        limit_price=Decimal("-0.20"),
+    )
+    closed_state, close_order_id = asyncio.run(
+        service.close(active=active, close_permit=close_permit)
+    )
+
+    assert closed_state is LifecycleState.CLOSED_FLAT
+    assert close_order_id == "paper-close-order-1"
+    assert ledger.reservation_for_event(prepared.permit.event_run_id)["state"] == "RELEASED"
+    close_intent = ledger.lifecycle_intent_for_event_phase(prepared.permit.event_run_id, "CLOSE")
+    assert close_intent is not None
+    assert close_intent["permit_id"] == close_permit.permit_id
+    assert close_intent["state"] == "RECONCILED"
+    passport = ledger.passport_events()
+    assert verify_passport(passport) == len(passport)
+    assert passport[-1]["event_type"] == PassportEventType.RECONCILED.value
+    assert passport[-1]["payload"] == {
+        "event_id": prepared.permit.event_run_id,
+        "permit_id": prepared.permit.permit_id,
+        "result": "FLAT",
+    }
+    assert [name for name, _ in host.calls] == [
+        OPEN_TOOL,
+        ACCOUNT_TOOL,
+        ORDER_BY_ID_TOOL,
+        POSITIONS_TOOL,
+        OPEN_TOOL,
+        ACCOUNT_TOOL,
+        ORDER_BY_ID_TOOL,
+        POSITIONS_TOOL,
+    ]
+    closing = host.calls[4][1]
+    assert closing["client_order_id"].startswith(f"close-{close_permit.permit_id}-")
+    assert [leg["position_intent"] for leg in closing["legs"]] == [
+        "sell_to_close",
+        "buy_to_close",
+    ]
     assert all("secret" not in str(arguments).lower() for _, arguments in host.calls)
 
 
