@@ -76,6 +76,9 @@ def _check_quote_quality(
         return ExpressionReason.CROSSED_QUOTE
     if bid_size < policy.min_quote_size or ask_size < policy.min_quote_size:
         return ExpressionReason.INSUFFICIENT_SIZE
+    spread_bps = (ask - bid) / ask * Decimal(10000)
+    if spread_bps > policy.spread_max_bps:
+        return ExpressionReason.SPREAD_TOO_WIDE
     return None
 
 
@@ -182,6 +185,9 @@ def debit_vertical_economics(
         return _rejected(event_id, kind, ExpressionReason.CROSSED_QUOTE)
     if package.size < policy.min_quote_size:
         return _rejected(event_id, kind, ExpressionReason.INSUFFICIENT_SIZE)
+    spread_bps = (package.net_ask - package.net_bid) / package.net_ask * Decimal(10000)
+    if spread_bps > policy.spread_max_bps:
+        return _rejected(event_id, kind, ExpressionReason.SPREAD_TOO_WIDE)
     debit = package.net_ask * CONTRACT_MULTIPLIER
     if debit >= width * CONTRACT_MULTIPLIER:
         return _rejected(event_id, kind, ExpressionReason.DEBIT_NOT_BELOW_WIDTH)

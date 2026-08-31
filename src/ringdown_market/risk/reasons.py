@@ -28,6 +28,10 @@ class RiskReason(StrEnum):
     POLICY_NOT_PAPER_ONLY = "POLICY_NOT_PAPER_ONLY"
     CONTROL_STATE_BLOCKS_ENTRY = "CONTROL_STATE_BLOCKS_ENTRY"
     DUPLICATE_EVENT_RESERVATION = "DUPLICATE_EVENT_RESERVATION"
+    IMMUTABLE_EVENT_REPLAY = "IMMUTABLE_EVENT_REPLAY"
+    NOT_RUN_EVENT = "NOT_RUN_EVENT"
+    EVENT_LIFECYCLE_INVALID = "EVENT_LIFECYCLE_INVALID"
+    PERMIT_LIFECYCLE_INVALID = "PERMIT_LIFECYCLE_INVALID"
     BUDGET_EXCEEDED = "BUDGET_EXCEEDED"
     DAILY_LOSS_LIMIT_BREACHED = "DAILY_LOSS_LIMIT_BREACHED"
     DRAWDOWN_LIMIT_BREACHED = "DRAWDOWN_LIMIT_BREACHED"
@@ -66,7 +70,6 @@ def _reject(reason: RiskReason, path: str, detail: str) -> RiskRejected:
     return RiskRejected(reason, path, detail)
 
 
-# Control states that block any new entry.
 ENTRY_BLOCKING_STATES: frozenset[ControlState] = frozenset(
     {
         ControlState.ENTRY_DISABLED,
@@ -75,7 +78,6 @@ ENTRY_BLOCKING_STATES: frozenset[ControlState] = frozenset(
         ControlState.MANUAL_REQUIRED,
     }
 )
-# Control states that still allow close/reconciliation authority.
 CLOSE_ALLOWED_STATES: frozenset[ControlState] = frozenset(
     {
         ControlState.ACTIVE,

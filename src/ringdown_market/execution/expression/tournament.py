@@ -30,14 +30,26 @@ from ringdown_market.execution.expression.geometry import (
 )
 from ringdown_market.execution.expression.observations import (
     ExpressionMarketSnapshot,
+    OptionContractObservation,
     expression_market_snapshot_sha256,
 )
-from ringdown_market.execution.expression.policy import PromotedExpressionPolicy
+from ringdown_market.execution.expression.policy import (
+    PromotedExpressionPolicy,
+    promoted_expression_policy_sha256,
+)
 from ringdown_market.execution.expression.reasons import (
     NO_EXPRESSION,
     ExpressionKind,
     ExpressionReason,
     ExpressionRejected,
+)
+from ringdown_market.execution.expression.validation import (
+    validate_borrow_locate,
+    validate_cross_leg_skew,
+    validate_executable_data,
+    validate_feed,
+    validate_package,
+    validate_quote,
 )
 from ringdown_market.execution.models import OptionType
 from ringdown_market.strategy.contracts import canonical_json_bytes, sha256_bytes
@@ -92,6 +104,55 @@ class TournamentEvent:
             raise ValueError("exit clock cannot precede the observation clock")
 
 
+def _rejected_economics(
+    event_id: str,
+    kind: ExpressionKind,
+    reason: ExpressionReason,
+) -> ExpressionEconomics:
+    return ExpressionEconomics(
+        event_id=event_id,
+        expression_kind=kind,
+        outcome="REJECTED",
+        reason=reason,
+        entry_cost=None,
+        max_loss=None,
+        entry_spread_cost=None,
+    )
+
+
+def _validate_option_observation(
+    contract: OptionContractObservation,
+    *,
+    snapshot: ExpressionMarketSnapshot,
+    policy: PromotedExpressionPolicy,
+    path: str,
+) -> None:
+    validate_feed(contract.feed, f"{path}.feed")
+    validate_executable_data(contract.data_class, f"{path}.data_class")
+    validate_quote(contract.quote, snapshot=snapshot, policy=policy, path=f"{path}.quote")
+
+
+def _strict_shares_economics(
+    event: TournamentEvent,
+    policy: PromotedExpressionPolicy,
+) -> ExpressionEconomics:
+    snapshot = event.snapshot
+    try:
+        validate_feed(snapshot.share.feed, "share.feed")
+        validate_executable_data(snapshot.share.data_class, "share.data_class")
+        validate_quote(snapshot.share.quote, snapshot=snapshot, policy=policy, path="share.quote")
+        if event.decision_direction == "DOWN":
+            validate_borrow_locate(snapshot.borrow_locate, snapshot=snapshot, policy=policy)
+    except ExpressionRejected as error:
+        return _rejected_economics(event.event_id, ExpressionKind.SHARES, error.reason)
+    return shares_economics(
+        event.event_id,
+        snapshot,
+        policy,
+        direction_is_up=event.decision_direction == "UP",
+    )
+
+
 def _event_economics(
     event: TournamentEvent, policy: PromotedExpressionPolicy
 ) -> tuple[ExpressionEconomics, ...]:
@@ -99,36 +160,24 @@ def _event_economics(
     snapshot = event.snapshot
     asof = snapshot.observation_clock_at.date()
     economics: list[ExpressionEconomics] = [cash_economics(event.event_id)]
-    economics.append(
-        shares_economics(event.event_id, snapshot, policy, direction_is_up=direction_is_up)
-    )
+    economics.append(_strict_shares_economics(event, policy))
     option_type = OptionType.CALL if direction_is_up else OptionType.PUT
     try:
         contract = select_long_contract(
             snapshot, policy, option_type=option_type, asof=asof, direction_is_up=direction_is_up
         )
+        _validate_option_observation(
+            contract,
+            snapshot=snapshot,
+            policy=policy,
+            path=f"option.{contract.symbol}",
+        )
     except ExpressionRejected as error:
         economics.append(
-            ExpressionEconomics(
-                event_id=event.event_id,
-                expression_kind=ExpressionKind.ONE_LONG_OPTION,
-                outcome="REJECTED",
-                reason=error.reason,
-                entry_cost=None,
-                max_loss=None,
-                entry_spread_cost=None,
-            )
+            _rejected_economics(event.event_id, ExpressionKind.ONE_LONG_OPTION, error.reason)
         )
         economics.append(
-            ExpressionEconomics(
-                event_id=event.event_id,
-                expression_kind=ExpressionKind.DEBIT_VERTICAL,
-                outcome="REJECTED",
-                reason=error.reason,
-                entry_cost=None,
-                max_loss=None,
-                entry_spread_cost=None,
-            )
+            _rejected_economics(event.event_id, ExpressionKind.DEBIT_VERTICAL, error.reason)
         )
         return tuple(economics)
     economics.append(option_economics(event.event_id, contract, policy))
@@ -136,19 +185,31 @@ def _event_economics(
         geometry = select_vertical_geometry(
             snapshot, policy, direction_is_up=direction_is_up, asof=asof
         )
+        for vertical_contract in (geometry.long_leg, geometry.short_leg):
+            _validate_option_observation(
+                vertical_contract,
+                snapshot=snapshot,
+                policy=policy,
+                path=f"vertical.{vertical_contract.symbol}",
+            )
+        validate_cross_leg_skew(
+            [
+                (geometry.long_leg.quote, geometry.long_leg.symbol),
+                (geometry.short_leg.quote, geometry.short_leg.symbol),
+            ],
+            policy=policy,
+        )
         package = select_package(snapshot, geometry)
+        validate_package(
+            package,
+            snapshot=snapshot,
+            policy=policy,
+            path=f"package.{package.package_id}",
+        )
         economics.append(debit_vertical_economics(event.event_id, package, geometry.width, policy))
     except ExpressionRejected as error:
         economics.append(
-            ExpressionEconomics(
-                event_id=event.event_id,
-                expression_kind=ExpressionKind.DEBIT_VERTICAL,
-                outcome="REJECTED",
-                reason=error.reason,
-                entry_cost=None,
-                max_loss=None,
-                entry_spread_cost=None,
-            )
+            _rejected_economics(event.event_id, ExpressionKind.DEBIT_VERTICAL, error.reason)
         )
     return tuple(economics)
 
@@ -316,6 +377,12 @@ def run_gate_d_tournament(
             ExpressionReason.UNSUPPORTED_INPUT,
             "tournament.evaluated_at",
             "evaluation clock must be UTC",
+        )
+    if policy_sha256 != promoted_expression_policy_sha256(policy):
+        raise ExpressionRejected(
+            ExpressionReason.POLICY_HASH_MISMATCH,
+            "policy_sha256",
+            "supplied policy digest does not match canonical policy bytes",
         )
     all_economics: dict[str, tuple[ExpressionEconomics, ...]] = {}
     event_payloads: list[dict[str, object]] = []

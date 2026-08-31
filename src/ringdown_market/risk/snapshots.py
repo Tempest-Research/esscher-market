@@ -1,9 +1,8 @@
-"""Account, position, and order snapshot interfaces over broker-observed truth.
+"""Account, position, and order snapshots over broker-observed truth.
 
-All truth comes from broker-observed snapshots; nothing is inferred. Every
-snapshot carries its observation time, and stale, missing, or contradictory
-truth fails closed. Broker PAPER PnL and conservative shadow PnL remain
-separate fields and separate claims.
+Every snapshot has an explicit UTC observation time. Missing, malformed,
+stale, future, or contradictory truth fails closed as ``RiskRejected`` rather
+than leaking a type or datetime exception across the risk boundary.
 """
 
 from __future__ import annotations
@@ -17,9 +16,20 @@ from typing import Protocol, runtime_checkable
 from ringdown_market.risk.reasons import RiskReason, _reject
 
 
-def _require_utc(value: datetime, field: str) -> None:
-    if value.tzinfo != UTC:
+def _require_utc(value: object, field: str) -> datetime:
+    """Return an exact-UTC datetime or raise a stable risk rejection."""
+
+    if not isinstance(value, datetime):
+        raise _reject(RiskReason.UNSUPPORTED_INPUT, field, "must be a datetime")
+    if value.tzinfo is not UTC:
         raise _reject(RiskReason.UNSUPPORTED_INPUT, field, "must be UTC")
+    return value
+
+
+def _require_decimal(value: object, field: str) -> Decimal:
+    if not isinstance(value, Decimal) or not value.is_finite():
+        raise _reject(RiskReason.UNSUPPORTED_INPUT, field, "must be a finite Decimal")
+    return value
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,11 +42,13 @@ class AccountSnapshot:
     observed_at: datetime
 
     def __post_init__(self) -> None:
-        if not self.equity.is_finite() or not self.buying_power.is_finite():
-            raise ValueError("account amounts must be finite")
-        if not self.currency:
-            raise ValueError("currency must be non-empty text")
-        _require_utc(self.observed_at, "observed_at")
+        _require_decimal(self.equity, "account.equity")
+        _require_decimal(self.buying_power, "account.buying_power")
+        if not isinstance(self.currency, str) or not self.currency:
+            raise _reject(
+                RiskReason.UNSUPPORTED_INPUT, "account.currency", "must be non-empty text"
+            )
+        _require_utc(self.observed_at, "account.observed_at")
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,11 +61,19 @@ class PositionSnapshot:
     observed_at: datetime
 
     def __post_init__(self) -> None:
-        if self.underlying != self.underlying.strip().upper():
-            raise ValueError("underlying must be normalized uppercase")
-        if not self.quantity.is_finite() or not self.market_value.is_finite():
-            raise ValueError("position amounts must be finite")
-        _require_utc(self.observed_at, "observed_at")
+        if (
+            not isinstance(self.underlying, str)
+            or not self.underlying
+            or self.underlying != self.underlying.strip().upper()
+        ):
+            raise _reject(
+                RiskReason.UNSUPPORTED_INPUT,
+                "position.underlying",
+                "must be normalized uppercase text",
+            )
+        _require_decimal(self.quantity, "position.quantity")
+        _require_decimal(self.market_value, "position.market_value")
+        _require_utc(self.observed_at, "position.observed_at")
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,11 +87,18 @@ class OrderSnapshot:
     observed_at: datetime
 
     def __post_init__(self) -> None:
-        if not self.order_id or not self.symbol or not self.status:
-            raise ValueError("order fields must be non-empty text")
-        if not self.filled_quantity.is_finite():
-            raise ValueError("filled_quantity must be finite")
-        _require_utc(self.observed_at, "observed_at")
+        for field, value in (
+            ("order.order_id", self.order_id),
+            ("order.symbol", self.symbol),
+            ("order.status", self.status),
+        ):
+            if not isinstance(value, str) or not value:
+                raise _reject(RiskReason.UNSUPPORTED_INPUT, field, "must be non-empty text")
+        if _require_decimal(self.filled_quantity, "order.filled_quantity") < 0:
+            raise _reject(
+                RiskReason.UNSUPPORTED_INPUT, "order.filled_quantity", "must be non-negative"
+            )
+        _require_utc(self.observed_at, "order.observed_at")
 
     @property
     def is_partial_fill(self) -> bool:
@@ -82,21 +109,43 @@ class OrderSnapshot:
 class AccountTruthSource(Protocol):
     """Read-only boundary for broker-observed account/position/order truth."""
 
-    def account(self) -> AccountSnapshot | None:
-        """Return the latest observed account truth, if available."""
-        ...
+    def account(self) -> AccountSnapshot | None: ...
 
-    def positions(self) -> tuple[PositionSnapshot, ...]:
-        """Return the latest observed position truths."""
-        ...
+    def positions(self) -> tuple[PositionSnapshot, ...]: ...
 
-    def orders(self) -> tuple[OrderSnapshot, ...]:
-        """Return the latest observed order truths."""
-        ...
+    def orders(self) -> tuple[OrderSnapshot, ...]: ...
 
-    def broker_clock(self) -> datetime:
-        """Return the broker-observed clock."""
-        ...
+    def broker_clock(self) -> datetime: ...
+
+
+def _validate_max_age(value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise _reject(
+            RiskReason.UNSUPPORTED_INPUT,
+            "truth_max_age_seconds",
+            "must be a non-negative integer",
+        )
+    return value
+
+
+def _validate_age(
+    *,
+    observed_at: object,
+    now: object,
+    max_age_seconds: object,
+    stale_reason: RiskReason,
+    path: str,
+) -> None:
+    observed = _require_utc(observed_at, f"{path}.observed_at")
+    current = _require_utc(now, "now")
+    maximum = _validate_max_age(max_age_seconds)
+    age = (current - observed).total_seconds()
+    if age < 0:
+        raise _reject(
+            RiskReason.CONTRADICTORY_TRUTH, f"{path}.observed_at", "truth is future-dated"
+        )
+    if age > maximum:
+        raise _reject(stale_reason, path, f"truth age {age:.0f}s exceeds {maximum}s")
 
 
 def validate_account_freshness(
@@ -107,63 +156,60 @@ def validate_account_freshness(
     _require_utc(now, "now")
     if snapshot is None:
         raise _reject(RiskReason.STALE_ACCOUNT_TRUTH, "account", "no account truth is available")
-    age = (now - snapshot.observed_at).total_seconds()
-    if age < 0:
-        raise _reject(
-            RiskReason.CONTRADICTORY_TRUTH,
-            "account.observed_at",
-            "account truth is from the future",
-        )
-    if age > max_age_seconds:
-        raise _reject(
-            RiskReason.STALE_ACCOUNT_TRUTH,
-            "account.observed_at",
-            f"account truth age {age:.0f}s exceeds {max_age_seconds}s",
-        )
+    if not isinstance(snapshot, AccountSnapshot):
+        raise _reject(RiskReason.CONTRADICTORY_TRUTH, "account", "snapshot has an invalid type")
+    _validate_age(
+        observed_at=snapshot.observed_at,
+        now=now,
+        max_age_seconds=max_age_seconds,
+        stale_reason=RiskReason.STALE_ACCOUNT_TRUTH,
+        path="account",
+    )
     return snapshot
 
 
-def validate_positions_freshness(
-    positions: Sequence[PositionSnapshot], *, now: datetime, max_age_seconds: int
-) -> tuple[PositionSnapshot, ...]:
-    """Fail closed when any position truth is stale."""
+def _snapshot_sequence(
+    snapshots: object,
+    *,
+    expected_type: type[PositionSnapshot] | type[OrderSnapshot],
+    path: str,
+) -> Sequence[PositionSnapshot] | Sequence[OrderSnapshot]:
+    if isinstance(snapshots, (str, bytes)) or not isinstance(snapshots, Sequence):
+        raise _reject(RiskReason.CONTRADICTORY_TRUTH, path, "snapshots must be a sequence")
+    if any(not isinstance(snapshot, expected_type) for snapshot in snapshots):
+        raise _reject(RiskReason.CONTRADICTORY_TRUTH, path, "snapshot has an invalid type")
+    return snapshots
 
-    _require_utc(now, "now")
-    for position in positions:
-        age = (now - position.observed_at).total_seconds()
-        if age < 0:
-            raise _reject(
-                RiskReason.CONTRADICTORY_TRUTH,
-                f"position.{position.underlying}.observed_at",
-                "position truth is from the future",
-            )
-        if age > max_age_seconds:
-            raise _reject(
-                RiskReason.STALE_POSITION_TRUTH,
-                f"position.{position.underlying}.observed_at",
-                f"position truth age {age:.0f}s exceeds {max_age_seconds}s",
-            )
-    return tuple(positions)
+
+def validate_positions_freshness(
+    snapshots: tuple[PositionSnapshot, ...], *, now: datetime, max_age_seconds: int
+) -> tuple[PositionSnapshot, ...]:
+    """Fail closed when any broker-observed position is stale or malformed."""
+
+    values = _snapshot_sequence(snapshots, expected_type=PositionSnapshot, path="positions")
+    for index, snapshot in enumerate(values):
+        _validate_age(
+            observed_at=snapshot.observed_at,
+            now=now,
+            max_age_seconds=max_age_seconds,
+            stale_reason=RiskReason.STALE_POSITION_TRUTH,
+            path=f"positions[{index}]",
+        )
+    return tuple(values)  # type: ignore[arg-type]
 
 
 def validate_orders_freshness(
-    orders: Sequence[OrderSnapshot], *, now: datetime, max_age_seconds: int
+    snapshots: tuple[OrderSnapshot, ...], *, now: datetime, max_age_seconds: int
 ) -> tuple[OrderSnapshot, ...]:
-    """Fail closed when any order truth is stale."""
+    """Fail closed when any broker-observed order is stale or malformed."""
 
-    _require_utc(now, "now")
-    for order in orders:
-        age = (now - order.observed_at).total_seconds()
-        if age < 0:
-            raise _reject(
-                RiskReason.CONTRADICTORY_TRUTH,
-                f"order.{order.order_id}.observed_at",
-                "order truth is from the future",
-            )
-        if age > max_age_seconds:
-            raise _reject(
-                RiskReason.STALE_ORDER_TRUTH,
-                f"order.{order.order_id}.observed_at",
-                f"order truth age {age:.0f}s exceeds {max_age_seconds}s",
-            )
-    return tuple(orders)
+    values = _snapshot_sequence(snapshots, expected_type=OrderSnapshot, path="orders")
+    for index, snapshot in enumerate(values):
+        _validate_age(
+            observed_at=snapshot.observed_at,
+            now=now,
+            max_age_seconds=max_age_seconds,
+            stale_reason=RiskReason.STALE_ORDER_TRUTH,
+            path=f"orders[{index}]",
+        )
+    return tuple(values)  # type: ignore[arg-type]
