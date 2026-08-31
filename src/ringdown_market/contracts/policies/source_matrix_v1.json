@@ -1,0 +1,857 @@
+{
+ "bundles": [
+  "GB1_EDGAR_AAPL_20230202",
+  "GB2_BLS_JOLTS_202110",
+  "GB3_NYSE_SESSION_CALENDAR",
+  "GB4_ALPACA_EQUITY_OBSERVATIONS",
+  "GB5_ALPACA_CURRENT_OPTIONS"
+ ],
+ "categories": [
+  "EARNINGS_CALENDAR_REVISIONS",
+  "ISSUER_SEC_BYTES",
+  "NEWS",
+  "CONSENSUS",
+  "FUNDAMENTALS",
+  "EQUITY_MARKET_SECTOR_OBSERVATIONS",
+  "MACRO_VINTAGES",
+  "CURRENT_OPTIONS",
+  "HISTORICAL_OPTION_BBO"
+ ],
+ "decided_at": "2026-08-30T21:55:00Z",
+ "evidence_registry": "data/source-feasibility/evidence-retrieval-receipts.json",
+ "gate_a_contract_sha256": "40c2e780c684bdde671b028dbdd8c9b13268e659c24e98a2d452ff7c8692f955",
+ "matrix_id": "ESSCHER_SOURCE_MATRIX_V1",
+ "matrix_version": "2026-08-30",
+ "paid_plan_policy": "NO_PAID_PLAN_WITHOUT_HUMAN_APPROVAL",
+ "policy_sha256": "afce93b52b96e0d8c71deeb80027a1c87a4cf3623e9417db14de00279fc23bca",
+ "rights_rule": "RIGHTS_AMBIGUITY_IS_BLOCKED",
+ "schema": "esscher.source_matrix",
+ "schema_version": 1,
+ "sources": [
+  {
+   "adjustment_policy": "text evidence; no numeric adjustment applies",
+   "category": "EARNINGS_CALENDAR_REVISIONS",
+   "completeness": "one primary release per scheduled earnings event; a missing primary release fails closed as PRIMARY_RELEASE_MISSING",
+   "conditions": [
+    "PER_RECORD_PRIMARY_PROVENANCE"
+   ],
+   "depth": "full primary release text for every covered issuer event; guidance language retained verbatim",
+   "endpoint": "per-issuer investor-relations HTTPS pages and press-release distribution; the EDGAR-mirrored exhibit bytes are the canonical point-in-time copy",
+   "entitlement": "VERIFIED_PUBLIC",
+   "evidence": [
+    {
+     "content_sha256": "bd4ec2fc162fadc3188a9942a1300ff2dbdf5dd1328699084e768a7a52e2a950",
+     "kind": "BUNDLE",
+     "quote": null,
+     "reference": "GB1_EDGAR_AAPL_20230202",
+     "retrieved_at": "2026-08-30T21:41:41Z"
+    }
+   ],
+   "human_approval": null,
+   "identifiers": "issuer ticker, event date, and the EDGAR accession number of the mirroring 8-K exhibit",
+   "limitations": [
+    "publication timestamp granularity varies by issuer and must be recorded per release"
+   ],
+   "paid_plan_required": false,
+   "publisher_availability_clock": "issuer press-release publication time in America/New_York; availability is the moment the release is posted; EDGAR acceptance time is retained separately and never substitutes for it",
+   "rate_limits": "none published; bounded polite retrieval with declared user agent",
+   "retention_redistribution": "PUBLIC_DOMAIN_REDISTRIBUTABLE",
+   "revision_policy": "a later issuer release supersedes an earlier announcement; both bytes remain retained with distinct publication times and the manifest records the supersession chain",
+   "source_classes": [
+    "ISSUER_INVESTOR_RELATIONS"
+   ],
+   "source_id": "ISSUER_IR_EARNINGS_ANNOUNCEMENT",
+   "timestamp_precision": "minute to second where the release carries one; date-only releases fail closed as PUBLICATION_TIME_UNKNOWN",
+   "verdict": "FEASIBLE"
+  },
+  {
+   "adjustment_policy": "no numeric adjustment; filing bytes are canonical",
+   "category": "EARNINGS_CALENDAR_REVISIONS",
+   "completeness": "issuers announce results by 8-K or press release; absence of a filing for an event is retained as evidence of absence, never backfilled",
+   "conditions": [
+    "PER_RECORD_PRIMARY_PROVENANCE"
+   ],
+   "depth": "every Item 2.02 earnings announcement since EDGAR coverage; full-text search discovers the filing for a given issuer and date range",
+   "endpoint": "https://www.sec.gov/Archives/edgar/data/{cik}/{accession}/ and https://efts.sec.gov/LATEST/search-index",
+   "entitlement": "VERIFIED_PUBLIC",
+   "evidence": [
+    {
+     "content_sha256": "df431ce4bd80f1322f589692ab992ef858e777cc05ca7c1a328f7d6484be32ec",
+     "kind": "BUNDLE",
+     "quote": null,
+     "reference": "GB1_EDGAR_AAPL_20230202",
+     "retrieved_at": "2026-08-30T21:41:42Z"
+    },
+    {
+     "content_sha256": "a4a017f2956dd0032de1aa810dcef9ffefdbd4902d3b9751c4174830d7c99121",
+     "kind": "DOCUMENT",
+     "quote": "EDGAR accepts new filer applications, new filings, and changes to filer data each business day, Monday through Friday, from 6:00 a.m. to 10:00 p.m., ET.",
+     "reference": "https://www.sec.gov/os/accessing-edgar-data",
+     "retrieved_at": "2026-08-30T21:51:05Z"
+    }
+   ],
+   "human_approval": null,
+   "identifiers": "CIK, accession number, form 8-K items 2.02 and 9.01",
+   "limitations": [
+    "full-text-search responses are discovery receipts only and are not guaranteed immutable"
+   ],
+   "paid_plan_required": false,
+   "publisher_availability_clock": "EDGAR acceptance and dissemination time recorded in the submission SGML header; EDGAR accepts filings 06:00-22:00 America/New_York on business days",
+   "rate_limits": "10 requests per second with declared user agent",
+   "retention_redistribution": "PUBLIC_DOMAIN_REDISTRIBUTABLE",
+   "revision_policy": "post-acceptance corrections and deletions exist and are incorporated into weekly full-index rebuilds; the retained accession bytes remain the immutable point-in-time record",
+   "source_classes": [
+    "SEC_EDGAR"
+   ],
+   "source_id": "SEC_EDGAR_EARNINGS_8K_CORROBORATION",
+   "timestamp_precision": "second for acceptance time in the submission header",
+   "verdict": "FEASIBLE"
+  },
+  {
+   "adjustment_policy": "no numeric adjustment; calendar facts are canonical",
+   "category": "EARNINGS_CALENDAR_REVISIONS",
+   "completeness": "no official machine-readable calendar API exists; the published document bytes are the official record",
+   "conditions": [
+    "HUMAN_VERIFIED_CAPTURE"
+   ],
+   "depth": "market days, holidays, and early closures for the published years",
+   "endpoint": "https://www.nyse.com/markets/hours-calendars and https://www.nyse.com/publicdocs/Trading_Days.pdf",
+   "entitlement": "VERIFIED_PUBLIC",
+   "evidence": [
+    {
+     "content_sha256": "f90b6d08c4f3e82af53e6139837058abb7a1e7770ea6c716b1ab5dbcb413139f",
+     "kind": "BUNDLE",
+     "quote": null,
+     "reference": "GB3_NYSE_SESSION_CALENDAR",
+     "retrieved_at": "2026-08-30T21:43:02Z"
+    },
+    {
+     "content_sha256": "49ee8a651ec01ef2866e347842c0fb11309541f247d17aeaaf7ad9d6a513b1ed",
+     "kind": "DOCUMENT",
+     "quote": "Core Trading Session: 9:30 a.m. to 4:00 p.m. ET",
+     "reference": "https://www.nyse.com/markets/hours-calendars",
+     "retrieved_at": "2026-08-30T21:51:08Z"
+    }
+   ],
+   "human_approval": null,
+   "identifiers": "session date, early-close flag, and early-close time",
+   "limitations": [
+    "no official machine-readable calendar endpoint; capture is human-initiated document retrieval",
+    "revisions require a new capture bundle version"
+   ],
+   "paid_plan_required": false,
+   "publisher_availability_clock": "NYSE publishes the holiday and early-close schedule in advance; ad-hoc changes are announced by NYSE and require re-capture",
+   "rate_limits": "none published; bounded polite retrieval",
+   "retention_redistribution": "OFFICIAL_DOCUMENT_BYTES",
+   "revision_policy": "a re-capture supersedes the previous calendar bundle; both bundles remain retained with retrieval times",
+   "source_classes": [
+    "OFFICIAL_EXCHANGE_CALENDAR"
+   ],
+   "source_id": "NYSE_OFFICIAL_SESSION_CALENDAR",
+   "timestamp_precision": "day for session identity; minute for the fixed 09:30-16:00 core session and 13:00 early closes",
+   "verdict": "FEASIBLE_WITH_LIMITATIONS"
+  },
+  {
+   "adjustment_policy": "no numeric adjustment; filing bytes are canonical",
+   "category": "ISSUER_SEC_BYTES",
+   "completeness": "every electronically filed document; paper-only filings are out of scope and recorded as absent",
+   "conditions": [
+    "PER_RECORD_PRIMARY_PROVENANCE"
+   ],
+   "depth": "all public EDGAR filings from 1994/1995 onward",
+   "endpoint": "https://data.sec.gov/submissions/CIK{cik}.json and https://www.sec.gov/Archives/edgar/data/{cik}/{accession}/",
+   "entitlement": "VERIFIED_PUBLIC",
+   "evidence": [
+    {
+     "content_sha256": "6366fd10365eb5660667d9fa1900b8e0e6e93f9c04190b72da5499ed8946ee6f",
+     "kind": "BUNDLE",
+     "quote": null,
+     "reference": "GB1_EDGAR_AAPL_20230202",
+     "retrieved_at": "2026-08-30T21:41:41Z"
+    },
+    {
+     "content_sha256": "a4a017f2956dd0032de1aa810dcef9ffefdbd4902d3b9751c4174830d7c99121",
+     "kind": "DOCUMENT",
+     "quote": "Anyone can access and download this information for free ... Current max request rate: 10 requests/second.",
+     "reference": "https://www.sec.gov/os/accessing-edgar-data",
+     "retrieved_at": "2026-08-30T21:51:05Z"
+    }
+   ],
+   "human_approval": null,
+   "identifiers": "CIK, accession number, and document file names within the accession directory",
+   "limitations": [
+    "the submissions JSON endpoint is mutable as new filings accrue and is receipt-only; immutable accession paths carry the bytes"
+   ],
+   "paid_plan_required": false,
+   "publisher_availability_clock": "EDGAR acceptance time in the SGML submission header is the availability clock; indexes update nightly from about 22:00 ET",
+   "rate_limits": "10 requests per second with declared user agent",
+   "retention_redistribution": "PUBLIC_DOMAIN_REDISTRIBUTABLE",
+   "revision_policy": "accession bytes are immutable once disseminated; post-acceptance corrections create separate records and weekly full-index rebuilds; retained bytes plus acceptance time remain the point-in-time truth",
+   "source_classes": [
+    "SEC_EDGAR"
+   ],
+   "source_id": "SEC_EDGAR_FULL_SUBMISSIONS",
+   "timestamp_precision": "second for acceptance time",
+   "verdict": "FEASIBLE"
+  },
+  {
+   "adjustment_policy": "not applicable",
+   "category": "ISSUER_SEC_BYTES",
+   "completeness": "index coverage follows EDGAR dissemination; absence of a hit is retained as a discovery result",
+   "conditions": [
+    "PER_RECORD_PRIMARY_PROVENANCE"
+   ],
+   "depth": "full EDGAR text index",
+   "endpoint": "https://efts.sec.gov/LATEST/search-index",
+   "entitlement": "VERIFIED_PUBLIC",
+   "evidence": [
+    {
+     "content_sha256": "df431ce4bd80f1322f589692ab992ef858e777cc05ca7c1a328f7d6484be32ec",
+     "kind": "BUNDLE",
+     "quote": null,
+     "reference": "GB1_EDGAR_AAPL_20230202",
+     "retrieved_at": "2026-08-30T21:41:42Z"
+    }
+   ],
+   "human_approval": null,
+   "identifiers": "query terms, date range, form filter, and the returned accession number",
+   "limitations": [
+    "receipt-only use; downstream capture must resolve immutable accession bytes"
+   ],
+   "paid_plan_required": false,
+   "publisher_availability_clock": "query time is the receipt clock; results reference EDGAR acceptance times",
+   "rate_limits": "10 requests per second with declared user agent",
+   "retention_redistribution": "PUBLIC_DOMAIN_REDISTRIBUTABLE",
+   "revision_policy": "search responses can change as the index grows; a response is a discovery receipt bound by hash at retrieval time, never a byte foundation",
+   "source_classes": [
+    "SEC_EDGAR"
+   ],
+   "source_id": "SEC_EDGAR_FULL_TEXT_SEARCH",
+   "timestamp_precision": "second for the receipt clock",
+   "verdict": "FEASIBLE"
+  },
+  {
+   "adjustment_policy": "not applicable",
+   "category": "NEWS",
+   "completeness": "provider-curated; no completeness guarantee for issuer events",
+   "conditions": [],
+   "depth": "provider states coverage back to 2015 with roughly 130+ articles per day",
+   "endpoint": "authenticated Alpaca news endpoint (exact path unselected)",
+   "entitlement": "AMBIGUOUS",
+   "evidence": [
+    {
+     "content_sha256": "0804c7b9ead39cdcb12b3f6e275c0898a8ae97f5181894552ac72f57a499a4e5",
+     "kind": "DOCUMENT",
+     "quote": "All news data is currently provided directly by Benzinga.",
+     "reference": "https://docs.alpaca.markets/us/docs/historical-news-data.md",
+     "retrieved_at": "2026-08-30T21:51:07Z"
+    }
+   ],
+   "human_approval": null,
+   "identifiers": "article id and symbol tags as published by the provider",
+   "limitations": [
+    "no redistribution grant was located in official documentation",
+    "point-in-time immutability of article bytes is unverified",
+    "the accepted policy permits news to be UNAVAILABLE and no v1 feature consumes news"
+   ],
+   "paid_plan_required": false,
+   "publisher_availability_clock": "provider article publication time; no verified point-in-time immutability guarantee was located",
+   "rate_limits": "authenticated endpoint; limits not established for this decision",
+   "retention_redistribution": "AMBIGUOUS",
+   "revision_policy": "not verified; articles may be edited after publication",
+   "source_classes": [
+    "LICENSED_PERMITTED_NEWS"
+   ],
+   "source_id": "ALPACA_NEWS_BENZINGA",
+   "timestamp_precision": "second per provider payload",
+   "verdict": "BLOCKED"
+  },
+  {
+   "adjustment_policy": "not applicable while unselected",
+   "category": "CONSENSUS",
+   "completeness": "consensus features report UNAVAILABLE and the frozen time-series SUE path substitutes while this source remains BLOCKED",
+   "conditions": [
+    "HUMAN_APPROVAL_FOR_PAID_PLAN"
+   ],
+   "depth": "no covered free provider was identified",
+   "endpoint": "none selected; no vendor may be selected without human approval",
+   "entitlement": "AMBIGUOUS",
+   "evidence": [
+    {
+     "content_sha256": "b1a70c6e2df2b6032dc20a5c6d74d7849d25e356d30b9c0c55af9a09c4993ae2",
+     "kind": "DOCUMENT",
+     "quote": "For individual traders and developers using Alpaca's Trading API, we offer two subscription plans: Basic and Algo Trader Plus.",
+     "reference": "https://docs.alpaca.markets/us/docs/about-market-data-api.md",
+     "retrieved_at": "2026-08-30T21:51:06Z"
+    }
+   ],
+   "human_approval": null,
+   "identifiers": "not applicable while unselected",
+   "limitations": [
+    "every credible point-in-time consensus provider requires a paid license",
+    "no paid plan is selected without human approval",
+    "the Alpaca market-data plans include no consensus product"
+   ],
+   "paid_plan_required": true,
+   "publisher_availability_clock": "not applicable while unselected",
+   "rate_limits": "not applicable while unselected",
+   "retention_redistribution": "AMBIGUOUS",
+   "revision_policy": "a qualified provider must expose estimate revisions with timestamps; none is selected",
+   "source_classes": [
+    "LICENSED_POINT_IN_TIME_CONSENSUS"
+   ],
+   "source_id": "LICENSED_PIT_CONSENSUS_VENDORS",
+   "timestamp_precision": "not applicable while unselected",
+   "verdict": "BLOCKED"
+  },
+  {
+   "adjustment_policy": "no adjustment; reported facts are canonical and as-reported versus derived ratios stay separate",
+   "category": "FUNDAMENTALS",
+   "completeness": "XBRL filers only; missing facts remain UNAVAILABLE and are never imputed",
+   "conditions": [
+    "PER_RECORD_PRIMARY_PROVENANCE"
+   ],
+   "depth": "full XBRL financial statement facts per filer",
+   "endpoint": "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json",
+   "entitlement": "VERIFIED_PUBLIC",
+   "evidence": [
+    {
+     "content_sha256": "a4a017f2956dd0032de1aa810dcef9ffefdbd4902d3b9751c4174830d7c99121",
+     "kind": "DOCUMENT",
+     "quote": "Submissions by company and extracted XBRL data are available via RESTful APIs on data.sec.gov, offering JSON formatted data.",
+     "reference": "https://www.sec.gov/os/accessing-edgar-data",
+     "retrieved_at": "2026-08-30T21:51:05Z"
+    }
+   ],
+   "human_approval": null,
+   "identifiers": "CIK, taxonomy, tag, fiscal period, and the filing accession behind each fact",
+   "limitations": [
+    "the companyfacts endpoint is mutable; capture-once with hash receipts is mandatory"
+   ],
+   "paid_plan_required": false,
+   "publisher_availability_clock": "the EDGAR acceptance time of the filing carrying each fact is the point-in-time clock, not the companyfacts download time",
+   "rate_limits": "10 requests per second with declared user agent",
+   "retention_redistribution": "PUBLIC_DOMAIN_REDISTRIBUTABLE",
+   "revision_policy": "restatements arrive as new filings with new acceptance times; the mutable endpoint is captured once and bound by hash; later captures are new versions",
+   "source_classes": [
+    "SEC_EDGAR"
+   ],
+   "source_id": "SEC_EDGAR_XBRL_COMPANYFACTS",
+   "timestamp_precision": "second for acceptance time; fiscal period for the fact",
+   "verdict": "FEASIBLE"
+  },
+  {
+   "adjustment_policy": "split and dividend adjustment parameters are explicit and documented; the frozen policy consumes split-adjusted price-only series",
+   "category": "EQUITY_MARKET_SECTOR_OBSERVATIONS",
+   "completeness": "SIP feed covers the consolidated tape (CTA and UTP); the Basic plan restricts recent SIP queries to a 15-minute lookback and real-time access to IEX",
+   "conditions": [
+    "GATE_A_EQUITY_ENTITLEMENT_RECEIPT"
+   ],
+   "depth": "sessions since 2016 for US stocks and ETFs, covering issuer, SPY, and XL-sector proxies",
+   "endpoint": "host-supplied Alpaca market-data host, path /v2/stocks/bars; the host string is never committed to source files",
+   "entitlement": "VERIFIED_LICENSED",
+   "evidence": [
+    {
+     "content_sha256": "9f99a4279ae8152a58693bbf07e766ffd1d47dc5111fa29363f740032f771665",
+     "kind": "BUNDLE",
+     "quote": null,
+     "reference": "GB4_ALPACA_EQUITY_OBSERVATIONS",
+     "retrieved_at": "2026-08-30T21:43:36Z"
+    },
+    {
+     "content_sha256": "c1208c3bcfb7f2ec6aa6ea398b629d08f680c52d635fd133c36a3129663e9901",
+     "kind": "DOCUMENT",
+     "quote": "For historical queries, the end parameter must be at least 15 minutes old to query SIP data without a subscription.",
+     "reference": "https://docs.alpaca.markets/us/docs/market-data-faq.md",
+     "retrieved_at": "2026-08-30T21:51:06Z"
+    }
+   ],
+   "human_approval": null,
+   "identifiers": "symbol, session date, timeframe, feed, and adjustment parameters",
+   "limitations": [
+    "historical SIP capture for completed sessions is verified on the development PAPER account",
+    "real-time SIP access requires the paid Algo Trader Plus plan and stays unapproved",
+    "opening-window observations on the Basic plan are IEX-only and degrade quote completeness",
+    "competition-account entitlement remains UNVERIFIED per Gate A until a capability receipt exists",
+    "raw licensed bytes are never committed; hash receipts only"
+   ],
+   "paid_plan_required": false,
+   "publisher_availability_clock": "SIP trade timestamps truncated to the bar interval per the documented aggregation rules; daily bars are keyed by America/New_York session date",
+   "rate_limits": "200 requests per minute on the Basic plan; 10,000 on Algo Trader Plus",
+   "retention_redistribution": "RETENTION_ONLY_HASH_RECEIPTS",
+   "revision_policy": "bars are derived from SIP trades under documented condition-code rules including corrected-close handling; a vendor restatement requires a new capture version with the previous receipt retained",
+   "source_classes": [
+    "LICENSED_SIP_EQUITY_TRADES",
+    "LICENSED_SIP_SPY_TRADES"
+   ],
+   "source_id": "ALPACA_EQUITY_HISTORICAL_BARS",
+   "timestamp_precision": "millisecond SIP timestamps aggregated to minute or session boundaries",
+   "verdict": "FEASIBLE_WITH_LIMITATIONS"
+  },
+  {
+   "adjustment_policy": "quotes are not split-adjusted; the frozen policy consumes raw quote observations for spread and quote-age features",
+   "category": "EQUITY_MARKET_SECTOR_OBSERVATIONS",
+   "completeness": "SIP feed covers the consolidated tape; Basic-plan real-time quotes are IEX-only",
+   "conditions": [
+    "GATE_A_EQUITY_ENTITLEMENT_RECEIPT"
+   ],
+   "depth": "quote history since 2016 for US stocks and ETFs",
+   "endpoint": "host-supplied Alpaca market-data host, path /v2/stocks/{symbol}/quotes; the host string is never committed to source files",
+   "entitlement": "VERIFIED_LICENSED",
+   "evidence": [
+    {
+     "content_sha256": "c25c65cb5af8d750481c754a019da90d1799503171fba311b8319824a0250bf0",
+     "kind": "BUNDLE",
+     "quote": null,
+     "reference": "GB4_ALPACA_EQUITY_OBSERVATIONS",
+     "retrieved_at": "2026-08-30T21:43:36Z"
+    },
+    {
+     "content_sha256": "b1a70c6e2df2b6032dc20a5c6d74d7849d25e356d30b9c0c55af9a09c4993ae2",
+     "kind": "DOCUMENT",
+     "quote": "this plan only includes limited real-time data: for equities only the IEX exchange, for options only the indicative feed.",
+     "reference": "https://docs.alpaca.markets/us/docs/about-market-data-api.md",
+     "retrieved_at": "2026-08-30T21:51:06Z"
+    }
+   ],
+   "human_approval": null,
+   "identifiers": "symbol, UTC time range, feed, and limit parameters",
+   "limitations": [
+    "historical SIP quote capture for a completed opening window is verified on the development PAPER account",
+    "real-time opening-window NBBO requires the paid plan for SIP depth",
+    "competition-account entitlement remains UNVERIFIED per Gate A until a capability receipt exists",
+    "raw licensed bytes are never committed; hash receipts only"
+   ],
+   "paid_plan_required": false,
+   "publisher_availability_clock": "SIP quote timestamps as delivered; each observation becomes usable only at its source timestamp",
+   "rate_limits": "200 requests per minute on the Basic plan; 10,000 on Algo Trader Plus",
+   "retention_redistribution": "RETENTION_ONLY_HASH_RECEIPTS",
+   "revision_policy": "quote history follows the same vendor-restatement rule as bars; new capture versions retain prior receipts",
+   "source_classes": [
+    "LICENSED_SIP_EQUITY_QUOTES",
+    "LICENSED_SIP_SPY_QUOTES"
+   ],
+   "source_id": "ALPACA_EQUITY_HISTORICAL_QUOTES",
+   "timestamp_precision": "nanosecond quote timestamps in the payload",
+   "verdict": "FEASIBLE_WITH_LIMITATIONS"
+  },
+  {
+   "adjustment_policy": "symbol changes are resolved through retained provenance chains or fail closed as CORPORATE_ACTION_UNRESOLVED",
+   "category": "EQUITY_MARKET_SECTOR_OBSERVATIONS",
+   "completeness": "every universe candidate carries per-record provenance; an unproven field fails closed rather than defaulting",
+   "conditions": [
+    "PER_RECORD_PRIMARY_PROVENANCE"
+   ],
+   "depth": "issuer identity, primary exchange, security category, active state, and optionability at freeze for covered events",
+   "endpoint": "assembled from SEC EDGAR records, exchange-published reference documents, and host-verified snapshots; no single free point-in-time master feed exists",
+   "entitlement": "VERIFIED_PUBLIC",
+   "evidence": [
+    {
+     "content_sha256": "f3d38c296aa3f60e46b3379e2f5bfcb14080c4962b0cfc207b8d32775043794b",
+     "kind": "BUNDLE",
+     "quote": null,
+     "reference": "GB1_EDGAR_AAPL_20230202",
+     "retrieved_at": "2026-08-30T21:41:56Z"
+    },
+    {
+     "content_sha256": "a4a017f2956dd0032de1aa810dcef9ffefdbd4902d3b9751c4174830d7c99121",
+     "kind": "DOCUMENT",
+     "quote": "EDGAR assigns to filers a unique numerical identifier, known as a Central Index Key (CIK), when they sign up to make filings to the SEC. CIK numbers remain unique to the filer; they are not recycled.",
+     "reference": "https://www.sec.gov/os/accessing-edgar-data",
+     "retrieved_at": "2026-08-30T21:51:05Z"
+    }
+   ],
+   "human_approval": null,
+   "identifiers": "CIK, ticker, primary exchange MIC, security category, and per-record provenance reference",
+   "limitations": [
+    "no licensed point-in-time security master is affordable under the no-paid-plan rule",
+    "point-in-time listing status and sector membership are assembled per record from primary evidence",
+    "unknown sector mappings and unknown optionability fail closed per the frozen policy"
+   ],
+   "paid_plan_required": false,
+   "publisher_availability_clock": "the provenance record's publication or acceptance time is the availability clock for each field",
+   "rate_limits": "inherits the EDGAR 10 requests per second fair-access bound for EDGAR-sourced fields",
+   "retention_redistribution": "PUBLIC_DOMAIN_REDISTRIBUTABLE",
+   "revision_policy": "each field change creates a new provenance-bound record; superseded records remain retained",
+   "source_classes": [
+    "POINT_IN_TIME_SECURITY_MASTER"
+   ],
+   "source_id": "POINT_IN_TIME_SECURITY_MASTER_ASSEMBLED",
+   "timestamp_precision": "second where the provenance record carries one; date otherwise",
+   "verdict": "FEASIBLE_WITH_LIMITATIONS"
+  },
+  {
+   "adjustment_policy": "splits are the only price-adjusting action under the frozen policy; cash dividends are recorded and never alter returns",
+   "category": "EQUITY_MARKET_SECTOR_OBSERVATIONS",
+   "completeness": "EDGAR filings are authoritative; the Alpaca feed explicitly warns of delivery delays and never substitutes for filing provenance",
+   "conditions": [
+    "PER_RECORD_PRIMARY_PROVENANCE"
+   ],
+   "depth": "splits, cash dividends, and symbol changes for covered issuers",
+   "endpoint": "SEC EDGAR filings (8-K items, proxy statements) as authority, with the Alpaca corporate-actions endpoint as a timeliness screen only",
+   "entitlement": "VERIFIED_PUBLIC",
+   "evidence": [
+    {
+     "content_sha256": "2a91681f4bd7f6a59d0dda311066249c51f77caa097343f0580ab262934028c1",
+     "kind": "DOCUMENT",
+     "quote": "Currently Alpaca has no guarantees on the creation time of corporate actions.",
+     "reference": "https://docs.alpaca.markets/us/reference/corporateactions-1.md",
+     "retrieved_at": "2026-08-30T21:51:08Z"
+    }
+   ],
+   "human_approval": null,
+   "identifiers": "accession number for EDGAR records; announcement id for the Alpaca screen",
+   "limitations": [
+    "Alpaca gives no guarantee on corporate-action creation time, so its feed is a screen only",
+    "symbol changes without a provenance chain fail closed"
+   ],
+   "paid_plan_required": false,
+   "publisher_availability_clock": "EDGAR acceptance time for authoritative records; the Alpaca screen carries no creation-time guarantee",
+   "rate_limits": "inherits the EDGAR 10 requests per second fair-access bound; Alpaca screen bounded by the account plan",
+   "retention_redistribution": "PUBLIC_DOMAIN_REDISTRIBUTABLE",
+   "revision_policy": "conflicting split records sharing one ex-date fail closed as MATERIAL_SOURCE_CONFLICT; a split without a provenance receipt fails closed as CORPORATE_ACTION_UNRESOLVED",
+   "source_classes": [
+    "CORPORATE_ACTION_RECORD"
+   ],
+   "source_id": "CORPORATE_ACTION_RECORDS_EDGAR_ALPACA",
+   "timestamp_precision": "second for EDGAR acceptance time",
+   "verdict": "FEASIBLE_WITH_LIMITATIONS"
+  },
+  {
+   "adjustment_policy": "not applicable",
+   "category": "MACRO_VINTAGES",
+   "completeness": "every scheduled national JOLTS and Employment Situation release",
+   "conditions": [],
+   "depth": "current-year and archived prior-year schedules",
+   "endpoint": "https://www.bls.gov/schedule/news_release/jolts.htm, https://www.bls.gov/schedule/news_release/empsit.htm, and https://www.bls.gov/schedule/{year}/home.htm",
+   "entitlement": "VERIFIED_PUBLIC",
+   "evidence": [
+    {
+     "content_sha256": "614a81c3e2b1daf5a521949043888396ddae73bfc40f2785e96f764a5052e479",
+     "kind": "BUNDLE",
+     "quote": null,
+     "reference": "GB2_BLS_JOLTS_202110",
+     "retrieved_at": "2026-08-30T21:41:57Z"
+    },
+    {
+     "content_sha256": "f6024e2e44a7b1139ce36ed87dbd20198662c297d98e5b4ab6166827e589eafd",
+     "kind": "DOCUMENT",
+     "quote": "The BLS calendar contains publication dates for most news releases scheduled to be issued by the BLS national office in upcoming months. It is updated as needed with additional news releases, usually at least a week before their scheduled publication date.",
+     "reference": "https://www.bls.gov/schedule/news_release/jolts.htm",
+     "retrieved_at": "2026-08-30T21:51:05Z"
+    }
+   ],
+   "human_approval": null,
+   "identifiers": "reference month and scheduled release date and time",
+   "limitations": [
+    "the official public time must still be known and within 60 seconds of the frozen schedule at decision time"
+   ],
+   "paid_plan_required": false,
+   "publisher_availability_clock": "BLS publishes schedules in advance and updates them as needed, usually at least a week before publication; the machine-subscribable bls.ics calendar mirrors the pages",
+   "rate_limits": "none published; bounded polite retrieval",
+   "retention_redistribution": "PUBLIC_DOMAIN_REDISTRIBUTABLE",
+   "revision_policy": "off-schedule releases and schedule changes are published by BLS; a late or off-schedule release is retained with an exclusion reason per the frozen policy",
+   "source_classes": [
+    "OFFICIAL_BLS_RELEASE_CALENDAR"
+   ],
+   "source_id": "BLS_RELEASE_SCHEDULE",
+   "timestamp_precision": "minute; JOLTS at 10:00 Eastern and Employment Situation at 08:30 Eastern",
+   "verdict": "FEASIBLE"
+  },
+  {
+   "adjustment_policy": "official seasonally adjusted and not-seasonally adjusted series as published; no derived adjustment",
+   "category": "MACRO_VINTAGES",
+   "completeness": "monthly releases since 2000; a month not published is retained with an exclusion reason",
+   "conditions": [],
+   "depth": "openings, hires, quits, layoffs/discharges, total separations, and published revisions per release",
+   "endpoint": "https://www.bls.gov/news.release/jolts.nr0.htm for the current edition and https://www.bls.gov/news.release/archives/jolts_{MMDDYYYY}.htm with matching PDF for archived editions",
+   "entitlement": "VERIFIED_PUBLIC",
+   "evidence": [
+    {
+     "content_sha256": "e793638d5aa3580667781e61e8aefb6d6ae79110101610205d0cfb0cc8b0a493",
+     "kind": "BUNDLE",
+     "quote": null,
+     "reference": "GB2_BLS_JOLTS_202110",
+     "retrieved_at": "2026-08-30T21:43:01Z"
+    },
+    {
+     "content_sha256": "8a0245827702ab9300cded4ae9a68cf1b1f8779a6191e35dcc1f2df75b46ad43",
+     "kind": "DOCUMENT",
+     "quote": "Data in archived news releases may have been revised in subsequent releases.",
+     "reference": "https://www.bls.gov/bls/news-release/",
+     "retrieved_at": "2026-08-30T21:51:06Z"
+    }
+   ],
+   "human_approval": null,
+   "identifiers": "reference month and release-date file name",
+   "limitations": [
+    "archived bytes are static since publication; later revisions never mutate them"
+   ],
+   "paid_plan_required": false,
+   "publisher_availability_clock": "scheduled release time (10:00 Eastern for JOLTS) on the release date",
+   "rate_limits": "none published; bounded polite retrieval",
+   "retention_redistribution": "PUBLIC_DOMAIN_REDISTRIBUTABLE",
+   "revision_policy": "BLS warns that archived data may have been revised in subsequent releases; revision evidence is captured through the revision-table source class",
+   "source_classes": [
+    "OFFICIAL_BLS_RELEASE"
+   ],
+   "source_id": "BLS_JOLTS_RELEASES",
+   "timestamp_precision": "minute for the scheduled publication",
+   "verdict": "FEASIBLE"
+  },
+  {
+   "adjustment_policy": "official seasonally adjusted and not-seasonally adjusted series as published; no derived adjustment",
+   "category": "MACRO_VINTAGES",
+   "completeness": "monthly releases; premarket observations are forbidden by the frozen policy regardless of source availability",
+   "conditions": [],
+   "depth": "nonfarm payrolls, unemployment rate, average hourly earnings, participation, and payroll revisions",
+   "endpoint": "https://www.bls.gov/news.release/empsit.nr0.htm for the current edition and https://www.bls.gov/news.release/archives/empsit_{MMDDYYYY}.htm for archived editions",
+   "entitlement": "VERIFIED_PUBLIC",
+   "evidence": [
+    {
+     "content_sha256": "e5ecff0d7bcc5c52ac5385f6051ffffa36b357fe1c47c7fd4e664624ecd705ec",
+     "kind": "DOCUMENT",
+     "quote": "Release Time 08:30 AM",
+     "reference": "https://www.bls.gov/schedule/news_release/empsit.htm",
+     "retrieved_at": "2026-08-30T21:51:05Z"
+    }
+   ],
+   "human_approval": null,
+   "identifiers": "reference month and release-date file name",
+   "limitations": [
+    "archived bytes are static since publication; later revisions never mutate them"
+   ],
+   "paid_plan_required": false,
+   "publisher_availability_clock": "scheduled release time (08:30 Eastern for the Employment Situation) on the release date",
+   "rate_limits": "none published; bounded polite retrieval",
+   "retention_redistribution": "PUBLIC_DOMAIN_REDISTRIBUTABLE",
+   "revision_policy": "payroll revisions are published within each release and supersede prior values; the archived bytes remain static",
+   "source_classes": [
+    "OFFICIAL_BLS_RELEASE"
+   ],
+   "source_id": "BLS_EMPLOYMENT_SITUATION_RELEASES",
+   "timestamp_precision": "minute for the scheduled publication",
+   "verdict": "FEASIBLE"
+  },
+  {
+   "adjustment_policy": "official revised values only",
+   "category": "MACRO_VINTAGES",
+   "completeness": "a release without revision language retains an explicit no-revision record",
+   "conditions": [],
+   "depth": "JOLTS and Employment Situation revision fields as published in each release",
+   "endpoint": "revision tables and narrative inside each BLS release plus the archived release series",
+   "entitlement": "VERIFIED_PUBLIC",
+   "evidence": [
+    {
+     "content_sha256": "e793638d5aa3580667781e61e8aefb6d6ae79110101610205d0cfb0cc8b0a493",
+     "kind": "BUNDLE",
+     "quote": null,
+     "reference": "GB2_BLS_JOLTS_202110",
+     "retrieved_at": "2026-08-30T21:43:01Z"
+    }
+   ],
+   "human_approval": null,
+   "identifiers": "release date, reference month, and the revised series name",
+   "limitations": [
+    "revision extraction is release-specific and must be field-mapped per cohort before use"
+   ],
+   "paid_plan_required": false,
+   "publisher_availability_clock": "the publication time of the release carrying the revision",
+   "rate_limits": "none published; bounded polite retrieval",
+   "retention_redistribution": "PUBLIC_DOMAIN_REDISTRIBUTABLE",
+   "revision_policy": "each revision is captured as the diff between successive official releases; no interpolated revision is ever constructed",
+   "source_classes": [
+    "OFFICIAL_BLS_REVISION_TABLE"
+   ],
+   "source_id": "BLS_REVISION_EVIDENCE",
+   "timestamp_precision": "minute for the publication",
+   "verdict": "FEASIBLE"
+  },
+  {
+   "adjustment_policy": "not applicable",
+   "category": "CURRENT_OPTIONS",
+   "completeness": "verified for the development PAPER account; the contract geometry required by the frozen expression lane is observable",
+   "conditions": [
+    "GATE_A_OPTION_ENTITLEMENT_RECEIPT"
+   ],
+   "depth": "active listed option contracts per underlying",
+   "endpoint": "host-supplied Alpaca trading host, path /v2/options/contracts; the host string is never committed to source files",
+   "entitlement": "VERIFIED_LICENSED",
+   "evidence": [
+    {
+     "content_sha256": "0128eb8059151dc626421899ebdd64bbdc4bde44f40f538635bc11403b74e416",
+     "kind": "BUNDLE",
+     "quote": null,
+     "reference": "GB5_ALPACA_CURRENT_OPTIONS",
+     "retrieved_at": "2026-08-30T21:44:07Z"
+    }
+   ],
+   "human_approval": null,
+   "identifiers": "contract symbol, underlying, strike, expiration, and contract id",
+   "limitations": [
+    "competition-account capability remains UNVERIFIED per Gate A until a capability receipt exists"
+   ],
+   "paid_plan_required": false,
+   "publisher_availability_clock": "query time is the receipt clock; contract listings follow exchange listings",
+   "rate_limits": "trading-API bounds apply to the account plan",
+   "retention_redistribution": "RETENTION_ONLY_HASH_RECEIPTS",
+   "revision_policy": "listings change as contracts are added or delisted; captures are receipts bound by hash at retrieval time",
+   "source_classes": [],
+   "source_id": "ALPACA_OPTION_CONTRACT_MASTER",
+   "timestamp_precision": "second for the receipt clock",
+   "verdict": "FEASIBLE"
+  },
+  {
+   "adjustment_policy": "not applicable",
+   "category": "CURRENT_OPTIONS",
+   "completeness": "the Basic plan serves the indicative pricing feed only; greeks can be absent when the documented calculation preconditions fail",
+   "conditions": [
+    "GATE_A_OPTION_ENTITLEMENT_RECEIPT"
+   ],
+   "depth": "latest indicative quote, trade, and greeks per contract",
+   "endpoint": "host-supplied Alpaca market-data host, path /v1beta1/options/snapshots; the host string is never committed to source files",
+   "entitlement": "VERIFIED_LICENSED",
+   "evidence": [
+    {
+     "content_sha256": "c42935a9815fa762c494a7050e924af5c0022bcc2936c912ddca9d65deef1519",
+     "kind": "BUNDLE",
+     "quote": null,
+     "reference": "GB5_ALPACA_CURRENT_OPTIONS",
+     "retrieved_at": "2026-08-30T21:44:35Z"
+    },
+    {
+     "content_sha256": "a2cf41eea830aebe6ef7e2f5f5d6ed02ee2dcd9f32c327bcf954c5d3be6c60cd",
+     "kind": "DOCUMENT",
+     "quote": "Indicative Pricing Feed is a free derivative of the original OPRA feed: the quotes are not actual OPRA quotes, they're just indicative derivatives.",
+     "reference": "https://docs.alpaca.markets/us/docs/historical-option-data.md",
+     "retrieved_at": "2026-08-30T21:51:07Z"
+    }
+   ],
+   "human_approval": null,
+   "identifiers": "contract symbol and snapshot timestamp",
+   "limitations": [
+    "indicative quotes are a free derivative of OPRA and are never OPRA/NBBO or executable-fill evidence",
+    "the option-chain endpoint path was not verified by the probe and remains unresolved",
+    "competition-account option entitlement remains UNVERIFIED per Gate A",
+    "raw licensed bytes are never committed; hash receipts only"
+   ],
+   "paid_plan_required": false,
+   "publisher_availability_clock": "snapshot timestamp in the payload; the indicative feed derives from OPRA with a documented delay on trades",
+   "rate_limits": "200 requests per minute on the Basic plan; 10,000 on Algo Trader Plus",
+   "retention_redistribution": "RETENTION_ONLY_HASH_RECEIPTS",
+   "revision_policy": "snapshots are receipts bound by hash at retrieval time; the feed is indicative and never NBBO evidence",
+   "source_classes": [],
+   "source_id": "ALPACA_OPTION_INDICATIVE_SNAPSHOTS",
+   "timestamp_precision": "nanosecond quote timestamps in the payload",
+   "verdict": "FEASIBLE_WITH_LIMITATIONS"
+  },
+  {
+   "adjustment_policy": "not applicable",
+   "category": "CURRENT_OPTIONS",
+   "completeness": "not evaluated while unapproved",
+   "conditions": [
+    "HUMAN_APPROVAL_FOR_PAID_PLAN"
+   ],
+   "depth": "consolidated OPRA bid and offer per contract",
+   "endpoint": "host-supplied Alpaca market-data host with the OPRA feed parameter; requires a paid subscription",
+   "entitlement": "AMBIGUOUS",
+   "evidence": [
+    {
+     "content_sha256": "a2cf41eea830aebe6ef7e2f5f5d6ed02ee2dcd9f32c327bcf954c5d3be6c60cd",
+     "kind": "DOCUMENT",
+     "quote": "OPRA feed is only available to subscribed users.",
+     "reference": "https://docs.alpaca.markets/us/docs/historical-option-data.md",
+     "retrieved_at": "2026-08-30T21:51:07Z"
+    }
+   ],
+   "human_approval": null,
+   "identifiers": "contract symbol and snapshot timestamp",
+   "limitations": [
+    "OPRA feed is only available to subscribed users",
+    "no paid plan is selected without human approval"
+   ],
+   "paid_plan_required": true,
+   "publisher_availability_clock": "OPRA consolidated BBO timestamps",
+   "rate_limits": "not evaluated while unapproved",
+   "retention_redistribution": "AMBIGUOUS",
+   "revision_policy": "not evaluated while unapproved",
+   "source_classes": [],
+   "source_id": "ALPACA_OPTION_OPRA_FEED",
+   "timestamp_precision": "nanosecond quote timestamps",
+   "verdict": "BLOCKED"
+  },
+  {
+   "adjustment_policy": "not evaluated while blocked",
+   "category": "HISTORICAL_OPTION_BBO",
+   "completeness": "insufficient for the frozen partitions even if subscribed",
+   "conditions": [
+    "HUMAN_APPROVAL_FOR_PAID_PLAN"
+   ],
+   "depth": "historical option data only since February 2024; the earnings development partition (2020-2023) and validation partition (2024) are wholly or substantially outside coverage",
+   "endpoint": "host-supplied Alpaca market-data host, historical option endpoints; requires a paid subscription for OPRA-grade history",
+   "entitlement": "AMBIGUOUS",
+   "evidence": [
+    {
+     "content_sha256": "a2cf41eea830aebe6ef7e2f5f5d6ed02ee2dcd9f32c327bcf954c5d3be6c60cd",
+     "kind": "DOCUMENT",
+     "quote": "Currently we only offer historical option data since February 2024.",
+     "reference": "https://docs.alpaca.markets/us/docs/historical-option-data.md",
+     "retrieved_at": "2026-08-30T21:51:07Z"
+    }
+   ],
+   "human_approval": null,
+   "identifiers": "contract symbol and session range",
+   "limitations": [
+    "coverage starts February 2024 and cannot serve the development partition",
+    "OPRA-grade history requires a paid subscription",
+    "the free indicative feed is a delayed derivative and never BBO evidence",
+    "no paid plan is selected without human approval"
+   ],
+   "paid_plan_required": true,
+   "publisher_availability_clock": "not evaluated while blocked",
+   "rate_limits": "not evaluated while blocked",
+   "retention_redistribution": "AMBIGUOUS",
+   "revision_policy": "not evaluated while blocked",
+   "source_classes": [],
+   "source_id": "ALPACA_HISTORICAL_OPTION_DATA",
+   "timestamp_precision": "not evaluated while blocked",
+   "verdict": "BLOCKED"
+  },
+  {
+   "adjustment_policy": "not applicable while unselected",
+   "category": "HISTORICAL_OPTION_BBO",
+   "completeness": "not evaluated while unselected",
+   "conditions": [
+    "HUMAN_APPROVAL_FOR_PAID_PLAN"
+   ],
+   "depth": "paid products advertise multi-year historical option BBO; none was evaluated",
+   "endpoint": "none selected; candidate vendors include CBOE DataShop, ORATS, OptionMetrics, and Polygon options products",
+   "entitlement": "AMBIGUOUS",
+   "evidence": [
+    {
+     "content_sha256": "a2cf41eea830aebe6ef7e2f5f5d6ed02ee2dcd9f32c327bcf954c5d3be6c60cd",
+     "kind": "DOCUMENT",
+     "quote": "OPRA feed is only available to subscribed users.",
+     "reference": "https://docs.alpaca.markets/us/docs/historical-option-data.md",
+     "retrieved_at": "2026-08-30T21:51:07Z"
+    }
+   ],
+   "human_approval": null,
+   "identifiers": "not applicable while unselected",
+   "limitations": [
+    "every identified provider of deep historical option BBO requires a paid license",
+    "no paid plan is selected without human approval",
+    "this blocks historical option-expression evidence only; the underlying-direction lane does not depend on it"
+   ],
+   "paid_plan_required": true,
+   "publisher_availability_clock": "not applicable while unselected",
+   "rate_limits": "not applicable while unselected",
+   "retention_redistribution": "AMBIGUOUS",
+   "revision_policy": "not applicable while unselected",
+   "source_classes": [],
+   "source_id": "THIRD_PARTY_HISTORICAL_OPTION_BBO",
+   "timestamp_precision": "not applicable while unselected",
+   "verdict": "BLOCKED"
+  }
+ ]
+}

@@ -50,6 +50,8 @@
 - A strict panel-manifest validator and deterministic fail-closed panel assembler behind the inert `ringdown assemble-panel` command, hash-bound to the strategy-policy, snapshot, and research-decision protocols.
 - Synthetic Q-FAST panel fixtures and mutation-negative tests proving leak, exclusion, size, latency, and byte-determinism gates.
 - A frozen untouched Q-FAST panel universe: 23 historical BMO/AMC earnings events with EDGAR primary-source provenance, preserved exclusions, and hash-bound synchronized issuer/SPY/sector one-minute window records.
+- A frozen source-rights matrix with exact policy and Gate A bindings, development-only evidence
+  bundles, candidate-specific rights preflight, and an explicit-fixture offline capture boundary.
 
 ### Fixed
 
@@ -77,6 +79,9 @@
 - Real Q-FAST panel assembly fails closed with `UPSTREAM_CONTRACT_MISSING` while issues #26, #27, and #28 remain unmerged and unregistered.
 - P0 contract-development events, sub-20 or above-30 event panels, unmeasured p95 latency profiles, and post-cutoff or post-freeze timestamps fail closed with stable reason codes before any evaluation runs.
 - Historical panel evidence is admitted only through EDGAR-accessioned preservation anchors with every publication bound preceding the decision cutoff; raw licensed market bars stay host-side and only metadata and SHA-256 bindings are redistributed.
+- Source rights are fixed to one authenticated packaged matrix. Candidate-specific preflight, upstream
+  binding checks, strict UTC clocks, and structured paid-plan approval records fail closed before
+  any offline snapshot is written; the capture command has no alternate-matrix or live-data path.
 - Version impact is `minor`; the package stays at `0.2.0` while issue #11 consolidates the release-train bump to `0.3.0`.
 
 ## [0.2.0] - Unreleased
