@@ -23,6 +23,7 @@
 	separate earnings and macro cohorts, frozen features, baselines, partitions, and promotion gates.
 - Immutable candidate-manifest, strategy-snapshot, feature-receipt, reasoner-exchange, and
 	direction-only decision contracts with a labeled synthetic development bundle.
+- Deterministic offline evidence-bundle diff reports for frozen JSON artifacts and directory bundles, exposed through `ringdown_market.audit` and `python -m ringdown_market.audit.bundle_diff` without rerunning research or opening a broker session.
 - Four pre-outcome scheduled-earnings replay manifests bound to one frozen event list and selection rule.
 - A strict data-only evidence-manifest v2 validator with event-context provenance and point-in-time gates.
 - Versioned, strict frozen-research-decision, point-in-time evidence-manifest, and feature-input contracts.
