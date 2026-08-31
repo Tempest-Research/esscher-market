@@ -19,9 +19,7 @@ LINEAGE_PATH = (
     REPO_ROOT / "src" / "ringdown_market" / "contracts" / "policies" / "security_lineage_v1.json"
 )
 EVIDENCE_DIR = REPO_ROOT / "data" / "security-lineage" / "evidence"
-FIXTURE_PATH = (
-    REPO_ROOT / "tests" / "fixtures" / "sourcedata" / "synthetic_snapshot_inputs_v1.json"
-)
+FIXTURE_PATH = REPO_ROOT / "tests" / "fixtures" / "sourcedata" / "synthetic_snapshot_inputs_v1.json"
 FULL_DEV_CONDITIONS = (
     "--condition-satisfied",
     "HUMAN_VERIFIED_CAPTURE",
