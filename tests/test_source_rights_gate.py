@@ -9,7 +9,7 @@ import pytest
 
 from ringdown_market.contracts.source_matrix import SOURCE_MATRIX_V1_SHA256
 from ringdown_market.sourcedata.reasons import CollectorReason, CollectorRejected
-from ringdown_market.sourcedata.rights_gate import evaluate_capture_rights
+from ringdown_market.sourcedata.rights_gate import EARNINGS_CANDIDATE_ID, evaluate_capture_rights
 from ringdown_market.strategy.policy import parse_strategy_policy, strategy_policy_bytes
 
 REPO_ROOT = Path(__file__).parent.parent
@@ -79,12 +79,16 @@ def _untouched_windows() -> list[tuple[date, date]]:
 
 def test_rights_gate_fails_closed_without_conditions() -> None:
     with pytest.raises(CollectorRejected) as error:
-        evaluate_capture_rights(satisfied_conditions=frozenset())
+        evaluate_capture_rights(
+            candidate_id=EARNINGS_CANDIDATE_ID, satisfied_conditions=frozenset()
+        )
     assert error.value.reason == CollectorReason.SOURCE_RIGHTS_LIMITATION_UNMET
 
 
 def test_rights_gate_passes_with_dev_conditions_and_binds_matrix_digest() -> None:
-    report = evaluate_capture_rights(satisfied_conditions=FULL_DEV_CONDITIONS)
+    report = evaluate_capture_rights(
+        candidate_id=EARNINGS_CANDIDATE_ID, satisfied_conditions=FULL_DEV_CONDITIONS
+    )
     assert report.source_matrix_sha256 == SOURCE_MATRIX_V1_SHA256
     assert len(report.decisions) == 5
     assert all(decision.verdict != "BLOCKED" for decision in report.decisions)
@@ -97,28 +101,35 @@ def test_rights_gate_rejects_drifted_matrix_bytes(tmp_path: Path) -> None:
     payload["policy_sha256"] = "0" * 64
     drifted = json.dumps(payload, sort_keys=True, indent=1).encode("utf-8")
     with pytest.raises(CollectorRejected) as error:
-        evaluate_capture_rights(matrix_bytes=drifted, satisfied_conditions=FULL_DEV_CONDITIONS)
+        evaluate_capture_rights(
+            candidate_id=EARNINGS_CANDIDATE_ID,
+            matrix_bytes=drifted,
+            satisfied_conditions=FULL_DEV_CONDITIONS,
+        )
     assert error.value.reason == CollectorReason.SOURCE_MATRIX_DRIFT
 
 
-def test_rights_gate_rejects_missing_matrix_file(tmp_path: Path, monkeypatch) -> None:
+def test_capture_command_rejects_removed_source_matrix_switch(tmp_path: Path, monkeypatch) -> None:
     from ringdown_market.sourcedata.capture import main
 
     monkeypatch.setenv("ESSCHER_CAPTURE_AUTHORIZED", "yes")
-    missing = tmp_path / "no-such-matrix.json"
-    exit_code = main(
-        [
-            "--event-id",
-            "KR-2026Q2-EARNINGS",
-            "--capture-at",
-            "2026-09-11T13:35:10Z",
-            "--output-dir",
-            str(tmp_path),
-            "--source-matrix",
-            str(missing),
-        ]
-    )
-    assert exit_code == 2
+    fixture = REPO_ROOT / "tests" / "fixtures" / "sourcedata" / "synthetic_snapshot_inputs_v1.json"
+    with pytest.raises(SystemExit) as error:
+        main(
+            [
+                "--event-id",
+                "KR-2026Q2-EARNINGS",
+                "--capture-at",
+                "2026-09-11T13:35:10Z",
+                "--output-dir",
+                str(tmp_path),
+                "--fixture",
+                str(fixture),
+                "--source-matrix",
+                str(tmp_path / "no-such-matrix.json"),
+            ]
+        )
+    assert error.value.code == 2
 
 
 def test_acceptance_golden_bundle_count_and_registration() -> None:

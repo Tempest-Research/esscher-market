@@ -1,13 +1,13 @@
 # Point-in-time security master and corporate-action lineage contract
 
 Issue #42 makes issuer, security, listing, and event identity reconstructible
-at every decision cutoff without depending on the current ticker. The
-canonical lineage is packaged as
+at every decision cutoff without depending on the current ticker. The canonical
+lineage is packaged as
 `ringdown_market/contracts/policies/security_lineage_v1.json` with SHA-256
-`76a82236550acfd1614b21a9aae00acb6497c68f90bd4ae8b69312bd765617a8` and binds
-the accepted event policy digest `3234017de2fec6c33dce20508f483d649d4614130e76cdc6f57af8185e05d05e`
-and the issue #41 source-matrix digest
-`87d552d96599818f4a996748318e75944286f17166a58e4b596fee35d5b518c7`. The
+`b400453a62ced05dacaa338dd59b90bceeba04853d9aef572ebfbcd16cb97ff5` and binds
+the accepted event policy digest `afce93b52b96e0d8c71deeb80027a1c87a4cf3623e9417db14de00279fc23bca`
+and the packaged source-matrix digest
+`888447640aa705510bc0594abc9a78f22c988e961282ff82a6f44337181d04ca`. The
 contract grants no collection, trading, or publication authority.
 
 ## Identity rule
@@ -64,13 +64,17 @@ accession artifacts pinned byte-exact by `.gitattributes`.
 
 ## Capture boundary
 
-The capture command evaluates the lineage after the issue #41 source-rights
-gate: the event chain must resolve as-of the cutoff, the listing must be
-active at the cutoff (no current-survivor fallback), and every binding must
-be consistent. The capture writes `lineage_receipts.jsonl` and binds the
-lineage digest into `capture_identity.json`. Missing chains, delisted
-listings, reused symbols, conflicted records, and drifted upstream contracts
-all fail closed with stable reason codes before any snapshot exists.
+The capture command evaluates the lineage after the source-rights gate with
+the same authenticated packaged source-matrix bytes used for rights preflight
+and capture identity. It accepts no caller-selected matrix or lineage path: an
+alternate matrix is rejected before resolution. The event chain must resolve
+as-of the cutoff, the listing must be active at the cutoff (no
+current-survivor fallback), and every binding must be consistent. Capture
+writes `lineage_receipts.jsonl` through the same symlink-safe output boundary
+as every other canonical artifact and binds the lineage digest into
+`capture_identity.json`. Missing chains, delisted listings, reused symbols,
+conflicted records, and drifted upstream contracts all fail closed with stable
+reason codes before any snapshot exists.
 
 ## Reproduction
 

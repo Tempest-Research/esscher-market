@@ -27,6 +27,8 @@ from ringdown_market.sourcedata.compiler import (
     compiled_strategy_input,
 )
 from ringdown_market.sourcedata.fakes import (
+    FIXTURE_PATH,
+    MACRO_FIXTURE_PATH,
     FixtureEvidenceSource,
     FixtureMarketDataSource,
     build_candidate_manifest,
@@ -554,6 +556,8 @@ def test_capture_command_requires_host_authorization(tmp_path: Path, monkeypatch
         [
             "--event-id",
             EVENT_ID,
+            "--fixture",
+            str(FIXTURE_PATH),
             "--capture-at",
             "2026-09-11T13:35:10Z",
             "--output-dir",
@@ -571,6 +575,8 @@ def test_capture_command_rejects_unpinned_live_boundary(tmp_path: Path, monkeypa
         [
             "--event-id",
             EVENT_ID,
+            "--fixture",
+            str(FIXTURE_PATH),
             "--capture-at",
             "2026-09-11T13:35:10Z",
             "--output-dir",
@@ -713,6 +719,8 @@ def test_capture_command_writes_canonical_artifacts(tmp_path: Path, monkeypatch)
         [
             "--event-id",
             EVENT_ID,
+            "--fixture",
+            str(FIXTURE_PATH),
             "--capture-at",
             "2026-09-11T13:35:10Z",
             "--output-dir",
@@ -749,6 +757,8 @@ def test_capture_command_fails_closed_without_source_rights_conditions(
         [
             "--event-id",
             EVENT_ID,
+            "--fixture",
+            str(FIXTURE_PATH),
             "--capture-at",
             "2026-09-11T13:35:10Z",
             "--output-dir",
@@ -769,6 +779,8 @@ def test_capture_command_rejects_unknown_source_rights_condition(
         [
             "--event-id",
             EVENT_ID,
+            "--fixture",
+            str(FIXTURE_PATH),
             "--capture-at",
             "2026-09-11T13:35:10Z",
             "--output-dir",
@@ -792,6 +804,8 @@ def test_capture_identity_binds_source_matrix_digest(tmp_path: Path, monkeypatch
         [
             "--event-id",
             EVENT_ID,
+            "--fixture",
+            str(FIXTURE_PATH),
             "--capture-at",
             "2026-09-11T13:35:10Z",
             "--output-dir",
@@ -959,6 +973,8 @@ def test_macro_capture_command_writes_canonical_artifacts(tmp_path: Path, monkey
         [
             "--event-id",
             MACRO_EVENT_ID,
+            "--fixture",
+            str(MACRO_FIXTURE_PATH),
             "--capture-at",
             "2026-09-09T14:15:10Z",
             "--output-dir",
@@ -1100,6 +1116,8 @@ def test_capture_command_writes_feasibility_manifest(tmp_path: Path, monkeypatch
         [
             "--event-id",
             EVENT_ID,
+            "--fixture",
+            str(FIXTURE_PATH),
             "--capture-at",
             "2026-09-11T13:35:10Z",
             "--output-dir",

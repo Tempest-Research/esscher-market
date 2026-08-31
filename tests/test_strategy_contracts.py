@@ -651,6 +651,7 @@ def test_static_synthetic_bundle_contains_parseable_direction_only_artifacts() -
     response = parse_reasoner_decision(canonical_json_bytes(artifacts["reasoner_response"]))
 
     assert bundle_bytes == canonical_json_bytes(bundle)
+    assert manifest.policy_sha256 == load_strategy_policy().sha256
     assert manifest.records[0].eligibility is EligibilityState.ELIGIBLE
     assert manifest.records[1].eligibility is EligibilityState.INELIGIBLE
     assert response.decision is Direction.UP

@@ -32,6 +32,9 @@ PAID_PLAN_POLICY: Final = "NO_PAID_PLAN_WITHOUT_HUMAN_APPROVAL"
 
 _SHA256: Final = re.compile(r"^[0-9a-f]{64}$")
 _IDENTIFIER: Final = re.compile(r"^[A-Z][A-Z0-9_]{2,63}$")
+_UTC_TIMESTAMP: Final = re.compile(
+    r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|\+00:00)$"
+)
 # Assembled from fragments so the committed source never carries a literal
 # direct host, mirroring the hygiene checker's own construction.
 _ALPACA_DOMAIN: Final = "alpaca" + ".markets"
@@ -141,6 +144,12 @@ class MatrixReason(StrEnum):
     SOURCE_RIGHTS_LIMITATION_UNMET = "SOURCE_RIGHTS_LIMITATION_UNMET"
 
 
+class HumanApprovalDecision(StrEnum):
+    """The only state that authorizes a paid-plan matrix source."""
+
+    APPROVED = "APPROVED"
+
+
 class MatrixRejected(ValueError):
     """A deterministic fail-closed source-matrix error."""
 
@@ -155,7 +164,7 @@ class MatrixRejected(ValueError):
 class HumanApproval:
     approved_by: str
     approved_at: datetime
-    decision: str
+    decision: HumanApprovalDecision
 
 
 @dataclass(frozen=True)
@@ -273,11 +282,17 @@ def _sha256(value: object, *, path: str, nullable: bool = False) -> str | None:
 def _timestamp(value: object, *, path: str) -> datetime:
     text = _text(value, path=path)
     assert text is not None
+    if _UTC_TIMESTAMP.fullmatch(text) is None:
+        _reject(
+            MatrixReason.MALFORMED_VALUE,
+            path,
+            "value must be an ISO-8601 timestamp with explicit UTC Z or +00:00 offset",
+        )
     try:
-        parsed = datetime.fromisoformat(text.replace("Z", "+00:00")).astimezone(UTC)
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
     except ValueError:
         _reject(MatrixReason.MALFORMED_VALUE, path, "value must be an ISO-8601 UTC timestamp")
-    return parsed
+    return parsed.astimezone(UTC)
 
 
 def _identifier(value: object, *, path: str) -> str:
@@ -355,21 +370,46 @@ def _parse_evidence(value: object, *, path: str, bundles: frozenset[str]) -> Sou
     )
 
 
-def _parse_approval(value: object, *, path: str) -> HumanApproval | None:
+def _parse_approval(
+    value: object, *, path: str, matrix_decided_at: datetime
+) -> HumanApproval | None:
     if value is None:
         return None
     record = _strict_object(
         value, path=path, fields=_HUMAN_APPROVAL_FIELDS, reason=MatrixReason.MALFORMED_VALUE
     )
+    approved_by = _identifier(record["approved_by"], path=f"{path}.approved_by")
+    approved_at = _timestamp(record["approved_at"], path=f"{path}.approved_at")
+    decision_text = _text(record["decision"], path=f"{path}.decision")
+    assert decision_text is not None
+    try:
+        decision = HumanApprovalDecision(decision_text)
+    except ValueError:
+        _reject(
+            MatrixReason.MALFORMED_VALUE,
+            f"{path}.decision",
+            "decision must be a recognized human-approval state",
+        )
+    if approved_at > matrix_decided_at:
+        _reject(
+            MatrixReason.PAID_PLAN_UNAPPROVED,
+            f"{path}.approved_at",
+            "approval must be recorded at or before the matrix decision time",
+        )
     return HumanApproval(
-        approved_by=_text(record["approved_by"], path=f"{path}.approved_by"),
-        approved_at=_timestamp(record["approved_at"], path=f"{path}.approved_at"),
-        decision=_text(record["decision"], path=f"{path}.decision"),
+        approved_by=approved_by,
+        approved_at=approved_at,
+        decision=decision,
     )
 
 
 def _parse_source(
-    value: object, *, path: str, categories: frozenset[str], bundles: frozenset[str]
+    value: object,
+    *,
+    path: str,
+    categories: frozenset[str],
+    bundles: frozenset[str],
+    matrix_decided_at: datetime,
 ) -> SourceRecord:
     record = _strict_object(
         value, path=path, fields=_SOURCE_FIELDS, reason=MatrixReason.MALFORMED_VALUE
@@ -422,7 +462,11 @@ def _parse_source(
             f"{path}.paid_plan_required",
             "paid_plan_required must be a boolean",
         )
-    approval = _parse_approval(record["human_approval"], path=f"{path}.human_approval")
+    approval = _parse_approval(
+        record["human_approval"],
+        path=f"{path}.human_approval",
+        matrix_decided_at=matrix_decided_at,
+    )
     verdict = _text(record["verdict"], path=f"{path}.verdict")
     if verdict not in VERDICTS:
         _reject(MatrixReason.MALFORMED_VALUE, f"{path}.verdict", f"unknown verdict '{verdict}'")
@@ -486,6 +530,17 @@ def _validate_rights_consistency(source: SourceRecord, *, path: str) -> None:
             MatrixReason.PAID_PLAN_UNAPPROVED,
             f"{path}.verdict",
             "a paid plan without recorded human approval must yield BLOCKED",
+        )
+    if (
+        source.paid_plan_required
+        and source.human_approval is not None
+        and source.human_approval.decision is not HumanApprovalDecision.APPROVED
+        and source.verdict != "BLOCKED"
+    ):
+        _reject(
+            MatrixReason.PAID_PLAN_UNAPPROVED,
+            f"{path}.human_approval.decision",
+            "a paid plan must have an explicit APPROVED decision before it is feasible",
         )
 
 
@@ -558,7 +613,11 @@ def parse_source_matrix(raw: bytes) -> SourceMatrix:
     category_set = frozenset(categories)
     sources = tuple(
         _parse_source(
-            entry, path=f"{label}.sources[{index}]", categories=category_set, bundles=bundle_set
+            entry,
+            path=f"{label}.sources[{index}]",
+            categories=category_set,
+            bundles=bundle_set,
+            matrix_decided_at=decided_at,
         )
         for index, entry in enumerate(sources_payload)
     )

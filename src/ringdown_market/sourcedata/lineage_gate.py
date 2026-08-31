@@ -25,7 +25,10 @@ from ringdown_market.contracts.security_lineage import (
     resolve_lineage,
     verify_lineage_upstream_bindings,
 )
-from ringdown_market.contracts.source_matrix import source_matrix_bytes
+from ringdown_market.contracts.source_matrix import (
+    SOURCE_MATRIX_V1_SHA256,
+    source_matrix_bytes,
+)
 from ringdown_market.sourcedata.reasons import CollectorReason, CollectorRejected
 from ringdown_market.strategy.policy import (
     ACCEPTED_EVENT_POLICY_V1_SHA256,
@@ -77,12 +80,15 @@ def evaluate_lineage(
     *,
     event_id: str,
     lineage_bytes: bytes | None = None,
+    matrix_bytes: bytes | None = None,
 ) -> LineageGateReport:
     """Evaluate the frozen lineage for one event or fail closed.
 
     ``lineage_bytes=None`` loads the authenticated packaged lineage. Supplied
-    bytes are parsed with the same strictness and must bind the identical
-    upstream contract digests. Every failure fails closed.
+    lineage bytes are an internal deterministic-test seam. ``matrix_bytes``
+    allows the capture boundary to pass its one selected matrix to both gates,
+    but it must be byte-identical to the packaged canonical matrix. Every
+    failure fails closed.
     """
 
     policy_bytes = strategy_policy_bytes()
@@ -92,14 +98,22 @@ def evaluate_lineage(
             "policy_sha256",
             "packaged accepted event policy digest drift",
         )
-    matrix_bytes = source_matrix_bytes()
+    selected_matrix_bytes = source_matrix_bytes() if matrix_bytes is None else matrix_bytes
+    if hashlib.sha256(selected_matrix_bytes).hexdigest() != SOURCE_MATRIX_V1_SHA256:
+        raise CollectorRejected(
+            CollectorReason.LINEAGE_DRIFT,
+            "source_matrix_sha256",
+            "supplied source matrix bytes are not the frozen canonical source matrix",
+        )
     try:
         if lineage_bytes is None:
             lineage: SecurityLineage = load_security_lineage()
         else:
             lineage = parse_security_lineage(lineage_bytes)
         verify_lineage_upstream_bindings(
-            lineage, policy_bytes=policy_bytes, source_matrix_bytes=matrix_bytes
+            lineage,
+            policy_bytes=policy_bytes,
+            source_matrix_bytes=selected_matrix_bytes,
         )
         resolution = resolve_lineage(lineage, event_id)
         if not resolution.active_at_cutoff:

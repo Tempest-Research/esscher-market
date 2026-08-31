@@ -45,6 +45,9 @@ _CIK: Final = re.compile(r"^[0-9]{10}$")
 _TICKER: Final = re.compile(r"^[A-Z][A-Z0-9.]{0,9}$")
 _IDENTIFIER: Final = re.compile(r"^[A-Z0-9][A-Z0-9_.:-]{2,63}$")
 _DATE: Final = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
+_UTC_TIMESTAMP: Final = re.compile(
+    r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|\+00:00)$"
+)
 _MIC: Final = re.compile(r"^[A-Z]{4}$")
 
 _TOP_LEVEL_FIELDS: Final = frozenset(
@@ -325,11 +328,17 @@ def _sha256(value: object, *, path: str, nullable: bool = False) -> str | None:
 def _timestamp(value: object, *, path: str) -> datetime:
     text = _text(value, path=path)
     assert text is not None
+    if _UTC_TIMESTAMP.fullmatch(text) is None:
+        _reject(
+            LineageReason.MALFORMED_VALUE,
+            path,
+            "value must be an ISO-8601 timestamp with explicit UTC Z or +00:00 offset",
+        )
     try:
-        parsed = datetime.fromisoformat(text.replace("Z", "+00:00")).astimezone(UTC)
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
     except ValueError:
         _reject(LineageReason.MALFORMED_VALUE, path, "value must be an ISO-8601 UTC timestamp")
-    return parsed
+    return parsed.astimezone(UTC)
 
 
 def _calendar_date(value: object, *, path: str, nullable: bool = False) -> date | None:

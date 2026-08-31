@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
 import pytest
 
-from ringdown_market.contracts.security_lineage import SECURITY_LINEAGE_V1_SHA256
+from ringdown_market.contracts.security_lineage import (
+    SECURITY_LINEAGE_V1_SHA256,
+    load_security_lineage,
+)
+from ringdown_market.contracts.source_matrix import source_matrix_bytes
 from ringdown_market.sourcedata.lineage_gate import evaluate_lineage
 from ringdown_market.sourcedata.reasons import CollectorReason, CollectorRejected
 
@@ -14,6 +19,7 @@ LINEAGE_PATH = (
     REPO_ROOT / "src" / "ringdown_market" / "contracts" / "policies" / "security_lineage_v1.json"
 )
 EVIDENCE_DIR = REPO_ROOT / "data" / "security-lineage" / "evidence"
+FIXTURE_PATH = REPO_ROOT / "tests" / "fixtures" / "sourcedata" / "synthetic_snapshot_inputs_v1.json"
 FULL_DEV_CONDITIONS = (
     "--condition-satisfied",
     "HUMAN_VERIFIED_CAPTURE",
@@ -103,23 +109,28 @@ def test_lineage_gate_fails_closed_on_drifted_upstream_binding() -> None:
     assert error.value.reason == CollectorReason.LINEAGE_DRIFT
 
 
+def _capture_args(output_dir: Path, *, event_id: str = "KR-2026Q2-EARNINGS") -> list[str]:
+    return [
+        "--event-id",
+        event_id,
+        "--fixture",
+        str(FIXTURE_PATH),
+        "--capture-at",
+        "2026-09-11T13:35:10Z",
+        "--output-dir",
+        str(output_dir),
+        *FULL_DEV_CONDITIONS,
+    ]
+
+
 def test_capture_command_writes_lineage_receipt_and_identity_binding(
     tmp_path: Path, monkeypatch
 ) -> None:
     from ringdown_market.sourcedata.capture import main
 
     monkeypatch.setenv("ESSCHER_CAPTURE_AUTHORIZED", "yes")
-    exit_code = main(
-        [
-            "--event-id",
-            "KR-2026Q2-EARNINGS",
-            "--capture-at",
-            "2026-09-11T13:35:10Z",
-            "--output-dir",
-            str(tmp_path),
-            *FULL_DEV_CONDITIONS,
-        ]
-    )
+    exit_code = main(_capture_args(tmp_path))
+
     assert exit_code == 0
     receipt_lines = (tmp_path / "lineage_receipts.jsonl").read_text().splitlines()
     assert len(receipt_lines) == 1
@@ -131,51 +142,40 @@ def test_capture_command_writes_lineage_receipt_and_identity_binding(
     assert identity["security_lineage_sha256"] == SECURITY_LINEAGE_V1_SHA256
 
 
-def test_capture_command_rejects_delisted_event(tmp_path: Path, monkeypatch) -> None:
+def test_capture_uses_one_canonical_matrix_for_identity_and_lineage(
+    tmp_path: Path, monkeypatch
+) -> None:
     from ringdown_market.sourcedata.capture import main
 
-    def mutate(payload: dict) -> None:
-        payload["listings"][0]["listed_to"] = "2026-01-15"
-        payload["listings"][0]["delisting_reason"] = "VOLUNTARY_DELISTING"
-
-    drifted_path = tmp_path / "delisted-lineage.json"
-    drifted_path.write_bytes(_mutated_lineage_bytes(mutate))
     monkeypatch.setenv("ESSCHER_CAPTURE_AUTHORIZED", "yes")
-    exit_code = main(
-        [
-            "--event-id",
-            "KR-2026Q2-EARNINGS",
-            "--capture-at",
-            "2026-09-11T13:35:10Z",
-            "--output-dir",
-            str(tmp_path),
-            "--lineage",
-            str(drifted_path),
-            *FULL_DEV_CONDITIONS,
-        ]
-    )
+    assert main(_capture_args(tmp_path)) == 0
+
+    canonical_matrix_sha256 = hashlib.sha256(source_matrix_bytes()).hexdigest()
+    identity = json.loads((tmp_path / "capture_identity.json").read_text())
+    assert identity["source_matrix_sha256"] == canonical_matrix_sha256
+    assert load_security_lineage().source_matrix_sha256 == canonical_matrix_sha256
+
+
+def test_lineage_gate_rejects_an_alternate_matrix_before_resolution() -> None:
+    with pytest.raises(CollectorRejected) as error:
+        evaluate_lineage(
+            event_id="KR-2026Q2-EARNINGS",
+            matrix_bytes=b"\n" + source_matrix_bytes(),
+        )
+
+    assert error.value.reason == CollectorReason.LINEAGE_DRIFT
+
+
+def test_capture_command_rejects_unknown_lineage_before_snapshot(
+    tmp_path: Path, monkeypatch
+) -> None:
+    from ringdown_market.sourcedata.capture import main
+
+    monkeypatch.setenv("ESSCHER_CAPTURE_AUTHORIZED", "yes")
+    exit_code = main(_capture_args(tmp_path, event_id="GHOST-2099Q1-EARNINGS"))
+
     assert exit_code == 2
     assert not (tmp_path / "strategy_snapshot.json").exists()
-
-
-def test_capture_command_rejects_missing_lineage_path(tmp_path: Path, monkeypatch) -> None:
-    from ringdown_market.sourcedata.capture import main
-
-    monkeypatch.setenv("ESSCHER_CAPTURE_AUTHORIZED", "yes")
-    exit_code = main(
-        [
-            "--event-id",
-            "KR-2026Q2-EARNINGS",
-            "--capture-at",
-            "2026-09-11T13:35:10Z",
-            "--output-dir",
-            str(tmp_path),
-            "--lineage",
-            str(tmp_path / "no-such-lineage.json"),
-            *FULL_DEV_CONDITIONS,
-        ]
-    )
-    assert exit_code == 2
 
 
 def test_capture_is_byte_identical_with_lineage_gate(tmp_path: Path, monkeypatch) -> None:
@@ -186,18 +186,7 @@ def test_capture_is_byte_identical_with_lineage_gate(tmp_path: Path, monkeypatch
     for index in range(2):
         output_dir = tmp_path / f"run-{index}"
         output_dir.mkdir()
-        exit_code = main(
-            [
-                "--event-id",
-                "KR-2026Q2-EARNINGS",
-                "--capture-at",
-                "2026-09-11T13:35:10Z",
-                "--output-dir",
-                str(output_dir),
-                *FULL_DEV_CONDITIONS,
-            ]
-        )
-        assert exit_code == 0
+        assert main(_capture_args(output_dir)) == 0
         outputs.append(output_dir)
     for name in (
         "strategy_snapshot.json",

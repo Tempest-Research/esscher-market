@@ -220,6 +220,16 @@ def test_strict_parser_rejects_unknown_missing_duplicate_fields() -> None:
     assert error.value.reason == LineageReason.DUPLICATE_FIELD
 
 
+@pytest.mark.parametrize("timestamp", ["2026-08-30T22:47:00+01:00", "2026-08-30T22:47:00"])
+def test_lineage_timestamp_requires_explicit_zero_offset_utc(timestamp: str) -> None:
+    def mutate(payload: dict) -> None:
+        payload["actions"][0]["provenance"]["retrieved_at"] = timestamp
+
+    with pytest.raises(LineageRejected) as error:
+        parse_security_lineage(_mutated_bytes(mutate))
+    assert error.value.reason == LineageReason.MALFORMED_VALUE
+
+
 def test_identity_rule_is_fail_closed() -> None:
     def mutate(payload: dict) -> None:
         payload["identity_rule"] = "TICKER_ROOTED_IDENTITY"

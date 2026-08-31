@@ -18,6 +18,7 @@ from ringdown_market.contracts.gate_a import (
     programme_contract_bytes,
 )
 from ringdown_market.contracts.source_matrix import (
+    SOURCE_MATRIX_V1_SHA256,
     ClassRightsDecision,
     MatrixReason,
     MatrixRejected,
@@ -37,6 +38,7 @@ from ringdown_market.strategy.policy import (
 )
 
 EARNINGS_CANDIDATE_ID: Final = "EARNINGS_RESIDUAL_CONTINUATION_V1"
+MACRO_CANDIDATE_ID: Final = "MACRO_SPY_CONTINUATION_CHALLENGER_V1"
 
 
 @dataclass(frozen=True)
@@ -55,9 +57,16 @@ def _map_matrix_error(error: MatrixRejected) -> CollectorRejected:
     return CollectorRejected(CollectorReason.SOURCE_MATRIX_DRIFT, error.path, error.detail)
 
 
-def _required_classes_from_policy(policy_bytes: bytes) -> tuple[str, ...]:
+def _required_classes_from_policy(policy_bytes: bytes, *, candidate_id: str) -> tuple[str, ...]:
     policy = parse_strategy_policy(policy_bytes)
-    candidate = policy.candidate(EARNINGS_CANDIDATE_ID)
+    try:
+        candidate = policy.candidate(candidate_id)
+    except KeyError as error:
+        raise CollectorRejected(
+            CollectorReason.SOURCE_MATRIX_DRIFT,
+            "candidate_id",
+            f"candidate '{candidate_id}' is not present in the accepted policy",
+        ) from error
     evidence = candidate["evidence"]
     required = evidence["required_source_classes"]
     assert isinstance(required, tuple)
@@ -66,14 +75,17 @@ def _required_classes_from_policy(policy_bytes: bytes) -> tuple[str, ...]:
 
 def evaluate_capture_rights(
     *,
+    candidate_id: str,
     matrix_bytes: bytes | None = None,
     satisfied_conditions: frozenset[str],
 ) -> CaptureRightsReport:
-    """Evaluate the frozen source matrix against the frozen earnings lane.
+    """Evaluate the frozen source matrix against one exact accepted candidate.
 
-    ``matrix_bytes=None`` loads the authenticated packaged matrix. Supplied
-    bytes are parsed with the same strictness and must bind the identical
-    upstream contract digests. Every failure fails closed.
+    ``matrix_bytes=None`` loads the authenticated packaged matrix. The optional
+    bytes seam exists only for deterministic tests and accepts the exact frozen
+    matrix digest; no alternate matrix can become a production authority.
+    Every matrix, including the packaged one, is rebound to both upstream
+    contract bytes on every evaluation. Every failure fails closed.
     """
 
     policy_bytes = strategy_policy_bytes()
@@ -95,10 +107,16 @@ def evaluate_capture_rights(
             matrix: SourceMatrix = load_source_matrix()
         else:
             matrix = parse_source_matrix(matrix_bytes)
-            verify_upstream_bindings(
-                matrix, policy_bytes=policy_bytes, gate_a_contract_bytes=gate_a_bytes
-            )
-        required = _required_classes_from_policy(policy_bytes)
+            if matrix.sha256 != SOURCE_MATRIX_V1_SHA256:
+                raise MatrixRejected(
+                    MatrixReason.DIGEST_MISMATCH,
+                    "source_matrix_sha256",
+                    "supplied matrix bytes are not the frozen canonical source matrix",
+                )
+        verify_upstream_bindings(
+            matrix, policy_bytes=policy_bytes, gate_a_contract_bytes=gate_a_bytes
+        )
+        required = _required_classes_from_policy(policy_bytes, candidate_id=candidate_id)
         decisions = evaluate_matrix_rights(
             matrix, required, satisfied_conditions=satisfied_conditions
         )

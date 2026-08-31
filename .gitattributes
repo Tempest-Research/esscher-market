@@ -2,5 +2,7 @@
 
 # Source-feasibility golden bundles are captured evidence bytes and must
 # remain byte-identical across platforms; never normalize line endings.
-data/source-feasibility/** -text
-data/security-lineage/** -text
+data/source-feasibility/** -text -whitespace
+
+# Security-lineage evidence receipts are byte-pinned development evidence.
+data/security-lineage/evidence/** -text -whitespace
