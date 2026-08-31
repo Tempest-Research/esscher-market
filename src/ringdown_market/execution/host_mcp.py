@@ -124,20 +124,13 @@ class HostManagedMcpSession(Protocol):
     async def call_tool(self, name: str, arguments: Mapping[str, object]) -> object: ...
 
 
-@dataclass(frozen=True, slots=True)
-class _PreparedHostMcpState:
-    """Factory-held state that is deliberately absent from the public capability."""
-
-    session: McpToolSession
-    observation: HostMcpCapabilityObservation
-
-
 class PreparedHostMcpSession:
     """Opaque, factory-issued capability for one fully preflighted PAPER MCP door.
 
-    The raw host session is intentionally not a public field.  A caller may retain
-    and pass this capability, but cannot create an equivalent capability by copying
-    a sanitized observation beside an arbitrary session object.
+    The supported module API issues this capability only from the factory's
+    preflighted ``connect`` path. The raw host session is intentionally not a
+    public field. This is a provenance boundary for ordinary callers, not a claim
+    to resist arbitrary in-process reflection or monkeypatching.
     """
 
     __slots__ = ("__weakref__",)
@@ -152,53 +145,6 @@ class PreparedHostMcpSession:
     def __deepcopy__(self, memo: dict[int, object]) -> NoReturn:
         del memo
         raise TypeError("PreparedHostMcpSession instances must be factory-created")
-
-    @classmethod
-    def _from_preflight(
-        cls,
-        *,
-        session: McpToolSession,
-        observation: HostMcpCapabilityObservation,
-        factory_capability: object,
-    ) -> PreparedHostMcpSession:
-        if factory_capability is not _PREPARED_HOST_MCP_FACTORY_CAPABILITY:
-            raise HostMcpConfigurationError("host MCP prepared capability must be factory-created")
-        prepared = object.__new__(cls)
-        _PREPARED_HOST_MCP_STATES[prepared] = _PreparedHostMcpState(
-            session=session,
-            observation=observation,
-        )
-        return prepared
-
-    def _validated_state(self) -> _PreparedHostMcpState:
-        try:
-            state = _PREPARED_HOST_MCP_STATES[self]
-        except KeyError:
-            raise HostMcpConfigurationError("host MCP capability must be factory-created") from None
-        observation = state.observation
-        expected_identity = HostMcpSessionIdentity(HostMcpEnvironment.PAPER)
-        if (
-            not isinstance(observation, HostMcpCapabilityObservation)
-            or observation.capability_sha256 != _capability_sha256(expected_identity)
-            or type(observation.required_tool_count) is not int
-            or observation.required_tool_count != len(_REQUIRED_TOOLS)
-            or observation.account_status != "ACTIVE"
-            or type(observation.trading_blocked) is not bool
-            or observation.trading_blocked
-            or type(observation.account_blocked) is not bool
-            or observation.account_blocked
-            or observation.environment is not HostMcpEnvironment.PAPER
-            or observation.adapter != expected_identity.adapter
-            or observation.adapter_version != expected_identity.adapter_version
-            or observation.adapter_commit != expected_identity.adapter_commit
-            or not isinstance(observation.observed_at, datetime)
-            or observation.observed_at.tzinfo is None
-            or observation.observed_at.utcoffset() is None
-        ):
-            raise HostMcpConfigurationError(
-                "host MCP capability lacks a complete PAPER preflight attestation"
-            )
-        return state
 
     @property
     def observation(self) -> HostMcpCapabilityObservation:
@@ -237,12 +183,6 @@ class PreparedHostMcpSession:
             ORDER_BY_ID_TOOL,
             {"order_id": order_id},
         )
-
-
-_PREPARED_HOST_MCP_FACTORY_CAPABILITY = object()
-_PREPARED_HOST_MCP_STATES: WeakKeyDictionary[PreparedHostMcpSession, _PreparedHostMcpState] = (
-    WeakKeyDictionary()
-)
 
 
 def _tool_names(response: object) -> frozenset[str]:
@@ -384,12 +324,64 @@ class HostMcpPaperSessionFactory:
 
         return await self._preflight(host)
 
-    async def connect(self, host: HostManagedMcpSession) -> PreparedHostMcpSession:
+
+def _wire_prepared_host_mcp_capability() -> None:
+    """Close the mint and state registry over the only supported factory path."""
+
+    @dataclass(frozen=True, slots=True)
+    class PreparedHostMcpState:
+        session: McpToolSession
+        observation: HostMcpCapabilityObservation
+
+    states: WeakKeyDictionary[PreparedHostMcpSession, PreparedHostMcpState] = WeakKeyDictionary()
+
+    def validated_state(prepared: PreparedHostMcpSession) -> PreparedHostMcpState:
+        try:
+            state = states[prepared]
+        except KeyError:
+            raise HostMcpConfigurationError("host MCP capability must be factory-created") from None
+        observation = state.observation
+        expected_identity = HostMcpSessionIdentity(HostMcpEnvironment.PAPER)
+        if (
+            not isinstance(observation, HostMcpCapabilityObservation)
+            or observation.capability_sha256 != _capability_sha256(expected_identity)
+            or type(observation.required_tool_count) is not int
+            or observation.required_tool_count != len(_REQUIRED_TOOLS)
+            or observation.account_status != "ACTIVE"
+            or type(observation.trading_blocked) is not bool
+            or observation.trading_blocked
+            or type(observation.account_blocked) is not bool
+            or observation.account_blocked
+            or observation.environment is not HostMcpEnvironment.PAPER
+            or observation.adapter != expected_identity.adapter
+            or observation.adapter_version != expected_identity.adapter_version
+            or observation.adapter_commit != expected_identity.adapter_commit
+            or not isinstance(observation.observed_at, datetime)
+            or observation.observed_at.tzinfo is None
+            or observation.observed_at.utcoffset() is None
+        ):
+            raise HostMcpConfigurationError(
+                "host MCP capability lacks a complete PAPER preflight attestation"
+            )
+        return state
+
+    async def connect(
+        factory: HostMcpPaperSessionFactory,
+        host: HostManagedMcpSession,
+    ) -> PreparedHostMcpSession:
         """Return the sole guarded runtime session after read-only preflight."""
 
-        observation = await self._preflight(host)
-        return PreparedHostMcpSession._from_preflight(
+        observation = await factory._preflight(host)
+        prepared = object.__new__(PreparedHostMcpSession)
+        states[prepared] = PreparedHostMcpState(
             session=_GuardedHostMcpSession(host),
             observation=observation,
-            factory_capability=_PREPARED_HOST_MCP_FACTORY_CAPABILITY,
         )
+        return prepared
+
+    PreparedHostMcpSession._validated_state = validated_state  # type: ignore[attr-defined]
+    HostMcpPaperSessionFactory.connect = connect
+
+
+_wire_prepared_host_mcp_capability()
+del _wire_prepared_host_mcp_capability
