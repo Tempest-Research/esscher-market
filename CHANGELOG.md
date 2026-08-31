@@ -33,7 +33,9 @@
 	verdicts, bound sample-receipt hashes, and a no-trade-authorization macro fallback for an
 	infeasible earnings contract.
 - Explicit pagination, partial-retrieval, and duplicate-source-record handling in the evidence
-	packet with stable fail-closed reason codes, plus distinct BMO and AMC reaction-session selection.
+  packet with stable fail-closed reason codes, plus distinct BMO and AMC reaction-session selection.
+- A frozen source-rights matrix with exact policy and Gate A bindings, development-only evidence
+  bundles, candidate-specific rights preflight, and an explicit-fixture offline capture boundary.
 
 ### Safety
 
@@ -47,6 +49,9 @@
 - Partial or contradictory package fills stop for reconciliation; missing fees remain explicit and raw broker/account identities never enter the receipt bundle.
 - Scheduled unknown, ambiguous, partial, overlapping, or integrity-invalid state fails closed without sequential-leg repair, guessed P&L, or another mutation.
 - The packaged trace is static and no-network; it rejects weakened labels or malformed PAPER receipt boundaries, escapes untrusted text, and leaves unsupported decision, permit, receipt, and P&L fields visibly missing.
+- Source rights are fixed to one authenticated packaged matrix. Candidate-specific preflight, upstream
+  binding checks, strict UTC clocks, and structured paid-plan approval records fail closed before
+  any offline snapshot is written; the capture command has no alternate-matrix or live-data path.
 - Version impact is `minor`; the package stays at `0.2.0` while issue #11 consolidates the release-train bump to `0.3.0`.
 
 ## [0.2.0] - Unreleased

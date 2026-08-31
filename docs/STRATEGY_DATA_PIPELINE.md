@@ -73,6 +73,29 @@ inferred from a normal release time: the frozen official schedule entry must
 match the manifest `scheduled_at` exactly, or the event fails with
 `SCHEDULE_NOT_FROZEN`.
 
+## Source-rights preflight
+
+Before loading an adapter, capture identifies the exact accepted candidate and
+evaluates only that candidate's required source classes against the one
+packaged `esscher.source_matrix/v1` resource. Its fixed SHA-256 is
+`888447640aa705510bc0594abc9a78f22c988e961282ff82a6f44337181d04ca`; each
+preflight rebinds its policy and Gate A digests before source selection.
+
+Every covering source must be non-blocked and all of its recorded conditions
+must be explicitly satisfied. A blocked class yields `SOURCE_RIGHTS_BLOCKED`;
+an unmet condition yields `SOURCE_RIGHTS_LIMITATION_UNMET`; a changed packaged
+matrix or upstream binding yields `SOURCE_MATRIX_DRIFT`. There is no
+caller-selected matrix path. Consensus and news remain `BLOCKED` without
+changing this slice because consensus is represented as `UNAVAILABLE` and no
+v1 feature consumes news.
+
+The capture command requires an explicit synthetic fixture. It passes that
+loaded fixture into the compiler adapters, allowing an installed wheel to run
+the same offline capture without a repository test-fixture fallback. Capture
+clocks are explicit zero-offset UTC values only. The command never opens a
+network, provider, broker, account, MCP, order, or trading path; `--live`
+remains an explicit fail-closed boundary.
+
 ## Retrieval integrity
 
 Pagination, partial retrieval, and duplicate source records are explicit and

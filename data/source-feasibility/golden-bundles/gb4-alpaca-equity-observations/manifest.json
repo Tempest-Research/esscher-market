@@ -1,0 +1,96 @@
+{
+ "schema": "esscher.feasibility_bundle",
+ "schema_version": 1,
+ "bundle_id": "GB4_ALPACA_EQUITY_OBSERVATIONS",
+ "title": "Bounded Alpaca PAPER-account probe of historical and real-time equity observation entitlements",
+ "matrix_categories": [
+  "EQUITY_MARKET_SECTOR_OBSERVATIONS"
+ ],
+ "data_class": "SOURCE_FEASIBILITY_PROBE",
+ "claims": [
+  "DEV_ONLY",
+  "NOT_ALPHA_EVIDENCE",
+  "NO_BROKER_EXECUTION",
+  "NOT_HISTORICAL_DATA",
+  "HASH_RECEIPTS_ONLY"
+ ],
+ "partition": "DEVELOPMENT",
+ "event_id": null,
+ "event_date": null,
+ "reproducibility": "HASH_RECEIPT_ONLY",
+ "capture_note": "Response bytes are licensed market data and are not committed; only endpoint paths, parameters, statuses, byte counts, and SHA-256 receipts are retained. The probe ran against a development PAPER account with host-side credentials that never leave the host. Historical SIP bars and quotes for completed development-partition sessions succeeded; real-time SIP snapshots were rejected with the subscription message, proving the Basic-plan IEX-only real-time boundary.",
+ "artifacts": [],
+ "probe_time": "2026-08-30T21:43:36Z",
+ "probe_observations": [
+  {
+   "name": "historical_daily_bars_sip",
+   "endpoint_path": "/v2/stocks/bars",
+   "params": {
+    "symbols": "SPY,XLK,AAPL",
+    "timeframe": "1Day",
+    "start": "2022-11-01",
+    "end": "2023-02-02",
+    "feed": "sip",
+    "adjustment": "split"
+   },
+   "status": 200,
+   "response_bytes": 21082,
+   "response_sha256": "9f99a4279ae8152a58693bbf07e766ffd1d47dc5111fa29363f740032f771665"
+  },
+  {
+   "name": "historical_daily_bars_iex",
+   "endpoint_path": "/v2/stocks/bars",
+   "params": {
+    "symbols": "SPY,XLK,AAPL",
+    "timeframe": "1Day",
+    "start": "2022-11-01",
+    "end": "2023-02-02",
+    "feed": "iex",
+    "adjustment": "split"
+   },
+   "status": 200,
+   "response_bytes": 20545,
+   "response_sha256": "2a978f171bbf7650c1a06b1ff17b51842d2c7d9186546a552c30ebc7f1c79566"
+  },
+  {
+   "name": "historical_sip_quotes_opening_window",
+   "endpoint_path": "/v2/stocks/AAPL/quotes",
+   "params": {
+    "start": "2023-02-03T14:30:00Z",
+    "end": "2023-02-03T14:36:00Z",
+    "feed": "sip"
+   },
+   "status": 200,
+   "response_bytes": 112795,
+   "response_sha256": "c25c65cb5af8d750481c754a019da90d1799503171fba311b8319824a0250bf0"
+  },
+  {
+   "name": "realtime_sip_snapshot_rejected",
+   "endpoint_path": "/v2/stocks/snapshots",
+   "params": {
+    "symbols": "SPY",
+    "feed": "sip"
+   },
+   "status": 403,
+   "response_bytes": null,
+   "response_sha256": null,
+   "observed_limitation": "subscription does not permit querying recent SIP data"
+  },
+  {
+   "name": "realtime_iex_snapshot",
+   "endpoint_path": "/v2/stocks/snapshots",
+   "params": {
+    "symbols": "SPY",
+    "feed": "iex"
+   },
+   "status": 200,
+   "response_bytes": 627,
+   "response_sha256": "4d25dc5832b1db3985415a5f7bc8192cb5ebcb8088c6cbab9e346fee27eb66df"
+  }
+ ],
+ "provenance_facts": {
+  "account_class": "DEVELOPMENT_PAPER",
+  "observed_plan": "BASIC",
+  "competition_account_entitlement": "UNVERIFIED_PER_GATE_A"
+ }
+}

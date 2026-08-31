@@ -12,11 +12,13 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 
+from ringdown_market.contracts.source_matrix import CONDITIONS
 from ringdown_market.sourcedata.compiler import (
     EARNINGS_CANDIDATE,
     MACRO_CANDIDATE,
@@ -43,13 +45,35 @@ from ringdown_market.sourcedata.receipts import (
     corporate_action_receipt_bytes,
     source_receipt_bytes,
 )
+from ringdown_market.sourcedata.rights_gate import evaluate_capture_rights
 
 HOST_AUTHORIZATION_VARIABLE = "ESSCHER_CAPTURE_AUTHORIZED"
 HOST_AUTHORIZATION_VALUE = "yes"
+_UTC_TIMESTAMP = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|\+00:00)$")
+
+
+def _capture_timestamp(value: str) -> datetime:
+    """Parse an explicit zero-offset UTC capture clock without host-local coercion."""
+
+    if _UTC_TIMESTAMP.fullmatch(value) is None:
+        raise CollectorRejected(
+            CollectorReason.UNSUPPORTED_INPUT,
+            "capture_at",
+            "capture time must use an explicit UTC Z or +00:00 offset",
+        )
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as error:
+        raise CollectorRejected(
+            CollectorReason.UNSUPPORTED_INPUT,
+            "capture_at",
+            "capture time must be an ISO-8601 UTC timestamp",
+        ) from error
+    return parsed.astimezone(UTC)
 
 
 def _configuration(args: argparse.Namespace, fixture, manifest_builder) -> CaptureConfiguration:
-    capture_at = datetime.fromisoformat(args.capture_at.replace("Z", "+00:00")).astimezone(UTC)
+    capture_at = _capture_timestamp(args.capture_at)
     return CaptureConfiguration(
         candidate_manifest_bytes=manifest_builder(fixture),
         event_id=args.event_id,
@@ -60,16 +84,14 @@ def _configuration(args: argparse.Namespace, fixture, manifest_builder) -> Captu
     )
 
 
-def run_capture(configuration: CaptureConfiguration, candidate: str) -> CompiledSnapshot:
+def run_capture(configuration: CaptureConfiguration, candidate: str, fixture) -> CompiledSnapshot:
     """Run one offline capture over the frozen synthetic adapters."""
 
     if candidate == MACRO_CANDIDATE:
-        fixture = load_macro_fixture()
         evidence = FixtureMacroEvidenceSource(fixture)
         macro = FixtureMacroReleaseSource(fixture)
         market = FixtureMacroMarketDataSource(fixture)
         return compile_macro_snapshot(configuration, evidence.sessions, macro, market)
-    fixture = load_fixture()
     evidence = FixtureEvidenceSource(fixture)
     market = FixtureMarketDataSource(fixture)
     return compile_strategy_snapshot(configuration, evidence, market)
@@ -114,13 +136,22 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--fixture",
         type=Path,
-        default=None,
-        help="optional alternate frozen fixture path",
+        required=True,
+        help="explicit frozen development fixture path (never loaded from the package)",
     )
     parser.add_argument(
         "--live",
         action="store_true",
         help="request the live read-only boundary (not pinned in this slice)",
+    )
+
+    parser.add_argument(
+        "--condition-satisfied",
+        dest="conditions_satisfied",
+        action="append",
+        default=[],
+        metavar="CONDITION",
+        help="declare one frozen source-matrix condition as satisfied for this capture",
     )
     return parser
 
@@ -155,16 +186,39 @@ def main(argv: Sequence[str] | None = None) -> int:
             file=sys.stderr,
         )
         return 2
-    fixture = load_fixture(args.fixture)
+    satisfied: set[str] = set()
+    for condition in args.conditions_satisfied:
+        if condition not in CONDITIONS:
+            print(
+                str(
+                    CollectorRejected(
+                        CollectorReason.SOURCE_RIGHTS_LIMITATION_UNMET,
+                        "condition_satisfied",
+                        f"unknown source-matrix condition '{condition}'",
+                    )
+                ),
+                file=sys.stderr,
+            )
+            return 2
+        satisfied.add(condition)
     candidate = MACRO_CANDIDATE if args.event_id.startswith("BLS-") else EARNINGS_CANDIDATE
+    try:
+        rights_report = evaluate_capture_rights(
+            candidate_id=candidate,
+            satisfied_conditions=frozenset(satisfied),
+        )
+    except CollectorRejected as error:
+        print(str(error), file=sys.stderr)
+        return 2
     if candidate == MACRO_CANDIDATE:
         fixture = load_macro_fixture(args.fixture)
         manifest_builder = build_macro_candidate_manifest
     else:
+        fixture = load_fixture(args.fixture)
         manifest_builder = build_candidate_manifest
     try:
         configuration = _configuration(args, fixture, manifest_builder)
-        compiled = run_capture(configuration, candidate)
+        compiled = run_capture(configuration, candidate, fixture)
         joined = compiled_strategy_input(compiled)
         feasibility_manifest = _build_feasibility(
             candidate, fixture, compiled, configuration.capture_at
@@ -185,16 +239,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             file=sys.stderr,
         )
         return 2
-    output_names = (
-        "strategy_snapshot.json",
-        "feature_receipt.json",
-        "candidate_manifest.json",
-        "data_feasibility_manifest.json",
-        "source_receipts.jsonl",
-        "corporate_action_receipts.jsonl",
-        "capture_identity.json",
-    )
-    if any(output_dir.joinpath(name).is_symlink() for name in output_names):
+    if args.output_dir.joinpath("capture.json").is_symlink():
         print(
             str(
                 CollectorRejected(
@@ -210,6 +255,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "snapshot_sha256": joined.snapshot_sha256,
         "feature_receipt_sha256": joined.feature_receipt_sha256,
         "candidate_manifest_sha256": joined.candidate_manifest_sha256,
+        "source_matrix_sha256": rights_report.source_matrix_sha256,
     }
     output_dir.joinpath("strategy_snapshot.json").write_bytes(compiled.strategy_snapshot_bytes)
     output_dir.joinpath("feature_receipt.json").write_bytes(compiled.feature_receipt_bytes)
