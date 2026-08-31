@@ -1,0 +1,52 @@
+{
+  "schema": "ringdown.panel_market_window_provenance",
+  "schema_version": 1,
+  "event_id": "CAT-20260804-EARNINGS",
+  "entry_session_id": "XNYS-2026-08-04",
+  "entry_session_date": "2026-08-04",
+  "timeframe": "1Min",
+  "adjustment": "all",
+  "window_start": "2026-08-04T13:30:00Z",
+  "window_end": "2026-08-04T14:51:00Z",
+  "symbols": {
+    "issuer": "CAT",
+    "market": "SPY",
+    "sector": "XLI"
+  },
+  "retrieved_at": "2026-08-30T15:52:54Z",
+  "redistribution_status": "METADATA_AND_HASH_ONLY",
+  "entitlement_note": "Host-subscription historical bars retrieved read-only from the configured market-data endpoint; raw bytes remain host-side and are bound by SHA-256 only.",
+  "limitations": [
+    "INDICATIVE_DATA",
+    "NOT_ALPHA_EVIDENCE",
+    "NO_OUTCOME_VALUES",
+    "NO_BROKER_EXECUTION"
+  ],
+  "bars": {
+    "issuer": {
+      "symbol": "CAT",
+      "status": "PRESENT",
+      "bar_count": 82,
+      "first_bar_at": "2026-08-04T13:30:00Z",
+      "last_bar_at": "2026-08-04T14:51:00Z",
+      "content_sha256": "4a4172abd4e50f2eb1ae7e2cb7b1c45f6d9ca2a6d330cc46b7800168ab6fc284"
+    },
+    "market": {
+      "symbol": "SPY",
+      "status": "PRESENT",
+      "bar_count": 82,
+      "first_bar_at": "2026-08-04T13:30:00Z",
+      "last_bar_at": "2026-08-04T14:51:00Z",
+      "content_sha256": "7a05a9336b9629c6554aeaff4ccd15b319fe07934340a9d270341ca5d9f88f5f"
+    },
+    "sector": {
+      "symbol": "XLI",
+      "status": "PRESENT",
+      "bar_count": 82,
+      "first_bar_at": "2026-08-04T13:30:00Z",
+      "last_bar_at": "2026-08-04T14:51:00Z",
+      "content_sha256": "9bb95ed0620e2abbf63c8b39197040943c9faa209f866789d3ecbefea17f0010"
+    }
+  },
+  "status": "COMPLETE"
+}
