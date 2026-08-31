@@ -263,6 +263,65 @@ def test_ac3_stale_capture_clock_fails_closed() -> None:
     assert caught.value.reason is CollectorReason.RETRIEVED_AFTER_CUTOFF
 
 
+def test_ac3_missing_feature_dependency_fails_closed() -> None:
+    fixture = copy.deepcopy(load_fixture())
+    fixture["issuer_release"]["quarter_history"] = fixture["issuer_release"]["quarter_history"][:1]
+    with pytest.raises(CollectorRejected) as caught:
+        _compile(fixture)
+    assert caught.value.reason is CollectorReason.FEATURE_DEPENDENCY_MISSING
+
+
+def test_ac3_non_finite_feature_fails_closed() -> None:
+    fixture = copy.deepcopy(load_fixture())
+    for quarter in fixture["issuer_release"]["quarter_history"]:
+        quarter["eps_diluted"] = "1.00"
+    fixture["issuer_release"]["current_quarter"]["eps_diluted"] = "1.00"
+    with pytest.raises(CollectorRejected) as caught:
+        _compile(fixture)
+    assert caught.value.reason is CollectorReason.NON_FINITE_FEATURE
+
+
+def test_ac3_adjustment_mismatch_fails_closed() -> None:
+    from datetime import date as _date
+
+    from ringdown_market.sourcedata.adjustments import adjust_series
+    from ringdown_market.sourcedata.interfaces import (
+        CorporateAction,
+        DailyBar,
+        SourceProvenance,
+    )
+
+    def split_action() -> CorporateAction:
+        return CorporateAction(
+            ticker="KR",
+            action_type="SPLIT",
+            ex_date=_date(2026, 3, 13),
+            ratio_numerator=2,
+            ratio_denominator=1,
+            symbol_from=None,
+            symbol_to=None,
+            provenance=SourceProvenance(
+                source_class="CORPORATE_ACTION_RECORD",
+                publisher="SYNTHETIC_SECURITY_MASTER_FEED",
+                content_sha256="c" * 64,
+                published_at=None,
+                published_at_precision="DATE",
+                retrieved_at=_at("2026-09-11T11:00:00Z"),
+                entitlement="ENTITLED",
+                redistribution_status="NON_REDISTRIBUTABLE",
+                limitations=("LICENSED_REFERENCE_DATA",),
+            ),
+        )
+
+    bars = (
+        DailyBar("KR", "XNYS-2026-03-12", _date(2026, 3, 12), Decimal("120.00"), 1, True),
+        DailyBar("KR", "XNYS-2026-03-13", _date(2026, 3, 13), Decimal("60.00"), 1, True),
+    )
+    with pytest.raises(CollectorRejected) as caught:
+        adjust_series(bars, (split_action(), split_action()), ticker="KR", receipts_by_action={})
+    assert caught.value.reason is CollectorReason.ADJUSTMENT_POLICY_VIOLATION
+
+
 def test_ac3_stable_reason_vocabulary_is_registered() -> None:
     required = {
         "FEATURE_DEPENDENCY_MISSING",

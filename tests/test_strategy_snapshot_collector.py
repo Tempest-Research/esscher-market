@@ -289,7 +289,7 @@ def test_conflicting_splits_fail_closed() -> None:
     )
     with pytest.raises(CollectorRejected) as caught:
         adjust_series(bars, (first, second), ticker="KR", receipts_by_action={})
-    assert caught.value.reason is CollectorReason.MATERIAL_SOURCE_CONFLICT
+    assert caught.value.reason is CollectorReason.ADJUSTMENT_POLICY_VIOLATION
 
 
 def test_split_without_receipt_fails_closed() -> None:

@@ -84,9 +84,10 @@ def resolve_actions(
                 continue
             if action.ex_date in seen_ex_dates:
                 raise CollectorRejected(
-                    CollectorReason.MATERIAL_SOURCE_CONFLICT,
+                    CollectorReason.ADJUSTMENT_POLICY_VIOLATION,
                     f"corporate_action.{ticker}.{action.ex_date.isoformat()}",
-                    "conflicting splits share one ex-date",
+                    "conflicting splits share one ex-date and violate the frozen"
+                    " split-only adjustment policy",
                 )
             seen_ex_dates.add(action.ex_date)
             factors[action.ex_date] = split_factor(action)
