@@ -73,6 +73,7 @@ class EngineOutcome:
     exchange: ReasonerExchange
     trace: Mapping[str, object]
     route_invoked: bool
+    ablate_text: bool = False
 
     @property
     def decision_bytes(self) -> bytes:
@@ -81,6 +82,75 @@ class EngineOutcome:
     @property
     def trace_bytes(self) -> bytes:
         return canonical_json_bytes(self.trace)
+
+
+def decision_trace_payload(
+    *,
+    strategy_input: StrategyInput,
+    decision: StrategyDecision,
+    exchange: ReasonerExchange,
+    route_invoked: bool,
+    ablate_text: bool,
+) -> dict[str, object]:
+    """Build the complete canonical decision trace for an engine outcome."""
+
+    snapshot = strategy_input.snapshot
+    return {
+        "schema": _TRACE_SCHEMA,
+        "schema_version": _TRACE_SCHEMA_VERSION,
+        "event_id": snapshot.event_id,
+        "candidate_id": snapshot.candidate_id,
+        "cohort_id": snapshot.cohort_id,
+        "ablate_text": ablate_text,
+        "stages": [
+            {
+                "stage": "INPUT",
+                "policy_sha256": snapshot.policy_sha256,
+                "candidate_manifest_sha256": strategy_input.candidate_manifest_sha256,
+                "strategy_snapshot_sha256": strategy_input.snapshot_sha256,
+                "feature_receipt_sha256": strategy_input.feature_receipt_sha256,
+            },
+            {
+                "stage": "FEATURE",
+                "data_health": snapshot.data_health.value,
+                "health_reason_codes": list(snapshot.health_reason_codes),
+                "eligibility": snapshot.eligibility.value,
+                "feature_ids": [
+                    feature.feature_id for feature in strategy_input.feature_receipt.features
+                ],
+                "feature_statuses": {
+                    feature.feature_id: feature.status.value
+                    for feature in strategy_input.feature_receipt.features
+                },
+            },
+            {
+                "stage": "REASONER",
+                "route_invoked": route_invoked,
+                "ablate_text": ablate_text,
+                "reasoner_exchange_sha256": sha256_bytes(
+                    canonical_json_bytes(reasoner_exchange_payload(exchange))
+                ),
+                "status": exchange.status.value,
+                "error_code": exchange.error_code,
+            },
+            {
+                "stage": "VALIDATOR",
+                "disposition": decision.disposition.value,
+                "reaction_relation": decision.reaction_relation.value,
+                "reason_codes": list(decision.reason_codes),
+            },
+            {
+                "stage": "OUTPUT",
+                "direction": decision.direction.value,
+                "reasoner_direction": (
+                    None
+                    if decision.reasoner_direction is None
+                    else decision.reasoner_direction.value
+                ),
+                "decision_sha256": sha256_bytes(strategy_decision_bytes(decision)),
+            },
+        ],
+    }
 
 
 class BoundedDecisionEngine:
@@ -173,7 +243,6 @@ class BoundedDecisionEngine:
     ) -> EngineOutcome:
         """Run one bounded pass and return the validated decision with a trace."""
 
-        snapshot = strategy_input.snapshot
         key = self._call_key(strategy_input)
         preflight = self._preflight_code(strategy_input, started_at)
         duplicate = key in self._invoked_keys
@@ -207,65 +276,17 @@ class BoundedDecisionEngine:
                 validator_build_sha256=ENGINE_BUILD_SHA256,
             )
 
-        trace = {
-            "schema": _TRACE_SCHEMA,
-            "schema_version": _TRACE_SCHEMA_VERSION,
-            "event_id": snapshot.event_id,
-            "candidate_id": snapshot.candidate_id,
-            "cohort_id": snapshot.cohort_id,
-            "ablate_text": ablate_text,
-            "stages": [
-                {
-                    "stage": "INPUT",
-                    "policy_sha256": snapshot.policy_sha256,
-                    "candidate_manifest_sha256": strategy_input.candidate_manifest_sha256,
-                    "strategy_snapshot_sha256": strategy_input.snapshot_sha256,
-                    "feature_receipt_sha256": strategy_input.feature_receipt_sha256,
-                },
-                {
-                    "stage": "FEATURE",
-                    "data_health": snapshot.data_health.value,
-                    "health_reason_codes": list(snapshot.health_reason_codes),
-                    "eligibility": snapshot.eligibility.value,
-                    "feature_ids": [
-                        feature.feature_id for feature in strategy_input.feature_receipt.features
-                    ],
-                    "feature_statuses": {
-                        feature.feature_id: feature.status.value
-                        for feature in strategy_input.feature_receipt.features
-                    },
-                },
-                {
-                    "stage": "REASONER",
-                    "route_invoked": route_invoked,
-                    "ablate_text": ablate_text,
-                    "reasoner_exchange_sha256": sha256_bytes(
-                        canonical_json_bytes(reasoner_exchange_payload(exchange))
-                    ),
-                    "status": exchange.status.value,
-                    "error_code": exchange.error_code,
-                },
-                {
-                    "stage": "VALIDATOR",
-                    "disposition": decision.disposition.value,
-                    "reaction_relation": decision.reaction_relation.value,
-                    "reason_codes": list(decision.reason_codes),
-                },
-                {
-                    "stage": "OUTPUT",
-                    "direction": decision.direction.value,
-                    "reasoner_direction": (
-                        None
-                        if decision.reasoner_direction is None
-                        else decision.reasoner_direction.value
-                    ),
-                    "decision_sha256": sha256_bytes(strategy_decision_bytes(decision)),
-                },
-            ],
-        }
+        trace = decision_trace_payload(
+            strategy_input=strategy_input,
+            decision=decision,
+            exchange=exchange,
+            route_invoked=route_invoked,
+            ablate_text=ablate_text,
+        )
         return EngineOutcome(
             decision=decision,
             exchange=exchange,
             trace=trace,
             route_invoked=route_invoked,
+            ablate_text=ablate_text,
         )

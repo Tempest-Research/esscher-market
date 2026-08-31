@@ -178,6 +178,37 @@ def build_evidence_packet(
     )
 
 
+def evidence_packet_sha256(packet: EvidencePacket) -> str:
+    """Recompute and validate the canonical receipt identity for one packet.
+
+    This is intentionally independent of the packet's claimed digest: callers
+    use it when a previously prepared graph crosses a mutation boundary.
+    """
+
+    if not isinstance(packet, EvidencePacket):
+        raise TypeError("evidence packet must be an EvidencePacket")
+    if not packet.refs or len(packet.refs) != len(packet.receipts):
+        raise ValueError("evidence packet refs and receipts must be non-empty and aligned")
+    evidence_ids = tuple(ref.evidence_id for ref in packet.refs)
+    if evidence_ids != tuple(sorted(set(evidence_ids))):
+        raise ValueError("evidence packet refs must be sorted and unique by evidence ID")
+    receipt_ids = tuple(receipt.receipt_id for receipt in packet.receipts)
+    if len(receipt_ids) != len(set(receipt_ids)):
+        raise ValueError("evidence packet receipt IDs must be unique")
+
+    packet_payload: dict[str, object] = {}
+    for ref, receipt in zip(packet.refs, packet.receipts, strict=True):
+        if (
+            ref.source_class != receipt.source_class
+            or ref.published_at != receipt.published_at
+            or ref.available_at != receipt.retrieved_at
+            or ref.content_sha256 != receipt.content_sha256
+        ):
+            raise ValueError("evidence packet ref does not bind its source receipt")
+        packet_payload[receipt.receipt_id] = source_receipt_payload(receipt)
+    return sha256_bytes(canonical_json_bytes(packet_payload))
+
+
 def source_refs_for(
     packet: EvidencePacket,
     *,

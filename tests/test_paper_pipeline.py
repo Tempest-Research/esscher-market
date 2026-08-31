@@ -7,13 +7,15 @@ never obtain credentials, call a live provider, or create a real PAPER order.
 from __future__ import annotations
 
 import asyncio
+import json
 from collections.abc import Mapping
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
 import pytest
 
-from ringdown_market.application import PaperStrategyApplication
+from ringdown_market.application import PaperPipelineRejected, PaperStrategyApplication
 from ringdown_market.contracts.execution_policy import ALPACA_MCP_PROTOCOL_SHA256
 from ringdown_market.execution.expression import (
     EXECUTABLE_DATA,
@@ -26,6 +28,7 @@ from ringdown_market.execution.expression import (
     PromotedExpressionPolicy,
     ShareObservation,
     TwoSidedQuote,
+    compiled_expression_sha256,
 )
 from ringdown_market.execution.host_mcp import (
     ACCOUNT_TOOL,
@@ -51,6 +54,7 @@ from ringdown_market.lifecycle import (
     LifecycleRejected,
     LifecycleState,
     issue_close_permit,
+    lifecycle_clocks_sha256,
 )
 from ringdown_market.risk import (
     ControlState,
@@ -62,14 +66,23 @@ from ringdown_market.risk import (
     verify_passport,
 )
 from ringdown_market.risk.snapshots import AccountSnapshot, OrderSnapshot, PositionSnapshot
-from ringdown_market.sourcedata import CaptureConfiguration
+from ringdown_market.sourcedata import CaptureConfiguration, compiled_strategy_input
 from ringdown_market.sourcedata.fakes import (
     FixtureEvidenceSource,
     FixtureMarketDataSource,
     build_candidate_manifest,
     load_fixture,
 )
-from ringdown_market.strategy.contracts import sha256_bytes
+from ringdown_market.strategy.contracts import (
+    candidate_manifest_bytes,
+    feature_receipt_bytes,
+    parse_candidate_manifest,
+    parse_feature_receipt,
+    parse_strategy_snapshot,
+    sha256_bytes,
+    strategy_snapshot_bytes,
+)
+from ringdown_market.strategy.engine import decision_trace_payload
 from ringdown_market.strategy.reasoner import (
     SYNTHETIC_ROUTE_IDENTITY,
     DeterministicFakeReasoner,
@@ -367,6 +380,55 @@ def _prepared_host(host: FakeHostMcp):
     return asyncio.run(factory.connect(host))
 
 
+def _prepared_pipeline(tmp_path):
+    """Build one fully prepared but not-yet-opened lifecycle through fakes only."""
+
+    host = FakeHostMcp()
+    host_session = _prepared_host(host)
+    host.calls.clear()
+    current = [CLOCK]
+    reasoner = FakeHostReasoner()
+    capture, fixture = _capture_configuration()
+    risk_policy = _risk_policy()
+    ledger = RiskLedger(tmp_path / "risk.sqlite")
+    kernel = RiskKernel(risk_policy, ledger, FakeTruthSource())
+    assert kernel.startup_reconciliation(now=CLOCK) is ControlState.ACTIVE
+    policy_sha256 = risk_policy_sha256(risk_policy)
+    service = PaperStrategyApplication(
+        reasoner_route=reasoner.route_bounded_reasoner,
+        expression_policy=_expression_policy(),
+        gate_d_report_sha256=HASH,
+        risk_kernel=kernel,
+        risk_policy_sha256=policy_sha256,
+        execution_protocol_sha256=ALPACA_MCP_PROTOCOL_SHA256,
+        lifecycle_clocks=lambda **_: _clocks(policy_sha256),
+        account_id="paper-account-1",
+        route_identity=SYNTHETIC_ROUTE_IDENTITY,
+    )
+    prepared = service.prepare(
+        capture_configuration=capture,
+        evidence=FixtureEvidenceSource(fixture),
+        market=FixtureMarketDataSource(fixture),
+        expression_snapshot=_expression_snapshot,
+        now=CLOCK,
+        decision_started_at=CLOCK - timedelta(seconds=5),
+    )
+    return service, prepared, host, host_session, ledger, current
+
+
+def _close_permit(prepared):
+    issued_at = datetime(2026, 9, 11, 14, 0, 5, tzinfo=UTC)
+    return issue_close_permit(
+        open_permit=prepared.permit,
+        event_run_id=prepared.permit.event_run_id,
+        policy_sha256=prepared.permit.policy_sha256,
+        snapshot_sha256=prepared.permit.snapshot_sha256,
+        issued_at=issued_at,
+        expires_at=issued_at + timedelta(minutes=1),
+        limit_price=Decimal("-0.20"),
+    )
+
+
 def _request() -> BrokerOrderRequest:
     return BrokerOrderRequest(
         client_order_id="open-permit-1-correlation",
@@ -626,3 +688,500 @@ def test_ambiguous_open_is_read_back_once_without_a_mutation_retry() -> None:
 
     assert ack.order_id == "paper-order-1"
     assert [name for name, _ in host.calls] == [OPEN_TOOL, READBACK_TOOL]
+
+
+def test_open_rejects_forged_lifecycle_clocks_before_host_mutation(tmp_path) -> None:
+    service, prepared, host, host_session, _ledger, current = _prepared_pipeline(tmp_path)
+    forged_clocks = replace(
+        prepared.lifecycle_clocks,
+        source_sha256="f" * 64,
+        time_exit_at=datetime(2026, 9, 11, 13, 38, tzinfo=UTC),
+        flattening_deadline_at=datetime(2026, 9, 11, 13, 39, tzinfo=UTC),
+    )
+    forged = replace(
+        prepared,
+        lifecycle_clocks=forged_clocks,
+        lifecycle_clocks_sha256=lifecycle_clocks_sha256(forged_clocks),
+    )
+
+    with pytest.raises(PaperPipelineRejected, match=r"prepared\.lifecycle_clocks"):
+        asyncio.run(
+            service.open_host(
+                prepared=forged,
+                host_session=host_session,
+                clock=lambda: current[0],
+                mutation_gate=OpenMutationGate(),
+            )
+        )
+
+    assert host.calls == []
+
+
+def test_open_rejects_forged_full_trace_before_host_mutation(tmp_path) -> None:
+    service, prepared, host, host_session, _ledger, current = _prepared_pipeline(tmp_path)
+    forged_trace = dict(prepared.engine_outcome.trace)
+    forged_trace.update(
+        {
+            "schema": "forged.decision_trace",
+            "schema_version": 99,
+            "ablate_text": True,
+            "stages": [{"stage": "FORGED"}],
+        }
+    )
+    forged_outcome = replace(prepared.engine_outcome, trace=forged_trace)
+    object.__setattr__(prepared, "engine_outcome", forged_outcome)
+
+    with pytest.raises(PaperPipelineRejected, match=r"prepared\.engine_outcome\.trace"):
+        asyncio.run(
+            service.open_host(
+                prepared=prepared,
+                host_session=host_session,
+                clock=lambda: current[0],
+                mutation_gate=OpenMutationGate(),
+            )
+        )
+
+    assert host.calls == []
+
+
+def test_open_rejects_forged_evidence_packet_before_host_mutation(tmp_path) -> None:
+    service, prepared, host, host_session, _ledger, current = _prepared_pipeline(tmp_path)
+    forged_packet = replace(prepared.source_snapshot.evidence_packet, refs=(), receipts=())
+    forged_source = replace(
+        prepared.source_snapshot,
+        evidence_packet=forged_packet,
+        source_receipts=(),
+    )
+    forged = replace(prepared, source_snapshot=forged_source)
+
+    with pytest.raises(
+        PaperPipelineRejected,
+        match=r"prepared\.source_snapshot\.evidence_packet",
+    ):
+        asyncio.run(
+            service.open_host(
+                prepared=forged,
+                host_session=host_session,
+                clock=lambda: current[0],
+                mutation_gate=OpenMutationGate(),
+            )
+        )
+
+    assert host.calls == []
+
+
+def test_open_rejects_source_receipt_drift_before_host_mutation(tmp_path) -> None:
+    service, prepared, host, host_session, _ledger, current = _prepared_pipeline(tmp_path)
+    source_receipts = list(prepared.source_snapshot.source_receipts)
+    source_receipts[0] = replace(source_receipts[0], content_sha256="f" * 64)
+    forged = replace(
+        prepared,
+        source_snapshot=replace(
+            prepared.source_snapshot,
+            source_receipts=tuple(source_receipts),
+        ),
+    )
+
+    with pytest.raises(
+        PaperPipelineRejected,
+        match=r"prepared\.source_snapshot\.source_receipts",
+    ):
+        asyncio.run(
+            service.open_host(
+                prepared=forged,
+                host_session=host_session,
+                clock=lambda: current[0],
+                mutation_gate=OpenMutationGate(),
+            )
+        )
+
+    assert host.calls == []
+
+
+def test_open_rejects_rehashed_expression_policy_forgery_before_host_mutation(tmp_path) -> None:
+    service, prepared, host, host_session, _ledger, current = _prepared_pipeline(tmp_path)
+    forged_expression = replace(prepared.compiled_expression, policy_sha256="f" * 64)
+    forged_expression_sha256 = compiled_expression_sha256(forged_expression)
+    forged = replace(
+        prepared,
+        compiled_expression=forged_expression,
+        expression_sha256=forged_expression_sha256,
+        correlation=replace(
+            prepared.correlation,
+            expression_sha256=forged_expression_sha256,
+        ),
+    )
+
+    with pytest.raises(PaperPipelineRejected, match="expression policy"):
+        asyncio.run(
+            service.open_host(
+                prepared=forged,
+                host_session=host_session,
+                clock=lambda: current[0],
+                mutation_gate=OpenMutationGate(),
+            )
+        )
+
+    assert host.calls == []
+
+
+def test_open_rejects_cross_account_application_replay_before_host_mutation(tmp_path) -> None:
+    service, prepared, host, host_session, _ledger, current = _prepared_pipeline(tmp_path)
+    different_account_application = replace(service, account_id="paper-account-2")
+
+    with pytest.raises(PaperPipelineRejected, match="application configuration"):
+        asyncio.run(
+            different_account_application.open_host(
+                prepared=prepared,
+                host_session=host_session,
+                clock=lambda: current[0],
+                mutation_gate=OpenMutationGate(),
+            )
+        )
+
+    assert host.calls == []
+
+
+@pytest.mark.parametrize("field", ("clocks", "correlation", "broker", "ledger", "account_id"))
+def test_close_rejects_substituted_active_lifecycle_binding_before_host_mutation(
+    tmp_path, field: str
+) -> None:
+    service, prepared, host, host_session, _ledger, current = _prepared_pipeline(tmp_path)
+    active = asyncio.run(
+        service.open_host(
+            prepared=prepared,
+            host_session=host_session,
+            clock=lambda: current[0],
+            mutation_gate=OpenMutationGate(),
+        )
+    )
+    host_calls_before_close = list(host.calls)
+    if field == "clocks":
+        forged = replace(active.lifecycle.clocks, source_sha256="f" * 64)
+    elif field == "correlation":
+        forged = replace(active.lifecycle.correlation, expression_sha256="f" * 64)
+    elif field == "account_id":
+        forged = "paper-account-2"
+    else:
+        forged = object()
+    object.__setattr__(active.lifecycle, field, forged)
+    current[0] = datetime(2026, 9, 11, 14, 0, 5, tzinfo=UTC)
+
+    with pytest.raises(PaperPipelineRejected, match="active lifecycle"):
+        asyncio.run(service.close(active=active, close_permit=_close_permit(prepared)))
+
+    assert host.calls == host_calls_before_close
+
+
+def test_close_still_flattens_when_non_close_critical_expression_evidence_drifts(tmp_path) -> None:
+    service, prepared, host, host_session, ledger, current = _prepared_pipeline(tmp_path)
+    active = asyncio.run(
+        service.open_host(
+            prepared=prepared,
+            host_session=host_session,
+            clock=lambda: current[0],
+            mutation_gate=OpenMutationGate(),
+        )
+    )
+    active.prepared.compiled_expression.debit_vertical["limit_price"] = "0.40"
+    active.prepared.compiled_expression.debit_vertical["maximum_loss"] = "40.00"
+    current[0] = datetime(2026, 9, 11, 14, 0, 5, tzinfo=UTC)
+
+    state, order_id = asyncio.run(
+        service.close(active=active, close_permit=_close_permit(prepared))
+    )
+
+    assert state is LifecycleState.CLOSED_FLAT
+    assert order_id == "paper-close-order-1"
+    assert ledger.reservation_for_event(prepared.permit.event_run_id)["state"] == "RELEASED"
+    assert [name for name, _ in host.calls][-4:] == [
+        OPEN_TOOL,
+        ACCOUNT_TOOL,
+        ORDER_BY_ID_TOOL,
+        POSITIONS_TOOL,
+    ]
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "expected_path"),
+    (
+        ("ablate_text", True, "prepared.engine_outcome.ablate_text"),
+        ("route_invoked", False, "prepared.engine_outcome.route_invoked"),
+    ),
+)
+def test_open_rejects_accepted_ablation_or_uninvoked_route_before_host_mutation(
+    tmp_path, field: str, value: bool, expected_path: str
+) -> None:
+    service, prepared, host, host_session, _ledger, current = _prepared_pipeline(tmp_path)
+    values = {
+        "route_invoked": prepared.engine_outcome.route_invoked,
+        "ablate_text": prepared.engine_outcome.ablate_text,
+    }
+    values[field] = value
+    forged_trace = decision_trace_payload(
+        strategy_input=prepared.strategy_input,
+        decision=prepared.engine_outcome.decision,
+        exchange=prepared.engine_outcome.exchange,
+        route_invoked=values["route_invoked"],
+        ablate_text=values["ablate_text"],
+    )
+    forged_outcome = replace(
+        prepared.engine_outcome,
+        trace=forged_trace,
+        route_invoked=values["route_invoked"],
+        ablate_text=values["ablate_text"],
+    )
+    forged = replace(
+        prepared,
+        engine_outcome=forged_outcome,
+        trace_sha256=sha256_bytes(forged_outcome.trace_bytes),
+    )
+
+    with pytest.raises(PaperPipelineRejected, match=expected_path):
+        asyncio.run(
+            service.open_host(
+                prepared=forged,
+                host_session=host_session,
+                clock=lambda: current[0],
+                mutation_gate=OpenMutationGate(),
+            )
+        )
+
+    assert host.calls == []
+
+
+@pytest.mark.parametrize(
+    "tamper",
+    ("schema", "schema_version", "ablate_text", "missing", "extra", "reordered", "stage_field"),
+)
+def test_open_rejects_each_exact_trace_shape_drift_before_host_mutation(
+    tmp_path, tamper: str
+) -> None:
+    service, prepared, host, host_session, _ledger, current = _prepared_pipeline(tmp_path)
+    trace = json.loads(json.dumps(prepared.engine_outcome.trace))
+    if tamper == "schema":
+        trace["schema"] = "forged.decision_trace"
+    elif tamper == "schema_version":
+        trace["schema_version"] = 99
+    elif tamper == "ablate_text":
+        trace["ablate_text"] = True
+    elif tamper == "missing":
+        trace["stages"].pop()
+    elif tamper == "extra":
+        trace["stages"].append({"stage": "EXTRA"})
+    elif tamper == "reordered":
+        trace["stages"].reverse()
+    else:
+        trace["stages"][0]["policy_sha256"] = "f" * 64
+    forged_outcome = replace(prepared.engine_outcome, trace=trace)
+    forged = replace(
+        prepared,
+        engine_outcome=forged_outcome,
+        trace_sha256=sha256_bytes(forged_outcome.trace_bytes),
+    )
+
+    with pytest.raises(PaperPipelineRejected, match=r"prepared\.engine_outcome\.trace"):
+        asyncio.run(
+            service.open_host(
+                prepared=forged,
+                host_session=host_session,
+                clock=lambda: current[0],
+                mutation_gate=OpenMutationGate(),
+            )
+        )
+
+    assert host.calls == []
+
+
+def test_open_rejects_well_formed_replayed_source_bytes_at_prepared_strategy_input(
+    tmp_path,
+) -> None:
+    service, prepared, host, host_session, _ledger, current = _prepared_pipeline(tmp_path)
+    manifest = parse_candidate_manifest(prepared.source_snapshot.candidate_manifest_bytes)
+    forged_manifest = replace(manifest, manifest_id=f"{manifest.manifest_id}-replayed")
+    forged_manifest_bytes = candidate_manifest_bytes(forged_manifest)
+    snapshot = parse_strategy_snapshot(prepared.source_snapshot.strategy_snapshot_bytes)
+    forged_snapshot = replace(
+        snapshot,
+        candidate_manifest_sha256=sha256_bytes(forged_manifest_bytes),
+    )
+    forged_snapshot_bytes = strategy_snapshot_bytes(forged_snapshot)
+    receipt = parse_feature_receipt(prepared.source_snapshot.feature_receipt_bytes)
+    forged_receipt = replace(
+        receipt,
+        strategy_snapshot_sha256=sha256_bytes(forged_snapshot_bytes),
+    )
+    forged_receipt_bytes = feature_receipt_bytes(forged_receipt)
+    forged_source = replace(
+        prepared.source_snapshot,
+        candidate_manifest_bytes=forged_manifest_bytes,
+        strategy_snapshot_bytes=forged_snapshot_bytes,
+        feature_receipt_bytes=forged_receipt_bytes,
+        snapshot=forged_snapshot,
+        feature_receipt=forged_receipt,
+    )
+    assert compiled_strategy_input(forged_source) != prepared.strategy_input
+    forged = replace(prepared, source_snapshot=forged_source)
+
+    with pytest.raises(PaperPipelineRejected, match=r"prepared\.strategy_input"):
+        asyncio.run(
+            service.open_host(
+                prepared=forged,
+                host_session=host_session,
+                clock=lambda: current[0],
+                mutation_gate=OpenMutationGate(),
+            )
+        )
+
+    assert host.calls == []
+
+
+def test_open_rejects_rehashed_evidence_receipts_with_stale_packet_digest(tmp_path) -> None:
+    service, prepared, host, host_session, _ledger, current = _prepared_pipeline(tmp_path)
+    refs = list(prepared.source_snapshot.evidence_packet.refs)
+    receipts = list(prepared.source_snapshot.evidence_packet.receipts)
+    refs[0] = replace(refs[0], content_sha256="f" * 64)
+    receipts[0] = replace(receipts[0], content_sha256="f" * 64)
+    forged_packet = replace(
+        prepared.source_snapshot.evidence_packet,
+        refs=tuple(refs),
+        receipts=tuple(receipts),
+    )
+    forged_source = replace(
+        prepared.source_snapshot,
+        evidence_packet=forged_packet,
+        source_receipts=tuple(receipts),
+    )
+    forged = replace(prepared, source_snapshot=forged_source)
+
+    with pytest.raises(
+        PaperPipelineRejected,
+        match=r"prepared\.source_snapshot\.evidence_packet\.packet_sha256",
+    ):
+        asyncio.run(
+            service.open_host(
+                prepared=forged,
+                host_session=host_session,
+                clock=lambda: current[0],
+                mutation_gate=OpenMutationGate(),
+            )
+        )
+
+    assert host.calls == []
+
+
+def test_open_rejects_rehashed_expression_terms_at_exact_permit_binding(tmp_path) -> None:
+    service, prepared, host, host_session, _ledger, current = _prepared_pipeline(tmp_path)
+    debit_vertical = dict(prepared.compiled_expression.debit_vertical)
+    debit_vertical["limit_price"] = "0.40"
+    debit_vertical["maximum_loss"] = "40.00"
+    forged_expression = replace(prepared.compiled_expression, debit_vertical=debit_vertical)
+    forged_expression_sha256 = compiled_expression_sha256(forged_expression)
+    forged = replace(
+        prepared,
+        compiled_expression=forged_expression,
+        expression_sha256=forged_expression_sha256,
+        correlation=replace(
+            prepared.correlation,
+            expression_sha256=forged_expression_sha256,
+        ),
+    )
+
+    with pytest.raises(PaperPipelineRejected, match=r"prepared\.permit"):
+        asyncio.run(
+            service.open_host(
+                prepared=forged,
+                host_session=host_session,
+                clock=lambda: current[0],
+                mutation_gate=OpenMutationGate(),
+            )
+        )
+
+    assert host.calls == []
+
+
+def test_close_rejects_replaced_active_lifecycle_and_keeps_the_open_binding_usable(
+    tmp_path,
+) -> None:
+    service, prepared, host, host_session, ledger, current = _prepared_pipeline(tmp_path)
+    active = asyncio.run(
+        service.open_host(
+            prepared=prepared,
+            host_session=host_session,
+            clock=lambda: current[0],
+            mutation_gate=OpenMutationGate(),
+        )
+    )
+    original_lifecycle = active.lifecycle
+    object.__setattr__(active, "lifecycle", replace(original_lifecycle, broker=object()))
+    current[0] = datetime(2026, 9, 11, 14, 0, 5, tzinfo=UTC)
+    host_calls_before_close = list(host.calls)
+
+    with pytest.raises(PaperPipelineRejected, match=r"active\.close_binding\.lifecycle"):
+        asyncio.run(service.close(active=active, close_permit=_close_permit(prepared)))
+
+    assert host.calls == host_calls_before_close
+    object.__setattr__(active, "lifecycle", original_lifecycle)
+    state, order_id = asyncio.run(
+        service.close(active=active, close_permit=_close_permit(prepared))
+    )
+
+    assert state is LifecycleState.CLOSED_FLAT
+    assert order_id == "paper-close-order-1"
+    assert ledger.reservation_for_event(prepared.permit.event_run_id)["state"] == "RELEASED"
+
+
+def test_close_rejects_coherent_correlation_substitution_before_host_mutation(tmp_path) -> None:
+    service, prepared, host, host_session, _ledger, current = _prepared_pipeline(tmp_path)
+    active = asyncio.run(
+        service.open_host(
+            prepared=prepared,
+            host_session=host_session,
+            clock=lambda: current[0],
+            mutation_gate=OpenMutationGate(),
+        )
+    )
+    forged_correlation = replace(active.lifecycle.correlation, expression_sha256="f" * 64)
+    object.__setattr__(active.lifecycle, "correlation", forged_correlation)
+    object.__setattr__(active.close_binding, "correlation", forged_correlation)
+    current[0] = datetime(2026, 9, 11, 14, 0, 5, tzinfo=UTC)
+    host_calls_before_close = list(host.calls)
+
+    with pytest.raises(
+        PaperPipelineRejected,
+        match=r"active\.close_binding permit and correlation",
+    ):
+        asyncio.run(service.close(active=active, close_permit=_close_permit(prepared)))
+
+    assert host.calls == host_calls_before_close
+
+
+def test_close_uses_original_binding_after_prepared_evidence_and_application_drift(
+    tmp_path,
+) -> None:
+    service, prepared, _host, host_session, ledger, current = _prepared_pipeline(tmp_path)
+    active = asyncio.run(
+        service.open_host(
+            prepared=prepared,
+            host_session=host_session,
+            clock=lambda: current[0],
+            mutation_gate=OpenMutationGate(),
+        )
+    )
+    object.__setattr__(active.prepared.source_snapshot, "strategy_snapshot_bytes", b"{}")
+    active.prepared.engine_outcome.trace["schema"] = "forged.decision_trace"
+    active.prepared.compiled_expression.debit_vertical["limit_price"] = "0.40"
+    active.prepared.compiled_expression.debit_vertical["maximum_loss"] = "40.00"
+    service.account_id = "paper-account-2"
+    current[0] = datetime(2026, 9, 11, 14, 0, 5, tzinfo=UTC)
+
+    state, order_id = asyncio.run(
+        service.close(active=active, close_permit=_close_permit(prepared))
+    )
+
+    assert state is LifecycleState.CLOSED_FLAT
+    assert order_id == "paper-close-order-1"
+    assert ledger.reservation_for_event(prepared.permit.event_run_id)["state"] == "RELEASED"
+    close_intent = ledger.lifecycle_intent_for_event_phase(prepared.permit.event_run_id, "CLOSE")
+    assert close_intent is not None
+    assert close_intent["account_id"] == "paper-account-1"
