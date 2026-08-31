@@ -165,7 +165,7 @@ def _close_credit_within_vertical_width(
     return abs(limit_price) <= width
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class MonitoredPaperLifecycle:
     """Drive one risk-approved expression through its frozen PAPER lifecycle."""
 

@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import Mapping
-from dataclasses import replace
+from dataclasses import FrozenInstanceError, replace
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
@@ -1129,6 +1129,26 @@ def test_close_rejects_replaced_active_lifecycle_and_keeps_the_open_binding_usab
     assert state is LifecycleState.CLOSED_FLAT
     assert order_id == "paper-close-order-1"
     assert ledger.reservation_for_event(prepared.permit.event_run_id)["state"] == "RELEASED"
+
+
+def test_opened_lifecycle_field_freezes_execution_bindings_but_keeps_idempotency_sets(
+    tmp_path,
+) -> None:
+    service, prepared, _host, host_session, _ledger, current = _prepared_pipeline(tmp_path)
+    active = asyncio.run(
+        service.open_host(
+            prepared=prepared,
+            host_session=host_session,
+            clock=lambda: current[0],
+            mutation_gate=OpenMutationGate(),
+        )
+    )
+
+    with pytest.raises(FrozenInstanceError):
+        active.lifecycle.broker = object()
+
+    active.lifecycle._submitted_close_permits.add("test-only-close-permit")
+    assert "test-only-close-permit" in active.lifecycle._submitted_close_permits
 
 
 def test_close_rejects_coherent_correlation_substitution_before_host_mutation(tmp_path) -> None:

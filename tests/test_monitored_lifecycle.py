@@ -483,7 +483,7 @@ def test_open_rejects_exit_plan_scope_mismatch_before_submission(tmp_path) -> No
 def test_open_rejects_nonpaper_worker_boundary_before_submission(tmp_path) -> None:
     broker = FakePaperBroker()
     worker = _worker(tmp_path, broker=broker)
-    worker.account_class = "LIVE"
+    object.__setattr__(worker, "account_class", "LIVE")
     permit = _open_permit()
 
     with pytest.raises(LifecycleRejected) as caught:
@@ -613,7 +613,7 @@ def _advance_to_time_exit(worker: MonitoredPaperLifecycle, broker: FakePaperBrok
     """Move both deterministic clocks past the frozen time-exit clock."""
 
     close_now = NOW + timedelta(minutes=21)
-    worker.clock = lambda: close_now
+    object.__setattr__(worker, "clock", lambda: close_now)
     broker.clock = worker.clock
     return close_now
 
