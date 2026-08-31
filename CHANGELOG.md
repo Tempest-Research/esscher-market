@@ -4,6 +4,10 @@
 
 ### Added
 
+- A deterministic monitored PAPER lifecycle that persists a canonical full
+  request intent before every broker mutation, binds fresh account/order/position
+  truth before any fill or flat result, and records the full request and broker
+  acknowledgement in the hash-linked Trade Passport.
 - A deterministic Gate D expression tournament comparing cash/no-trade, shares, one long option, and
 	a defined-risk debit vertical for the same frozen directional decisions, with failures kept in the
 	denominator and a canonical `NO_EXPRESSION` outcome when no expression meets the preregistered
@@ -71,6 +75,10 @@
 
 ### Safety
 
+- Lifecycle requests remain permanently PAPER-only: exact active permit and
+  exit-plan event/policy bindings, one durable OPEN/CLOSE intent per event,
+  frozen time-exit enforcement, atomic multi-leg account/order boundaries, and
+  restart recovery from durable request plus fresh broker truth all fail closed.
 - Candidate snapshots must match an exact retained manifest record; unknown sources, clock drift,
   post-cutoff evidence, missing conditional features, and reasoner-supplied execution fields fail
   closed before downstream trade construction.

@@ -294,6 +294,19 @@ def test_migration_is_idempotent_and_versioned(tmp_path) -> None:
         assert upgraded._conn.execute(
             "SELECT name FROM sqlite_master WHERE type='table' AND name='submissions'"
         ).fetchone()
+        lifecycle_columns = {
+            row[1] for row in upgraded._conn.execute("PRAGMA table_info(lifecycle_intents)")
+        }
+        assert {
+            "open_permit_id",
+            "client_order_id",
+            "request_sha256",
+            "request_json",
+        } <= lifecycle_columns
+        lifecycle_ddl = upgraded._conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='lifecycle_intents'"
+        ).fetchone()[0]
+        assert "UNIQUE(event_id, phase)" in lifecycle_ddl
     finally:
         upgraded.close()
 
