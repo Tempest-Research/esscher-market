@@ -42,6 +42,30 @@ def _quote_is_tradable(contract: OptionContractObservation) -> bool:
     )
 
 
+def _contract_is_eligible(
+    contract: OptionContractObservation,
+    policy: PromotedExpressionPolicy,
+    *,
+    option_type: OptionType,
+    asof: date,
+) -> bool:
+    if contract.option_type != option_type.value:
+        return False
+    if not _quote_is_tradable(contract):
+        return False
+    dte = contract_dte(contract, asof)
+    if dte < policy.min_dte or dte > policy.max_dte:
+        return False
+    if contract.reported_delta is None:
+        return False
+    absolute_delta = abs(contract.reported_delta)
+    if absolute_delta < policy.delta_min or absolute_delta > policy.delta_max:
+        return False
+    if contract.open_interest is None:
+        return False
+    return contract.open_interest >= policy.liquidity_min_open_interest
+
+
 def eligible_long_contracts(
     snapshot: ExpressionMarketSnapshot,
     policy: PromotedExpressionPolicy,
@@ -51,26 +75,11 @@ def eligible_long_contracts(
 ) -> tuple[OptionContractObservation, ...]:
     """All contracts satisfying the frozen DTE, delta, and liquidity bounds."""
 
-    result = []
-    for contract in snapshot.chain:
-        if contract.option_type != option_type.value:
-            continue
-        if not _quote_is_tradable(contract):
-            continue
-        dte = contract_dte(contract, asof)
-        if dte < policy.min_dte or dte > policy.max_dte:
-            continue
-        if contract.reported_delta is None:
-            continue
-        absolute_delta = abs(contract.reported_delta)
-        if absolute_delta < policy.delta_min or absolute_delta > policy.delta_max:
-            continue
-        if contract.open_interest is None:
-            continue
-        if contract.open_interest < policy.liquidity_min_open_interest:
-            continue
-        result.append(contract)
-    return tuple(result)
+    return tuple(
+        contract
+        for contract in snapshot.chain
+        if _contract_is_eligible(contract, policy, option_type=option_type, asof=asof)
+    )
 
 
 def select_long_contract(
@@ -141,10 +150,9 @@ def select_vertical_geometry(
     candidates = tuple(
         contract
         for contract in snapshot.chain
-        if contract.option_type == option_type.value
-        and contract.expiry == long_leg.expiry
+        if contract.expiry == long_leg.expiry
         and contract.symbol != long_leg.symbol
-        and _quote_is_tradable(contract)
+        and _contract_is_eligible(contract, policy, option_type=option_type, asof=asof)
         and (
             (direction_is_up and contract.strike > long_leg.strike)
             or (not direction_is_up and contract.strike < long_leg.strike)

@@ -13,6 +13,8 @@ orders, touches accounts or positions, tunes policy, or promotes expressions.
   and one frozen `esscher.promoted_expression_policy`.
 - Outputs: one canonical `esscher.gate_d_report` receipt (tournament) and one
   `esscher.compiled_expression` artifact or a stable `NO_PACKAGE` rejection.
+- The supplied policy SHA-256 must equal the digest of the exact canonical
+  promoted-policy bytes; a mismatch fails closed with `POLICY_HASH_MISMATCH`.
 - `UNCERTAIN` never reaches compilation. A non-accepted disposition fails with
   `DIRECTION_NOT_VALIDATED`.
 - The compiler has no account, order, position, mutation, model, or
@@ -39,6 +41,11 @@ Every observation carries a pinned `FeedIdentity` (feed, tool, schema,
 version). Unknown or unpinned feeds fail closed with `UNKNOWN_FEED`; feed
 identities are never inferred. Observations labeled `INDICATIVE_DATA` never
 become executable-fill evidence (`INDICATIVE_ONLY`).
+
+The compiler and tournament apply the same pinned-feed, freshness, two-sided
+size, and spread bounds to shares, option legs, and atomic packages. A short
+share also needs explicit borrow/locate evidence dated no later than the
+snapshot clock and fresh within the frozen observation-age bound.
 
 ## Quote-side economics
 
@@ -79,9 +86,10 @@ underlying returns. When eligible option observations exist the status is
 - Long leg: direction-first — an up view longs the lowest eligible strike, a
   down view longs the highest eligible strike. Remaining ties break on lowest
   ask, then symbol order.
-- Short leg: nearest opposite-side strike in the same expiry.
+- Short leg: nearest policy-eligible opposite-side strike in the same expiry.
 - Eligibility bounds (DTE, absolute delta, open interest, width) come from
-  the promoted policy; 0DTE shortcuts are prohibited (`LIFECYCLE_CHECK_FAILED`).
+  the promoted policy for both vertical legs; 0DTE shortcuts are prohibited
+  (`LIFECYCLE_CHECK_FAILED`).
 - Packages are matched by exact leg symbols; a missing or mismatched package
   fails with `PACKAGE_UNAVAILABLE`.
 
@@ -95,8 +103,9 @@ than creating a second broker path. Every compiled position block declares
 
 ## NO_PACKAGE rejection paths
 
-`DIRECTION_NOT_VALIDATED`, `DECISION_BINDING_MISMATCH`, `TIME_INCONSISTENT`,
-`GATE_D_RECEIPT_MISMATCH`, `UNKNOWN_FEED`, `INDICATIVE_ONLY`, `STALE_QUOTE`,
+`DIRECTION_NOT_VALIDATED`, `DECISION_BINDING_MISMATCH`, `POLICY_HASH_MISMATCH`,
+`TIME_INCONSISTENT`, `GATE_D_RECEIPT_MISMATCH`, `UNKNOWN_FEED`,
+`INDICATIVE_ONLY`, `STALE_QUOTE`,
 `CROSSED_QUOTE`, `INSUFFICIENT_SIZE`, `SPREAD_TOO_WIDE`,
 `ASYNCHRONOUS_QUOTES`, `UNSUPPORTED_CONTRACT`, `LIFECYCLE_CHECK_FAILED`,
 `WIDTH_OUT_OF_BOUNDS`, `PACKAGE_UNAVAILABLE`, `DEBIT_NOT_BELOW_WIDTH`,
@@ -115,8 +124,8 @@ Exact commands observed during implementation:
 
 ```text
 command: uv run pytest tests/test_expression_tournament.py -q
-result: 45 passed in 0.25s
+result: 63 passed
 
-command: uv run ruff check src/ringdown_market/execution/expression tests/test_expression_tournament.py
+command: uv run ruff check .
 result: All checks passed!
 ```

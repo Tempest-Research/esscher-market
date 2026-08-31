@@ -1,0 +1,204 @@
+"""Shared fail-closed market-observation validation for Gate D.
+
+The compiler and the read-only tournament consume the same immutable market
+snapshot. These helpers keep their pinned-feed, freshness, quote-quality,
+package, and borrow/locate boundaries identical without adding any execution
+or account authority.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Sequence
+from datetime import datetime
+from decimal import Decimal
+
+from ringdown_market.execution.expression.observations import (
+    EXECUTABLE_DATA,
+    BorrowLocateEvidence,
+    ExpressionMarketSnapshot,
+    FeedIdentity,
+    PackageObservation,
+    TwoSidedQuote,
+)
+from ringdown_market.execution.expression.policy import PromotedExpressionPolicy
+from ringdown_market.execution.expression.reasons import (
+    ExpressionReason,
+    ExpressionRejected,
+)
+
+# Pinned read-only feed identities. Unknown feeds fail closed; a feed identity
+# is never inferred.
+PINNED_FEEDS = frozenset(
+    {
+        ("SYNTHETIC_SIP_EQUITY_FEED", "read_only_equity_quote", "equity_quote.v1", "1"),
+        (
+            "SYNTHETIC_OPTION_SNAPSHOT_FEED",
+            "read_only_option_chain",
+            "option_chain_snapshot.v1",
+            "1",
+        ),
+        (
+            "SYNTHETIC_PACKAGE_FEED",
+            "read_only_package_quote",
+            "package_quote.v1",
+            "1",
+        ),
+    }
+)
+
+
+def _reject(reason: ExpressionReason, path: str, detail: str) -> ExpressionRejected:
+    return ExpressionRejected(reason, path, detail)
+
+
+def validate_feed(feed: FeedIdentity, path: str) -> None:
+    """Require one declared read-only feed identity from the frozen allow-list."""
+
+    if feed.identity_key() not in PINNED_FEEDS:
+        raise _reject(
+            ExpressionReason.UNKNOWN_FEED,
+            path,
+            f"feed identity {feed.identity_key()} is not pinned",
+        )
+
+
+def validate_executable_data(data_class: str, path: str) -> None:
+    """Reject indicative observations before they can become fill evidence."""
+
+    if data_class != EXECUTABLE_DATA:
+        raise _reject(
+            ExpressionReason.INDICATIVE_ONLY,
+            path,
+            "indicative observations are never executable-fill evidence",
+        )
+
+
+def _observation_age_ms(
+    observed_at: datetime,
+    *,
+    snapshot: ExpressionMarketSnapshot,
+    path: str,
+) -> int:
+    age_ms = int((snapshot.observation_clock_at - observed_at).total_seconds() * 1000)
+    if age_ms < 0:
+        raise _reject(
+            ExpressionReason.TIME_INCONSISTENT,
+            path,
+            "observation postdates the snapshot clock",
+        )
+    return age_ms
+
+
+def validate_quote(
+    quote: TwoSidedQuote,
+    *,
+    snapshot: ExpressionMarketSnapshot,
+    policy: PromotedExpressionPolicy,
+    path: str,
+) -> None:
+    """Require a fresh, two-sided, sized, bounded-spread quote."""
+
+    age_ms = _observation_age_ms(quote.observed_at, snapshot=snapshot, path=path)
+    if age_ms > policy.quote_max_age_ms:
+        raise _reject(
+            ExpressionReason.STALE_QUOTE,
+            path,
+            f"quote age {age_ms}ms exceeds the frozen bound",
+        )
+    if quote.bid <= 0 or quote.ask <= 0:
+        raise _reject(ExpressionReason.NO_QUOTE, path, "quote has no two-sided market")
+    if quote.crossed:
+        raise _reject(ExpressionReason.CROSSED_QUOTE, path, "quote is crossed")
+    if quote.bid_size < policy.min_quote_size or quote.ask_size < policy.min_quote_size:
+        raise _reject(
+            ExpressionReason.INSUFFICIENT_SIZE,
+            path,
+            "quote size is below the frozen minimum",
+        )
+    spread_bps = quote.spread / quote.ask * Decimal(10000)
+    if spread_bps > policy.spread_max_bps:
+        raise _reject(
+            ExpressionReason.SPREAD_TOO_WIDE,
+            path,
+            f"spread {spread_bps}bps exceeds the frozen bound",
+        )
+
+
+def validate_cross_leg_skew(
+    quotes: Sequence[tuple[TwoSidedQuote, str]],
+    *,
+    policy: PromotedExpressionPolicy,
+) -> None:
+    """Require one atomic vertical's leg quotes to share a bounded observation skew."""
+
+    if len(quotes) < 2:
+        return
+    times = sorted(quote.observed_at for quote, _ in quotes)
+    skew_ms = int((times[-1] - times[0]).total_seconds() * 1000)
+    if skew_ms > policy.cross_leg_skew_max_ms:
+        raise _reject(
+            ExpressionReason.ASYNCHRONOUS_QUOTES,
+            "snapshot.skew",
+            f"cross-leg skew {skew_ms}ms exceeds the frozen bound",
+        )
+
+
+def validate_package(
+    package: PackageObservation,
+    *,
+    snapshot: ExpressionMarketSnapshot,
+    policy: PromotedExpressionPolicy,
+    path: str,
+) -> None:
+    """Require a fresh, pinned, executable atomic-package market."""
+
+    validate_feed(package.feed, f"{path}.feed")
+    validate_executable_data(package.data_class, f"{path}.data_class")
+    age_ms = _observation_age_ms(package.observed_at, snapshot=snapshot, path=path)
+    if age_ms > policy.quote_max_age_ms:
+        raise _reject(
+            ExpressionReason.STALE_QUOTE,
+            path,
+            f"package age {age_ms}ms exceeds the frozen bound",
+        )
+    if package.net_bid <= 0 or package.net_ask <= 0:
+        raise _reject(ExpressionReason.PACKAGE_UNAVAILABLE, path, "package has no two-sided market")
+    if package.crossed:
+        raise _reject(ExpressionReason.CROSSED_QUOTE, path, "package quote is crossed")
+    if package.size < policy.min_quote_size:
+        raise _reject(
+            ExpressionReason.INSUFFICIENT_SIZE,
+            path,
+            "package size is below the frozen minimum",
+        )
+    spread_bps = (package.net_ask - package.net_bid) / package.net_ask * Decimal(10000)
+    if spread_bps > policy.spread_max_bps:
+        raise _reject(
+            ExpressionReason.SPREAD_TOO_WIDE,
+            path,
+            f"package spread {spread_bps}bps exceeds the frozen bound",
+        )
+
+
+def validate_borrow_locate(
+    borrow_locate: BorrowLocateEvidence | None,
+    *,
+    snapshot: ExpressionMarketSnapshot,
+    policy: PromotedExpressionPolicy,
+    path: str = "borrow_locate",
+) -> None:
+    """Require pre-clock, fresh explicit borrow evidence for a short share expression."""
+
+    if borrow_locate is None:
+        raise _reject(
+            ExpressionReason.BORROW_LOCATE_MISSING,
+            path,
+            "short shares require explicit borrow/locate evidence",
+        )
+    age_ms = _observation_age_ms(borrow_locate.observed_at, snapshot=snapshot, path=path)
+    if age_ms > policy.quote_max_age_ms:
+        raise _reject(
+            ExpressionReason.STALE_QUOTE,
+            path,
+            f"borrow/locate age {age_ms}ms exceeds the frozen bound",
+        )

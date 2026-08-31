@@ -234,8 +234,11 @@ class ExpressionMarketSnapshot:
         package_ids = tuple(package.package_id for package in self.packages)
         if package_ids != tuple(sorted(set(package_ids))):
             raise ValueError("packages must be sorted and unique")
-        if self.borrow_locate is not None and self.borrow_locate.symbol != self.underlying:
-            raise ValueError("borrow/locate evidence must match the underlying")
+        if self.borrow_locate is not None:
+            if self.borrow_locate.symbol != self.underlying:
+                raise ValueError("borrow/locate evidence must match the underlying")
+            if self.borrow_locate.observed_at > self.observation_clock_at:
+                raise ValueError("borrow/locate evidence cannot postdate the snapshot clock")
 
     def contract(self, symbol: str) -> OptionContractObservation | None:
         matches = tuple(contract for contract in self.chain if contract.symbol == symbol)

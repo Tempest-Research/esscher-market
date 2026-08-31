@@ -9,10 +9,8 @@ or policy-promotion authority.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from decimal import Decimal
 from typing import Final
 
 from ringdown_market.execution.expression.economics import (
@@ -28,18 +26,27 @@ from ringdown_market.execution.expression.geometry import (
     select_vertical_geometry,
 )
 from ringdown_market.execution.expression.observations import (
-    EXECUTABLE_DATA,
     ExpressionMarketSnapshot,
-    FeedIdentity,
-    TwoSidedQuote,
     expression_market_snapshot_sha256,
 )
-from ringdown_market.execution.expression.policy import PromotedExpressionPolicy
+from ringdown_market.execution.expression.policy import (
+    PromotedExpressionPolicy,
+    promoted_expression_policy_sha256,
+)
 from ringdown_market.execution.expression.reasons import (
     NO_PACKAGE,
     ExpressionKind,
     ExpressionReason,
     ExpressionRejected,
+)
+from ringdown_market.execution.expression.validation import PINNED_FEEDS as _PINNED_FEEDS
+from ringdown_market.execution.expression.validation import (
+    validate_borrow_locate,
+    validate_cross_leg_skew,
+    validate_executable_data,
+    validate_feed,
+    validate_package,
+    validate_quote,
 )
 from ringdown_market.execution.models import (
     OptionSide,
@@ -57,106 +64,11 @@ from ringdown_market.strategy.models import (
 COMPILED_EXPRESSION_SCHEMA: Final = "esscher.compiled_expression"
 COMPILED_EXPRESSION_SCHEMA_VERSION: Final = 1
 COMPILED: Final = "COMPILED"
-
-# Pinned read-only feed identities. Unknown feeds fail closed; a feed identity
-# is never inferred.
-PINNED_FEEDS: Final = frozenset(
-    {
-        ("SYNTHETIC_SIP_EQUITY_FEED", "read_only_equity_quote", "equity_quote.v1", "1"),
-        (
-            "SYNTHETIC_OPTION_SNAPSHOT_FEED",
-            "read_only_option_chain",
-            "option_chain_snapshot.v1",
-            "1",
-        ),
-        (
-            "SYNTHETIC_PACKAGE_FEED",
-            "read_only_package_quote",
-            "package_quote.v1",
-            "1",
-        ),
-    }
-)
+PINNED_FEEDS: Final = _PINNED_FEEDS
 
 
 def _reject(reason: ExpressionReason, path: str, detail: str) -> ExpressionRejected:
     return ExpressionRejected(reason, path, detail)
-
-
-def _check_feed(feed: FeedIdentity, path: str) -> None:
-    if feed.identity_key() not in PINNED_FEEDS:
-        raise _reject(
-            ExpressionReason.UNKNOWN_FEED,
-            path,
-            f"feed identity {feed.identity_key()} is not pinned",
-        )
-
-
-def _check_quote_freshness(
-    quote: TwoSidedQuote,
-    *,
-    snapshot: ExpressionMarketSnapshot,
-    policy: PromotedExpressionPolicy,
-    path: str,
-) -> None:
-    age_ms = int((snapshot.observation_clock_at - quote.observed_at).total_seconds() * 1000)
-    if age_ms < 0:
-        raise _reject(
-            ExpressionReason.TIME_INCONSISTENT,
-            path,
-            "observation postdates the snapshot clock",
-        )
-    if age_ms > policy.quote_max_age_ms:
-        raise _reject(
-            ExpressionReason.STALE_QUOTE,
-            path,
-            f"quote age {age_ms}ms exceeds the frozen bound",
-        )
-
-
-def _check_spread(quote: TwoSidedQuote, *, policy: PromotedExpressionPolicy, path: str) -> None:
-    if quote.ask <= 0:
-        raise _reject(ExpressionReason.NO_QUOTE, path, "quote has no ask side")
-    spread_bps = quote.spread / quote.ask * Decimal(10000)
-    if spread_bps > policy.spread_max_bps:
-        raise _reject(
-            ExpressionReason.SPREAD_TOO_WIDE,
-            path,
-            f"spread {spread_bps}bps exceeds the frozen bound",
-        )
-
-
-def _check_crossed(quote: TwoSidedQuote, path: str) -> None:
-    if quote.crossed:
-        raise _reject(ExpressionReason.CROSSED_QUOTE, path, "quote is crossed")
-
-
-def _check_sizes(quote: TwoSidedQuote, *, policy: PromotedExpressionPolicy, path: str) -> None:
-    if quote.bid_size < policy.min_quote_size or quote.ask_size < policy.min_quote_size:
-        raise _reject(
-            ExpressionReason.INSUFFICIENT_SIZE,
-            path,
-            "quote size is below the frozen minimum",
-        )
-
-
-def _check_leg_skew(
-    quotes: Sequence[tuple[TwoSidedQuote, str]],
-    *,
-    snapshot: ExpressionMarketSnapshot,
-    policy: PromotedExpressionPolicy,
-) -> None:
-    if len(quotes) < 2:
-        return
-    times = sorted(quote.observed_at for quote, _ in quotes)
-    skew_ms = int((times[-1] - times[0]).total_seconds() * 1000)
-    if skew_ms > policy.cross_leg_skew_max_ms:
-        raise _reject(
-            ExpressionReason.ASYNCHRONOUS_QUOTES,
-            "snapshot.skew",
-            f"cross-leg skew {skew_ms}ms exceeds the frozen bound",
-        )
-    _ = snapshot
 
 
 @dataclass(frozen=True, slots=True)
@@ -283,17 +195,11 @@ def _compile_shares(
 ) -> CompiledExpression:
     direction_is_up = decision.direction is Direction.UP
     share = snapshot.share
-    _check_feed(share.feed, "share.feed")
-    if share.data_class != EXECUTABLE_DATA:
-        raise _reject(
-            ExpressionReason.INDICATIVE_ONLY,
-            "share.data_class",
-            "indicative quotes are never executable-fill evidence",
-        )
-    _check_quote_freshness(share.quote, snapshot=snapshot, policy=policy, path="share.quote")
-    _check_crossed(share.quote, "share.quote")
-    _check_sizes(share.quote, policy=policy, path="share.quote")
-    _check_spread(share.quote, policy=policy, path="share.quote")
+    validate_feed(share.feed, "share.feed")
+    validate_executable_data(share.data_class, "share.data_class")
+    validate_quote(share.quote, snapshot=snapshot, policy=policy, path="share.quote")
+    if not direction_is_up:
+        validate_borrow_locate(snapshot.borrow_locate, snapshot=snapshot, policy=policy)
     economics = shares_economics(event_id, snapshot, policy, direction_is_up=direction_is_up)
     if not economics.compared:
         raise _reject(
@@ -342,13 +248,14 @@ def _compile_long_option(
         asof=snapshot.observation_clock_at.date(),
         direction_is_up=direction_is_up,
     )
-    _check_feed(contract.feed, f"option.{contract.symbol}.feed")
-    _check_quote_freshness(
-        contract.quote, snapshot=snapshot, policy=policy, path=f"option.{contract.symbol}.quote"
+    validate_feed(contract.feed, f"option.{contract.symbol}.feed")
+    validate_executable_data(contract.data_class, f"option.{contract.symbol}.data_class")
+    validate_quote(
+        contract.quote,
+        snapshot=snapshot,
+        policy=policy,
+        path=f"option.{contract.symbol}.quote",
     )
-    _check_crossed(contract.quote, f"option.{contract.symbol}.quote")
-    _check_sizes(contract.quote, policy=policy, path=f"option.{contract.symbol}.quote")
-    _check_spread(contract.quote, policy=policy, path=f"option.{contract.symbol}.quote")
     dte = contract_dte(contract, snapshot.observation_clock_at.date())
     if dte < 1:
         raise _reject(
@@ -405,21 +312,19 @@ def _compile_debit_vertical(
         snapshot, policy, direction_is_up=direction_is_up, asof=asof
     )
     for contract in (geometry.long_leg, geometry.short_leg):
-        _check_feed(contract.feed, f"vertical.{contract.symbol}.feed")
-        _check_quote_freshness(
+        validate_feed(contract.feed, f"vertical.{contract.symbol}.feed")
+        validate_executable_data(contract.data_class, f"vertical.{contract.symbol}.data_class")
+        validate_quote(
             contract.quote,
             snapshot=snapshot,
             policy=policy,
             path=f"vertical.{contract.symbol}.quote",
         )
-        _check_crossed(contract.quote, f"vertical.{contract.symbol}.quote")
-        _check_sizes(contract.quote, policy=policy, path=f"vertical.{contract.symbol}.quote")
-    _check_leg_skew(
+    validate_cross_leg_skew(
         [
             (geometry.long_leg.quote, geometry.long_leg.symbol),
             (geometry.short_leg.quote, geometry.short_leg.symbol),
         ],
-        snapshot=snapshot,
         policy=policy,
     )
     dte = contract_dte(geometry.long_leg, asof)
@@ -436,6 +341,12 @@ def _compile_debit_vertical(
         geometry.short_leg, side=OptionSide.SELL, position_intent=PositionIntent.SELL_TO_OPEN
     )
     package = select_package(snapshot, geometry)
+    validate_package(
+        package,
+        snapshot=snapshot,
+        policy=policy,
+        path=f"package.{package.package_id}",
+    )
     economics = debit_vertical_economics(event_id, package, geometry.width, policy)
     if not economics.compared:
         raise _reject(
@@ -517,6 +428,12 @@ def compile_expression(
             ExpressionReason.TIME_INCONSISTENT,
             "snapshot.observation_clock_at",
             "market snapshot predates the validated decision",
+        )
+    if policy_sha256 != promoted_expression_policy_sha256(policy):
+        raise _reject(
+            ExpressionReason.POLICY_HASH_MISMATCH,
+            "policy_sha256",
+            "supplied policy digest does not match canonical policy bytes",
         )
     if policy.gate_d_report_sha256 != gate_d_report_sha256:
         raise _reject(

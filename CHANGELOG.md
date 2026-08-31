@@ -51,6 +51,15 @@
 - Synthetic Q-FAST panel fixtures and mutation-negative tests proving leak, exclusion, size, latency, and byte-determinism gates.
 - A frozen untouched Q-FAST panel universe: 23 historical BMO/AMC earnings events with EDGAR primary-source provenance, preserved exclusions, and hash-bound synchronized issuer/SPY/sector one-minute window records.
 
+### Fixed
+
+- Gate D now binds declared policy digests to canonical policy bytes, applies the frozen spread
+  gate to vertical legs and atomic packages, and requires short legs to satisfy the same delta and
+  open-interest policy bounds as long legs.
+- Tournament rows now apply the compiler's pinned-feed, freshness, and spread gates before an
+  expression can count as comparable; short-share borrow/locate evidence must be pre-clock and
+  fresh within the frozen observation-age bound.
+
 ### Safety
 
 - Candidate snapshots must match an exact retained manifest record; unknown sources, clock drift,
