@@ -278,6 +278,21 @@ def _join(pointer: str, part: str | int) -> str:
     return f"/{escaped}" if not pointer else f"{pointer}/{escaped}"
 
 
+def _contains_lone_surrogate(value: object) -> bool:
+    pending = [value]
+    while pending:
+        current = pending.pop()
+        if isinstance(current, str):
+            if any(0xD800 <= ord(character) <= 0xDFFF for character in current):
+                return True
+        elif isinstance(current, Mapping):
+            pending.extend(current)
+            pending.extend(current.values())
+        elif isinstance(current, list):
+            pending.extend(current)
+    return False
+
+
 def _canonical_json(value: object) -> bytes:
     return json.dumps(
         value,
@@ -1321,6 +1336,14 @@ def check_manifest(
             else SourceHealthCode.PARSE_FAILED
         )
         return _failed_closed(code, "", error.detail, sha256)
+
+    if _contains_lone_surrogate(manifest):
+        return _failed_closed(
+            SourceHealthCode.PARSE_FAILED,
+            "",
+            "manifest contains unpaired Unicode surrogate code points",
+            sha256,
+        )
 
     schema = manifest.get(_MANIFEST_SCHEMA_FIELD)
     version = manifest.get(_MANIFEST_SCHEMA_VERSION_FIELD)

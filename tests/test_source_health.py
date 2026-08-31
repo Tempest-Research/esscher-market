@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib
 import json
 import os
 import socket
@@ -60,6 +61,28 @@ def test_public_api_exports_are_importable() -> None:
         "check_path",
     ):
         assert getattr(source_health, name) is not None
+
+
+def test_package_root_serializers_have_explicit_stable_identities() -> None:
+    public = __import__(
+        "ringdown_market.audit",
+        fromlist=(
+            "canonical_report_bytes",
+            "source_health_canonical_report_bytes",
+            "bundle_diff_canonical_report_bytes",
+        ),
+    )
+    assert public is importlib.import_module("ringdown_market.audit")
+
+    source_serializer = public.source_health_canonical_report_bytes
+    bundle_serializer = public.bundle_diff_canonical_report_bytes
+    bundle_module = importlib.import_module("ringdown_market.audit.bundle_diff")
+
+    assert public.__all__.count("canonical_report_bytes") == 1
+    assert public.canonical_report_bytes is bundle_module.canonical_report_bytes
+    assert source_serializer is source_health.canonical_report_bytes
+    assert bundle_serializer is not source_serializer
+    assert bundle_serializer is bundle_module.canonical_report_bytes
 
 
 @pytest.mark.parametrize("path", FROZEN_MANIFESTS, ids=lambda p: p.name)
@@ -704,6 +727,72 @@ def test_hostile_strings_are_deterministic_and_never_raise(
 
     assert _codes(first) == _codes(second)
     assert canonical_report_bytes(first) == canonical_report_bytes(second)
+
+
+_LONE_SURROGATE_VALUES = (
+    "\ud800",
+    "\udfff",
+    "\ud800suffix",
+    "prefix\udfff",
+    "\ud800\ud800",
+)
+
+
+def _scalar_leaf_pointers(value: object, pointer: str = "") -> list[str]:
+    pointers: list[str] = []
+
+    if isinstance(value, dict):
+        for key, item in value.items():
+            escaped = key.replace("~", "~0").replace("/", "~1")
+            child_pointer = f"{pointer}/{escaped}"
+            if not isinstance(item, (dict, list)):
+                pointers.append(child_pointer)
+            pointers.extend(_scalar_leaf_pointers(item, child_pointer))
+    elif isinstance(value, list):
+        for index, item in enumerate(value):
+            child_pointer = f"{pointer}/{index}"
+            if not isinstance(item, (dict, list)):
+                pointers.append(child_pointer)
+            pointers.extend(_scalar_leaf_pointers(item, child_pointer))
+
+    return pointers
+
+
+def test_lone_surrogate_values_fail_closed_and_serialize_for_66_hostile_slots() -> None:
+    pointers = _scalar_leaf_pointers(_load_manifest())[:66]
+
+    assert len(pointers) == 66
+    assert {
+        "/data_class",
+        "/records/0/field_status",
+        "/records/1/field_status",
+    } <= set(pointers)
+
+    mutations = 0
+    for pointer in pointers:
+        for hostile_value in _LONE_SURROGATE_VALUES:
+            payload = _load_manifest()
+            parent, last = _resolve_parent(payload, pointer)
+            if isinstance(parent, list):
+                parent[int(last)] = hostile_value
+            else:
+                assert isinstance(parent, dict)
+                parent[last] = hostile_value
+            raw = json.dumps(payload, ensure_ascii=True).encode("utf-8")
+
+            first = check_manifest(raw)
+            second = check_manifest(raw)
+            rendered = canonical_report_bytes(first)
+
+            assert first.status is SourceHealthStatus.FAILED_CLOSED
+            assert _codes(first) == [(SourceHealthCode.PARSE_FAILED.value, "")]
+            assert rendered == canonical_report_bytes(second)
+            assert (
+                json.loads(rendered)["findings"][0]["code"] == SourceHealthCode.PARSE_FAILED.value
+            )
+            mutations += 1
+
+    assert mutations == 330
 
 
 def test_check_path_reads_a_frozen_manifest() -> None:
