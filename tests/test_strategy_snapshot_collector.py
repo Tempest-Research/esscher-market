@@ -84,6 +84,20 @@ def _rejects(fixture, reason: CollectorReason, *, capture_at: str = "2026-09-11T
     return caught.value
 
 
+def _assert_present_features_follow_bound_evidence(compiled) -> None:
+    available_at_by_id = {
+        evidence.evidence_id: evidence.available_at for evidence in compiled.snapshot.evidence_refs
+    }
+    for feature in compiled.feature_receipt.features:
+        if feature.status is not FeatureStatus.PRESENT:
+            continue
+        assert feature.observed_at is not None
+        assert all(
+            available_at_by_id[source_ref] <= feature.observed_at
+            for source_ref in feature.source_refs
+        ), feature.feature_id
+
+
 def test_identical_inputs_produce_byte_identical_snapshots(compiled_snapshot) -> None:
     rerun = _compile()
     assert rerun.strategy_snapshot_bytes == compiled_snapshot.strategy_snapshot_bytes
@@ -97,6 +111,10 @@ def test_compiled_bundle_passes_the_frozen_strategy_contract(compiled_snapshot) 
     assert joined.feature_receipt.feature_snapshot_at <= joined.snapshot.decision_cutoff_at
     assert joined.feature_receipt.created_at <= joined.snapshot.decision_cutoff_at
     assert joined.snapshot_sha256 != joined.feature_receipt_sha256
+
+
+def test_present_features_do_not_predate_bound_evidence(compiled_snapshot) -> None:
+    _assert_present_features_follow_bound_evidence(compiled_snapshot)
 
 
 def test_snapshot_carries_all_policy_features_and_claim_labels(compiled_snapshot) -> None:
@@ -118,6 +136,7 @@ def test_capture_clock_matches_frozen_policy_times(compiled_snapshot) -> None:
     assert snapshot.evidence_cutoff_at == _at("2026-09-11T13:35:15Z")
     assert snapshot.decision_cutoff_at == _at("2026-09-11T13:36:05Z")
     assert snapshot.candidate_entry_deadline_at == _at("2026-09-11T13:37:00Z")
+    assert compiled_snapshot.feature_receipt.feature_snapshot_at == _at("2026-09-11T13:35:10Z")
 
 
 def test_capture_after_evidence_cutoff_fails_closed() -> None:
@@ -581,6 +600,30 @@ def test_capture_command_rejects_unpinned_live_boundary(tmp_path: Path, monkeypa
     assert exit_code == 2
 
 
+def test_capture_command_rejects_any_symlinked_output(tmp_path: Path, monkeypatch) -> None:
+    from ringdown_market.sourcedata.capture import main
+
+    monkeypatch.setenv("ESSCHER_CAPTURE_AUTHORIZED", "yes")
+    monkeypatch.setattr(
+        Path,
+        "is_symlink",
+        lambda path: path.name == "strategy_snapshot.json",
+    )
+
+    exit_code = main(
+        [
+            "--event-id",
+            EVENT_ID,
+            "--capture-at",
+            "2026-09-11T13:35:10Z",
+            "--output-dir",
+            str(tmp_path),
+        ]
+    )
+
+    assert exit_code == 2
+
+
 def _amc_fixture():
     fixture = copy.deepcopy(load_fixture())
     fixture["candidate_manifest"]["records"][0]["cohort_id"] = "AMC"
@@ -594,6 +637,7 @@ def test_amc_cohort_uses_distinct_bucket_and_next_session(compiled_snapshot) -> 
     assert compiled.snapshot.timing_bucket is TimingBucket.AFTER_CLOSE
     assert compiled.snapshot.reaction_session_id == "XNYS-2026-09-11"
     assert compiled.snapshot.event_published_at == _at("2026-09-10T21:00:00Z")
+    assert compiled.snapshot.prior_eligible_session_close_at == _at("2026-09-10T20:00:00Z")
     assert compiled.strategy_snapshot_bytes != compiled_snapshot.strategy_snapshot_bytes
     joined = compiled_strategy_input(compiled)
     assert joined.snapshot.timing_bucket is TimingBucket.AFTER_CLOSE
@@ -820,6 +864,10 @@ def test_macro_snapshot_passes_the_frozen_strategy_contract(compiled_macro_snaps
     assert joined.snapshot.timing_bucket is TimingBucket.SCHEDULED_RELEASE
     assert joined.snapshot.release_family is ReleaseFamily.BLS_JOLTS
     assert joined.feature_receipt.feature_snapshot_at <= joined.snapshot.decision_cutoff_at
+
+
+def test_macro_present_features_do_not_predate_bound_evidence(compiled_macro_snapshot) -> None:
+    _assert_present_features_follow_bound_evidence(compiled_macro_snapshot)
 
 
 def test_macro_snapshot_carries_all_policy_features(compiled_macro_snapshot) -> None:

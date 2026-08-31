@@ -12,7 +12,7 @@ missing fact and never claims alpha, profitability, or executable fills.
 
 The collector consumes the exact strategy input contract frozen by issue #26
 (`accepted_event_policy_v1.json`, SHA-256
-`3234017de2fec6c33dce20508f483d649d4614130e76cdc6f57af8185e05d05e`) and emits
+`afce93b52b96e0d8c71deeb80027a1c87a4cf3623e9417db14de00279fc23bca`) and emits
 the canonical `esscher.strategy_snapshot/v1`, `esscher.feature_receipt/v1`,
 source receipts, corporate-action receipts, and one
 `esscher.data_feasibility_manifest/v1` per candidate, all of which
@@ -257,20 +257,20 @@ synthetic fixture so every test stays deterministic and offline.
 
 ## Verification
 
-Exact commands observed during implementation:
+Exact commands observed during the corrected local forward-port:
 
 ```text
 command: uv run pytest tests/test_strategy_snapshot_collector.py -q
-result: 57 passed in 12.75s
+result: 60 passed
 
 command: uv run pytest -q
-result: 345 passed in 12.78s
+result: 362 passed
 
 command: uv run ruff check .
 result: All checks passed!
 
 command: uv run ruff format --check .
-result: 84 files already formatted
+result: 85 files already formatted
 
 command: uv run python scripts/check_repo_hygiene.py
 result: repository hygiene: PASS (117 visible files checked)
