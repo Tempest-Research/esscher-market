@@ -27,6 +27,7 @@ from ringdown_market.execution.host_mcp import (
     HostMcpPaperSessionFactory,
     HostMcpSecretBoundaryError,
     HostMcpSessionIdentity,
+    _GuardedHostMcpSession,
 )
 from ringdown_market.lifecycle.broker import (
     BrokerOptionLeg,
@@ -381,7 +382,7 @@ def test_secret_like_arguments_are_rejected_before_the_fake_host_and_adapter_nev
     None
 ):
     host = GuardedFakeHost()
-    prepared, broker = _prepared_broker(host)
+    _prepared, broker = _prepared_broker(host)
 
     asyncio.run(broker.submit_open(_request()))
     assert all("secret" not in str(arguments).lower() for _, arguments in host.calls)
@@ -389,7 +390,7 @@ def test_secret_like_arguments_are_rejected_before_the_fake_host_and_adapter_nev
 
     with pytest.raises(HostMcpSecretBoundaryError, match="secret-like"):
         asyncio.run(
-            prepared.session.call_tool(
+            _GuardedHostMcpSession(host).call_tool(
                 OPEN_TOOL,
                 {"client_order_id": "safe", "metadata": {"api_key": "do-not-emit"}},
             )

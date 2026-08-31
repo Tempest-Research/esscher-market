@@ -1,20 +1,24 @@
 {
   "integration": {
-    "audit_source": "live GitHub PR metadata/reviews plus local commit-tree and ancestry verification",
-    "audited_at": "2026-08-31T08:57:43Z",
+    "audit_source": "live GitHub public-commit readback plus local commit-tree and ancestry verification",
+    "audited_at": "2026-08-31T13:19:51Z",
     "audited_source_pr_count": 16,
-    "manifest_parent_integration_head": "031b341691c4a0c0c2ab3466d49fa50f9cdc95e1",
-    "manifest_parent_integration_tree": "0638fe3ced3d30c8447d848d724dfefdf2bc9230",
+    "public_provenance_anchor": {
+      "head": "ec774e44908b0211fdc6baacafdb8af268714692",
+      "selection": "Earliest publicly reachable merge commit predating this manifest and verified to contain all 16 reviewed source heads; this anchor proves closure without claiming to be each historical merge parent.",
+      "tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
+      "url": "https://github.com/Tempest-Research/esscher-market/commit/ec774e44908b0211fdc6baacafdb8af268714692"
+    },
     "pull_request": 52,
     "url": "https://github.com/Tempest-Research/esscher-market/pull/52"
   },
   "schema": "esscher.integration_manifest",
-  "schema_version": 2,
+  "schema_version": 3,
   "source_prs": [
     {
       "ancestry_closure": {
-        "checked_against_head": "031b341691c4a0c0c2ab3466d49fa50f9cdc95e1",
-        "checked_against_tree": "0638fe3ced3d30c8447d848d724dfefdf2bc9230",
+        "checked_against_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "checked_against_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
         "source_head_is_ancestor": true
       },
       "conflict_or_replay_receipt": {
@@ -24,9 +28,9 @@
       },
       "integration_provenance": {
         "integration_commit": "57030a29aa8c68cc3ded13b938865085a17da66b",
-        "integration_parent_head": "031b341691c4a0c0c2ab3466d49fa50f9cdc95e1",
-        "integration_parent_tree": "0638fe3ced3d30c8447d848d724dfefdf2bc9230",
-        "integration_tree": "0bc1654f2e764cb937a9ecafcf1f680ecb66baf0"
+        "integration_tree": "0bc1654f2e764cb937a9ecafcf1f680ecb66baf0",
+        "provenance_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "provenance_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733"
       },
       "number": 34,
       "relationship": "normal_merge",
@@ -53,8 +57,8 @@
     },
     {
       "ancestry_closure": {
-        "checked_against_head": "031b341691c4a0c0c2ab3466d49fa50f9cdc95e1",
-        "checked_against_tree": "0638fe3ced3d30c8447d848d724dfefdf2bc9230",
+        "checked_against_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "checked_against_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
         "source_head_is_ancestor": true
       },
       "conflict_or_replay_receipt": {
@@ -64,9 +68,9 @@
       },
       "integration_provenance": {
         "integration_commit": "ad7d2b932abc362bf6f4d873efa731a454eb1e71",
-        "integration_parent_head": "031b341691c4a0c0c2ab3466d49fa50f9cdc95e1",
-        "integration_parent_tree": "0638fe3ced3d30c8447d848d724dfefdf2bc9230",
-        "integration_tree": "58277c160fadfd444104b029a00ca06c0e196c97"
+        "integration_tree": "58277c160fadfd444104b029a00ca06c0e196c97",
+        "provenance_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "provenance_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733"
       },
       "number": 35,
       "relationship": "normal_merge",
@@ -93,8 +97,8 @@
     },
     {
       "ancestry_closure": {
-        "checked_against_head": "031b341691c4a0c0c2ab3466d49fa50f9cdc95e1",
-        "checked_against_tree": "0638fe3ced3d30c8447d848d724dfefdf2bc9230",
+        "checked_against_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "checked_against_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
         "source_head_is_ancestor": true
       },
       "conflict_or_replay_receipt": {
@@ -104,9 +108,9 @@
       },
       "integration_provenance": {
         "integration_commit": "7f5ca4c106c4d6c9d0ec83d607941de044088fd5",
-        "integration_parent_head": "031b341691c4a0c0c2ab3466d49fa50f9cdc95e1",
-        "integration_parent_tree": "0638fe3ced3d30c8447d848d724dfefdf2bc9230",
-        "integration_tree": "75478dae0d9b6932a8fbb4fe166ad931d98c07e1"
+        "integration_tree": "75478dae0d9b6932a8fbb4fe166ad931d98c07e1",
+        "provenance_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "provenance_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733"
       },
       "number": 37,
       "relationship": "normal_merge",
@@ -133,8 +137,8 @@
     },
     {
       "ancestry_closure": {
-        "checked_against_head": "031b341691c4a0c0c2ab3466d49fa50f9cdc95e1",
-        "checked_against_tree": "0638fe3ced3d30c8447d848d724dfefdf2bc9230",
+        "checked_against_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "checked_against_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
         "source_head_is_ancestor": true
       },
       "conflict_or_replay_receipt": {
@@ -144,9 +148,9 @@
       },
       "integration_provenance": {
         "integration_commit": "97a783239523586f37e813c5f1fe635f4aa8d66c",
-        "integration_parent_head": "031b341691c4a0c0c2ab3466d49fa50f9cdc95e1",
-        "integration_parent_tree": "0638fe3ced3d30c8447d848d724dfefdf2bc9230",
-        "integration_tree": "a82d067c175be9ba2845dbd73d506415d3ee64e4"
+        "integration_tree": "a82d067c175be9ba2845dbd73d506415d3ee64e4",
+        "provenance_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "provenance_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733"
       },
       "number": 39,
       "relationship": "normal_merge",
@@ -173,8 +177,8 @@
     },
     {
       "ancestry_closure": {
-        "checked_against_head": "031b341691c4a0c0c2ab3466d49fa50f9cdc95e1",
-        "checked_against_tree": "0638fe3ced3d30c8447d848d724dfefdf2bc9230",
+        "checked_against_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "checked_against_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
         "source_head_is_ancestor": true
       },
       "conflict_or_replay_receipt": {
@@ -184,9 +188,9 @@
       },
       "integration_provenance": {
         "integration_commit": "29ccfcce71c526a08134d7ba35d7448f957783a6",
-        "integration_parent_head": "031b341691c4a0c0c2ab3466d49fa50f9cdc95e1",
-        "integration_parent_tree": "0638fe3ced3d30c8447d848d724dfefdf2bc9230",
-        "integration_tree": "abe8fab96781c90b52047adb86e7c970eb258bfc"
+        "integration_tree": "abe8fab96781c90b52047adb86e7c970eb258bfc",
+        "provenance_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "provenance_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733"
       },
       "number": 51,
       "relationship": "normal_merge",
@@ -214,8 +218,8 @@
     },
     {
       "ancestry_closure": {
-        "checked_against_head": "031b341691c4a0c0c2ab3466d49fa50f9cdc95e1",
-        "checked_against_tree": "0638fe3ced3d30c8447d848d724dfefdf2bc9230",
+        "checked_against_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "checked_against_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
         "source_head_is_ancestor": true
       },
       "conflict_or_replay_receipt": {
@@ -225,8 +229,8 @@
       },
       "integration_provenance": {
         "closure": "ALREADY_INTEGRATED_BY_ANCESTRY",
-        "integration_parent_tree": "0638fe3ced3d30c8447d848d724dfefdf2bc9230",
-        "source_head_is_ancestor_of": "031b341691c4a0c0c2ab3466d49fa50f9cdc95e1"
+        "provenance_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
+        "source_head_is_ancestor_of_anchor": "ec774e44908b0211fdc6baacafdb8af268714692"
       },
       "number": 53,
       "relationship": "already_integrated_by_ancestry",
@@ -253,8 +257,8 @@
     },
     {
       "ancestry_closure": {
-        "checked_against_head": "031b341691c4a0c0c2ab3466d49fa50f9cdc95e1",
-        "checked_against_tree": "0638fe3ced3d30c8447d848d724dfefdf2bc9230",
+        "checked_against_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "checked_against_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
         "source_head_is_ancestor": true
       },
       "conflict_or_replay_receipt": {
@@ -264,8 +268,8 @@
       },
       "integration_provenance": {
         "closure": "ALREADY_INTEGRATED_BY_ANCESTRY",
-        "integration_parent_tree": "0638fe3ced3d30c8447d848d724dfefdf2bc9230",
-        "source_head_is_ancestor_of": "031b341691c4a0c0c2ab3466d49fa50f9cdc95e1"
+        "provenance_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
+        "source_head_is_ancestor_of_anchor": "ec774e44908b0211fdc6baacafdb8af268714692"
       },
       "number": 54,
       "relationship": "already_integrated_by_ancestry",
@@ -292,8 +296,8 @@
     },
     {
       "ancestry_closure": {
-        "checked_against_head": "031b341691c4a0c0c2ab3466d49fa50f9cdc95e1",
-        "checked_against_tree": "0638fe3ced3d30c8447d848d724dfefdf2bc9230",
+        "checked_against_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "checked_against_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
         "source_head_is_ancestor": true
       },
       "conflict_or_replay_receipt": {
@@ -303,8 +307,8 @@
       },
       "integration_provenance": {
         "closure": "ALREADY_INTEGRATED_BY_ANCESTRY",
-        "integration_parent_tree": "0638fe3ced3d30c8447d848d724dfefdf2bc9230",
-        "source_head_is_ancestor_of": "031b341691c4a0c0c2ab3466d49fa50f9cdc95e1"
+        "provenance_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
+        "source_head_is_ancestor_of_anchor": "ec774e44908b0211fdc6baacafdb8af268714692"
       },
       "number": 56,
       "relationship": "already_integrated_by_ancestry",
@@ -331,8 +335,8 @@
     },
     {
       "ancestry_closure": {
-        "checked_against_head": "031b341691c4a0c0c2ab3466d49fa50f9cdc95e1",
-        "checked_against_tree": "0638fe3ced3d30c8447d848d724dfefdf2bc9230",
+        "checked_against_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "checked_against_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
         "source_head_is_ancestor": true
       },
       "conflict_or_replay_receipt": {
@@ -342,9 +346,9 @@
       },
       "integration_provenance": {
         "integration_commit": "3f5c07572f9babdb334d8a815b19e81c5775a9e3",
-        "integration_parent_head": "031b341691c4a0c0c2ab3466d49fa50f9cdc95e1",
-        "integration_parent_tree": "0638fe3ced3d30c8447d848d724dfefdf2bc9230",
-        "integration_tree": "abe8fab96781c90b52047adb86e7c970eb258bfc"
+        "integration_tree": "abe8fab96781c90b52047adb86e7c970eb258bfc",
+        "provenance_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "provenance_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733"
       },
       "number": 38,
       "relationship": "normal_merge",
@@ -372,8 +376,8 @@
     },
     {
       "ancestry_closure": {
-        "checked_against_head": "031b341691c4a0c0c2ab3466d49fa50f9cdc95e1",
-        "checked_against_tree": "0638fe3ced3d30c8447d848d724dfefdf2bc9230",
+        "checked_against_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "checked_against_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
         "source_head_is_ancestor": true
       },
       "conflict_or_replay_receipt": {
@@ -383,9 +387,9 @@
       },
       "integration_provenance": {
         "integration_commit": "12ffabcea7f4d0cc895d8551aad59088bca6af46",
-        "integration_parent_head": "031b341691c4a0c0c2ab3466d49fa50f9cdc95e1",
-        "integration_parent_tree": "0638fe3ced3d30c8447d848d724dfefdf2bc9230",
-        "integration_tree": "abe8fab96781c90b52047adb86e7c970eb258bfc"
+        "integration_tree": "abe8fab96781c90b52047adb86e7c970eb258bfc",
+        "provenance_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "provenance_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733"
       },
       "number": 58,
       "relationship": "normal_merge",
@@ -412,8 +416,8 @@
     },
     {
       "ancestry_closure": {
-        "checked_against_head": "031b341691c4a0c0c2ab3466d49fa50f9cdc95e1",
-        "checked_against_tree": "0638fe3ced3d30c8447d848d724dfefdf2bc9230",
+        "checked_against_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "checked_against_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
         "source_head_is_ancestor": true
       },
       "conflict_or_replay_receipt": {
@@ -423,9 +427,9 @@
       },
       "integration_provenance": {
         "integration_commit": "f1fc3aa625ff9309976eac5cc9cdb99a9c66e303",
-        "integration_parent_head": "031b341691c4a0c0c2ab3466d49fa50f9cdc95e1",
-        "integration_parent_tree": "0638fe3ced3d30c8447d848d724dfefdf2bc9230",
-        "integration_tree": "6618a4ab7f33e1c75f4371cd072561076a6a03bc"
+        "integration_tree": "6618a4ab7f33e1c75f4371cd072561076a6a03bc",
+        "provenance_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "provenance_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733"
       },
       "number": 59,
       "relationship": "normal_merge",
@@ -452,8 +456,8 @@
     },
     {
       "ancestry_closure": {
-        "checked_against_head": "031b341691c4a0c0c2ab3466d49fa50f9cdc95e1",
-        "checked_against_tree": "0638fe3ced3d30c8447d848d724dfefdf2bc9230",
+        "checked_against_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "checked_against_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
         "source_head_is_ancestor": true
       },
       "conflict_or_replay_receipt": {
@@ -463,9 +467,9 @@
       },
       "integration_provenance": {
         "integration_commit": "88f0e7598627c24a96b62ad6b0a4866b408d0083",
-        "integration_parent_head": "031b341691c4a0c0c2ab3466d49fa50f9cdc95e1",
-        "integration_parent_tree": "0638fe3ced3d30c8447d848d724dfefdf2bc9230",
-        "integration_tree": "75c490eaa442376e069d0244be31fe83df3f3305"
+        "integration_tree": "75c490eaa442376e069d0244be31fe83df3f3305",
+        "provenance_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "provenance_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733"
       },
       "number": 62,
       "relationship": "normal_merge",
@@ -492,8 +496,8 @@
     },
     {
       "ancestry_closure": {
-        "checked_against_head": "031b341691c4a0c0c2ab3466d49fa50f9cdc95e1",
-        "checked_against_tree": "0638fe3ced3d30c8447d848d724dfefdf2bc9230",
+        "checked_against_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "checked_against_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
         "source_head_is_ancestor": true
       },
       "conflict_or_replay_receipt": {
@@ -503,8 +507,8 @@
       },
       "integration_provenance": {
         "closure": "ALREADY_INTEGRATED_BY_ANCESTRY",
-        "integration_parent_tree": "0638fe3ced3d30c8447d848d724dfefdf2bc9230",
-        "source_head_is_ancestor_of": "031b341691c4a0c0c2ab3466d49fa50f9cdc95e1"
+        "provenance_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
+        "source_head_is_ancestor_of_anchor": "ec774e44908b0211fdc6baacafdb8af268714692"
       },
       "number": 55,
       "relationship": "already_integrated_by_ancestry_after_pr_62",
@@ -531,8 +535,8 @@
     },
     {
       "ancestry_closure": {
-        "checked_against_head": "031b341691c4a0c0c2ab3466d49fa50f9cdc95e1",
-        "checked_against_tree": "0638fe3ced3d30c8447d848d724dfefdf2bc9230",
+        "checked_against_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "checked_against_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
         "source_head_is_ancestor": true
       },
       "conflict_or_replay_receipt": {
@@ -542,9 +546,9 @@
       },
       "integration_provenance": {
         "integration_commit": "245ad41bcac5fd05e53c3eb81aa6c3ee8755d27f",
-        "integration_parent_head": "031b341691c4a0c0c2ab3466d49fa50f9cdc95e1",
-        "integration_parent_tree": "0638fe3ced3d30c8447d848d724dfefdf2bc9230",
-        "integration_tree": "75c490eaa442376e069d0244be31fe83df3f3305"
+        "integration_tree": "75c490eaa442376e069d0244be31fe83df3f3305",
+        "provenance_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "provenance_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733"
       },
       "number": 57,
       "relationship": "normal_merge",
@@ -572,8 +576,8 @@
     },
     {
       "ancestry_closure": {
-        "checked_against_head": "031b341691c4a0c0c2ab3466d49fa50f9cdc95e1",
-        "checked_against_tree": "0638fe3ced3d30c8447d848d724dfefdf2bc9230",
+        "checked_against_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "checked_against_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
         "source_head_is_ancestor": true
       },
       "conflict_or_replay_receipt": {
@@ -583,9 +587,9 @@
       },
       "integration_provenance": {
         "integration_commit": "5466502047b58e97097ae95fff4592850b93c9dd",
-        "integration_parent_head": "031b341691c4a0c0c2ab3466d49fa50f9cdc95e1",
-        "integration_parent_tree": "0638fe3ced3d30c8447d848d724dfefdf2bc9230",
-        "integration_tree": "fbefb293bd51a96d0e597b024e37a0aa006867c8"
+        "integration_tree": "fbefb293bd51a96d0e597b024e37a0aa006867c8",
+        "provenance_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "provenance_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733"
       },
       "number": 60,
       "relationship": "normal_merge",
@@ -612,8 +616,8 @@
     },
     {
       "ancestry_closure": {
-        "checked_against_head": "031b341691c4a0c0c2ab3466d49fa50f9cdc95e1",
-        "checked_against_tree": "0638fe3ced3d30c8447d848d724dfefdf2bc9230",
+        "checked_against_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "checked_against_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
         "source_head_is_ancestor": true
       },
       "conflict_or_replay_receipt": {
@@ -623,9 +627,9 @@
       },
       "integration_provenance": {
         "integration_commit": "ec774e44908b0211fdc6baacafdb8af268714692",
-        "integration_parent_head": "031b341691c4a0c0c2ab3466d49fa50f9cdc95e1",
-        "integration_parent_tree": "0638fe3ced3d30c8447d848d724dfefdf2bc9230",
-        "integration_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733"
+        "integration_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
+        "provenance_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "provenance_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733"
       },
       "number": 61,
       "relationship": "normal_merge",

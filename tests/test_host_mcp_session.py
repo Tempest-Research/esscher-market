@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Mapping
+from copy import copy, deepcopy
+from dataclasses import replace
 from datetime import UTC, datetime
 from typing import Any
 
@@ -16,6 +18,8 @@ from ringdown_market.execution.host_mcp import (
     HostMcpSecretBoundaryError,
     HostMcpSessionIdentity,
     HostMcpUnavailable,
+    PreparedHostMcpSession,
+    _GuardedHostMcpSession,
 )
 from ringdown_market.execution.mcp import (
     ALPACA_MCP_COMMIT,
@@ -161,6 +165,38 @@ def test_account_preflight_emits_only_sanitized_observation() -> None:
     assert "sensitive-account" not in repr(observation)
 
 
+def test_prepared_session_is_factory_only_and_does_not_expose_raw_session() -> None:
+    prepared = connect(FakeHostSession())
+
+    assert not hasattr(prepared, "session")
+    with pytest.raises(TypeError, match="factory-created"):
+        PreparedHostMcpSession()  # type: ignore[call-arg]
+
+
+@pytest.mark.parametrize("copier", (copy, deepcopy))
+def test_prepared_session_cannot_be_copied(copier) -> None:
+    prepared = connect(FakeHostSession())
+
+    with pytest.raises(TypeError, match="factory-created"):
+        copier(prepared)
+
+
+def test_prepared_session_rejects_a_different_guarded_session_with_copied_observation() -> None:
+    trusted_host = FakeHostSession()
+    prepared = connect(trusted_host)
+    trusted_host.calls.clear()
+    different_host = FakeHostSession()
+
+    with pytest.raises(TypeError, match="factory-created"):
+        PreparedHostMcpSession(
+            session=_GuardedHostMcpSession(different_host),
+            observation=replace(prepared.observation),
+        )  # type: ignore[call-arg]
+
+    assert trusted_host.calls == []
+    assert different_host.calls == []
+
+
 def test_blocked_or_inactive_account_fails_before_runtime_calls() -> None:
     host = FakeHostSession(
         account={
@@ -206,38 +242,38 @@ def test_preflight_timeout_is_typed_and_redacted() -> None:
     assert host.calls == []
 
 
-def test_prepared_session_enforces_the_runtime_tool_allowlist() -> None:
+def test_guarded_session_enforces_the_runtime_tool_allowlist() -> None:
     host = FakeHostSession()
-    prepared = connect(host)
+    guarded = _GuardedHostMcpSession(host)
 
     with pytest.raises(HostMcpConfigurationError, match="not allowed"):
-        asyncio.run(prepared.session.call_tool("close_all_positions", {}))
+        asyncio.run(guarded.call_tool("close_all_positions", {}))
 
-    assert [name for name, _ in host.calls] == ["get_account_info"]
+    assert host.calls == []
 
 
 def test_secret_like_runtime_arguments_are_rejected_before_host_call() -> None:
     host = FakeHostSession()
-    prepared = connect(host)
+    guarded = _GuardedHostMcpSession(host)
 
     with pytest.raises(HostMcpSecretBoundaryError, match="secret-like"):
         asyncio.run(
-            prepared.session.call_tool(
+            guarded.call_tool(
                 OPEN_TOOL,
                 {"client_order_id": "rd-open-safe", "metadata": {"api_key": "do-not-emit"}},
             )
         )
 
-    assert [name for name, _ in host.calls] == ["get_account_info"]
+    assert host.calls == []
 
 
 def test_mutation_timeout_is_typed_as_ambiguous_without_leaking_details() -> None:
     host = FakeHostSession(failures={OPEN_TOOL: TimeoutError("secret broker detail")})
-    prepared = connect(host)
+    guarded = _GuardedHostMcpSession(host)
 
     with pytest.raises(HostMcpMutationAmbiguous, match="read back") as captured:
         asyncio.run(
-            prepared.session.call_tool(
+            guarded.call_tool(
                 OPEN_TOOL,
                 {"client_order_id": "rd-open-safe"},
             )
@@ -245,16 +281,16 @@ def test_mutation_timeout_is_typed_as_ambiguous_without_leaking_details() -> Non
 
     assert "secret broker detail" not in str(captured.value)
     assert captured.value.__cause__ is None
-    assert [name for name, _ in host.calls] == ["get_account_info", OPEN_TOOL]
+    assert [name for name, _ in host.calls] == [OPEN_TOOL]
 
 
 def test_read_only_runtime_timeout_is_unavailable_not_ambiguous() -> None:
     host = FakeHostSession(failures={READBACK_TOOL: TimeoutError("private transport detail")})
-    prepared = connect(host)
+    guarded = _GuardedHostMcpSession(host)
 
     with pytest.raises(HostMcpUnavailable, match="timed out") as captured:
         asyncio.run(
-            prepared.session.call_tool(
+            guarded.call_tool(
                 READBACK_TOOL,
                 {"client_order_id": "rd-open-safe"},
             )
@@ -277,9 +313,9 @@ def test_read_only_capability_smoke_never_calls_a_mutating_tool() -> None:
 
 def test_runtime_result_is_forwarded_without_copying_sensitive_account_data() -> None:
     host = FakeHostSession()
-    prepared = connect(host)
+    guarded = _GuardedHostMcpSession(host)
     response: Any = asyncio.run(
-        prepared.session.call_tool(READBACK_TOOL, {"client_order_id": "rd-open-safe"})
+        guarded.call_tool(READBACK_TOOL, {"client_order_id": "rd-open-safe"})
     )
 
     assert response == {"ok": True}

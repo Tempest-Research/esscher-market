@@ -14,7 +14,6 @@ from pathlib import Path
 
 from .host_mcp import HostMcpEnvironment, PreparedHostMcpSession
 from .mcp import (
-    ORDER_BY_ID_TOOL,
     BrokerResponseError,
     PaperLifecycleOutcome,
     PaperLifecycleReceipt,
@@ -508,10 +507,7 @@ async def run_paper_demo(
         claim_cancel_mutation=lambda order_id: attempt_store.claim(f"cancel:{order_id}"),
     )
 
-    open_raw = await prepared.session.call_tool(
-        ORDER_BY_ID_TOOL,
-        {"order_id": lifecycle.open_order_id},
-    )
+    open_raw = await prepared.read_order(lifecycle.open_order_id)
     try:
         open_order = _validate_order_identity(
             open_raw,
@@ -525,10 +521,7 @@ async def run_paper_demo(
 
     close_order: Mapping[str, object] | None = None
     if lifecycle.close_order_id is not None:
-        close_raw = await prepared.session.call_tool(
-            ORDER_BY_ID_TOOL,
-            {"order_id": lifecycle.close_order_id},
-        )
+        close_raw = await prepared.read_order(lifecycle.close_order_id)
         try:
             close_order = _validate_order_identity(
                 close_raw,

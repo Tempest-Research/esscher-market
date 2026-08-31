@@ -35,6 +35,7 @@ from ringdown_market.execution.host_mcp import (
     HostMcpEnvironment,
     HostMcpPaperSessionFactory,
     HostMcpSessionIdentity,
+    PreparedHostMcpSession,
 )
 from ringdown_market.execution.mcp import (
     CANCEL_TOOL,
@@ -615,6 +616,61 @@ def test_open_and_close_host_join_pipeline_to_flat_hash_linked_passport(tmp_path
         "buy_to_close",
     ]
     assert all("secret" not in str(arguments).lower() for _, arguments in host.calls)
+
+
+def test_open_rejects_forged_factory_only_host_capability_before_host_mutation(tmp_path) -> None:
+    """A copied receipt plus raw fake host cannot impersonate a preflighted capability."""
+
+    service, prepared, host, trusted_session, _ledger, current = _prepared_pipeline(tmp_path)
+    copied_observation = replace(trusted_session.observation)
+
+    with pytest.raises(TypeError, match="factory-created"):
+        PreparedHostMcpSession(session=host, observation=copied_observation)  # type: ignore[call-arg]
+
+    forged_capability = object.__new__(PreparedHostMcpSession)
+    with pytest.raises(PaperPipelineRejected, match="factory-created"):
+        asyncio.run(
+            service.open_host(
+                prepared=prepared,
+                host_session=forged_capability,
+                clock=lambda: current[0],
+                mutation_gate=OpenMutationGate(),
+            )
+        )
+
+    assert host.calls == []
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    (
+        ("capability_sha256", "f" * 64),
+        ("required_tool_count", 0),
+        ("account_status", "INACTIVE"),
+        ("trading_blocked", True),
+        ("account_blocked", True),
+        ("environment", "LIVE"),
+        ("adapter_version", "untrusted"),
+        ("observed_at", datetime(2026, 9, 11, 13, 36, 5)),
+    ),
+)
+def test_open_host_revalidates_factory_attestation_before_host_mutation(
+    tmp_path, field: str, value: object
+) -> None:
+    service, prepared, host, host_session, _ledger, current = _prepared_pipeline(tmp_path)
+    object.__setattr__(host_session.observation, field, value)
+
+    with pytest.raises(PaperPipelineRejected, match="complete PAPER preflight attestation"):
+        asyncio.run(
+            service.open_host(
+                prepared=prepared,
+                host_session=host_session,
+                clock=lambda: current[0],
+                mutation_gate=OpenMutationGate(),
+            )
+        )
+
+    assert host.calls == []
 
 
 def test_application_rejects_a_dynamic_host_capability_as_a_permit_protocol(tmp_path) -> None:

@@ -145,9 +145,11 @@ artifact causally joins that v2 event to a decision, permit, or terminal receipt
 those links as missing instead of splicing unrelated values. A future real causally joined public
 trace remains a separate reviewed artifact. The implemented bridge accepts only exact frozen
 artifacts that already passed the registered research gates; it does not create evidence, rescore a
-signal, or open an execution session. The implemented host boundary constructs only a preflighted
-PAPER session for the same official adapter. Missing or ambiguous information fails closed to
-rejection or reconciliation; it never selects another adapter.
+signal, or open an execution session. The implemented host boundary constructs only a
+factory-issued opaque capability after complete PAPER preflight; its guarded raw session remains
+private, and the application re-validates the capability hash, tool count, account eligibility, and
+official adapter identity before constructing the lifecycle adapter. Missing or ambiguous
+information fails closed to rejection or reconciliation; it never selects another adapter.
 
 The integration now connects the policy-controlled offline collector to CIK-rooted security
 lineage, deterministic feature receipts, the Gate D expression boundary, a fail-closed PAPER risk

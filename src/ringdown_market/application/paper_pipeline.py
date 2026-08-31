@@ -19,11 +19,7 @@ from ringdown_market.contracts.compiled_to_permit import (
     build_debit_vertical_permit,
     canonical_permit_sha256,
 )
-from ringdown_market.contracts.execution_policy import (
-    ALPACA_MCP_COMMIT,
-    ALPACA_MCP_PROTOCOL_SHA256,
-    ALPACA_MCP_VERSION,
-)
+from ringdown_market.contracts.execution_policy import ALPACA_MCP_PROTOCOL_SHA256
 from ringdown_market.execution.expression import (
     COMPILED,
     NO_PACKAGE,
@@ -34,7 +30,10 @@ from ringdown_market.execution.expression import (
     compiled_expression_sha256,
     promoted_expression_policy_sha256,
 )
-from ringdown_market.execution.host_mcp import HostMcpEnvironment, PreparedHostMcpSession
+from ringdown_market.execution.host_mcp import (
+    HostMcpConfigurationError,
+    PreparedHostMcpSession,
+)
 from ringdown_market.execution.models import ClosePermit, DebitVerticalPermit
 from ringdown_market.lifecycle import (
     MULTI_LEG_ORDER_CLASS,
@@ -606,25 +605,24 @@ class PaperStrategyApplication:
         clock: Callable[[], datetime],
         mutation_gate: MutationGate | None = None,
     ) -> ActivePaperLifecycle:
-        """Open only through the preflighted host-managed lifecycle MCP adapter."""
+        """Open only through one factory-issued, fully attested MCP capability."""
 
         if prepared.permit.execution_protocol_sha256 != self.execution_protocol_sha256:
             raise PaperPipelineRejected(
                 "prepared permit does not bind this application's official execution protocol"
             )
-        observation = host_session.observation
-        if (
-            observation.environment is not HostMcpEnvironment.PAPER
-            or observation.adapter != "ALPACA_MCP"
-            or observation.adapter_version != ALPACA_MCP_VERSION
-            or observation.adapter_commit != ALPACA_MCP_COMMIT
-        ):
+        if not isinstance(host_session, PreparedHostMcpSession):
+            raise PaperPipelineRejected("host MCP capability must be factory-created")
+        try:
+            broker = host_session.lifecycle_broker(clock=clock)
+        except HostMcpConfigurationError as error:
             raise PaperPipelineRejected(
-                "host MCP session does not attest the pinned PAPER protocol"
-            )
+                "host MCP capability must be factory-created and retain a complete PAPER "
+                "preflight attestation"
+            ) from error
         return await self.open(
             prepared=prepared,
-            broker=host_session.lifecycle_broker(clock=clock),
+            broker=broker,
             clock=clock,
             mutation_gate=mutation_gate,
         )

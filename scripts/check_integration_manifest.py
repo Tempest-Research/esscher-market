@@ -12,6 +12,16 @@ from typing import Any
 SHA = re.compile(r"^[0-9a-f]{40}$")
 PUBLIC_REVIEW_ANCHOR = re.compile(r"^(?:pullrequestreview|issuecomment)-[0-9]+$")
 EXPECTED_PRS = {34, 35, 37, 38, 39, 51, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62}
+PUBLIC_PROVENANCE_ANCHOR_HEAD = "ec774e44908b0211fdc6baacafdb8af268714692"
+PUBLIC_PROVENANCE_ANCHOR_TREE = "58cfd42f67554c4e86b2096c6c01ebe5edde5733"
+PUBLIC_PROVENANCE_ANCHOR_URL = (
+    f"https://github.com/Tempest-Research/esscher-market/commit/{PUBLIC_PROVENANCE_ANCHOR_HEAD}"
+)
+PUBLIC_PROVENANCE_ANCHOR_SELECTION = (
+    "Earliest publicly reachable merge commit predating this manifest and verified to contain all "
+    "16 reviewed source heads; this anchor proves closure without claiming to be each historical "
+    "merge parent."
+)
 REQUIRED_ENTRY_KEYS = {
     "number",
     "url",
@@ -59,8 +69,8 @@ def _mapping(value: object, path: str) -> dict[str, Any]:
 
 def validate_manifest(data: object) -> None:
     root = _mapping(data, "manifest")
-    if root.get("schema") != "esscher.integration_manifest" or root.get("schema_version") != 2:
-        raise ManifestError("schema must be esscher.integration_manifest version 2")
+    if root.get("schema") != "esscher.integration_manifest" or root.get("schema_version") != 3:
+        raise ManifestError("schema must be esscher.integration_manifest version 3")
 
     integration = _mapping(root.get("integration"), "integration")
     if integration.get("pull_request") != 52:
@@ -68,8 +78,22 @@ def validate_manifest(data: object) -> None:
     _require_text(integration.get("url"), "integration.url")
     _require_text(integration.get("audit_source"), "integration.audit_source")
     _require_text(integration.get("audited_at"), "integration.audited_at")
-    _require_sha(integration.get("manifest_parent_integration_head"), "integration.parent_head")
-    _require_sha(integration.get("manifest_parent_integration_tree"), "integration.parent_tree")
+    anchor = _mapping(
+        integration.get("public_provenance_anchor"), "integration.public_provenance_anchor"
+    )
+    _require_sha(anchor.get("head"), "integration.public_provenance_anchor.head")
+    _require_sha(anchor.get("tree"), "integration.public_provenance_anchor.tree")
+    _require_text(anchor.get("url"), "integration.public_provenance_anchor.url")
+    _require_text(anchor.get("selection"), "integration.public_provenance_anchor.selection")
+    if (
+        anchor["head"] != PUBLIC_PROVENANCE_ANCHOR_HEAD
+        or anchor["tree"] != PUBLIC_PROVENANCE_ANCHOR_TREE
+        or anchor["url"] != PUBLIC_PROVENANCE_ANCHOR_URL
+        or anchor["selection"] != PUBLIC_PROVENANCE_ANCHOR_SELECTION
+    ):
+        raise ManifestError(
+            "integration.public_provenance_anchor must pin the public nonrecursive anchor"
+        )
 
     entries = root.get("source_prs")
     if not isinstance(entries, list) or len(entries) != len(EXPECTED_PRS):
@@ -85,8 +109,8 @@ def validate_manifest(data: object) -> None:
     ):
         raise ManifestError("source_prs must contain each expected PR exactly once")
 
-    parent_head = integration["manifest_parent_integration_head"]
-    parent_tree = integration["manifest_parent_integration_tree"]
+    anchor_head = anchor["head"]
+    anchor_tree = anchor["tree"]
     for entry in entries:
         record = _mapping(entry, "source_pr")
         missing = REQUIRED_ENTRY_KEYS - set(record)
@@ -117,10 +141,10 @@ def validate_manifest(data: object) -> None:
             raise ManifestError(f"PR {number}.source_pr_merge_tree requires a merge commit")
 
         closure = _mapping(record["ancestry_closure"], f"PR {number}.ancestry_closure")
-        if closure.get("checked_against_head") != parent_head:
-            raise ManifestError(f"PR {number} has a mismatched ancestry parent head")
-        if closure.get("checked_against_tree") != parent_tree:
-            raise ManifestError(f"PR {number} has a mismatched ancestry parent tree")
+        if closure.get("checked_against_anchor_head") != anchor_head:
+            raise ManifestError(f"PR {number} has a mismatched provenance anchor head")
+        if closure.get("checked_against_anchor_tree") != anchor_tree:
+            raise ManifestError(f"PR {number} has a mismatched provenance anchor tree")
         if closure.get("source_head_is_ancestor") is not True:
             raise ManifestError(f"PR {number} must record verified ancestry closure")
 
@@ -128,19 +152,28 @@ def validate_manifest(data: object) -> None:
             record["integration_provenance"], f"PR {number}.integration_provenance"
         )
         if record["relationship"] == "normal_merge":
-            if provenance.get("integration_parent_head") != parent_head:
-                raise ManifestError(f"PR {number} has a mismatched integration parent head")
-            if provenance.get("integration_parent_tree") != parent_tree:
-                raise ManifestError(f"PR {number} has a mismatched integration parent tree")
+            if provenance.get("provenance_anchor_head") != anchor_head:
+                raise ManifestError(f"PR {number} has a mismatched provenance anchor head")
+            if provenance.get("provenance_anchor_tree") != anchor_tree:
+                raise ManifestError(f"PR {number} has a mismatched provenance anchor tree")
             _require_sha(provenance.get("integration_commit"), f"PR {number}.integration_commit")
             _require_sha(provenance.get("integration_tree"), f"PR {number}.integration_tree")
+            if source_merge_commit is None or source_merge_tree is None:
+                raise ManifestError(f"PR {number} normal merge requires source PR merge provenance")
+            if (
+                provenance["integration_commit"] != source_merge_commit
+                or provenance["integration_tree"] != source_merge_tree
+            ):
+                raise ManifestError(
+                    f"PR {number} integration provenance must match the reviewed source PR merge"
+                )
         else:
             if provenance.get("closure") != "ALREADY_INTEGRATED_BY_ANCESTRY":
                 raise ManifestError(f"PR {number} must declare its ancestry closure")
-            if provenance.get("source_head_is_ancestor_of") != parent_head:
-                raise ManifestError(f"PR {number} has a mismatched closure parent head")
-            if provenance.get("integration_parent_tree") != parent_tree:
-                raise ManifestError(f"PR {number} has a mismatched closure parent tree")
+            if provenance.get("source_head_is_ancestor_of_anchor") != anchor_head:
+                raise ManifestError(f"PR {number} has a mismatched provenance anchor head")
+            if provenance.get("provenance_anchor_tree") != anchor_tree:
+                raise ManifestError(f"PR {number} has a mismatched provenance anchor tree")
 
         conflict = _mapping(record["conflict_or_replay_receipt"], f"PR {number}.conflict_receipt")
         _require_text(conflict.get("kind"), f"PR {number}.conflict_receipt.kind")
