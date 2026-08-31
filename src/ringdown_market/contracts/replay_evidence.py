@@ -835,21 +835,6 @@ def _validate_manifest(
     )
 
 
-def validate_replay_selection_rule(selection_rule_bytes: bytes) -> Mapping[str, object]:
-    """Expose the frozen replay selection-rule validation for lane reuse."""
-
-    return _validate_selection_rule(selection_rule_bytes)
-
-
-def validate_replay_event_list(
-    event_list_bytes: bytes,
-    selection_rule_bytes: bytes,
-) -> tuple[Mapping[str, object], tuple[str, ...], dict[str, Mapping[str, object]]]:
-    """Expose the frozen replay event-list validation for lane reuse."""
-
-    return _validate_event_list(event_list_bytes, selection_rule_bytes=selection_rule_bytes)
-
-
 def validate_replay_evidence_set(
     event_list_bytes: bytes,
     selection_rule_bytes: bytes,

@@ -7,7 +7,6 @@ import asyncio
 import hashlib
 import importlib
 import json
-import sys
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict
 from datetime import UTC, datetime
@@ -245,14 +244,6 @@ def _build_parser() -> argparse.ArgumentParser:
     evaluate = subparsers.add_parser("evaluate", help="evaluate a frozen event panel")
     evaluate.add_argument("--input", type=Path, required=True)
     evaluate.add_argument("--output", type=Path, required=True)
-    panel = subparsers.add_parser(
-        "assemble-panel",
-        help="compile one frozen Q-FAST point-in-time panel report",
-    )
-    panel.add_argument("--manifest", type=Path, required=True)
-    panel.add_argument("--selection-rule", type=Path, required=True)
-    panel.add_argument("--bundle", type=Path, required=True)
-    panel.add_argument("--output", type=Path, required=True)
     scheduled = subparsers.add_parser(
         "run-scheduled-event",
         help="run at most one approved scheduled PAPER event, then exit",
@@ -299,21 +290,6 @@ def main(
     clock: Callable[[], datetime] | None = None,
 ) -> int:
     args = _build_parser().parse_args(argv)
-    if args.command == "assemble-panel":
-        from .panel.assembler import PanelRejected, assemble_panel_report
-
-        try:
-            report_bytes = assemble_panel_report(
-                args.manifest.read_bytes(),
-                args.selection_rule.read_bytes(),
-                args.bundle.read_bytes(),
-            )
-        except PanelRejected as error:
-            print(str(error), file=sys.stderr)
-            return 2
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_bytes(report_bytes)
-        return 0
     if args.command == "evaluate":
         raw_bytes = args.input.read_bytes()
         report = build_report(raw_bytes)

@@ -4,7 +4,6 @@
 
 ### Added
 
-- Deterministic offline evidence-bundle diff reports for frozen JSON artifacts and directory bundles, exposed through `ringdown_market.audit` and `python -m ringdown_market.audit.bundle_diff` without rerunning research or opening a broker session.
 - A deterministic Gate D expression tournament comparing cash/no-trade, shares, one long option, and
 	a defined-risk debit vertical for the same frozen directional decisions, with failures kept in the
 	denominator and a canonical `NO_EXPRESSION` outcome when no expression meets the preregistered
@@ -21,23 +20,6 @@
 	separate earnings and macro cohorts, frozen features, baselines, partitions, and promotion gates.
 - Immutable candidate-manifest, strategy-snapshot, feature-receipt, reasoner-exchange, and
 	direction-only decision contracts with a labeled synthetic development bundle.
-- A strict, source-grounded Gate A organizer contract and separate sanitized account-capability
-	receipt covering competition rules, PAPER identity, account freshness, entitlements, option
-	level, multi-leg support, reset state, and required MCP tools.
-=======
-- A strict, source-grounded Gate A organizer contract and separate sanitized account-capability
-	receipt covering competition rules, PAPER identity, account freshness, entitlements, option
-	level, multi-leg support, reset state, and required MCP tools.
-- A frozen source-rights and point-in-time feasibility matrix deciding all nine required source
-	categories before collector implementation, with per-source endpoint, clock, precision,
-	revision, depth, adjustment, completeness, entitlement, retention/redistribution, and
-	rate-limit records bound to the accepted event policy and Gate A contract digests.
-- Five development-only golden bundles proving reproducible capture of EDGAR earnings bytes, a
-	BLS JOLTS release with schedule and revision evidence, the official NYSE session calendar, and
-	hash-only Alpaca equity and option probe receipts, without consuming the untouched panel.
-- A fail-closed capture-boundary rights gate requiring every required earnings source class to map
-	to a non-blocked matrix source with all conditions declared satisfied before any snapshot.
->>>>>>> e4e1b64 (data: decide source rights and point-in-time feasibility (#41))
 - Four pre-outcome scheduled-earnings replay manifests bound to one frozen event list and selection rule.
 - A strict data-only evidence-manifest v2 validator with event-context provenance and point-in-time gates.
 - Versioned, strict frozen-research-decision, point-in-time evidence-manifest, and feature-input contracts.
@@ -48,10 +30,6 @@
 - One-shot scheduled `PAPER` event execution with strict manifest/due-window identity, atomic restart state, deterministic broker reconciliation, terminal no-ops, overlap rejection, and mutation-free dry run.
 - Synthetic contract fixtures for terminal-flat, rejected-before-mutation, and manual-reconciliation scheduled outcomes.
 - A deterministic self-contained offline evidence-to-receipt trace with visible JSON-pointer attribution, terminal, rejected, and manual-reconciliation contract views.
-- A frozen ex-ante Q-FAST panel selection rule with fixed 20/30 eligible-event bounds, required P0 exclusions, and the frozen claim boundary.
-- A strict panel-manifest validator and deterministic fail-closed panel assembler behind the inert `ringdown assemble-panel` command, hash-bound to the strategy-policy, snapshot, and research-decision protocols.
-- Synthetic Q-FAST panel fixtures and mutation-negative tests proving leak, exclusion, size, latency, and byte-determinism gates.
-- A frozen untouched Q-FAST panel universe: 23 historical BMO/AMC earnings events with EDGAR primary-source provenance, preserved exclusions, and hash-bound synchronized issuer/SPY/sector one-minute window records.
 - A read-only point-in-time strategy snapshot collector that compiles canonical snapshots and
 	feature receipts from permitted primary evidence and synchronized equity market data, bound to
 	the accepted event-policy hash and joined through the frozen strategy-input contract.
@@ -69,6 +47,17 @@
 - Explicit pagination, partial-retrieval, and duplicate-source-record handling in the evidence
 	packet with stable fail-closed reason codes, plus distinct BMO and AMC reaction-session selection.
 
+### Fixed
+
+- Gate D now binds declared policy digests to canonical policy bytes, applies the frozen spread
+  gate to vertical legs and atomic packages, and requires short legs to satisfy the same delta and
+  open-interest policy bounds as long legs.
+- Tournament rows now apply the compiler's pinned-feed, freshness, and spread gates before an
+  expression can count as comparable; short-share borrow/locate evidence must be pre-clock and
+  fresh within the frozen observation-age bound.
+- Gate D freshness and vertical-skew limits now compare exact UTC durations: the policy limit is
+  inclusive, but a one-microsecond overage or post-clock observation fails closed.
+
 ### Safety
 
 - Candidate snapshots must match an exact retained manifest record; unknown sources, clock drift,
@@ -76,26 +65,11 @@
   closed before downstream trade construction.
 - Gate A remains `UNVERIFIED`, and the accepted strategy policy grants no expression, exit, risk,
   permit, order, account, or broker authority.
-- Unknown or stale mark, cost, leverage, flattening, entitlement, endpoint, option-level,
-  multi-leg, account-freshness, reset, balance, or MCP-tool truth yields `ENTRY_DISABLED`; no raw
-  account identifier or credential is accepted.
-<<<<<<< HEAD
-- Unknown or stale mark, cost, leverage, flattening, entitlement, endpoint, option-level,
-  multi-leg, account-freshness, reset, balance, or MCP-tool truth yields `ENTRY_DISABLED`; no raw
-  account identifier or credential is accepted.
-- Ambiguous source rights always yield `BLOCKED`; paid plans without recorded human approval stay
-  blocked; missing, drifted, or condition-unmet source matrices fail closed before any snapshot.
-- Licensed market-data probe bytes are never committed; Alpaca golden bundles retain only
-  sanitized endpoint paths, statuses, byte counts, and SHA-256 receipts.
 - Unknown fields/states, hash or provenance mismatch, post-cutoff dependencies, abstention, failed research gates, unsupported strategy shape, and excess paper risk fail closed before any broker session exists.
-- Source-health audits return deterministic findings for malformed `redistribution_status` values and incomplete `published_at_interval` objects instead of raising.
 - Evidence-manifest v2 remains ineligible for permit compilation and carries no post-cutoff path or outcome value.
 - Partial or contradictory package fills stop for reconciliation; missing fees remain explicit and raw broker/account identities never enter the receipt bundle.
 - Scheduled unknown, ambiguous, partial, overlapping, or integrity-invalid state fails closed without sequential-leg repair, guessed P&L, or another mutation.
 - The packaged trace is static and no-network; it rejects weakened labels or malformed PAPER receipt boundaries, escapes untrusted text, and leaves unsupported decision, permit, receipt, and P&L fields visibly missing.
-- Real Q-FAST panel assembly fails closed with `UPSTREAM_CONTRACT_MISSING` while issues #26, #27, and #28 remain unmerged and unregistered.
-- P0 contract-development events, sub-20 or above-30 event panels, unmeasured p95 latency profiles, and post-cutoff or post-freeze timestamps fail closed with stable reason codes before any evaluation runs.
-- Historical panel evidence is admitted only through EDGAR-accessioned preservation anchors with every publication bound preceding the decision cutoff; raw licensed market bars stay host-side and only metadata and SHA-256 bindings are redistributed.
 - Version impact is `minor`; the package stays at `0.2.0` while issue #11 consolidates the release-train bump to `0.3.0`.
 
 ## [0.2.0] - Unreleased
