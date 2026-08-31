@@ -8,6 +8,7 @@ from decimal import Decimal
 
 ALPACA_MCP_VERSION = "2.3.0"
 ALPACA_MCP_COMMIT = "872abbf28dab6cdde7d341fc13ac139b8002d1d9"
+ACCOUNT_TOOL = "get_account_info"
 OPEN_TOOL = "place_option_order"
 READBACK_TOOL = "get_order_by_client_id"
 ORDER_BY_ID_TOOL = "get_order_by_id"

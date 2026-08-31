@@ -15,6 +15,11 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 
+from ringdown_market.execution.models import (
+    DebitVerticalPermit,
+    debit_vertical_permit_bytes,
+    debit_vertical_permit_id,
+)
 from ringdown_market.risk.passport import GENESIS_SHA256, PassportEventType
 from ringdown_market.risk.reasons import ControlState, RiskReason, _reject
 from ringdown_market.strategy.contracts import canonical_json_bytes, sha256_bytes
@@ -1463,6 +1468,7 @@ class RiskLedger:
         aggregate_limit: Decimal,
         max_open_expressions: int,
         max_entries_per_day: int,
+        permit: DebitVerticalPermit,
         now: datetime,
     ) -> tuple[str, str, str]:
         """Atomically recheck budgets and persist reservation, permit, and receipts.
@@ -1482,6 +1488,20 @@ class RiskLedger:
         aggregate = _positive_limit(aggregate_limit, "authorization.aggregate_limit")
         max_open = _positive_int(max_open_expressions, "authorization.max_open_expressions")
         max_entries = _positive_int(max_entries_per_day, "authorization.max_entries_per_day")
+        if not isinstance(permit, DebitVerticalPermit):
+            raise _reject(
+                RiskReason.UNSUPPORTED_INPUT,
+                "authorization.permit",
+                "must be an exact DebitVerticalPermit",
+            )
+        if permit.permit_id != debit_vertical_permit_id(permit):
+            raise _reject(
+                RiskReason.UNSUPPORTED_INPUT,
+                "authorization.permit_id",
+                "must equal the canonical permit identity",
+            )
+        issued_permit_id = permit.permit_id
+        permit_sha256 = sha256_bytes(debit_vertical_permit_bytes(permit))
         created = datetime.fromisoformat(
             _timestamp(now, "authorization.now").replace("Z", "+00:00")
         )
@@ -1541,20 +1561,6 @@ class RiskLedger:
                 )
 
             reservation_id = f"rsv-{event}"
-            permit_sha256 = sha256_bytes(
-                canonical_json_bytes(
-                    {
-                        "event_id": event,
-                        "candidate_id": candidate,
-                        "reservation_id": reservation_id,
-                        "risk_policy_sha256": policy,
-                        "decision_sha256": decision,
-                        "compiled_expression_sha256": expression,
-                        "exposure": str(exposure),
-                    }
-                )
-            )
-            permit_id = f"permit-{permit_sha256}"
             self._insert_reservation(
                 reservation_id=reservation_id,
                 event_id=event,
@@ -1563,7 +1569,7 @@ class RiskLedger:
                 now=created,
             )
             self._insert_permit(
-                permit_id=permit_id,
+                permit_id=issued_permit_id,
                 event_id=event,
                 reservation_id=reservation_id,
                 permit_sha256=permit_sha256,
@@ -1573,7 +1579,7 @@ class RiskLedger:
                 "event_id": event,
                 "candidate_id": candidate,
                 "reservation_id": reservation_id,
-                "permit_id": permit_id,
+                "permit_id": issued_permit_id,
                 "permit_sha256": permit_sha256,
                 "risk_policy_sha256": policy,
                 "decision_sha256": decision,
@@ -1591,7 +1597,7 @@ class RiskLedger:
                 now=created,
             )
             self._conn.execute("COMMIT")
-            return reservation_id, permit_id, permit_sha256
+            return reservation_id, issued_permit_id, permit_sha256
         except sqlite3.IntegrityError as error:
             self._rollback()
             raise _reject(

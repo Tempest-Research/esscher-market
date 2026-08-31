@@ -10,6 +10,8 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Protocol
 
+from ringdown_market.contracts.execution_policy import ACCOUNT_TOOL
+
 from .mcp import (
     ALPACA_MCP_COMMIT,
     ALPACA_MCP_VERSION,
@@ -22,7 +24,6 @@ from .mcp import (
     McpToolSession,
 )
 
-ACCOUNT_TOOL = "get_account_info"
 _REQUIRED_TOOLS = frozenset(
     {
         ACCOUNT_TOOL,
@@ -33,7 +34,7 @@ _REQUIRED_TOOLS = frozenset(
         POSITIONS_TOOL,
     }
 )
-_RUNTIME_TOOLS = _REQUIRED_TOOLS - {ACCOUNT_TOOL}
+_RUNTIME_TOOLS = _REQUIRED_TOOLS
 _MUTATING_TOOLS = frozenset({OPEN_TOOL, CANCEL_TOOL})
 _SECRET_KEYS = frozenset(
     {
@@ -134,9 +135,22 @@ class PreparedHostMcpSession:
         *,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> McpPaperBroker:
-        """Create the sole production broker over the preflighted host session."""
+        """Create the legacy frozen-decision broker over the preflighted session."""
 
         return McpPaperBroker(self.session, clock=clock)
+
+    def lifecycle_broker(
+        self,
+        *,
+        clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+    ) -> object:
+        """Create the monitored-lifecycle adapter over this one guarded MCP door."""
+
+        # Local import avoids a module cycle: the adapter maps host errors into
+        # lifecycle broker failures but receives no credential/session factory.
+        from ringdown_market.execution.lifecycle_mcp import LifecycleMcpPaperBroker
+
+        return LifecycleMcpPaperBroker(self.session, clock=clock)
 
 
 def _tool_names(response: object) -> frozenset[str]:

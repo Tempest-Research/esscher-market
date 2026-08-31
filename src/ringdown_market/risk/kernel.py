@@ -8,6 +8,7 @@ no network, broker, account, order, or real-money mutation.
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
@@ -18,6 +19,11 @@ from ringdown_market.execution.expression.compiler import (
     compiled_expression_sha256,
 )
 from ringdown_market.execution.expression.reasons import ExpressionKind
+from ringdown_market.execution.models import (
+    DebitVerticalPermit,
+    debit_vertical_permit_bytes,
+    debit_vertical_permit_id,
+)
 from ringdown_market.risk.controls import ControlTrigger, entry_allowed, next_control_state
 from ringdown_market.risk.exposure import expression_exposure
 from ringdown_market.risk.ledger import RiskLedger
@@ -112,6 +118,101 @@ def _compiled_underlying(compiled: CompiledExpression) -> str:
     return _underlying(value, "compiled.underlying")
 
 
+def _permit_sha256(permit: DebitVerticalPermit) -> str:
+    try:
+        return hashlib.sha256(debit_vertical_permit_bytes(permit)).hexdigest()
+    except (ArithmeticError, AttributeError, TypeError, ValueError) as error:
+        raise _reject(
+            RiskReason.UNSUPPORTED_INPUT,
+            "permit",
+            f"cannot derive canonical permit bytes: {error}",
+        ) from None
+
+
+def _validate_permit_binding(
+    *,
+    permit: DebitVerticalPermit,
+    compiled: CompiledExpression,
+    active_policy_sha256: str,
+    now: datetime,
+) -> None:
+    """Prove the risk request carries the one canonical compiled permit identity."""
+
+    if not isinstance(permit, DebitVerticalPermit):
+        raise _reject(RiskReason.UNSUPPORTED_INPUT, "permit", "must be a DebitVerticalPermit")
+    if compiled.expression_kind is not ExpressionKind.DEBIT_VERTICAL:
+        raise _reject(
+            RiskReason.UNSUPPORTED_INPUT,
+            "compiled.expression_kind",
+            "only a debit vertical may receive a debit-vertical permit",
+        )
+    if permit.permit_id != debit_vertical_permit_id(permit):
+        raise _reject(
+            RiskReason.UNSUPPORTED_INPUT,
+            "permit.permit_id",
+            "must equal the canonical permit identity",
+        )
+    if permit.issued_at > now or permit.expires_at <= now:
+        raise _reject(
+            RiskReason.UNSUPPORTED_INPUT, "permit.timing", "permit is not active at authorization"
+        )
+    if (
+        permit.event_run_id != compiled.event_id
+        or permit.decision_sha256 != compiled.decision_sha256
+        or permit.snapshot_sha256 != compiled.snapshot_sha256
+        or permit.policy_sha256 != active_policy_sha256
+    ):
+        raise _reject(
+            RiskReason.UNSUPPORTED_INPUT,
+            "permit.lineage",
+            "permit does not bind the active expression, event, and risk policy",
+        )
+    block = compiled.debit_vertical
+    if not isinstance(block, Mapping):
+        raise _reject(RiskReason.UNSUPPORTED_INPUT, "compiled.debit_vertical", "must be an object")
+    long = block.get("long_leg")
+    short = block.get("short_leg")
+    expected = {
+        "underlying": permit.underlying,
+        "vertical_type": permit.vertical_type.value,
+        "quantity": permit.quantity,
+        "limit_price": str(permit.limit_price),
+        "long_symbol": permit.legs[0].symbol,
+        "long_option_type": permit.legs[0].option_type.value,
+        "long_strike": str(permit.legs[0].strike),
+        "short_symbol": permit.legs[1].symbol,
+        "short_option_type": permit.legs[1].option_type.value,
+        "short_strike": str(permit.legs[1].strike),
+    }
+    observed = {
+        "underlying": block.get("underlying"),
+        "vertical_type": block.get("vertical_type"),
+        "quantity": block.get("quantity"),
+        "limit_price": block.get("limit_price"),
+        "long_symbol": long.get("symbol") if isinstance(long, Mapping) else None,
+        "long_option_type": long.get("option_type") if isinstance(long, Mapping) else None,
+        "long_strike": long.get("strike") if isinstance(long, Mapping) else None,
+        "short_symbol": short.get("symbol") if isinstance(short, Mapping) else None,
+        "short_option_type": short.get("option_type") if isinstance(short, Mapping) else None,
+        "short_strike": short.get("strike") if isinstance(short, Mapping) else None,
+    }
+    if observed != expected:
+        raise _reject(
+            RiskReason.UNSUPPORTED_INPUT,
+            "permit.expression",
+            (
+                "permit legs, price, quantity, or vertical geometry differ "
+                "from the compiled expression"
+            ),
+        )
+    if permit.maximum_loss != expression_exposure(compiled):
+        raise _reject(
+            RiskReason.UNSUPPORTED_INPUT,
+            "permit.maximum_loss",
+            "permit loss differs from compiled expression exposure",
+        )
+
+
 class RiskKernel:
     """Authorizes only PAPER entries against durable, broker-observed truth."""
 
@@ -119,6 +220,18 @@ class RiskKernel:
         self._policy = policy
         self._ledger = ledger
         self._truth = truth
+
+    @property
+    def ledger(self) -> RiskLedger:
+        """Expose the same durable authority used to issue the approval."""
+
+        return self._ledger
+
+    @property
+    def policy_sha256(self) -> str:
+        """Return the exact active policy identity a permit must bind."""
+
+        return risk_policy_sha256(self._policy)
 
     # -- state and startup reconciliation -----------------------------------
 
@@ -292,6 +405,7 @@ class RiskKernel:
         underlying: str,
         candidate_id: str,
         compiled: CompiledExpression,
+        permit: DebitVerticalPermit,
         now: datetime,
     ) -> RiskApproval:
         """Atomically issue one permit or reject without an external mutation."""
@@ -323,6 +437,12 @@ class RiskKernel:
             underlying=underlying,
             candidate_id=candidate_id,
             compiled=compiled,
+        )
+        _validate_permit_binding(
+            permit=permit,
+            compiled=compiled,
+            active_policy_sha256=active_policy,
+            now=current,
         )
 
         try:
@@ -424,7 +544,7 @@ class RiskKernel:
                 "gross absolute concentration exceeds the policy limit",
             )
 
-        reservation_id, permit_id, permit_sha256 = self._ledger.reserve_and_issue_permit(
+        reservation_id, issued_permit_id, permit_sha256 = self._ledger.reserve_and_issue_permit(
             event_id=event,
             underlying=symbol,
             candidate_id=candidate_id,
@@ -435,13 +555,21 @@ class RiskKernel:
             aggregate_limit=policy.aggregate_exposure_limit,
             max_open_expressions=policy.max_open_expressions,
             max_entries_per_day=policy.max_entries_per_day,
+            permit=permit,
             now=current,
         )
+        expected_permit_sha256 = _permit_sha256(permit)
+        if issued_permit_id != permit.permit_id or permit_sha256 != expected_permit_sha256:
+            raise _reject(
+                RiskReason.UNSUPPORTED_INPUT,
+                "risk_approval.permit",
+                "ledger receipt does not preserve the exact canonical permit identity",
+            )
         return RiskApproval(
             event_id=event,
             candidate_id=candidate_id,
             reservation_id=reservation_id,
-            permit_id=permit_id,
+            permit_id=issued_permit_id,
             permit_sha256=permit_sha256,
             exposure=exposure,
             control_state=state,

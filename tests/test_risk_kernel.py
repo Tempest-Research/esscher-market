@@ -8,7 +8,8 @@ from __future__ import annotations
 
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor
-from datetime import UTC, datetime, timedelta
+from dataclasses import replace
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -18,6 +19,15 @@ from ringdown_market.execution.expression.compiler import (
     compiled_expression_sha256,
 )
 from ringdown_market.execution.expression.reasons import ExpressionKind
+from ringdown_market.execution.models import (
+    DebitVerticalPermit,
+    OptionLeg,
+    OptionSide,
+    OptionType,
+    PositionIntent,
+    VerticalType,
+    debit_vertical_permit_id,
+)
 from ringdown_market.risk import (
     SCHEMA_VERSION,
     ControlState,
@@ -132,6 +142,8 @@ def _compiled(
     underlying: str = "KR",
     decision_sha256: str = _HASH,
 ) -> CompiledExpression:
+    long_symbol = f"{underlying}260918C00061000"
+    short_symbol = f"{underlying}260918C00062000"
     return CompiledExpression(
         expression_kind=ExpressionKind.DEBIT_VERTICAL,
         event_id=event_id,
@@ -153,9 +165,9 @@ def _compiled(
             "limit_price_rule": "PACKAGE_NET_ASK",
             "width": "1",
             "maximum_loss": maximum_loss,
-            "package_id": "KR260918C00061000+KR260918C00062000",
-            "long_leg": {"symbol": "KR260918C00061000", "option_type": "CALL", "strike": "61"},
-            "short_leg": {"symbol": "KR260918C00062000", "option_type": "CALL", "strike": "62"},
+            "package_id": f"{long_symbol}+{short_symbol}",
+            "long_leg": {"symbol": long_symbol, "option_type": "CALL", "strike": "61"},
+            "short_leg": {"symbol": short_symbol, "option_type": "CALL", "strike": "62"},
         },
     )
 
@@ -211,6 +223,54 @@ def _freeze(
     )
 
 
+def _permit(kernel: RiskKernel, compiled: CompiledExpression) -> DebitVerticalPermit:
+    """Create a test-only canonical permit bound to the exact compiled vertical."""
+
+    block = compiled.debit_vertical
+    assert block is not None
+    long = block["long_leg"]
+    short = block["short_leg"]
+    assert isinstance(long, dict)
+    assert isinstance(short, dict)
+    expiry = date.fromisoformat(str(block["expiry"]))
+    candidate = DebitVerticalPermit._from_frozen_decision(
+        permit_id="UNBOUND",
+        event_run_id=compiled.event_id,
+        policy_sha256=kernel.policy_sha256,
+        snapshot_sha256=compiled.snapshot_sha256,
+        decision_sha256=compiled.decision_sha256,
+        evidence_sha256=_HASH,
+        protocol_sha256=_HASH,
+        execution_protocol_sha256=_HASH,
+        issued_at=NOW - timedelta(seconds=1),
+        expires_at=NOW + timedelta(seconds=60),
+        vertical_type=VerticalType(str(block["vertical_type"])),
+        quantity=int(block["quantity"]),
+        limit_price=Decimal(str(block["limit_price"])),
+        legs=(
+            OptionLeg(
+                symbol=str(long["symbol"]),
+                underlying=str(block["underlying"]),
+                expiry=expiry,
+                option_type=OptionType(str(long["option_type"])),
+                strike=Decimal(str(long["strike"])),
+                side=OptionSide.BUY,
+                position_intent=PositionIntent.BUY_TO_OPEN,
+            ),
+            OptionLeg(
+                symbol=str(short["symbol"]),
+                underlying=str(block["underlying"]),
+                expiry=expiry,
+                option_type=OptionType(str(short["option_type"])),
+                strike=Decimal(str(short["strike"])),
+                side=OptionSide.SELL,
+                position_intent=PositionIntent.SELL_TO_OPEN,
+            ),
+        ),
+    )
+    return replace(candidate, permit_id=debit_vertical_permit_id(candidate))
+
+
 def _authorize(
     kernel: RiskKernel,
     compiled: CompiledExpression,
@@ -224,6 +284,7 @@ def _authorize(
         underlying=underlying,
         candidate_id=candidate_id,
         compiled=compiled,
+        permit=_permit(kernel, compiled),
         now=NOW,
     )
 
@@ -451,13 +512,45 @@ def test_authorization_requires_pre_frozen_candidate_and_active_risk_policy_hash
     assert policy_swap.value.reason is RiskReason.POLICY_HASH_MISMATCH
 
 
-def test_shares_use_compiled_symbol_as_underlying_binding(tmp_path) -> None:
+def test_non_debit_vertical_expression_cannot_receive_an_opening_permit(tmp_path) -> None:
     kernel = _kernel(tmp_path)
     assert kernel.startup_reconciliation(now=NOW) is ControlState.ACTIVE
     compiled = _shares_compiled()
     _freeze(kernel, compiled)
-    approval = _authorize(kernel, compiled, underlying="KR")
-    assert approval.event_id == EVENT
+
+    with pytest.raises(RiskRejected) as rejected:
+        kernel.authorize_entry(
+            event_id=EVENT,
+            underlying="KR",
+            candidate_id=CANDIDATE,
+            compiled=compiled,
+            permit=_permit(kernel, _compiled()),
+            now=NOW,
+        )
+    assert rejected.value.reason is RiskReason.UNSUPPORTED_INPUT
+
+
+def test_risk_rejects_rebound_price_mismatch_before_persisting_a_reservation(tmp_path) -> None:
+    kernel = _kernel(tmp_path)
+    assert kernel.startup_reconciliation(now=NOW) is ControlState.ACTIVE
+    compiled = _compiled()
+    _freeze(kernel, compiled)
+    valid = _permit(kernel, compiled)
+    altered = replace(valid, limit_price=Decimal("0.37"))
+    altered = replace(altered, permit_id=debit_vertical_permit_id(altered))
+
+    with pytest.raises(RiskRejected) as rejected:
+        kernel.authorize_entry(
+            event_id=EVENT,
+            underlying="KR",
+            candidate_id=CANDIDATE,
+            compiled=compiled,
+            permit=altered,
+            now=NOW,
+        )
+    assert rejected.value.reason is RiskReason.UNSUPPORTED_INPUT
+    assert kernel.ledger.reservation_state(EVENT) is None
+    assert kernel.ledger.permit_for_event(EVENT) is None
 
 
 def test_reservation_passport_binds_candidate_policy_decision_and_expression(tmp_path) -> None:
@@ -493,6 +586,7 @@ def test_naive_now_and_broker_clock_fail_as_stable_risk_rejections(tmp_path) -> 
             underlying="KR",
             candidate_id=CANDIDATE,
             compiled=compiled,
+            permit=_permit(kernel, compiled),
             now=NOW.replace(tzinfo=None),
         )
     assert naive_now.value.reason is RiskReason.UNSUPPORTED_INPUT
@@ -780,11 +874,13 @@ def test_two_independent_ledgers_cannot_exceed_aggregate_limit(tmp_path) -> None
     def authorize(event_id: str, underlying: str, candidate_id: str, compiled: CompiledExpression):
         ledger = RiskLedger(database)
         try:
-            return RiskKernel(policy, ledger, truth).authorize_entry(
+            kernel = RiskKernel(policy, ledger, truth)
+            return kernel.authorize_entry(
                 event_id=event_id,
                 underlying=underlying,
                 candidate_id=candidate_id,
                 compiled=compiled,
+                permit=_permit(kernel, compiled),
                 now=NOW,
             )
         except RiskRejected as error:

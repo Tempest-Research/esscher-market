@@ -100,7 +100,7 @@ Current modules:
 - `demo/judge_trace.py`: deterministic self-contained HTML projection over byte-identical frozen evidence and scheduled lifecycle artifacts, with strict PAPER/claim validation and inert source attribution;
 - `cli.py`: labeled research input parsing, one-shot scheduled runtime command, offline trace rendering, deterministic output, and package-version output.
 
-The execution boundary is pinned to Alpaca MCP `2.3.0` at commit `872abbf28dab6cdde7d341fc13ac139b8002d1d9`. The package does not load credentials or instantiate an MCP server. A host must inject one normalized session and attest its PAPER environment from host-owned MCP configuration. The factory verifies the six required tools from the official surface, reads only sanitized account eligibility, then exposes only the adapter's five runtime tools. Its prepared-session object constructs the existing `McpPaperBroker`; no alternate production broker path is introduced. A timed-out mutation is typed as ambiguous so the adapter reads back its deterministic client-order ID instead of submitting again.
+The execution boundary is pinned to Alpaca MCP `2.3.0` at commit `872abbf28dab6cdde7d341fc13ac139b8002d1d9`. The package does not load credentials or instantiate an MCP server. A host must inject one normalized session and attest its PAPER environment from host-owned MCP configuration. The factory verifies the six required tools from the official surface, reads only sanitized account eligibility, then exposes the legacy frozen-decision broker and the monitored-lifecycle adapter through that same guarded MCP door. No second provider or execution path is introduced. A timed-out mutation is typed as ambiguous so the adapter reads back its deterministic client-order ID instead of submitting again.
 
 The adapter, host boundary, inert paper-demo runner, and one-shot scheduled runtime are contract-tested with injected fake sessions and clocks. The runners cannot mutate without current approval bound to the exact permit and capability observation. Durable deterministic attempt markers force readback rather than resubmission after restart, while the scheduled runtime adds one atomic integrity-checked state record per event and rejects overlapping active events. Terminal repeats trust only a verified sanitized receipt and perform no host-plan or broker call. The repository does not yet contain a sanitized real paper-account receipt, executable historical option prices, or evidence of alpha or profitability.
 
@@ -110,9 +110,9 @@ Esscher is the human-facing product name. The `0.3.0` integration draft delibera
 
 The deterministic report keeps the legacy `project: "Ringdown"` value and adds `product_name: "Esscher"` for public display. This is an additive alias; existing schema keys and values remain available.
 
-## Remaining vertical integration
+## Vertical integration boundary
 
-The intended complete path is:
+The explicit application-service path is:
 
 ```text
 scheduled event manifest
@@ -136,7 +136,18 @@ implemented paper execution plane
 sanitized static public trace
 ```
 
-The real point-in-time event collection is frozen, and the static proof renderer now projects one v2 evidence manifest plus three separate scheduled lifecycle contract fixtures. No merged artifact causally joins that v2 event to a decision, permit, or terminal receipt, so the page renders those links as missing instead of splicing unrelated values. A future real causally joined public trace remains a separate reviewed artifact. The implemented bridge accepts only exact frozen artifacts that already passed the registered research gates; it does not create evidence, rescore a signal, or open an execution session. The implemented host boundary constructs only a preflighted PAPER session for the same official adapter. Missing or ambiguous information fails closed to rejection or reconciliation; it never selects another adapter.
+The application service performs the non-mutating source-capture, bounded-decision, Gate-D,
+canonical-permit, risk-authorization, and lifecycle-plan portion of that chain in one causally
+bound call. Opening remains a separately invoked operation and defaults to the closed mutation
+gate. The real point-in-time event collection is frozen, and the static proof renderer now projects
+one v2 evidence manifest plus three separate scheduled lifecycle contract fixtures. No merged
+artifact causally joins that v2 event to a decision, permit, or terminal receipt, so the page renders
+those links as missing instead of splicing unrelated values. A future real causally joined public
+trace remains a separate reviewed artifact. The implemented bridge accepts only exact frozen
+artifacts that already passed the registered research gates; it does not create evidence, rescore a
+signal, or open an execution session. The implemented host boundary constructs only a preflighted
+PAPER session for the same official adapter. Missing or ambiguous information fails closed to
+rejection or reconciliation; it never selects another adapter.
 
 The integration now connects the policy-controlled offline collector to CIK-rooted security
 lineage, deterministic feature receipts, the Gate D expression boundary, a fail-closed PAPER risk

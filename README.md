@@ -74,6 +74,15 @@ The integration adds a deterministic, fail-closed chain after capture:
    verifies broker/account/position truth before a fill or flat result. Its `ClosedMutationGate`
    remains closed in this repository state, and every test uses a fake broker.
 
+`PaperStrategyApplication` is the explicit composition boundary for that chain. Its non-mutating
+`prepare` route compiles the captured input, calls the injected bounded-reasoner route, compiles
+Gate D, builds the canonical debit-vertical permit, records risk authorization, and returns a
+correlated lifecycle plan. Its optional `open_host` route accepts only a preflighted
+host-managed MCP session whose PAPER identity matches the permit's frozen official MCP protocol;
+the session's capability receipt remains a separate current host attestation. Without an explicit
+mutation gate it remains closed. The repository exercises that route only with fake host sessions
+and fake reasoner routes.
+
 These contracts are proof of deterministic boundary behavior, not proof of alpha, executable
 historical pricing, a live PAPER fill, or any real-money capability.
 
@@ -97,7 +106,7 @@ Given an immutable opening permit and a separately authorized closing permit, th
 - refuses automatic sequential-leg repair after a partial fill;
 - emits a terminal receipt only after broker position truth contains neither event leg.
 
-Before exposing that session to the adapter, the host boundary checks the six required tools from the pinned official surface and reads sanitized account status through `get_account_info`. Missing tools, malformed responses, blocked accounts, and any environment other than PAPER fail closed before a mutation. Runtime calls are limited to the adapter's five official order and position tools; secret-like application arguments are rejected before reaching the host.
+Before exposing that session to the adapter, the host boundary checks the six required tools from the pinned official surface and reads sanitized account status through `get_account_info`. Missing tools, malformed responses, blocked accounts, and any environment other than PAPER fail closed before a mutation. Runtime calls remain limited to that pinned order, position, and sanitized account-truth surface; secret-like application arguments are rejected before reaching the host.
 
 The MCP boundary is implemented and contract-tested with injected fake sessions. No real broker call is part of the test suite. This is not evidence of a real paper fill, strategy profitability, or executable historical option pricing.
 
