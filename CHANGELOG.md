@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.1] - Unreleased
+
+### Fixed
+
+- Sealed `LifecycleMcpPaperBroker` construction and lifecycle state inside the preflighted host-MCP capability path, so raw or independently guarded sessions, copies, and state retargeting cannot reach a tool call.
+
+### Safety
+
+- This internal provenance hardening creates no provider, credential, account, broker, PAPER-mutation, or live-execution capability.
+
 ## [0.3.0] - Unreleased
 
 ### Added

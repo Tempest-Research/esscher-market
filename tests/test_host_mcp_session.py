@@ -22,6 +22,7 @@ from ringdown_market.execution.host_mcp import (
     PreparedHostMcpSession,
     _GuardedHostMcpSession,
 )
+from ringdown_market.execution.lifecycle_mcp import LifecycleMcpPaperBroker
 from ringdown_market.execution.mcp import (
     ALPACA_MCP_COMMIT,
     ALPACA_MCP_VERSION,
@@ -173,6 +174,16 @@ def test_prepared_session_is_factory_only_and_does_not_expose_raw_session() -> N
     assert not hasattr(prepared, "session")
     with pytest.raises(TypeError, match="factory-created"):
         PreparedHostMcpSession()  # type: ignore[call-arg]
+
+
+def test_lifecycle_broker_cannot_treat_a_raw_host_as_a_factory_capability() -> None:
+    raw_host = FakeHostSession()
+
+    with pytest.raises((TypeError, HostMcpConfigurationError), match="factory-created"):
+        broker = LifecycleMcpPaperBroker(raw_host)
+        asyncio.run(broker.read_account())
+
+    assert raw_host.calls == []
 
 
 def test_module_api_cannot_mint_a_capability_for_a_raw_host_session() -> None:

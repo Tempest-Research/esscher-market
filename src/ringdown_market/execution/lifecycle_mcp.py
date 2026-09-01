@@ -9,9 +9,13 @@ wire contract.  Credentials stay entirely inside the host-owned session.
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
+from typing import NoReturn
+from weakref import WeakKeyDictionary
 
+import ringdown_market.execution.host_mcp as host_mcp
 from ringdown_market.contracts.execution_policy import (
     ACCOUNT_TOOL,
     CANCEL_TOOL,
@@ -20,6 +24,7 @@ from ringdown_market.contracts.execution_policy import (
     READBACK_TOOL,
 )
 from ringdown_market.execution.host_mcp import (
+    HostMcpConfigurationError,
     HostMcpError,
     HostMcpMutationAmbiguous,
 )
@@ -43,21 +48,26 @@ from ringdown_market.lifecycle.broker import (
 
 
 class LifecycleMcpPaperBroker:
-    """Implement the lifecycle's narrow PAPER broker protocol via one MCP door."""
+    """Factory-issued lifecycle broker over one preflighted guarded MCP session."""
 
-    def __init__(
-        self,
-        session: McpToolSession,
-        *,
-        clock: Callable[[], datetime] = lambda: datetime.now(UTC),
-    ) -> None:
-        self._session = session
-        self._clock = clock
-        self._requests_by_order_id: dict[str, BrokerOrderRequest] = {}
-        self._latest_order_id: str | None = None
+    __slots__ = ("__weakref__",)
+
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        del args, kwargs
+        raise TypeError("LifecycleMcpPaperBroker instances must be factory-created")
+
+    def __copy__(self) -> NoReturn:
+        raise TypeError("LifecycleMcpPaperBroker instances must be factory-created")
+
+    def __deepcopy__(self, memo: dict[int, object]) -> NoReturn:
+        del memo
+        raise TypeError("LifecycleMcpPaperBroker instances must be factory-created")
+
+    def _validated_state(self) -> object:
+        raise HostMcpConfigurationError("lifecycle MCP broker must be factory-created")
 
     def _observed_at(self) -> datetime:
-        observed = self._clock()
+        observed = self._validated_state().clock()
         if (
             not isinstance(observed, datetime)
             or observed.tzinfo is None
@@ -79,7 +89,7 @@ class LifecycleMcpPaperBroker:
 
     async def _call(self, tool: str, arguments: Mapping[str, object]) -> object:
         try:
-            return await self._session.call_tool(tool, arguments)
+            return await self._validated_state().session.call_tool(tool, arguments)
         except HostMcpError as error:
             raise BrokerOutage(f"host MCP {tool} is unavailable: {error}") from error
         except Exception as error:
@@ -99,8 +109,9 @@ class LifecycleMcpPaperBroker:
             raise BrokerOutage(
                 "host MCP readback client identity did not match the durable request"
             )
-        self._requests_by_order_id[order_id] = request
-        self._latest_order_id = order_id
+        state = self._validated_state()
+        state.requests_by_order_id[order_id] = request
+        state.latest_order_id = order_id
         return BrokerOrderAck(
             order_id=order_id,
             client_order_id=client_order_id,
@@ -119,7 +130,7 @@ class LifecycleMcpPaperBroker:
         except (TypeError, ValueError) as error:
             raise BrokerOutage(f"lifecycle request cannot be encoded for MCP: {error}") from error
         try:
-            response = await self._session.call_tool(call.tool, call.arguments)
+            response = await self._validated_state().session.call_tool(call.tool, call.arguments)
         except HostMcpMutationAmbiguous:
             # A timeout is never retried.  The pinned deterministic client ID is
             # immediately read back through the official MCP query tool instead.
@@ -138,8 +149,9 @@ class LifecycleMcpPaperBroker:
             raise BrokerOutage(
                 "host MCP acknowledgement client identity did not match durable request"
             )
-        self._requests_by_order_id[order_id] = request
-        self._latest_order_id = order_id
+        state = self._validated_state()
+        state.requests_by_order_id[order_id] = request
+        state.latest_order_id = order_id
         return BrokerOrderAck(
             order_id=order_id,
             client_order_id=client_order_id,
@@ -163,7 +175,8 @@ class LifecycleMcpPaperBroker:
         return int(value)
 
     async def read_order(self, order_id: str) -> BrokerOrderTruth:
-        request = self._request_for_order(order_id, self._requests_by_order_id)
+        state = self._validated_state()
+        request = self._request_for_order(order_id, state.requests_by_order_id)
         try:
             response = await self._call(ORDER_BY_ID_TOOL, {"order_id": order_id})
             returned_id, client_order_id, status, filled_qty = _broker_identity(
@@ -194,9 +207,10 @@ class LifecycleMcpPaperBroker:
         )
 
     async def cancel_order(self, order_id: str) -> BrokerOrderAck:
-        request = self._request_for_order(order_id, self._requests_by_order_id)
+        state = self._validated_state()
+        request = self._request_for_order(order_id, state.requests_by_order_id)
         try:
-            response = await self._session.call_tool(CANCEL_TOOL, {"order_id": order_id})
+            response = await state.session.call_tool(CANCEL_TOOL, {"order_id": order_id})
         except HostMcpMutationAmbiguous:
             truth = await self.read_order(order_id)
             return BrokerOrderAck(
@@ -225,9 +239,10 @@ class LifecycleMcpPaperBroker:
         )
 
     async def read_positions(self) -> BrokerPositionSnapshot:
-        if self._latest_order_id is None:
+        state = self._validated_state()
+        if state.latest_order_id is None:
             raise BrokerOutage("cannot read correlated positions before a lifecycle submission")
-        request = self._request_for_order(self._latest_order_id, self._requests_by_order_id)
+        request = self._request_for_order(state.latest_order_id, state.requests_by_order_id)
         response = await self._call(POSITIONS_TOOL, {})
         if not isinstance(response, list):
             raise BrokerOutage("host MCP position readback was not a list")
@@ -249,7 +264,7 @@ class LifecycleMcpPaperBroker:
                 PositionTruth(symbol=symbol, qty=parsed_qty, observed_at=self._observed_at())
             )
         return BrokerPositionSnapshot(
-            order_id=self._latest_order_id,
+            order_id=state.latest_order_id,
             client_order_id=request.client_order_id,
             permit_id=request.permit_id,
             open_permit_id=request.open_permit_id,
@@ -287,6 +302,45 @@ class LifecycleMcpPaperBroker:
             buying_power=buying_power,
             observed_at=self._observed_at(),
         )
+
+
+def _wire_factory_issued_lifecycle_broker() -> None:
+    """Close lifecycle state and minting over the host's preflight-only factory path."""
+
+    @dataclass(slots=True)
+    class LifecycleMcpPaperBrokerState:
+        session: McpToolSession
+        clock: Callable[[], datetime]
+        requests_by_order_id: dict[str, BrokerOrderRequest] = field(default_factory=dict)
+        latest_order_id: str | None = None
+
+    states: WeakKeyDictionary[LifecycleMcpPaperBroker, LifecycleMcpPaperBrokerState] = (
+        WeakKeyDictionary()
+    )
+
+    def validated_state(broker: LifecycleMcpPaperBroker) -> LifecycleMcpPaperBrokerState:
+        try:
+            return states[broker]
+        except KeyError:
+            raise HostMcpConfigurationError(
+                "lifecycle MCP broker must be factory-created"
+            ) from None
+
+    def mint(
+        session: McpToolSession,
+        *,
+        clock: Callable[[], datetime],
+    ) -> LifecycleMcpPaperBroker:
+        broker = object.__new__(LifecycleMcpPaperBroker)
+        states[broker] = LifecycleMcpPaperBrokerState(session=session, clock=clock)
+        return broker
+
+    LifecycleMcpPaperBroker._validated_state = validated_state  # type: ignore[method-assign]
+    host_mcp._install_lifecycle_mcp_broker_mint(mint)
+
+
+_wire_factory_issued_lifecycle_broker()
+del _wire_factory_issued_lifecycle_broker
 
 
 __all__ = ["LifecycleMcpPaperBroker"]

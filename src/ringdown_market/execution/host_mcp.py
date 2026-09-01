@@ -8,6 +8,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
+from importlib import import_module
 from typing import NoReturn, Protocol
 from weakref import WeakKeyDictionary
 
@@ -160,19 +161,6 @@ class PreparedHostMcpSession:
         """Create the legacy frozen-decision broker over the attested session."""
 
         return McpPaperBroker(self._validated_state().session, clock=clock)
-
-    def lifecycle_broker(
-        self,
-        *,
-        clock: Callable[[], datetime] = lambda: datetime.now(UTC),
-    ) -> object:
-        """Create the monitored-lifecycle adapter only from an attested capability."""
-
-        # Local import avoids a module cycle: the adapter maps host errors into
-        # lifecycle broker failures but receives no credential/session factory.
-        from ringdown_market.execution.lifecycle_mcp import LifecycleMcpPaperBroker
-
-        return LifecycleMcpPaperBroker(self._validated_state().session, clock=clock)
 
     async def read_order(self, order_id: str) -> object:
         """Read one order through the guarded door without exposing its session."""
@@ -328,12 +316,21 @@ class HostMcpPaperSessionFactory:
 def _wire_prepared_host_mcp_capability() -> None:
     """Close the mint and state registry over the only supported factory path."""
 
+    global _install_lifecycle_mcp_broker_mint
+
     @dataclass(frozen=True, slots=True)
     class PreparedHostMcpState:
         session: McpToolSession
         observation: HostMcpCapabilityObservation
 
     states: WeakKeyDictionary[PreparedHostMcpSession, PreparedHostMcpState] = WeakKeyDictionary()
+    lifecycle_broker_mint: Callable[..., object] | None = None
+
+    def install_lifecycle_mcp_broker_mint(mint: Callable[..., object]) -> None:
+        nonlocal lifecycle_broker_mint
+        if lifecycle_broker_mint is not None:
+            raise HostMcpConfigurationError("lifecycle MCP broker capability is already installed")
+        lifecycle_broker_mint = mint
 
     def validated_state(prepared: PreparedHostMcpSession) -> PreparedHostMcpState:
         try:
@@ -379,9 +376,26 @@ def _wire_prepared_host_mcp_capability() -> None:
         )
         return prepared
 
+    def lifecycle_broker(
+        prepared: PreparedHostMcpSession,
+        *,
+        clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+    ) -> object:
+        """Create the monitored broker only through the attested factory capability."""
+
+        if lifecycle_broker_mint is None:
+            raise HostMcpConfigurationError("lifecycle MCP broker capability is unavailable")
+        return lifecycle_broker_mint(prepared._validated_state().session, clock=clock)
+
     PreparedHostMcpSession._validated_state = validated_state  # type: ignore[attr-defined]
+    PreparedHostMcpSession.lifecycle_broker = lifecycle_broker  # type: ignore[attr-defined]
     HostMcpPaperSessionFactory.connect = connect
+    _install_lifecycle_mcp_broker_mint = install_lifecycle_mcp_broker_mint
 
 
 _wire_prepared_host_mcp_capability()
 del _wire_prepared_host_mcp_capability
+
+_lifecycle_mcp = import_module("ringdown_market.execution.lifecycle_mcp")
+
+del _lifecycle_mcp, import_module
