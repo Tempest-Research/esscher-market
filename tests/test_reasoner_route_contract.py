@@ -120,6 +120,46 @@ def test_descriptor_broker_authority_fails_closed() -> None:
     assert caught.value.reason is RouteContractReason.AUTHORITY_VIOLATION
 
 
+def test_descriptor_account_authority_fails_closed() -> None:
+    descriptor = _descriptor()
+    descriptor["authority"]["account"] = True
+
+    with pytest.raises(RouteContractRejected) as caught:
+        validate_reasoner_route(_bytes(descriptor), packaged_route_approval_bytes())
+
+    assert caught.value.reason is RouteContractReason.AUTHORITY_VIOLATION
+
+
+def test_descriptor_missing_field_fails_closed() -> None:
+    descriptor = _descriptor()
+    del descriptor["cost_ceiling"]
+
+    with pytest.raises(RouteContractRejected) as caught:
+        validate_reasoner_route(_bytes(descriptor), packaged_route_approval_bytes())
+
+    assert caught.value.reason is RouteContractReason.MISSING_FIELD
+
+
+def test_receipt_missing_field_fails_closed() -> None:
+    receipt = _receipt()
+    del receipt["scope"]
+
+    with pytest.raises(RouteContractRejected) as caught:
+        validate_reasoner_route(packaged_route_descriptor_bytes(), _bytes(receipt))
+
+    assert caught.value.reason is RouteContractReason.MISSING_FIELD
+
+
+def test_descriptor_unknown_field_fails_closed() -> None:
+    descriptor = _descriptor()
+    descriptor["extra_field"] = "x"
+
+    with pytest.raises(RouteContractRejected) as caught:
+        validate_reasoner_route(_bytes(descriptor), packaged_route_approval_bytes())
+
+    assert caught.value.reason is RouteContractReason.UNKNOWN_FIELD
+
+
 def test_descriptor_secret_argument_fails_closed() -> None:
     descriptor = _descriptor()
     descriptor["application_arguments"] = {"api_key": "not-allowed"}

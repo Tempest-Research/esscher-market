@@ -32,6 +32,35 @@ def test_packaged_preregistered_profile_validates() -> None:
     assert profile.promotion_eligible is True
 
 
+def test_profile_missing_field_fails_closed() -> None:
+    payload = _profile()
+    del payload["clock_source"]
+
+    with pytest.raises(LatencyProfileRejected) as caught:
+        validate_latency_profile(_bytes(payload))
+
+    assert caught.value.reason is LatencyProfileReason.MISSING_FIELD
+
+
+def test_profile_unknown_field_fails_closed() -> None:
+    payload = _profile()
+    payload["extra_field"] = "x"
+
+    with pytest.raises(LatencyProfileRejected) as caught:
+        validate_latency_profile(_bytes(payload))
+
+    assert caught.value.reason is LatencyProfileReason.UNKNOWN_FIELD
+
+
+def test_profile_is_reproducible() -> None:
+    payload = _profile()
+    first = latency_profile_content_sha256(payload)
+    second = latency_profile_content_sha256(payload)
+
+    assert first == second
+    assert load_latency_profile().content_sha256 == first
+
+
 def test_synthetic_placeholder_fails_evaluation_and_promotion() -> None:
     payload = _profile()
     payload["kind"] = "SYNTHETIC"
