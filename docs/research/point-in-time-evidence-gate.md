@@ -485,7 +485,7 @@ The links below support the external facts in this document. Access dates show w
 
 ### Official event and repository sources
 
-1. [Issue #1: Lane B point-in-time evidence gate](https://github.com/Tempest-Research/ringdown-market/issues/1) - repository issue and acceptance criteria; checked 2026-08-29.
+1. [Issue #1: Lane B point-in-time evidence gate](https://github.com/Tempest-Research/esscher-market/issues/1) - repository issue and acceptance criteria; checked 2026-08-29.
 2. [Esscher source and claim policy](../SOURCE_AND_CLAIM_POLICY.md) - repository policy; checked 2026-08-29.
 3. [Esscher architecture](../ARCHITECTURE.md) - implemented evaluation boundaries; checked 2026-08-29.
 4. [Esscher team onboarding](../TEAM_ONBOARDING.md) - current research and claim boundaries; checked 2026-08-29.

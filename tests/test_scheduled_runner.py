@@ -22,10 +22,19 @@ from ringdown_market.contracts.execution_policy import (
     paper_event_run_id,
 )
 from ringdown_market.execution.host_mcp import (
-    HostMcpCapabilityObservation,
-    PreparedHostMcpSession,
+    HostMcpEnvironment,
+    HostMcpPaperSessionFactory,
+    HostMcpSessionIdentity,
 )
-from ringdown_market.execution.mcp import build_close_order_call, build_open_order_call
+from ringdown_market.execution.mcp import (
+    CANCEL_TOOL,
+    OPEN_TOOL,
+    ORDER_BY_ID_TOOL,
+    POSITIONS_TOOL,
+    READBACK_TOOL,
+    build_close_order_call,
+    build_open_order_call,
+)
 from ringdown_market.execution.models import (
     ClosePermit,
     DebitVerticalPermit,
@@ -74,7 +83,23 @@ class RecordingSession:
         self.responses = list(responses or [])
         self.calls: list[tuple[str, dict[str, object]]] = []
 
+    async def list_tools(self) -> tuple[str, ...]:
+        return (
+            "get_account_info",
+            OPEN_TOOL,
+            READBACK_TOOL,
+            ORDER_BY_ID_TOOL,
+            CANCEL_TOOL,
+            POSITIONS_TOOL,
+        )
+
     async def call_tool(self, name: str, arguments: Mapping[str, object]) -> object:
+        if name == "get_account_info":
+            return {
+                "status": "ACTIVE",
+                "trading_blocked": False,
+                "account_blocked": False,
+            }
         self.calls.append((name, dict(arguments)))
         return self.responses.pop(0)
 
@@ -131,6 +156,14 @@ def close_permit(opening: DebitVerticalPermit) -> ClosePermit:
     )
 
 
+def prepared_session(session: RecordingSession):
+    factory = HostMcpPaperSessionFactory(
+        HostMcpSessionIdentity(HostMcpEnvironment.PAPER),
+        clock=lambda: NOW - timedelta(seconds=10),
+    )
+    return asyncio.run(factory.connect(session))
+
+
 def paper_plan(
     session: RecordingSession,
     *,
@@ -138,17 +171,7 @@ def paper_plan(
 ) -> PaperDemoPlan:
     opening = open_permit(decision_sha256)
     return PaperDemoPlan(
-        prepared=PreparedHostMcpSession(
-            session=session,
-            observation=HostMcpCapabilityObservation(
-                capability_sha256="a" * 64,
-                required_tool_count=6,
-                account_status="ACTIVE",
-                trading_blocked=False,
-                account_blocked=False,
-                observed_at=NOW - timedelta(seconds=10),
-            ),
-        ),
+        prepared=prepared_session(session),
         open_permit=opening,
         close_permit=close_permit(opening),
     )
@@ -290,7 +313,7 @@ def test_armed_unfilled_event_persists_sanitized_terminal_state(tmp_path: Path) 
     canceled = {**submitted, "status": "canceled"}
     session = RecordingSession([submitted, submitted, submitted, {}, canceled, [], canceled])
     plan = PaperDemoPlan(
-        prepared=replace(bootstrap_plan.prepared, session=session),
+        prepared=prepared_session(session),
         open_permit=bootstrap_plan.open_permit,
         close_permit=bootstrap_plan.close_permit,
     )
@@ -349,7 +372,7 @@ def test_terminal_repeat_is_noop_even_after_due_window(tmp_path: Path) -> None:
     canceled = {**submitted, "status": "canceled"}
     first_session = RecordingSession([submitted, submitted, submitted, {}, canceled, [], canceled])
     plan = PaperDemoPlan(
-        prepared=replace(bootstrap_plan.prepared, session=first_session),
+        prepared=prepared_session(first_session),
         open_permit=bootstrap_plan.open_permit,
         close_permit=bootstrap_plan.close_permit,
     )
@@ -400,7 +423,7 @@ def test_restart_from_reconciling_state_reads_broker_truth_without_resubmitting(
     )
     session = RecordingSession([canceled, canceled, [], canceled])
     plan = PaperDemoPlan(
-        prepared=replace(bootstrap_plan.prepared, session=session),
+        prepared=prepared_session(session),
         open_permit=bootstrap_plan.open_permit,
         close_permit=bootstrap_plan.close_permit,
     )
@@ -490,7 +513,7 @@ def test_partial_fill_persists_manual_reconciliation_without_guessed_pnl(tmp_pat
     )
     session = RecordingSession([partial, partial, partial])
     plan = PaperDemoPlan(
-        prepared=replace(bootstrap_plan.prepared, session=session),
+        prepared=prepared_session(session),
         open_permit=bootstrap_plan.open_permit,
         close_permit=bootstrap_plan.close_permit,
     )
@@ -621,7 +644,7 @@ def test_restart_after_close_attempt_reconciles_both_deterministic_orders_withou
     )
     session = RecordingSession([open_fill, open_fill, close_fill, [], open_fill, close_fill])
     plan = PaperDemoPlan(
-        prepared=replace(bootstrap_plan.prepared, session=session),
+        prepared=prepared_session(session),
         open_permit=bootstrap_plan.open_permit,
         close_permit=bootstrap_plan.close_permit,
     )
@@ -694,7 +717,7 @@ def test_oversized_finite_pnl_is_terminal_unavailable_not_pre_mutation_rejection
         [open_fill, open_fill, open_fill, close_fill, close_fill, [], open_fill, close_fill]
     )
     plan = PaperDemoPlan(
-        prepared=replace(bootstrap_plan.prepared, session=session),
+        prepared=prepared_session(session),
         open_permit=bootstrap_plan.open_permit,
         close_permit=bootstrap_plan.close_permit,
     )
@@ -948,7 +971,7 @@ def test_terminal_noop_rejects_tampered_receipt_even_with_rehashed_state(tmp_pat
     )
     session = RecordingSession([submitted, submitted, submitted, [], submitted])
     plan = PaperDemoPlan(
-        prepared=replace(bootstrap_plan.prepared, session=session),
+        prepared=prepared_session(session),
         open_permit=bootstrap_plan.open_permit,
         close_permit=bootstrap_plan.close_permit,
     )
@@ -1029,7 +1052,7 @@ def test_terminal_noop_rejects_rehashed_malformed_receipt_and_persists_manual_st
     )
     session = RecordingSession([submitted, submitted, submitted, [], submitted])
     plan = PaperDemoPlan(
-        prepared=replace(bootstrap_plan.prepared, session=session),
+        prepared=prepared_session(session),
         open_permit=bootstrap_plan.open_permit,
         close_permit=bootstrap_plan.close_permit,
     )
@@ -1163,7 +1186,7 @@ def test_cli_manual_reconciliation_output_is_sanitized(
     )
     session = RecordingSession([partial, partial, partial])
     plan = PaperDemoPlan(
-        prepared=replace(bootstrap_plan.prepared, session=session),
+        prepared=prepared_session(session),
         open_permit=bootstrap_plan.open_permit,
         close_permit=bootstrap_plan.close_permit,
     )
@@ -1544,7 +1567,7 @@ def test_terminal_flat_contract_fixture_matches_real_cli_serialization(
         [open_fill, open_fill, open_fill, close_fill, close_fill, [], open_fill, close_fill]
     )
     plan = PaperDemoPlan(
-        prepared=replace(bootstrap_plan.prepared, session=session),
+        prepared=prepared_session(session),
         open_permit=bootstrap_plan.open_permit,
         close_permit=bootstrap_plan.close_permit,
     )
@@ -1618,7 +1641,7 @@ def test_manual_contract_fixture_matches_real_cli_serialization(
     )
     session = RecordingSession([partial, partial, partial])
     plan = PaperDemoPlan(
-        prepared=replace(bootstrap_plan.prepared, session=session),
+        prepared=prepared_session(session),
         open_permit=bootstrap_plan.open_permit,
         close_permit=bootstrap_plan.close_permit,
     )

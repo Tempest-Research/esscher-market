@@ -17,11 +17,19 @@ from ringdown_market.contracts.execution_policy import (
     paper_event_run_id,
 )
 from ringdown_market.execution.host_mcp import (
-    HostMcpCapabilityObservation,
+    HostMcpConfigurationError,
     HostMcpEnvironment,
-    PreparedHostMcpSession,
+    HostMcpPaperSessionFactory,
+    HostMcpSessionIdentity,
 )
-from ringdown_market.execution.mcp import READBACK_TOOL, PaperLifecycleManualRequired
+from ringdown_market.execution.mcp import (
+    CANCEL_TOOL,
+    OPEN_TOOL,
+    ORDER_BY_ID_TOOL,
+    POSITIONS_TOOL,
+    READBACK_TOOL,
+    PaperLifecycleManualRequired,
+)
 from ringdown_market.execution.models import (
     ClosePermit,
     DebitVerticalPermit,
@@ -44,7 +52,7 @@ from ringdown_market.execution.paper_demo import (
 NOW = datetime(2026, 8, 29, 17, 0, tzinfo=UTC)
 LONG_SYMBOL = "NVDA260918C00180000"
 SHORT_SYMBOL = "NVDA260918C00185000"
-CAPABILITY_SHA256 = "a" * 64
+CAPABILITY_SHA256 = "b201168f2f031fbf628e10e587076cac1caff6a1728c94e062ef1ee0526380ca"
 FIXTURE_PATH = Path(__file__).parent / "contract_fixtures" / "paper_demo_lifecycle_v1.json"
 
 
@@ -120,23 +128,33 @@ class RecordingSession:
         self.responses = responses
         self.calls: list[tuple[str, dict[str, object]]] = []
 
+    async def list_tools(self) -> tuple[str, ...]:
+        return (
+            "get_account_info",
+            OPEN_TOOL,
+            READBACK_TOOL,
+            ORDER_BY_ID_TOOL,
+            CANCEL_TOOL,
+            POSITIONS_TOOL,
+        )
+
     async def call_tool(self, name: str, arguments: Mapping[str, object]) -> object:
+        if name == "get_account_info":
+            return {
+                "status": "ACTIVE",
+                "trading_blocked": False,
+                "account_blocked": False,
+            }
         self.calls.append((name, dict(arguments)))
         return self.responses.pop(0)
 
 
-def prepared(session: RecordingSession) -> PreparedHostMcpSession:
-    return PreparedHostMcpSession(
-        session=session,
-        observation=HostMcpCapabilityObservation(
-            capability_sha256=CAPABILITY_SHA256,
-            required_tool_count=6,
-            account_status="ACTIVE",
-            trading_blocked=False,
-            account_blocked=False,
-            observed_at=NOW - timedelta(seconds=2),
-        ),
+def prepared(session: RecordingSession):
+    factory = HostMcpPaperSessionFactory(
+        HostMcpSessionIdentity(HostMcpEnvironment.PAPER),
+        clock=lambda: NOW - timedelta(seconds=2),
     )
+    return asyncio.run(factory.connect(session))
 
 
 def order(
@@ -215,22 +233,16 @@ def test_duplicate_approval_fields_fail_closed() -> None:
 
 
 def test_preflight_rejects_nonpaper_capability_before_writing_approval() -> None:
-    opening = open_permit()
-    nonpaper_prepared = replace(
-        prepared(RecordingSession([])),
-        observation=replace(
-            prepared(RecordingSession([])).observation,
-            environment="LIVE",  # type: ignore[arg-type]
-        ),
-    )
-    plan = PaperDemoPlan(
-        prepared=nonpaper_prepared,
-        open_permit=opening,
-        close_permit=close_permit(opening),
-    )
+    session = RecordingSession([])
 
-    with pytest.raises(PaperDemoNotApproved, match="PAPER mode"):
-        plan.approval_template_json_bytes()
+    with pytest.raises(HostMcpConfigurationError, match="paper environment"):
+        factory = HostMcpPaperSessionFactory(
+            HostMcpSessionIdentity(environment="LIVE"),  # type: ignore[arg-type]
+            clock=lambda: NOW,
+        )
+        asyncio.run(factory.connect(session))
+
+    assert session.calls == []
 
 
 def test_preflight_rejects_expired_permit_before_writing_approval() -> None:

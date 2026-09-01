@@ -1,0 +1,658 @@
+{
+  "integration": {
+    "audit_source": "live GitHub public-commit readback plus local commit-tree and ancestry verification",
+    "audited_at": "2026-08-31T13:19:51Z",
+    "audited_source_pr_count": 16,
+    "public_provenance_anchor": {
+      "head": "ec774e44908b0211fdc6baacafdb8af268714692",
+      "selection": "Earliest publicly reachable merge commit predating this manifest and verified to contain all 16 reviewed source heads; this anchor proves closure without claiming to be each historical merge parent.",
+      "tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
+      "url": "https://github.com/Tempest-Research/esscher-market/commit/ec774e44908b0211fdc6baacafdb8af268714692"
+    },
+    "pull_request": 52,
+    "url": "https://github.com/Tempest-Research/esscher-market/pull/52"
+  },
+  "schema": "esscher.integration_manifest",
+  "schema_version": 3,
+  "source_prs": [
+    {
+      "ancestry_closure": {
+        "checked_against_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "checked_against_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
+        "source_head_is_ancestor": true
+      },
+      "conflict_or_replay_receipt": {
+        "evidence": "No special conflict or replay receipt is required; exact merge or ancestry provenance is recorded below.",
+        "kind": "not_required",
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/34"
+      },
+      "integration_provenance": {
+        "integration_commit": "57030a29aa8c68cc3ded13b938865085a17da66b",
+        "integration_tree": "0bc1654f2e764cb937a9ecafcf1f680ecb66baf0",
+        "provenance_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "provenance_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733"
+      },
+      "number": 34,
+      "relationship": "normal_merge",
+      "review": {
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/34#pullrequestreview-5062466283",
+        "task": "GitHub exact-head pull-request review",
+        "verdict": "APPROVED"
+      },
+      "reviewed_source": {
+        "head": "0b04029df7aee95b3a3804cddd6f1cde8b4d0c48",
+        "source_pr_merge_commit": "57030a29aa8c68cc3ded13b938865085a17da66b",
+        "source_pr_merge_tree": "0bc1654f2e764cb937a9ecafcf1f680ecb66baf0",
+        "tree": "b9f4df54dafb9040a298ee2cf9128381d16551c7"
+      },
+      "state": "MERGED",
+      "targeted_verification": {
+        "command": "uv run pytest",
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/34",
+        "result": "result: 274 passed in 2.21s",
+        "reviewed_source_head": "0b04029df7aee95b3a3804cddd6f1cde8b4d0c48"
+      },
+      "url": "https://github.com/Tempest-Research/esscher-market/pull/34",
+      "version_impact": "none"
+    },
+    {
+      "ancestry_closure": {
+        "checked_against_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "checked_against_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
+        "source_head_is_ancestor": true
+      },
+      "conflict_or_replay_receipt": {
+        "evidence": "No special conflict or replay receipt is required; exact merge or ancestry provenance is recorded below.",
+        "kind": "not_required",
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/35"
+      },
+      "integration_provenance": {
+        "integration_commit": "ad7d2b932abc362bf6f4d873efa731a454eb1e71",
+        "integration_tree": "58277c160fadfd444104b029a00ca06c0e196c97",
+        "provenance_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "provenance_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733"
+      },
+      "number": 35,
+      "relationship": "normal_merge",
+      "review": {
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/35#pullrequestreview-5062553290",
+        "task": "GitHub exact-head pull-request review",
+        "verdict": "APPROVED"
+      },
+      "reviewed_source": {
+        "head": "2e61446b846a0cc6853b8038cba5062f54ee1db5",
+        "source_pr_merge_commit": "ad7d2b932abc362bf6f4d873efa731a454eb1e71",
+        "source_pr_merge_tree": "58277c160fadfd444104b029a00ca06c0e196c97",
+        "tree": "f8479740db3bd68cc2295f7c4edadc3a2d395b22"
+      },
+      "state": "MERGED",
+      "targeted_verification": {
+        "command": "uv run pytest tests/test_bundle_diff.py -q",
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/35",
+        "result": "result: 60 passed, 2 skipped in 0.63s; both skips are symbolic-link tests because symbolic links are unavailable in this environment",
+        "reviewed_source_head": "2e61446b846a0cc6853b8038cba5062f54ee1db5"
+      },
+      "url": "https://github.com/Tempest-Research/esscher-market/pull/35",
+      "version_impact": "minor"
+    },
+    {
+      "ancestry_closure": {
+        "checked_against_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "checked_against_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
+        "source_head_is_ancestor": true
+      },
+      "conflict_or_replay_receipt": {
+        "evidence": "No special conflict or replay receipt is required; exact merge or ancestry provenance is recorded below.",
+        "kind": "not_required",
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/37"
+      },
+      "integration_provenance": {
+        "integration_commit": "7f5ca4c106c4d6c9d0ec83d607941de044088fd5",
+        "integration_tree": "75478dae0d9b6932a8fbb4fe166ad931d98c07e1",
+        "provenance_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "provenance_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733"
+      },
+      "number": 37,
+      "relationship": "normal_merge",
+      "review": {
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/37#pullrequestreview-5062550346",
+        "task": "GitHub exact-head pull-request review",
+        "verdict": "APPROVED"
+      },
+      "reviewed_source": {
+        "head": "9ecba056bc1e8e9427962b8a82dd96124962571a",
+        "source_pr_merge_commit": "7f5ca4c106c4d6c9d0ec83d607941de044088fd5",
+        "source_pr_merge_tree": "75478dae0d9b6932a8fbb4fe166ad931d98c07e1",
+        "tree": "edb42e5fb9ff99cd31530037fe9b87f206a5b434"
+      },
+      "state": "MERGED",
+      "targeted_verification": {
+        "command": "uv run --extra dev python -m pytest tests/test_source_health.py -q",
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/37",
+        "result": "131 passed, 1 skipped (Windows symlink permission)",
+        "reviewed_source_head": "9ecba056bc1e8e9427962b8a82dd96124962571a"
+      },
+      "url": "https://github.com/Tempest-Research/esscher-market/pull/37",
+      "version_impact": "minor"
+    },
+    {
+      "ancestry_closure": {
+        "checked_against_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "checked_against_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
+        "source_head_is_ancestor": true
+      },
+      "conflict_or_replay_receipt": {
+        "evidence": "No special conflict or replay receipt is required; exact merge or ancestry provenance is recorded below.",
+        "kind": "not_required",
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/39"
+      },
+      "integration_provenance": {
+        "integration_commit": "97a783239523586f37e813c5f1fe635f4aa8d66c",
+        "integration_tree": "a82d067c175be9ba2845dbd73d506415d3ee64e4",
+        "provenance_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "provenance_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733"
+      },
+      "number": 39,
+      "relationship": "normal_merge",
+      "review": {
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/39#pullrequestreview-5063717654",
+        "task": "GitHub exact-head pull-request review",
+        "verdict": "COMMENTED"
+      },
+      "reviewed_source": {
+        "head": "dfc98f00a0eadeafc327141cb387fa40dc193860",
+        "source_pr_merge_commit": "97a783239523586f37e813c5f1fe635f4aa8d66c",
+        "source_pr_merge_tree": "a82d067c175be9ba2845dbd73d506415d3ee64e4",
+        "tree": "0fdf5c00c3cc97069a1a63a4586968f5a796d916"
+      },
+      "state": "MERGED",
+      "targeted_verification": {
+        "command": "uv run --locked --extra dev pytest -q",
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/39",
+        "result": "248 passed",
+        "reviewed_source_head": "dfc98f00a0eadeafc327141cb387fa40dc193860"
+      },
+      "url": "https://github.com/Tempest-Research/esscher-market/pull/39",
+      "version_impact": "none"
+    },
+    {
+      "ancestry_closure": {
+        "checked_against_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "checked_against_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
+        "source_head_is_ancestor": true
+      },
+      "conflict_or_replay_receipt": {
+        "evidence": "No special conflict or replay receipt is required; exact merge or ancestry provenance is recorded below.",
+        "kind": "not_required",
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/51"
+      },
+      "integration_provenance": {
+        "integration_commit": "29ccfcce71c526a08134d7ba35d7448f957783a6",
+        "integration_tree": "abe8fab96781c90b52047adb86e7c970eb258bfc",
+        "provenance_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "provenance_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733"
+      },
+      "number": 51,
+      "relationship": "normal_merge",
+      "review": {
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/51#pullrequestreview-5063717794",
+        "task": "GitHub exact-head pull-request review",
+        "verdict": "COMMENTED"
+      },
+      "reviewed_source": {
+        "head": "267f13088b9216b8a9a434241a185feed1862963",
+        "source_pr_merge_commit": "29ccfcce71c526a08134d7ba35d7448f957783a6",
+        "source_pr_merge_tree": "abe8fab96781c90b52047adb86e7c970eb258bfc",
+        "tree": "0cee8720936b991899e8a18d1b18998e14a8f868"
+      },
+      "state": "MERGED",
+      "targeted_verification": {
+        "command": "uv run pytest -q tests/test_competition_contract.py",
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/51",
+        "result": "62 passed in 0.13s",
+        "reviewed_source_head": "267f13088b9216b8a9a434241a185feed1862963",
+        "source": "post-integration replay at exact reviewed source head"
+      },
+      "url": "https://github.com/Tempest-Research/esscher-market/pull/51",
+      "version_impact": "minor"
+    },
+    {
+      "ancestry_closure": {
+        "checked_against_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "checked_against_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
+        "source_head_is_ancestor": true
+      },
+      "conflict_or_replay_receipt": {
+        "evidence": "No special conflict or replay receipt is required; exact merge or ancestry provenance is recorded below.",
+        "kind": "not_required",
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/53"
+      },
+      "integration_provenance": {
+        "closure": "ALREADY_INTEGRATED_BY_ANCESTRY",
+        "provenance_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
+        "source_head_is_ancestor_of_anchor": "ec774e44908b0211fdc6baacafdb8af268714692"
+      },
+      "number": 53,
+      "relationship": "already_integrated_by_ancestry",
+      "review": {
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/53#pullrequestreview-5062555132",
+        "task": "GitHub exact-head pull-request review",
+        "verdict": "APPROVED"
+      },
+      "reviewed_source": {
+        "head": "eb958641aa64e4ac43b322a74456b7ba49a3e661",
+        "source_pr_merge_commit": null,
+        "source_pr_merge_tree": null,
+        "tree": "53804bc642a3e3e3d6a2196620b540a4e72aa754"
+      },
+      "state": "CLOSED",
+      "targeted_verification": {
+        "command": "uv run pytest",
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/53",
+        "result": "288 passed in 2.59s",
+        "reviewed_source_head": "eb958641aa64e4ac43b322a74456b7ba49a3e661"
+      },
+      "url": "https://github.com/Tempest-Research/esscher-market/pull/53",
+      "version_impact": "minor"
+    },
+    {
+      "ancestry_closure": {
+        "checked_against_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "checked_against_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
+        "source_head_is_ancestor": true
+      },
+      "conflict_or_replay_receipt": {
+        "evidence": "No special conflict or replay receipt is required; exact merge or ancestry provenance is recorded below.",
+        "kind": "not_required",
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/54"
+      },
+      "integration_provenance": {
+        "closure": "ALREADY_INTEGRATED_BY_ANCESTRY",
+        "provenance_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
+        "source_head_is_ancestor_of_anchor": "ec774e44908b0211fdc6baacafdb8af268714692"
+      },
+      "number": 54,
+      "relationship": "already_integrated_by_ancestry",
+      "review": {
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/54#pullrequestreview-5062445337",
+        "task": "GitHub exact-head pull-request review",
+        "verdict": "APPROVED"
+      },
+      "reviewed_source": {
+        "head": "e80bae37165ffc5f209d7a69d6f2f3b8530154fb",
+        "source_pr_merge_commit": null,
+        "source_pr_merge_tree": null,
+        "tree": "ef5cdaf8b52af875d595e53a80667d5f27773a16"
+      },
+      "state": "CLOSED",
+      "targeted_verification": {
+        "command": "uv run pytest tests/test_strategy_snapshot_collector.py -q",
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/54",
+        "result": "result: 57 passed in 12.75s",
+        "reviewed_source_head": "e80bae37165ffc5f209d7a69d6f2f3b8530154fb"
+      },
+      "url": "https://github.com/Tempest-Research/esscher-market/pull/54",
+      "version_impact": "none"
+    },
+    {
+      "ancestry_closure": {
+        "checked_against_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "checked_against_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
+        "source_head_is_ancestor": true
+      },
+      "conflict_or_replay_receipt": {
+        "evidence": "No special conflict or replay receipt is required; exact merge or ancestry provenance is recorded below.",
+        "kind": "not_required",
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/56"
+      },
+      "integration_provenance": {
+        "closure": "ALREADY_INTEGRATED_BY_ANCESTRY",
+        "provenance_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
+        "source_head_is_ancestor_of_anchor": "ec774e44908b0211fdc6baacafdb8af268714692"
+      },
+      "number": 56,
+      "relationship": "already_integrated_by_ancestry",
+      "review": {
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/56#pullrequestreview-5062445411",
+        "task": "GitHub exact-head pull-request review",
+        "verdict": "APPROVED"
+      },
+      "reviewed_source": {
+        "head": "8bd929ddb9a0278f2c3169e8aba5cb099c24cec8",
+        "source_pr_merge_commit": null,
+        "source_pr_merge_tree": null,
+        "tree": "70a8022fb19012706c9a0fd20b11c0cc035a5fbc"
+      },
+      "state": "CLOSED",
+      "targeted_verification": {
+        "command": "uv run pytest -q",
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/56",
+        "result": "result: 362 passed in 24.85s",
+        "reviewed_source_head": "8bd929ddb9a0278f2c3169e8aba5cb099c24cec8"
+      },
+      "url": "https://github.com/Tempest-Research/esscher-market/pull/56",
+      "version_impact": "minor"
+    },
+    {
+      "ancestry_closure": {
+        "checked_against_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "checked_against_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
+        "source_head_is_ancestor": true
+      },
+      "conflict_or_replay_receipt": {
+        "evidence": "No special conflict or replay receipt is required; exact merge or ancestry provenance is recorded below.",
+        "kind": "not_required",
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/38"
+      },
+      "integration_provenance": {
+        "integration_commit": "3f5c07572f9babdb334d8a815b19e81c5775a9e3",
+        "integration_tree": "abe8fab96781c90b52047adb86e7c970eb258bfc",
+        "provenance_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "provenance_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733"
+      },
+      "number": 38,
+      "relationship": "normal_merge",
+      "review": {
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/38#pullrequestreview-5062618626",
+        "task": "GitHub exact-head pull-request review",
+        "verdict": "APPROVED"
+      },
+      "reviewed_source": {
+        "head": "18b4a3dc2052c3b3ea3194aeb65fe0a3f1276cb3",
+        "source_pr_merge_commit": "3f5c07572f9babdb334d8a815b19e81c5775a9e3",
+        "source_pr_merge_tree": "abe8fab96781c90b52047adb86e7c970eb258bfc",
+        "tree": "0ca2493e45b90295bb6cdc56ba7d752d23646f79"
+      },
+      "state": "MERGED",
+      "targeted_verification": {
+        "command": "uv run pytest -q tests/test_qfast.py",
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/38",
+        "result": "6 passed in 0.06s",
+        "reviewed_source_head": "18b4a3dc2052c3b3ea3194aeb65fe0a3f1276cb3",
+        "source": "post-integration replay at exact reviewed source head"
+      },
+      "url": "https://github.com/Tempest-Research/esscher-market/pull/38",
+      "version_impact": "minor"
+    },
+    {
+      "ancestry_closure": {
+        "checked_against_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "checked_against_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
+        "source_head_is_ancestor": true
+      },
+      "conflict_or_replay_receipt": {
+        "evidence": "PR body records the normal two-parent merge and checksum-verified approved patch replay with git am --3way.",
+        "kind": "two-parent reconstruction with approved patch replay",
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/58"
+      },
+      "integration_provenance": {
+        "integration_commit": "12ffabcea7f4d0cc895d8551aad59088bca6af46",
+        "integration_tree": "abe8fab96781c90b52047adb86e7c970eb258bfc",
+        "provenance_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "provenance_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733"
+      },
+      "number": 58,
+      "relationship": "normal_merge",
+      "review": {
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/58#pullrequestreview-5062799185",
+        "task": "GitHub exact-head pull-request review",
+        "verdict": "APPROVED"
+      },
+      "reviewed_source": {
+        "head": "73f5cfd4eabfd5b89189560580ee12ca5b890af8",
+        "source_pr_merge_commit": "12ffabcea7f4d0cc895d8551aad59088bca6af46",
+        "source_pr_merge_tree": "abe8fab96781c90b52047adb86e7c970eb258bfc",
+        "tree": "8ebed6f11ff2b003b37036e84758e1f68ee6c70d"
+      },
+      "state": "MERGED",
+      "targeted_verification": {
+        "command": "UV_OFFLINE=1 uv run --extra dev python -m pytest tests/test_expression_tournament.py -q",
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/58",
+        "result": "68 passed in 0.35s",
+        "reviewed_source_head": "73f5cfd4eabfd5b89189560580ee12ca5b890af8"
+      },
+      "url": "https://github.com/Tempest-Research/esscher-market/pull/58",
+      "version_impact": "minor"
+    },
+    {
+      "ancestry_closure": {
+        "checked_against_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "checked_against_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
+        "source_head_is_ancestor": true
+      },
+      "conflict_or_replay_receipt": {
+        "evidence": "No special conflict or replay receipt is required; exact merge or ancestry provenance is recorded below.",
+        "kind": "not_required",
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/59"
+      },
+      "integration_provenance": {
+        "integration_commit": "f1fc3aa625ff9309976eac5cc9cdb99a9c66e303",
+        "integration_tree": "6618a4ab7f33e1c75f4371cd072561076a6a03bc",
+        "provenance_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "provenance_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733"
+      },
+      "number": 59,
+      "relationship": "normal_merge",
+      "review": {
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/59#pullrequestreview-5063058782",
+        "task": "GitHub exact-head pull-request review",
+        "verdict": "APPROVED"
+      },
+      "reviewed_source": {
+        "head": "30c9fb6e99bc38d238ef599900f4f27907fc6b38",
+        "source_pr_merge_commit": "f1fc3aa625ff9309976eac5cc9cdb99a9c66e303",
+        "source_pr_merge_tree": "6618a4ab7f33e1c75f4371cd072561076a6a03bc",
+        "tree": "0be46f15ea8ebd8a8d52e332aec850d1eb005305"
+      },
+      "state": "MERGED",
+      "targeted_verification": {
+        "command": "UV_OFFLINE=1 uv run --extra dev python -m pytest tests/test_risk_kernel.py -q",
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/59",
+        "result": "24 passed in 3.15s",
+        "reviewed_source_head": "30c9fb6e99bc38d238ef599900f4f27907fc6b38"
+      },
+      "url": "https://github.com/Tempest-Research/esscher-market/pull/59",
+      "version_impact": "minor"
+    },
+    {
+      "ancestry_closure": {
+        "checked_against_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "checked_against_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
+        "source_head_is_ancestor": true
+      },
+      "conflict_or_replay_receipt": {
+        "evidence": "No special conflict or replay receipt is required; exact merge or ancestry provenance is recorded below.",
+        "kind": "not_required",
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/62"
+      },
+      "integration_provenance": {
+        "integration_commit": "88f0e7598627c24a96b62ad6b0a4866b408d0083",
+        "integration_tree": "75c490eaa442376e069d0244be31fe83df3f3305",
+        "provenance_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "provenance_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733"
+      },
+      "number": 62,
+      "relationship": "normal_merge",
+      "review": {
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/62#pullrequestreview-5063718334",
+        "task": "GitHub exact-head pull-request review",
+        "verdict": "COMMENTED"
+      },
+      "reviewed_source": {
+        "head": "f44d4c5e7902ab4b59e4782a9452f423a69fcc87",
+        "source_pr_merge_commit": "88f0e7598627c24a96b62ad6b0a4866b408d0083",
+        "source_pr_merge_tree": "75c490eaa442376e069d0244be31fe83df3f3305",
+        "tree": "cc2a7c1f2ea7c3b87b959a536cfd6976ee960de2"
+      },
+      "state": "MERGED",
+      "targeted_verification": {
+        "command": "uv run pytest -q",
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/62",
+        "result": "573 passed",
+        "reviewed_source_head": "f44d4c5e7902ab4b59e4782a9452f423a69fcc87"
+      },
+      "url": "https://github.com/Tempest-Research/esscher-market/pull/62",
+      "version_impact": "minor"
+    },
+    {
+      "ancestry_closure": {
+        "checked_against_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "checked_against_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
+        "source_head_is_ancestor": true
+      },
+      "conflict_or_replay_receipt": {
+        "evidence": "No special conflict or replay receipt is required; exact merge or ancestry provenance is recorded below.",
+        "kind": "not_required",
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/55"
+      },
+      "integration_provenance": {
+        "closure": "ALREADY_INTEGRATED_BY_ANCESTRY",
+        "provenance_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
+        "source_head_is_ancestor_of_anchor": "ec774e44908b0211fdc6baacafdb8af268714692"
+      },
+      "number": 55,
+      "relationship": "already_integrated_by_ancestry_after_pr_62",
+      "review": {
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/55#pullrequestreview-5062467317",
+        "task": "GitHub exact-head pull-request review",
+        "verdict": "APPROVED"
+      },
+      "reviewed_source": {
+        "head": "c3c00513d43ae8edae29dcb5db1f12ef7f6456b5",
+        "source_pr_merge_commit": null,
+        "source_pr_merge_tree": null,
+        "tree": "c638f7f9e6ba777a088ec9f45edf592b2fa5edcb"
+      },
+      "state": "CLOSED",
+      "targeted_verification": {
+        "command": "uv run --extra dev pytest",
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/55",
+        "result": "Focused: 21 passed",
+        "reviewed_source_head": "c3c00513d43ae8edae29dcb5db1f12ef7f6456b5"
+      },
+      "url": "https://github.com/Tempest-Research/esscher-market/pull/55",
+      "version_impact": "minor"
+    },
+    {
+      "ancestry_closure": {
+        "checked_against_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "checked_against_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
+        "source_head_is_ancestor": true
+      },
+      "conflict_or_replay_receipt": {
+        "evidence": "PR body records the prior live head, repaired head/tree, sole parent, and exact repaired-tree verification.",
+        "kind": "CI portability repair",
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/57"
+      },
+      "integration_provenance": {
+        "integration_commit": "245ad41bcac5fd05e53c3eb81aa6c3ee8755d27f",
+        "integration_tree": "75c490eaa442376e069d0244be31fe83df3f3305",
+        "provenance_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "provenance_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733"
+      },
+      "number": 57,
+      "relationship": "normal_merge",
+      "review": {
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/57#pullrequestreview-5063717927",
+        "task": "GitHub exact-head pull-request review",
+        "verdict": "COMMENTED"
+      },
+      "reviewed_source": {
+        "head": "4355c80ef9221554a3274424ecbfebfd0e29cbf2",
+        "source_pr_merge_commit": "245ad41bcac5fd05e53c3eb81aa6c3ee8755d27f",
+        "source_pr_merge_tree": "75c490eaa442376e069d0244be31fe83df3f3305",
+        "tree": "8d46d8edba8066dc006463d4d4f5a1a9631bf841"
+      },
+      "state": "MERGED",
+      "targeted_verification": {
+        "command": "uv run pytest -q tests/test_capture_output_boundaries.py tests/test_issue41_capture_boundary.py tests/test_issue41_installed_wheel.py tests/test_source_matrix_contract.py tests/test_source_rights_gate.py tests/test_strategy_snapshot_collector.py",
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/57",
+        "result": "117 passed, 10 skipped in 17.48s (Windows symlink privilege skips)",
+        "reviewed_source_head": "4355c80ef9221554a3274424ecbfebfd0e29cbf2",
+        "source": "post-integration replay at exact reviewed source head"
+      },
+      "url": "https://github.com/Tempest-Research/esscher-market/pull/57",
+      "version_impact": "none"
+    },
+    {
+      "ancestry_closure": {
+        "checked_against_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "checked_against_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
+        "source_head_is_ancestor": true
+      },
+      "conflict_or_replay_receipt": {
+        "evidence": "PR body records the normal merge onto approved PR #57 lineage and repaired exact head/tree.",
+        "kind": "two-parent source-lineage repair",
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/60"
+      },
+      "integration_provenance": {
+        "integration_commit": "5466502047b58e97097ae95fff4592850b93c9dd",
+        "integration_tree": "fbefb293bd51a96d0e597b024e37a0aa006867c8",
+        "provenance_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "provenance_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733"
+      },
+      "number": 60,
+      "relationship": "normal_merge",
+      "review": {
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/60#pullrequestreview-5063718065",
+        "task": "GitHub exact-head pull-request review",
+        "verdict": "COMMENTED"
+      },
+      "reviewed_source": {
+        "head": "241f377da3831e28122b3e29fb33769cb3fe08f4",
+        "source_pr_merge_commit": "5466502047b58e97097ae95fff4592850b93c9dd",
+        "source_pr_merge_tree": "fbefb293bd51a96d0e597b024e37a0aa006867c8",
+        "tree": "ed3662ba98c2f0d53580b1a65c0ad131e15a622f"
+      },
+      "state": "MERGED",
+      "targeted_verification": {
+        "command": "UV_OFFLINE=1 uv run --extra dev pytest -q",
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/60",
+        "result": "512 passed, 11 skipped.",
+        "reviewed_source_head": "241f377da3831e28122b3e29fb33769cb3fe08f4"
+      },
+      "url": "https://github.com/Tempest-Research/esscher-market/pull/60",
+      "version_impact": "minor"
+    },
+    {
+      "ancestry_closure": {
+        "checked_against_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "checked_against_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
+        "source_head_is_ancestor": true
+      },
+      "conflict_or_replay_receipt": {
+        "evidence": "No special conflict or replay receipt is required; exact merge or ancestry provenance is recorded below.",
+        "kind": "not_required",
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/61"
+      },
+      "integration_provenance": {
+        "integration_commit": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "integration_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
+        "provenance_anchor_head": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "provenance_anchor_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733"
+      },
+      "number": 61,
+      "relationship": "normal_merge",
+      "review": {
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/61#pullrequestreview-5063718205",
+        "task": "GitHub exact-head pull-request review",
+        "verdict": "COMMENTED"
+      },
+      "reviewed_source": {
+        "head": "aed132c1aaf38a99a7459ea41fcc0307dd276074",
+        "source_pr_merge_commit": "ec774e44908b0211fdc6baacafdb8af268714692",
+        "source_pr_merge_tree": "58cfd42f67554c4e86b2096c6c01ebe5edde5733",
+        "tree": "25f3e8cbe0b42f1ae48a0c8092a91be080c5082c"
+      },
+      "state": "MERGED",
+      "targeted_verification": {
+        "command": "uv run --extra dev pytest",
+        "receipt": "https://github.com/Tempest-Research/esscher-market/pull/61",
+        "result": "539 passed, 11 skipped in 43.78s. The skips are Windows symlink cases blocked by missing link privilege; they remain covered for CI environments that permit symlink creation.",
+        "reviewed_source_head": "aed132c1aaf38a99a7459ea41fcc0307dd276074"
+      },
+      "url": "https://github.com/Tempest-Research/esscher-market/pull/61",
+      "version_impact": "minor"
+    }
+  ]
+}

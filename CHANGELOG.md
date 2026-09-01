@@ -1,28 +1,25 @@
 # Changelog
 
-## [Unreleased]
+## [0.3.0] - Unreleased
 
 ### Added
 
-- Four pre-outcome scheduled-earnings replay manifests bound to one frozen event list and selection rule.
-- A strict data-only evidence-manifest v2 validator with event-context provenance and point-in-time gates.
-- Versioned, strict frozen-research-decision, point-in-time evidence-manifest, and feature-input contracts.
-- Pure deterministic mapping from one eligible research decision to one immutable PAPER debit-vertical permit.
-- Exact decision, evidence, input, protocol, and policy lineage in serialized permits and downstream MCP identity checks.
-- Inert paper-demo orchestration with exact permit/capability approval, durable submit-once recovery markers, and a bounded official-MCP mutation envelope.
-- Sanitized deterministic terminal receipt bundles with broker-observed `ZERO_NO_FILL`, exact gross `PAPER_REALIZED_PNL`, or explicit `PAPER_PNL_UNAVAILABLE` classification.
-- One-shot scheduled `PAPER` event execution with strict manifest/due-window identity, atomic restart state, deterministic broker reconciliation, terminal no-ops, overlap rejection, and mutation-free dry run.
-- Synthetic contract fixtures for terminal-flat, rejected-before-mutation, and manual-reconciliation scheduled outcomes.
-- A deterministic self-contained offline evidence-to-receipt trace with visible JSON-pointer attribution, terminal, rejected, and manual-reconciliation contract views.
+- A deterministic offline chain from point-in-time source-rights and CIK-rooted security lineage through feature receipts, bounded decisions, Gate D expression selection, PAPER risk controls, and monitored lifecycle state reduction.
+- Security-lineage receipts that bind issuer, security, listing, corporate-action, and option-adjustment evidence to the decision cutoff; current-ticker fallback, conflicting lineage, and unresolved option adjustments fail closed.
+- A feature-receipt contract that binds preregistered features, data health, public-timestamp maximum, evidence IDs, and lineage identity without a provider, model, account, or broker surface.
+- A read-only expression tournament plus deterministic compiled-expression boundary, an isolated SQLite WAL risk ledger and hash-linked Trade Passport, and a persisted monitored PAPER lifecycle contract.
+- `docs/INTEGRATION_MANIFEST.json`, mapping every reviewed source head in the release train to its final integration relationship.
+
+### Changed
+
+- The canonical repository is `Tempest-Research/esscher-market`; the `ringdown-market` distribution, `ringdown_market` import package, and `ringdown` CLI remain compatibility interfaces.
+- The release train version advances from `0.2.0` to `0.3.0` in the canonical `pyproject.toml` source.
 
 ### Safety
 
-- Unknown fields/states, hash or provenance mismatch, post-cutoff dependencies, abstention, failed research gates, unsupported strategy shape, and excess paper risk fail closed before any broker session exists.
-- Evidence-manifest v2 remains ineligible for permit compilation and carries no post-cutoff path or outcome value.
-- Partial or contradictory package fills stop for reconciliation; missing fees remain explicit and raw broker/account identities never enter the receipt bundle.
-- Scheduled unknown, ambiguous, partial, overlapping, or integrity-invalid state fails closed without sequential-leg repair, guessed P&L, or another mutation.
-- The packaged trace is static and no-network; it rejects weakened labels or malformed PAPER receipt boundaries, escapes untrusted text, and leaves unsupported decision, permit, receipt, and P&L fields visibly missing.
-- Version impact is `minor`; the package stays at `0.2.0` while issue #11 consolidates the release-train bump to `0.3.0`.
+- Gate A remains `UNVERIFIED`; policy, expression, risk, and lifecycle contracts do not grant data-provider, account, broker, or PAPER-mutation authority.
+- All capture, risk, and lifecycle tests use explicit fixtures or fake brokers. The monitored lifecycle's mutation gate remains closed, so this release is not evidence of a live PAPER fill, executable historical option pricing, alpha, or real-money capability.
+- Missing, stale, post-cutoff, contradictory, partial, or unresolved evidence and broker truth fail closed to rejection, close-only, or manual reconciliation rather than creating a fallback path.
 
 ## [0.2.0] - Unreleased
 
@@ -43,7 +40,6 @@
 
 - Adopted Esscher as the public product name while retaining the `ringdown-market` distribution, `ringdown_market` import package, and `ringdown` CLI for compatibility.
 - Retained the legacy report `project: "Ringdown"` value and added `product_name: "Esscher"` as an additive display alias.
-- Documented the post-merge repository rename checklist and added a deterministic stale-public-brand check.
 
 ## [0.1.0]
 

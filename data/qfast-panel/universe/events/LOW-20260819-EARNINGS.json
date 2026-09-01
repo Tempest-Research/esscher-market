@@ -1,0 +1,138 @@
+{
+  "schema": "ringdown.historical_evidence_manifest",
+  "schema_version": 1,
+  "event_id": "LOW-20260819-EARNINGS",
+  "issuer": "Lowe's Companies, Inc.",
+  "decision_cutoff": "2026-08-19T13:00:00Z",
+  "latest_evidence_at": "2026-08-19T12:45:07Z",
+  "feature_snapshot_at": "2026-08-30T15:25:00Z",
+  "frozen_at": "2026-08-30T15:25:00Z",
+  "data_class": "POINT_IN_TIME_EVENT_PANEL",
+  "data_qualifiers": [
+    "INDICATIVE_DATA",
+    "NOT_ALPHA_EVIDENCE",
+    "NO_OUTCOME_VALUES",
+    "NO_BROKER_EXECUTION"
+  ],
+  "event_list_sha256": "af9d2cfd4c14ad113403c7452a92d17ab7ba2c96ab978ec168648441022ab8f6",
+  "selection_rule_sha256": "576039d32f7358ffe7da2f527942af31d1059c3b1cbd58c7f0d7e66b22ea0e19",
+  "event_context": {
+    "ticker": "LOW",
+    "sector": "CONSUMER_DISCRETIONARY",
+    "event_timezone": "America/New_York",
+    "scheduled_event_at": "2026-08-19T13:00:00Z",
+    "event_category": "SCHEDULED_EARNINGS",
+    "market_proxy": "SPY",
+    "sector_proxy": "XLY",
+    "session_id": "XNYS-2026-08-19",
+    "session_open_at": "2026-08-19T13:30:00Z",
+    "session_close_at": "2026-08-19T20:00:00Z",
+    "observation_type": "EARNINGS_CONFERENCE_CALL",
+    "entry_session_policy": "NEXT_REGULAR_SESSION_AFTER_SCHEDULED_EVENT",
+    "missing_or_conflicting_evidence": [],
+    "inclusion_or_exclusion_reason": "INCLUDED: issuer Form 8-K press release fixes an exact before-open conference-call instant at 09:00 ET on 2026-08-19, accessioned by EDGAR before the cutoff."
+  },
+  "records": [
+    {
+      "evidence_id": "low-issuer-release",
+      "source_kind": "ISSUER_PRIMARY",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/60667/000006066726000113/exhibit991-07312026.htm",
+      "publisher": "Lowe's Companies, Inc.",
+      "published_at": null,
+      "published_at_interval": {
+        "start": "2026-08-19T00:00:00Z",
+        "end": "2026-08-19T12:45:07Z"
+      },
+      "published_at_type": "COLLECTOR_OBSERVED_UPPER_BOUND",
+      "published_at_precision": "DATE_INTERVAL",
+      "retrieved_at": "2026-08-30T15:25:00Z",
+      "content_sha256": "a8af92aaac846e43abaab9927fffb05bd237a41c6157f1ac0dd9293c1ebd1c55",
+      "field_status": "PRESENT",
+      "entitlement_note": "Issuer earnings press release furnished as a Form 8-K exhibit on SEC EDGAR.",
+      "redistribution_status": "METADATA_AND_HASH_ONLY",
+      "limitations": [
+        "INDICATIVE_DATA",
+        "NOT_ALPHA_EVIDENCE"
+      ],
+      "preservation": {
+        "kind": "EDGAR_ACCESSIONED",
+        "accession_number": "0000060667-26-000113",
+        "accepted_at": "2026-08-19T12:45:07Z",
+        "url": "https://www.sec.gov/Archives/edgar/data/60667/000006066726000113/exhibit991-07312026.htm"
+      }
+    },
+    {
+      "evidence_id": "low-earnings-8k",
+      "source_kind": "SEC_OFFICIAL",
+      "source_url": "https://www.sec.gov/Archives/edgar/data/60667/000006066726000113/index.json",
+      "publisher": "U.S. Securities and Exchange Commission",
+      "published_at": "2026-08-19T12:45:07Z",
+      "published_at_interval": null,
+      "published_at_type": "OFFICIAL_DISSEMINATION_TIMESTAMP",
+      "published_at_precision": "SECOND",
+      "retrieved_at": "2026-08-30T15:25:00Z",
+      "content_sha256": "254f716a2f054154995ad1e4c458c515a0eb527f63a6ad1834681a0386061719",
+      "field_status": "PRESENT",
+      "entitlement_note": "Form 8-K Item 2.02 filing index disseminated by SEC EDGAR.",
+      "redistribution_status": "METADATA_AND_HASH_ONLY",
+      "limitations": [
+        "INDICATIVE_DATA",
+        "NOT_ALPHA_EVIDENCE"
+      ],
+      "preservation": {
+        "kind": "EDGAR_ACCESSIONED",
+        "accession_number": "0000060667-26-000113",
+        "accepted_at": "2026-08-19T12:45:07Z",
+        "url": "https://www.sec.gov/Archives/edgar/data/60667/000006066726000113/index.json"
+      }
+    }
+  ],
+  "field_source_refs": {
+    "ticker": [
+      "low-issuer-release",
+      "low-earnings-8k"
+    ],
+    "event_timezone": [
+      "low-issuer-release"
+    ],
+    "scheduled_event_at": [
+      "low-issuer-release"
+    ],
+    "event_category": [
+      "low-issuer-release",
+      "low-earnings-8k"
+    ],
+    "observation_type": [
+      "low-issuer-release"
+    ]
+  },
+  "feature_dependencies": [
+    {
+      "feature_id": "event_schedule",
+      "source_refs": [
+        "low-issuer-release",
+        "low-earnings-8k"
+      ],
+      "dependency_check": "ELIGIBLE"
+    },
+    {
+      "feature_id": "regular_session_window",
+      "source_refs": [],
+      "dependency_check": "ELIGIBLE"
+    }
+  ],
+  "sec_filing": {
+    "url": "https://www.sec.gov/Archives/edgar/data/60667/000006066726000113/index.json",
+    "accepted_at": "2026-08-19T12:45:07Z",
+    "status": "AVAILABLE",
+    "reason": "Item 2.02 earnings Form 8-K accessioned by EDGAR before the decision cutoff."
+  },
+  "entitlement_note": "SEC EDGAR filings are public records; only metadata and content hashes are redistributed, raw source bytes remain host-side.",
+  "redistribution_status": "METADATA_AND_HASH_ONLY",
+  "limitations": [
+    "INDICATIVE_DATA",
+    "NOT_ALPHA_EVIDENCE",
+    "NO_OUTCOME_VALUES",
+    "NO_BROKER_EXECUTION"
+  ]
+}

@@ -21,7 +21,7 @@ This directory gives the team one place to read the current plan, understand how
 
 | Document | Status | Purpose | SHA-256 |
 |---|---|---|---|
-| [`CURRENT.md`](CURRENT.md) | **Current** | Complete end-state architecture, accepted strategy decision, unresolved evidence-backed parameters, build dependencies, and proof requirements | `6147131e27f0ef5d1f0c000a77731aceb115fa44c2550646e444b48d93f12752` |
+| [`CURRENT.md`](CURRENT.md) | **Current** | Complete end-state architecture, accepted strategy decision, parameter-selection protocol, PAPER commissioning risk/exit/latency policy, build dependencies, and proof requirements | `7d6eda8aa7fc95cfb8dd96370f8db69e859878c55e1edb1077bd0758aefb7e2e` |
 | [`archive/2026-08-30-strategy-first-issue-plan.md`](archive/2026-08-30-strategy-first-issue-plan.md) | Historical issue snapshot | Readable pre-reconciliation snapshot of issues #3, #9, and #26–#33, including their earlier fixed assumptions | `df029cb7f97e7b210e2b163a6a8562d85cff3fb75e5815ae1b70ecd48d964536` |
 | [`archive/2026-08-30-autonomous-llm-plan-draft.md`](archive/2026-08-30-autonomous-llm-plan-draft.md) | Superseded draft | Earlier autonomous LLM research-to-PAPER plan; preserved as historical content, including obsolete reduced-scope terminology | `9f580263a3788d2de01114eb0306c9ea88f23d1e3766ff3d2fc106f4e40eb345` |
 | [`research/2026-08-30-quant-data-ai-evidence-memo.md`](research/2026-08-30-quant-data-ai-evidence-memo.md) | Research input | Point-in-time data, universe, feature, AI, falsification, and sample-size analysis | `b978700605b651d30e45ed8a0da0403fe29aa114b082451ef8cf6e52538bc246` |

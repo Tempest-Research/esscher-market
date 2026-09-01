@@ -94,6 +94,81 @@ class OpenOrderCall:
         return deepcopy(dict(self._arguments))
 
 
+def build_lifecycle_order_call(
+    *,
+    client_order_id: str,
+    limit_price: Decimal,
+    legs: tuple[object, ...],
+) -> OpenOrderCall:
+    """Compile a durable lifecycle request through the pinned MCP wire schema.
+
+    This helper deliberately receives no permit.  The monitored lifecycle has
+    already persisted and bound the ``BrokerOrderRequest``; this boundary only
+    translates its exact immutable legs into the same official multi-leg MCP
+    shape used by the legacy bridge.
+    """
+
+    if not isinstance(client_order_id, str) or not client_order_id.strip():
+        raise ValueError("client_order_id must be non-empty exact text")
+    if not isinstance(limit_price, Decimal) or not limit_price.is_finite():
+        raise ValueError("limit_price must be a finite Decimal")
+    if not legs:
+        raise ValueError("lifecycle order requires at least one leg")
+    encoded_legs: list[dict[str, str]] = []
+    quantities: set[int] = set()
+    for index, leg in enumerate(legs):
+        symbol = getattr(leg, "symbol", None)
+        quantity = getattr(leg, "quantity", None)
+        side = getattr(leg, "side", None)
+        position_intent = getattr(leg, "position_intent", None)
+        if (
+            not isinstance(symbol, str)
+            or not symbol.strip()
+            or isinstance(quantity, bool)
+            or not isinstance(quantity, int)
+            or quantity <= 0
+            or not isinstance(side, str)
+            or not side.strip()
+            or not isinstance(position_intent, str)
+            or not position_intent.strip()
+        ):
+            raise ValueError(f"lifecycle order leg {index} is malformed")
+        quantities.add(quantity)
+        encoded_legs.append(
+            {
+                "symbol": symbol,
+                "ratio_qty": str(quantity),
+                "side": side,
+                "position_intent": position_intent,
+            }
+        )
+    if len(quantities) != 1:
+        raise ValueError("lifecycle multi-leg quantities must be equal")
+    arguments: dict[str, object] = {
+        "qty": str(quantities.pop()),
+        "type": "limit",
+        "time_in_force": "day",
+        "limit_price": _decimal_text(limit_price),
+        "client_order_id": client_order_id,
+        "order_class": "mleg",
+        "legs": encoded_legs,
+    }
+    request_sha256 = _sha256(
+        {
+            "adapter": "ALPACA_MCP",
+            "adapter_version": ALPACA_MCP_VERSION,
+            "adapter_commit": ALPACA_MCP_COMMIT,
+            "tool": OPEN_TOOL,
+            "arguments": arguments,
+        }
+    )
+    return OpenOrderCall(
+        client_order_id=client_order_id,
+        request_sha256=request_sha256,
+        _arguments=tuple(arguments.items()),
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class OpenOrderReceipt:
     """Sanitized identity receipt after submit and broker readback agree."""

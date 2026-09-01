@@ -2,20 +2,20 @@
 
 **Measure the move after the first reaction.**
 
-Esscher is a permanently paper-only scheduled-earnings research and controlled-execution system. It combines an offline alpha and latency evaluation harness with one bounded official Alpaca MCP adapter. The package does not load credentials or start an MCP server. Its host injects one normalized session plus a non-secret PAPER environment attestation.
+Esscher is a permanently paper-only scheduled-event research and controlled-PAPER-lifecycle system. It binds point-in-time evidence to frozen strategy, expression, risk, and lifecycle contracts without loading credentials, starting an MCP server, or opening a data-provider path. The package can be exercised entirely with deterministic local fixtures; the production mutation gate remains closed.
 
 ## Name and compatibility
 
-Esscher is the public, human-facing product name. This release deliberately keeps the existing machine interfaces:
+Esscher is the public, human-facing product name. The `0.3.0` integration draft keeps the existing machine interfaces:
 
 - Python distribution: `ringdown-market`;
 - Python import package: `ringdown_market`;
 - CLI command and installed version prefix: `ringdown`;
 - configuration keys, report schema keys, and receipt identifiers: unchanged;
 - report display: keep legacy `project: "Ringdown"` for compatibility and use additive `product_name: "Esscher"` for new displays;
-- GitHub repository before the approved external cutover: `Tempest-Research/ringdown-market`.
+- GitHub repository: `Tempest-Research/esscher-market`.
 
-The current repository URL and its issue, pull-request, and source links remain canonical until the external rename. This change does not claim trademark clearance or ownership of any package-registry name.
+This release does not claim trademark clearance or ownership of any package-registry name.
 
 ## Current slice
 
@@ -29,7 +29,66 @@ Given a point-in-time event fixture and frozen latency profile, the harness prod
 
 Synthetic fixtures are contract tests only. They are never financial evidence.
 
-Given exact frozen decision, point-in-time evidence-manifest, and feature-input bytes, the pure contract bridge:
+The accepted event-strategy research policy freezes the systematic earnings-primary and
+macro-challenger candidates, complete-denominator universe rules, separate cohort clocks,
+permitted source classes, deterministic features and confirmation vetoes, reasoner schema,
+baselines, chronological partitions, and promotion thresholds. Exact canonical policy bytes and
+typed candidate-manifest, snapshot, feature-receipt, reasoner-exchange, and direction-only
+decision contracts live under `ringdown_market.strategy`. Gate A facts remain explicitly
+`UNVERIFIED`; neither the policy, expression compiler, risk kernel, nor lifecycle worker can
+turn that into data collection, account, broker, or PAPER-mutation authority.
+
+### Source-rights capture boundary
+
+The offline snapshot collector is constrained by the authenticated
+`esscher.source_matrix/v1` resource (SHA-256
+`888447640aa705510bc0594abc9a78f22c988e961282ff82a6f44337181d04ca`). Every
+capture rebinds that matrix to the accepted policy
+`afce93b52b96e0d8c71deeb80027a1c87a4cf3623e9417db14de00279fc23bca` and the
+Gate A programme contract
+`40c2e780c684bdde671b028dbdd8c9b13268e659c24e98a2d452ff7c8692f955`. A change
+to any of those bytes fails closed before a snapshot exists.
+
+Capture first selects the exact earnings or macro candidate, checks that candidate's required
+source classes, and resolves a CIK-rooted security/listing lineage at the same decision cutoff.
+It accepts only an explicit synthetic fixture, an explicit zero-offset UTC clock, explicit host
+authorization, and declared rights conditions. The resulting source-matrix and lineage receipts
+are hash-bound into the capture identity and feature receipt. There is no alternate matrix or
+lineage option, default repository-fixture fallback, direct data-provider path, live capture,
+account, broker, or trading authority. See the [source-rights contract](docs/contracts/source-matrix.md)
+and [security-lineage contract](docs/contracts/security-lineage.md).
+
+### Integrated offline decision and PAPER-control contracts
+
+The integration adds a deterministic, fail-closed chain after capture:
+
+1. The feature compiler binds exact evidence IDs, public timestamps, frozen cohort clocks, and
+   the lineage-receipt digest; malformed, post-cutoff, or incomplete inputs are rejected.
+2. Gate D compares cash, shares, one long option, and a defined-risk debit vertical under one
+   frozen policy. It emits a compiled expression or `NO_PACKAGE`; it never places an order or
+   promotes a policy.
+3. The SQLite-backed risk kernel starts `ENTRY_DISABLED`, requires fresh reconciled PAPER truth,
+   then records immutable candidates, reservations, one-use permit authority, and a hash-linked
+   Trade Passport. It has no network or broker-mutation interface.
+4. The monitored lifecycle persists canonical request intent before any possible mutation and
+   verifies broker/account/position truth before a fill or flat result. Its `ClosedMutationGate`
+   remains closed in this repository state, and every test uses a fake broker.
+
+`PaperStrategyApplication` is the explicit composition boundary for that chain. Its non-mutating
+`prepare` route compiles the captured input, calls the injected bounded-reasoner route, compiles
+Gate D, builds the canonical debit-vertical permit, records risk authorization, and returns a
+correlated lifecycle plan. Its optional `open_host` route accepts only a factory-issued opaque
+host-MCP capability. The capability retains the guarded host door privately and re-validates the
+complete PAPER preflight attestation before the lifecycle adapter is constructed: pinned capability
+hash, required tool count, active account status, unblocked account flags, and official adapter
+identity. A copied sanitized observation beside a raw session is not a capability. Without an
+explicit mutation gate the route remains closed. The repository exercises it only with fake host
+sessions and fake reasoner routes.
+
+These contracts are proof of deterministic boundary behavior, not proof of alpha, executable
+historical pricing, a live PAPER fill, or any real-money capability.
+
+Given an exact frozen decision, point-in-time evidence-manifest, and feature-input bytes, the pure contract bridge:
 
 - rejects duplicate, missing, unknown, mutable, or unsupported schema values;
 - verifies exact decision, evidence, input, protocol, and policy identities;
@@ -49,7 +108,7 @@ Given an immutable opening permit and a separately authorized closing permit, th
 - refuses automatic sequential-leg repair after a partial fill;
 - emits a terminal receipt only after broker position truth contains neither event leg.
 
-Before exposing that session to the adapter, the host boundary checks the six required tools from the pinned official surface and reads sanitized account status through `get_account_info`. Missing tools, malformed responses, blocked accounts, and any environment other than PAPER fail closed before a mutation. Runtime calls are limited to the adapter's five official order and position tools; secret-like application arguments are rejected before reaching the host.
+Before issuing that capability, the host boundary checks the six required tools from the pinned official surface and reads sanitized account status through `get_account_info`. Missing tools, malformed responses, blocked accounts, and any environment other than PAPER fail closed before a mutation. Runtime calls remain limited to that pinned order, position, and sanitized account-truth surface; secret-like application arguments are rejected before reaching the host.
 
 The MCP boundary is implemented and contract-tested with injected fake sessions. No real broker call is part of the test suite. This is not evidence of a real paper fill, strategy profitability, or executable historical option pricing.
 
@@ -92,11 +151,17 @@ The page requires no server, JavaScript, network access, credential, or broker s
 - [Team onboarding](docs/TEAM_ONBOARDING.md) — required research and lane ownership.
 - [Source and claim policy](docs/SOURCE_AND_CLAIM_POLICY.md) — evidence metadata and permitted claims.
 - [Point-in-time evidence gate](docs/research/point-in-time-evidence-gate.md) — timing, provenance, residualization, denominator, and options-data contract.
+- [Accepted strategy contract](docs/STRATEGY_V1.md) — exact candidates, clocks, features, baselines, thresholds, authority, and unresolved gates.
+- [Source-rights contract](docs/contracts/source-matrix.md) — packaged matrix identity, evidence limits, candidate-specific preflight, and offline capture boundary.
+- [Security-lineage contract](docs/contracts/security-lineage.md) — CIK-rooted identity, corporate-action evidence, and cutoff-time resolution.
+- [Feature-receipt contract](docs/contracts/feature-receipt.md) — deterministic arithmetic, feature registry, clocks, and receipt bindings.
+- [Expression tournament](docs/EXPRESSION_TOURNAMENT.md), [risk kernel](docs/RISK_KERNEL.md), and [monitored lifecycle](docs/MONITORED_PAPER_LIFECYCLE.md) — isolated PAPER-control contracts and their fail-closed boundaries.
 - [Research-to-permit contract](docs/contracts/research-to-permit.md) — exact schemas, identity mapping, rejection reasons, and frozen policy.
 - [PAPER demonstration runbook](docs/PAPER_DEMO_RUNBOOK.md) — read-only preflight, exact approval, bounded mutation envelope, recovery, and receipt interpretation.
 - [Scheduled-event runbook](docs/SCHEDULED_EVENT_RUNBOOK.md) — one-shot manifest, dry run, armed invocation, restart reconciliation, and stop conditions.
 - [Contributing](CONTRIBUTING.md) — branch, test, review, and safety gates.
 - [Changelog](CHANGELOG.md) — versioned behavior changes and release state.
+- [Integration manifest](docs/INTEGRATION_MANIFEST.json) — exact reviewed source heads and their final release-train relationship.
 
 ## Development
 
@@ -123,13 +188,8 @@ The output is deterministic: identical input bytes and protocol settings produce
 
 Use feature branches and draft pull requests. Keep reviewer requests empty until the diff and public wording are ready. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Repository rename cutover (after merge and approval)
+## Repository status
 
-Do not execute this checklist from the branding pull request. The repository owner performs it only after the pull request merges, the public wording and understanding gate are approved, and current-head CI passes:
-
-1. Rename `Tempest-Research/ringdown-market` to `Tempest-Research/esscher-market` in GitHub settings.
-2. Verify the old repository URL redirects and existing issue, pull-request, commit, and source links still resolve.
-3. Update local Git remotes, repository badges, and canonical source links in a separate cutover change.
-4. Re-run repository hygiene, tests, wheel installation, and the non-destructive CLI smoke check after link updates.
-5. Keep `ringdown-market`, `ringdown_market`, `ringdown`, configuration keys, and receipt/schema identifiers compatible.
-6. Do not publish a renamed registry package or imply trademark clearance as part of the repository rename.
+The canonical repository is `Tempest-Research/esscher-market`. Compatibility interfaces remain
+`ringdown-market`, `ringdown_market`, and `ringdown`; this integration neither publishes a
+registry package nor enables a provider, broker, or account action.

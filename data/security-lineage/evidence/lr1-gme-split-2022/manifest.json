@@ -1,0 +1,55 @@
+{
+ "schema": "esscher.lineage_evidence",
+ "schema_version": 1,
+ "evidence_id": "LR1_GME_SPLIT_2022",
+ "title": "EDGAR 8-K record of a development-partition four-for-one stock split",
+ "lineage_class": "SPLIT_RECORD",
+ "data_class": "SOURCE_FEASIBILITY_PROBE",
+ "claims": [
+  "DEV_ONLY",
+  "NOT_ALPHA_EVIDENCE",
+  "NO_BROKER_EXECUTION",
+  "NOT_HISTORICAL_DATA"
+ ],
+ "partition": "DEVELOPMENT",
+ "reproducibility": "IMMUTABLE_ACCESSION_BYTES",
+ "capture_note": "Immutable EDGAR accession bytes re-download byte-identically; the full-text-search response is a discovery receipt and is not guaranteed immutable.",
+ "artifacts": [
+  {
+   "file": "artifacts/gme-split-0001326380-22-000100-index.json",
+   "url": "https://www.sec.gov/Archives/edgar/data/1326380/000132638022000100/index.json",
+   "retrieved_at": "2026-08-30T22:47:00Z",
+   "sha256": "5a20d7ec858070fccc77bed67671dba7f3e03f63bba9b46c28c4b3599ac5ff3a",
+   "bytes": 1985,
+   "redistribution": "PUBLIC_DOMAIN_REDISTRIBUTABLE"
+  },
+  {
+   "file": "artifacts/gme-split-8k-primary.htm",
+   "url": "https://www.sec.gov/Archives/edgar/data/1326380/000132638022000100/gme-20220706.htm",
+   "retrieved_at": "2026-08-30T22:47:00Z",
+   "sha256": "83fc53c6908ad01c00ccec608841e824aad99883c5cbc3f5fca7589bed334583",
+   "bytes": 35184,
+   "redistribution": "PUBLIC_DOMAIN_REDISTRIBUTABLE"
+  },
+  {
+   "file": "artifacts/gme-split-fts-receipt.json",
+   "url": "https://efts.sec.gov/LATEST/search-index?q=%22stock+split%22+%22four-for-one%22&forms=8-K&ciks=0001326380&startdt=2022-06-01&enddt=2022-07-31",
+   "retrieved_at": "2026-08-30T22:47:00Z",
+   "sha256": "f5b0974e07e2a99feeb04900b6853c23b34a248b135dc9a9d2c50810b103a1bd",
+   "bytes": 2362,
+   "redistribution": "PUBLIC_DOMAIN_REDISTRIBUTABLE"
+  }
+ ],
+ "retrieval_agent": "declared-user-agent HTTPS GET (SEC fair-access policy)",
+ "provenance_facts": {
+  "accession_number": "0001326380-22-000100",
+  "cik": "0001326380",
+  "form": "8-K",
+  "items": [
+   "8.01",
+   "9.01"
+  ],
+  "file_date": "2022-07-06",
+  "lineage_relevance": "board-approved four-for-one split record with ratio terms in the primary document"
+ }
+}

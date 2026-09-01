@@ -147,7 +147,12 @@ class DebitVerticalPermit:
 
     @classmethod
     def _from_frozen_decision(cls, **values: object) -> DebitVerticalPermit:
-        """Internal constructor used only by the validated research bridge and tests."""
+        """Internal constructor for validated package bridges and contract tests only.
+
+        Public callers must use a bridge that validates its source lineage.  The
+        constructor remains restricted so neither a broker nor a risk caller can
+        synthesize an opening capability from unbound fields.
+        """
 
         return cls(_bridge_authorization=_BRIDGE_AUTHORIZATION, **values)  # type: ignore[arg-type]
 

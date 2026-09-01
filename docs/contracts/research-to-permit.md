@@ -85,7 +85,7 @@ The only registered policy is `paper-debit-vertical/v1`:
 - research protocol: the frozen decision/evidence/input contract identity;
 - execution protocol: the pinned official Alpaca MCP identity.
 
-The policy binds two distinct protocol identities. The research-protocol hash freezes the three input schemas, admitted verdict/gate states, claim/data boundary, raw-byte representation, feature dependency gate, and cutoff freeze rule. The execution-protocol hash binds Alpaca MCP `2.3.0`, commit `872abbf28dab6cdde7d341fc13ac139b8002d1d9`, PAPER/indicative boundaries, and the five official lifecycle tools already used by the adapter. There is no `latest` alias, mutable registry fallback, alternate mode, direct REST/CLI path, or future live-money value.
+The policy binds two distinct protocol identities. The research-protocol hash freezes the three input schemas, admitted verdict/gate states, claim/data boundary, raw-byte representation, feature dependency gate, and cutoff freeze rule. The execution-protocol hash binds Alpaca MCP `2.3.0`, commit `872abbf28dab6cdde7d341fc13ac139b8002d1d9`, PAPER/indicative boundaries, and the five official order/position lifecycle tools. The host's separate capability receipt attests the bounded `get_account_info` account-truth read. There is no `latest` alias, mutable registry fallback, alternate adapter, or optional credential path.
 
 ## Field mapping
 

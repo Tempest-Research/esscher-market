@@ -10,10 +10,10 @@
     "disposition": "EXECUTED_TO_TERMINAL",
     "event_run_id": "rd-event-dddddddddddddddddddddddddddddddd",
     "lifecycle": "CLOSED_FLAT",
-    "manifest_sha256": "bdc08462aadf64c7843574fe49acc17d96edcf3618e05a7b3f04845c01db7827",
+    "manifest_sha256": "5c3c74d1d4611b5e16b179496aabbd49a9891fb30ccd62f8cf39c6cd1743ac41",
     "observed_at": "2026-08-29T20:00:00+00:00",
     "receipt": {
-      "capability_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "capability_sha256": "b201168f2f031fbf628e10e587076cac1caff6a1728c94e062ef1ee0526380ca",
       "claims": [
         "PAPER_OPERATIONAL_OBSERVATION",
         "NOT_ALPHA_EVIDENCE"
@@ -37,7 +37,7 @@
         "open_filled_at": "2026-08-29T19:59:50+00:00",
         "unavailable_reason": null
       },
-      "receipt_sha256": "6e219b729a7478f2f59e017701ad38aa2c033877eb0d03d3aa73a4ce63e53c68",
+      "receipt_sha256": "4cf77562036f26c2688fa71f3566bc51da66459fed61aba2e50a14f8fdcfce2d",
       "run_mode": "PAPER",
       "schema": "ringdown.paper_receipt_bundle",
       "schema_version": 1

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ringdown-market"
-version = "0.2.0"
+version = "0.3.0"
 description = "Esscher, a permanently paper-only research and execution system for scheduled earnings reactions."
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
@@ -12,7 +12,9 @@ license = { text = "MIT" }
 authors = [
   { name = "Benedict Anokye-Davies", email = "bbeennyy860@gmail.com" }
 ]
-dependencies = []
+dependencies = [
+  "tzdata==2025.2"
+]
 
 [project.optional-dependencies]
 dev = [

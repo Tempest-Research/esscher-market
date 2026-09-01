@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Mapping
+from copy import copy, deepcopy
+from dataclasses import replace
 from datetime import UTC, datetime
 from typing import Any
 
 import pytest
 
+import ringdown_market.execution.host_mcp as host_mcp
 from ringdown_market.execution.host_mcp import (
     HostMcpAccountError,
     HostMcpConfigurationError,
@@ -16,6 +19,8 @@ from ringdown_market.execution.host_mcp import (
     HostMcpSecretBoundaryError,
     HostMcpSessionIdentity,
     HostMcpUnavailable,
+    PreparedHostMcpSession,
+    _GuardedHostMcpSession,
 )
 from ringdown_market.execution.mcp import (
     ALPACA_MCP_COMMIT,
@@ -39,6 +44,7 @@ REQUIRED_TOOLS = {
 
 
 _DEFAULT_ACCOUNT = object()
+_MODULE_API_MISSING = object()
 
 
 class FakeHostSession:
@@ -161,6 +167,153 @@ def test_account_preflight_emits_only_sanitized_observation() -> None:
     assert "sensitive-account" not in repr(observation)
 
 
+def test_prepared_session_is_factory_only_and_does_not_expose_raw_session() -> None:
+    prepared = connect(FakeHostSession())
+
+    assert not hasattr(prepared, "session")
+    with pytest.raises(TypeError, match="factory-created"):
+        PreparedHostMcpSession()  # type: ignore[call-arg]
+
+
+def test_module_api_cannot_mint_a_capability_for_a_raw_host_session() -> None:
+    trusted = connect(FakeHostSession())
+    raw_host = FakeHostSession()
+    mint = getattr(PreparedHostMcpSession, "_from_preflight", _MODULE_API_MISSING)
+    token = getattr(host_mcp, "_PREPARED_HOST_MCP_FACTORY_CAPABILITY", _MODULE_API_MISSING)
+    wire = getattr(host_mcp, "_wire_prepared_host_mcp_capability", _MODULE_API_MISSING)
+
+    if callable(mint) and token is not _MODULE_API_MISSING:
+        forged = mint(
+            session=raw_host,
+            observation=replace(trusted.observation),
+            factory_capability=token,
+        )
+        assert asyncio.run(forged.read_order("order-1")) == {"ok": True}
+
+    assert raw_host.calls == []
+    assert mint is _MODULE_API_MISSING
+    assert token is _MODULE_API_MISSING
+    assert wire is _MODULE_API_MISSING
+
+
+def test_module_api_cannot_inject_a_raw_host_session_into_prepared_state() -> None:
+    trusted = connect(FakeHostSession())
+    raw_host = FakeHostSession()
+    forged = object.__new__(PreparedHostMcpSession)
+    state_type = getattr(host_mcp, "_PreparedHostMcpState", _MODULE_API_MISSING)
+    states = getattr(host_mcp, "_PREPARED_HOST_MCP_STATES", _MODULE_API_MISSING)
+
+    if state_type is not _MODULE_API_MISSING and states is not _MODULE_API_MISSING:
+        states[forged] = state_type(
+            session=raw_host,
+            observation=replace(trusted.observation),
+        )
+        assert asyncio.run(forged.read_order("order-1")) == {"ok": True}
+    else:
+        with pytest.raises(HostMcpConfigurationError, match="factory-created"):
+            asyncio.run(forged.read_order("order-1"))
+
+    assert raw_host.calls == []
+    assert state_type is _MODULE_API_MISSING
+    assert states is _MODULE_API_MISSING
+
+
+def test_object_new_prepared_session_is_not_a_registered_capability() -> None:
+    raw_host = FakeHostSession()
+    forged = object.__new__(PreparedHostMcpSession)
+
+    with pytest.raises(HostMcpConfigurationError, match="factory-created"):
+        asyncio.run(forged.read_order("order-1"))
+
+    assert raw_host.calls == []
+
+
+def test_factory_connect_preflights_and_keeps_its_runtime_session_guarded() -> None:
+    host = FakeHostSession()
+    prepared = connect(host)
+
+    assert host.list_calls == 1
+    assert host.calls == [("get_account_info", {})]
+    host.calls.clear()
+
+    with pytest.raises(HostMcpConfigurationError, match="not allowed"):
+        asyncio.run(prepared._validated_state().session.call_tool("close_all_positions", {}))
+
+    assert host.calls == []
+    assert asyncio.run(prepared.read_order("order-1")) == {"ok": True}
+    assert host.calls == [(ORDER_BY_ID_TOOL, {"order_id": "order-1"})]
+
+
+@pytest.mark.parametrize("copier", (copy, deepcopy))
+def test_prepared_session_cannot_be_copied(copier) -> None:
+    prepared = connect(FakeHostSession())
+
+    with pytest.raises(TypeError, match="factory-created"):
+        copier(prepared)
+
+
+@pytest.mark.parametrize("use_guarded_session", (False, True))
+def test_prepared_session_rejects_raw_or_different_guarded_session_with_copied_observation(
+    use_guarded_session: bool,
+) -> None:
+    trusted_host = FakeHostSession()
+    prepared = connect(trusted_host)
+    trusted_host.calls.clear()
+    different_host = FakeHostSession()
+    if use_guarded_session:
+        supplied_session = _GuardedHostMcpSession(different_host)
+    else:
+        supplied_session = different_host
+
+    with pytest.raises(TypeError, match="factory-created"):
+        PreparedHostMcpSession(
+            session=supplied_session,
+            observation=replace(prepared.observation),
+        )  # type: ignore[call-arg]
+
+    assert trusted_host.calls == []
+    assert different_host.calls == []
+
+
+@pytest.mark.parametrize(
+    ("field_name", "value"),
+    (
+        ("capability_sha256", "0" * 64),
+        ("required_tool_count", 0),
+        ("account_status", "SUSPENDED"),
+        ("trading_blocked", True),
+        ("account_blocked", True),
+        ("environment", "PAPER"),
+        ("adapter", "UNPINNED_ADAPTER"),
+        ("adapter_version", "untrusted"),
+        ("adapter_commit", "untrusted"),
+        ("observed_at", NOW.replace(tzinfo=None)),
+    ),
+)
+def test_module_api_cannot_inject_tampered_prepared_attestation(
+    field_name: str,
+    value: object,
+) -> None:
+    trusted = connect(FakeHostSession())
+    raw_host = FakeHostSession()
+    forged = object.__new__(PreparedHostMcpSession)
+    state_type = getattr(host_mcp, "_PreparedHostMcpState", _MODULE_API_MISSING)
+    states = getattr(host_mcp, "_PREPARED_HOST_MCP_STATES", _MODULE_API_MISSING)
+
+    if state_type is not _MODULE_API_MISSING and states is not _MODULE_API_MISSING:
+        states[forged] = state_type(
+            session=raw_host,
+            observation=replace(trusted.observation, **{field_name: value}),
+        )
+
+    with pytest.raises(HostMcpConfigurationError, match=r"factory-created|attestation"):
+        asyncio.run(forged.read_order("order-1"))
+
+    assert raw_host.calls == []
+    assert state_type is _MODULE_API_MISSING
+    assert states is _MODULE_API_MISSING
+
+
 def test_blocked_or_inactive_account_fails_before_runtime_calls() -> None:
     host = FakeHostSession(
         account={
@@ -206,38 +359,38 @@ def test_preflight_timeout_is_typed_and_redacted() -> None:
     assert host.calls == []
 
 
-def test_prepared_session_enforces_the_runtime_tool_allowlist() -> None:
+def test_guarded_session_enforces_the_runtime_tool_allowlist() -> None:
     host = FakeHostSession()
-    prepared = connect(host)
+    guarded = _GuardedHostMcpSession(host)
 
     with pytest.raises(HostMcpConfigurationError, match="not allowed"):
-        asyncio.run(prepared.session.call_tool("close_all_positions", {}))
+        asyncio.run(guarded.call_tool("close_all_positions", {}))
 
-    assert [name for name, _ in host.calls] == ["get_account_info"]
+    assert host.calls == []
 
 
 def test_secret_like_runtime_arguments_are_rejected_before_host_call() -> None:
     host = FakeHostSession()
-    prepared = connect(host)
+    guarded = _GuardedHostMcpSession(host)
 
     with pytest.raises(HostMcpSecretBoundaryError, match="secret-like"):
         asyncio.run(
-            prepared.session.call_tool(
+            guarded.call_tool(
                 OPEN_TOOL,
                 {"client_order_id": "rd-open-safe", "metadata": {"api_key": "do-not-emit"}},
             )
         )
 
-    assert [name for name, _ in host.calls] == ["get_account_info"]
+    assert host.calls == []
 
 
 def test_mutation_timeout_is_typed_as_ambiguous_without_leaking_details() -> None:
     host = FakeHostSession(failures={OPEN_TOOL: TimeoutError("secret broker detail")})
-    prepared = connect(host)
+    guarded = _GuardedHostMcpSession(host)
 
     with pytest.raises(HostMcpMutationAmbiguous, match="read back") as captured:
         asyncio.run(
-            prepared.session.call_tool(
+            guarded.call_tool(
                 OPEN_TOOL,
                 {"client_order_id": "rd-open-safe"},
             )
@@ -245,16 +398,16 @@ def test_mutation_timeout_is_typed_as_ambiguous_without_leaking_details() -> Non
 
     assert "secret broker detail" not in str(captured.value)
     assert captured.value.__cause__ is None
-    assert [name for name, _ in host.calls] == ["get_account_info", OPEN_TOOL]
+    assert [name for name, _ in host.calls] == [OPEN_TOOL]
 
 
 def test_read_only_runtime_timeout_is_unavailable_not_ambiguous() -> None:
     host = FakeHostSession(failures={READBACK_TOOL: TimeoutError("private transport detail")})
-    prepared = connect(host)
+    guarded = _GuardedHostMcpSession(host)
 
     with pytest.raises(HostMcpUnavailable, match="timed out") as captured:
         asyncio.run(
-            prepared.session.call_tool(
+            guarded.call_tool(
                 READBACK_TOOL,
                 {"client_order_id": "rd-open-safe"},
             )
@@ -277,9 +430,9 @@ def test_read_only_capability_smoke_never_calls_a_mutating_tool() -> None:
 
 def test_runtime_result_is_forwarded_without_copying_sensitive_account_data() -> None:
     host = FakeHostSession()
-    prepared = connect(host)
+    guarded = _GuardedHostMcpSession(host)
     response: Any = asyncio.run(
-        prepared.session.call_tool(READBACK_TOOL, {"client_order_id": "rd-open-safe"})
+        guarded.call_tool(READBACK_TOOL, {"client_order_id": "rd-open-safe"})
     )
 
     assert response == {"ok": True}
