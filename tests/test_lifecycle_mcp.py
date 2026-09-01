@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Mapping
+from copy import copy, deepcopy
 from datetime import UTC, datetime
 from decimal import Decimal
 
@@ -23,12 +24,14 @@ from ringdown_market.contracts.execution_policy import (
     READBACK_TOOL,
 )
 from ringdown_market.execution.host_mcp import (
+    HostMcpConfigurationError,
     HostMcpEnvironment,
     HostMcpPaperSessionFactory,
     HostMcpSecretBoundaryError,
     HostMcpSessionIdentity,
     _GuardedHostMcpSession,
 )
+from ringdown_market.execution.lifecycle_mcp import LifecycleMcpPaperBroker
 from ringdown_market.lifecycle.broker import (
     BrokerOptionLeg,
     BrokerOrderRequest,
@@ -100,6 +103,24 @@ class GuardedFakeHost:
         raise AssertionError(f"unexpected MCP tool: {name}")
 
 
+class RawOnlySession:
+    """Unprepared raw session used to prove the lifecycle broker has no direct door."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, dict[str, object]]] = []
+
+    async def call_tool(self, name: str, arguments: Mapping[str, object]) -> object:
+        self.calls.append((name, dict(arguments)))
+        if name == OPEN_TOOL:
+            return {
+                "id": ORDER_ID,
+                "client_order_id": arguments["client_order_id"],
+                "status": "filled",
+                "filled_qty": "1",
+            }
+        raise AssertionError(f"unexpected raw MCP tool: {name}")
+
+
 def _request(phase: str = "OPEN") -> BrokerOrderRequest:
     if phase == "OPEN":
         legs = (
@@ -141,6 +162,62 @@ def _prepared_broker(host: GuardedFakeHost):
 
 def _runtime_tool_names(host: GuardedFakeHost) -> list[str]:
     return [name for name, _ in host.calls]
+
+
+@pytest.mark.parametrize(
+    "guard_raw_session",
+    (False, True),
+    ids=("raw_session", "independently_guarded_session"),
+)
+def test_direct_lifecycle_broker_session_injection_is_rejected_before_any_tool_call(
+    guard_raw_session: bool,
+) -> None:
+    raw = RawOnlySession()
+    session = _GuardedHostMcpSession(raw) if guard_raw_session else raw
+
+    with pytest.raises((TypeError, HostMcpConfigurationError), match="factory-created"):
+        broker = LifecycleMcpPaperBroker(session, clock=lambda: NOW)
+        asyncio.run(broker.submit_open(_request()))
+
+    assert raw.calls == []
+
+
+@pytest.mark.parametrize("copier", (copy, deepcopy), ids=("copy", "deepcopy"))
+def test_factory_issued_lifecycle_broker_cannot_be_copied(copier) -> None:
+    host = GuardedFakeHost()
+    _prepared, broker = _prepared_broker(host)
+
+    with pytest.raises(TypeError, match="factory-created"):
+        copier(broker)
+
+    assert host.calls == []
+
+
+def test_forged_lifecycle_broker_cannot_receive_a_raw_session_state() -> None:
+    raw = RawOnlySession()
+    forged = object.__new__(LifecycleMcpPaperBroker)
+
+    with pytest.raises(AttributeError):
+        object.__setattr__(forged, "_session", raw)
+    with pytest.raises(BrokerOutage, match="factory-created"):
+        asyncio.run(forged.submit_open(_request()))
+
+    assert raw.calls == []
+
+
+def test_factory_broker_state_cannot_be_retargeted_to_a_raw_session() -> None:
+    host = GuardedFakeHost()
+    _prepared, broker = _prepared_broker(host)
+    raw = RawOnlySession()
+
+    with pytest.raises(AttributeError):
+        object.__setattr__(broker, "_session", raw)
+
+    acknowledgement = asyncio.run(broker.submit_open(_request()))
+
+    assert acknowledgement.order_id == ORDER_ID
+    assert _runtime_tool_names(host) == [OPEN_TOOL]
+    assert raw.calls == []
 
 
 def test_submit_close_uses_the_pinned_guarded_open_door_with_close_legs() -> None:
