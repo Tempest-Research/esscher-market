@@ -2,6 +2,13 @@
 
 ## [0.3.1] - Unreleased
 
+### Added
+
+- Frozen host-managed reasoner route contract (`esscher.reasoner_route/v1`) and approval receipt (`esscher.reasoner_route_approval/v1`) with a proposed `dashscope`/`kimi-k3` OpenAI-compatible adapter, pending explicit owner approval; fail-closed loader/validator for absent, stale, malformed, hash-mismatched, or unauthorized route inputs.
+- Frozen p95 execution-latency profile contract (`esscher.latency_profile/v1`) with a `PREREGISTERED` 30,000 ms nearest-rank profile; synthetic placeholders fail evaluation and promotion, and stale or hash-mismatched profiles fail closed.
+- Inert host reasoner adapter boundary (`strategy/host_route.py`) that records exchange receipts identical to the deterministic fake and makes no live call unless a transport is injected.
+- Optional latency-profile binding on `panel.assembler.assemble_panel_report`; real panel manifests now accept `HOST_MEASURED` or `PREREGISTERED` p95 measurement kinds.
+
 ### Fixed
 
 - Sealed `LifecycleMcpPaperBroker` construction and lifecycle state inside the preflighted host-MCP capability path, so raw or independently guarded sessions, copies, and state retargeting cannot reach a tool call.
@@ -9,6 +16,7 @@
 ### Safety
 
 - This internal provenance hardening creates no provider, credential, account, broker, PAPER-mutation, or live-execution capability.
+- The reasoner route and latency gate authorize no broker call, PAPER order, provider purchase, deployment, or live probe; a pending or revoked approval can never authorize strategy evaluation, and credentials never enter repository artifacts or application arguments.
 
 ## [0.3.0] - Unreleased
 

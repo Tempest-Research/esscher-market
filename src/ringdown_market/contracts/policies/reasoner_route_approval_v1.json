@@ -1,0 +1,27 @@
+{
+  "adapter_kind": "OPENAI_COMPATIBLE_CHAT_V1",
+  "approval_id": "ESSCHER_ROUTE_APPROVAL_V1",
+  "approval_state": "PENDING",
+  "approved_at": null,
+  "approver": null,
+  "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+  "clauses": [
+    "Ben explicitly approves the exact provider/model/adapter and cost boundary before this receipt reaches APPROVED.",
+    "Each paid or live reasoner probe receives separate current approval before execution.",
+    "The reasoner route cannot receive broker/account authority or secret-bearing application arguments."
+  ],
+  "cost_ceiling": {
+    "entitlement_note": "Host-owned DashScope-compatible entitlement for kimi-k3; no provider purchase is authorized by this artifact.",
+    "max_output_tokens_per_call": 512,
+    "paid_provider_purchase": false,
+    "probe_budget_calls": 25
+  },
+  "model": "kimi-k3",
+  "model_config_sha256": "1dce61510bcf5f477aa7aecfd29b95aff980b4cd8c9050fdb1eae92db6384d83",
+  "model_revision": null,
+  "provider": "dashscope",
+  "route_sha256": "eee8e0ea3f4eb3a1d6286cf57c8270bddf01f9f5ab76b9c5dcbc6737b01fdc38",
+  "schema": "esscher.reasoner_route_approval",
+  "schema_version": 1,
+  "scope": "ESSCHER_V1_STRATEGY_EVALUATION"
+}

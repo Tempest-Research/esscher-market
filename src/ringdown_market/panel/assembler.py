@@ -20,6 +20,10 @@ from ..alpha.models import (
 )
 from ..alpha.qfast import CANDIDATE_METHOD
 from ..cli import build_report
+from ..contracts.latency_profile import (
+    LatencyProfileRejected,
+    validate_latency_profile,
+)
 from .manifest import (
     PanelRejected,
     PanelRejectionReason,
@@ -217,11 +221,34 @@ def assemble_panel_report(
     manifest_bytes: bytes,
     selection_rule_bytes: bytes,
     bundle_bytes: bytes,
+    latency_profile_bytes: bytes | None = None,
 ) -> bytes:
     """Compile one deterministic panel report from exact frozen input bytes."""
 
     manifest = validate_panel_manifest(manifest_bytes, selection_rule_bytes)
     bundle, cases = _validate_bundle(bundle_bytes, manifest)
+    latency_profile = None
+    if latency_profile_bytes is not None:
+        try:
+            latency_profile = validate_latency_profile(latency_profile_bytes)
+        except LatencyProfileRejected as error:
+            _reject(
+                PanelRejectionReason.LATENCY_PROFILE_NOT_MEASURED,
+                error.path,
+                error.detail,
+            )
+        if not latency_profile.evaluation_eligible:
+            _reject(
+                PanelRejectionReason.LATENCY_PROFILE_NOT_MEASURED,
+                "latency_profile",
+                "the supplied p95 profile cannot authorize evaluation",
+            )
+        if latency_profile.p95_latency_ms != manifest.latency_profiles["p95"]:
+            _reject(
+                PanelRejectionReason.LATENCY_PROFILE_NOT_MEASURED,
+                "latency_profile.p95_latency_ms",
+                "the p95 profile must equal the manifest's requested p95 latency",
+            )
 
     payload = {
         "fixture_class": manifest.data_class,
@@ -285,6 +312,15 @@ def assemble_panel_report(
         "excluded_events": [asdict(excluded) for excluded in manifest.excluded_events],
         "evaluation_report": evaluation_report,
     }
+    if latency_profile is not None:
+        report["latency_profile"] = {
+            "profile_id": latency_profile.profile_id,
+            "kind": latency_profile.kind.value,
+            "p95_latency_ms": latency_profile.p95_latency_ms,
+            "quantile_method": latency_profile.quantile_method,
+            "content_sha256": latency_profile.content_sha256,
+            "promotion_eligible": latency_profile.promotion_eligible,
+        }
     return (
         json.dumps(report, indent=2, sort_keys=True, ensure_ascii=False, allow_nan=False) + "\n"
     ).encode("utf-8")

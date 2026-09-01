@@ -1,0 +1,26 @@
+{
+  "claim_labels": [
+    "NO_BROKER_MUTATION",
+    "NO_CREDENTIALS",
+    "PAPER_ONLY",
+    "SOURCE_GROUNDED"
+  ],
+  "clock_source": "HOST_MONOTONIC_WITH_UTC_ANCHOR",
+  "content_sha256": "7ac46520f2972b32dabd6dfb3be39d4e95db4ce106456a4b845a08c6690998b6",
+  "kind": "PREREGISTERED",
+  "minimum_sample_observations": 20,
+  "observed_samples": 0,
+  "p95_latency_ms": 30000,
+  "profile_id": "ESSCHER_P95_EXECUTION_LATENCY_V1",
+  "provenance_note": "Owner-preregistered conservative p95 bound for evaluation only; not a measurement. A HOST_MEASURED profile must supersede it before any promotion claim.",
+  "quantile_method": "NEAREST_RANK_P95",
+  "sample_population": "Owner-preregistered conservative bound; HOST_MEASURED replacement to be collected as decision-cutoff-to-entry latencies under an authorized PAPER lifecycle (#68).",
+  "schema": "esscher.latency_profile",
+  "schema_version": 1,
+  "validity": {
+    "frozen_at": "2026-09-01T00:00:00Z",
+    "policy_sha256": "afce93b52b96e0d8c71deeb80027a1c87a4cf3623e9417db14de00279fc23bca",
+    "superseded_by": null
+  },
+  "warm_cold_policy": "Cold-start observations excluded from any promotion sample and reported separately once measured."
+}
