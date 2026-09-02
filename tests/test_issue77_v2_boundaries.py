@@ -28,9 +28,23 @@ from ringdown_market.execution.mcp import OpenOrderReceipt
 
 NOW = datetime(2026, 9, 1, 12, 0, tzinfo=UTC)
 ROOT = Path(__file__).parent
+PROVENANCE_PATH = ROOT / "contract_fixtures" / "alpaca_mcp_v2_3_1_provenance.json"
+
+
+def _provenance_manifest() -> dict[str, object]:
+    return json.loads(PROVENANCE_PATH.read_text(encoding="utf-8"))
 
 
 def _v2_payload() -> dict[str, object]:
+    provenance = _provenance_manifest()
+    wheel = provenance["wheel"]
+    sdist = provenance["sdist"]
+    source = provenance["source"]
+    runtime = provenance["runtime"]
+    assert isinstance(wheel, dict)
+    assert isinstance(sdist, dict)
+    assert isinstance(source, dict)
+    assert isinstance(runtime, dict)
     return {
         "schema": "esscher.gate_a_capability_receipt",
         "schema_version": 2,
@@ -39,30 +53,21 @@ def _v2_payload() -> dict[str, object]:
         "expires_at": "2026-09-01T12:01:00Z",
         "environment": "PAPER",
         "adapter": "ALPACA_MCP",
-        "adapter_version": "2.3.1",
-        "distribution_type": "PYPI",
-        "wheel_filename": "alpaca_mcp_server-2.3.1-py3-none-any.whl",
-        "wheel_sha256": "f271f4fb58057fe0ad9851587bf2a55019ebfbf387227809c62c17305722bf95",
-        "sdist_filename": "alpaca_mcp_server-2.3.1.tar.gz",
-        "sdist_sha256": "53d84696fff9337cfc0a3725e8d23eaa201963c96a8a1832d4e1a6b18b000fd8",
-        "provenance_class": "PYPI_RELEASE_NO_GIT_TAG",
-        "source_equivalent_version": "2.3.0",
-        "source_equivalent_commit": "556be1d1746162b3c1680e262385cb0c23f0e32d",
-        "fastmcp_version": "3.4.7",
-        "fastmcp_spec": "fastmcp>=3.1.0,<4",
-        "discovered_tool_count": 55,
-        "selected_schema_count": 17,
-        "selected_schema_sha256": (
-            "5af24a66731a455f7f8df313bf05def65c65f5dfa66cf7ce791a2d3a665f40b3"
-        ),
-        "tool_names": [
-            "cancel_order_by_id",
-            "get_account_info",
-            "get_all_positions",
-            "get_order_by_client_id",
-            "get_order_by_id",
-            "place_option_order",
-        ],
+        "adapter_version": provenance["adapter_version"],
+        "distribution_type": provenance["distribution_type"],
+        "wheel_filename": wheel["filename"],
+        "wheel_sha256": wheel["sha256"],
+        "sdist_filename": sdist["filename"],
+        "sdist_sha256": sdist["sha256"],
+        "provenance_class": provenance["provenance_class"],
+        "source_equivalent_version": source["version"],
+        "source_equivalent_commit": source["commit"],
+        "fastmcp_version": runtime["fastmcp_version"],
+        "fastmcp_spec": runtime["fastmcp_spec"],
+        "discovered_tool_count": runtime["discovered_tool_count"],
+        "selected_schema_count": provenance["selected_tool_schema_count"],
+        "selected_schema_sha256": provenance["selected_tool_schema_sha256"],
+        "tool_names": sorted(schema["name"] for schema in provenance["selected_tool_schemas"]),
         "programme_contract_sha256": (
             "40c2e780c684bdde671b028dbdd8c9b13268e659c24e98a2d452ff7c8692f955"
         ),
@@ -70,7 +75,55 @@ def _v2_payload() -> dict[str, object]:
 
 
 def _canonical(value: object) -> bytes:
-    return json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
+    return json.dumps(
+        value,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    ).encode("utf-8")
+
+
+def test_v2_provenance_manifest_is_self_consistent() -> None:
+    provenance = _provenance_manifest()
+    expected_receipt = provenance["receipt_sha256"]
+    unsigned = dict(provenance)
+    del unsigned["receipt_sha256"]
+    assert hashlib.sha256(_canonical(unsigned)).hexdigest() == expected_receipt
+
+    selected = provenance["selected_tool_schemas"]
+    assert isinstance(selected, list)
+    assert len(selected) == provenance["selected_tool_schema_count"] == 6
+    assert (
+        hashlib.sha256(_canonical(selected)).hexdigest()
+        == provenance["selected_tool_schema_sha256"]
+    )
+
+    runtime = provenance["runtime"]
+    wheel = provenance["wheel"]
+    sdist = provenance["sdist"]
+    source = provenance["source"]
+    assert isinstance(runtime, dict)
+    assert isinstance(wheel, dict)
+    assert isinstance(sdist, dict)
+    assert isinstance(source, dict)
+    assert runtime["server_toolsets"] == ["account", "trading"]
+    assert runtime["discovered_tool_count"] == 26
+    assert source["matched_file_count"] == len(source["files"]) == 11
+    source_comparison = {"commit": source["commit"], "files": source["files"]}
+    assert hashlib.sha256(_canonical(source_comparison)).hexdigest() == source["comparison_sha256"]
+    assert ALPACA_MCP_V2_PROTOCOL["wheel_sha256"] == wheel["sha256"]
+    assert ALPACA_MCP_V2_PROTOCOL["sdist_sha256"] == sdist["sha256"]
+    assert ALPACA_MCP_V2_PROTOCOL["source_equivalent_commit"] == source["commit"]
+    assert ALPACA_MCP_V2_PROTOCOL["server_toolsets"] == runtime["server_toolsets"]
+    assert (
+        ALPACA_MCP_V2_PROTOCOL["selected_schema_canonicalization"]
+        == provenance["selected_tool_schema_canonicalization"]
+    )
+    assert (
+        ALPACA_MCP_V2_PROTOCOL["selected_schema_sha256"]
+        == provenance["selected_tool_schema_sha256"]
+    )
 
 
 class Fake:
