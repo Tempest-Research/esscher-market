@@ -1,16 +1,25 @@
-# Autonomous host runner: synthetic coordinator rehearsal scaffold
+# Autonomous host runner: synthetic composition over the frozen coordinator
 
-This is an incomplete draft for issue #82. The code in
-`runtime/autonomous_host.py` composes `AutonomousSessionCoordinator` with typed fake-host
-adapters so that release/arm validation, deterministic windows, duplicate claims, state
-transitions, hard-flat handling, and sanitized receipts can be rehearsed offline. It does **not**
-compose the accepted V2 strategy path, `PaperStrategyApplication`, a monitored
-`ActivePaperLifecycle`, or the guarded MCP broker lifecycle. It therefore is not the requested
-end-to-end acceptance path, and issue #82 remains open.
+This document covers issue #82. The scaffold in `runtime/autonomous_host.py` composes
+`AutonomousSessionCoordinator` with typed host adapters so that release/arm validation,
+deterministic windows, duplicate claims, state transitions, hard-flat handling, and sanitized
+receipts are rehearsed offline. On top of that scaffold, `runtime/host_composition.py` now
+composes the **real** application services behind the four host ports: the frozen source
+compiler, the bounded decision engine, the deterministic synthetic confirmation bridge
+(`application/autonomous_bridge.py`), the Gate D expression compiler, the canonical permit
+bridge, the V2 risk kernel (`authorize_entry_v2`), `PaperStrategyApplication.prepare_v2` /
+`open` / `close`, the monitored lifecycle worker, a hash-chained rehydration sidecar
+(`runtime/host_persistence.py`), and the deterministic in-memory synthetic broker
+(`runtime/host_fake_broker.py`).
 
-The scaffold is evidence about coordinator contracts only. It is not evidence that Kimi, an
-Alpaca account, an MCP server, an option fill, a durable close after process loss, or a production
-deployment has been exercised.
+Everything remains permanently `SYNTHETIC_FAKE` / `NOT_ALPHA_EVIDENCE` with zero
+network/provider/broker/account calls. The composition is evidence that the accepted
+source-to-flat path runs end-to-end under the coordinator with no hand-constructed decision,
+permit, lifecycle, or flat result. It is not evidence that Kimi, an Alpaca account, an MCP
+server, a real option fill, or a production deployment has been exercised; the guarded MCP
+broker capability (`LifecycleMcpPaperBroker`) in particular is still not part of this path —
+the composition drives the `lifecycle.broker.PaperBroker` protocol directly through the
+synthetic broker.
 
 ## Architecture and data flow
 
@@ -53,7 +62,68 @@ STATE
 In particular, the generic runner does not create or verify a `RiskLedger`, strategy decision,
 expression, permit, application, order, fill, or real broker observation. A host backend can
 perform additional work, but the adapter sees only its typed attestation and cannot upgrade that
-attestation into evidence that the real application path ran.
+attestation into evidence that the real application path ran. The composition layer below is the
+host backend that actually performs that work with the real services, and its outputs remain
+synthetic-labelled attestations at the adapter boundary.
+
+## Composition layer: INPUT -> EVENT -> OUTPUT -> STATE
+
+`runtime/host_composition.py` wires the four host backend protocols to real services. The
+account fingerprint binding is checked first: `composition_plan_factory` raises
+`AutonomousHostRejected("ACCOUNT_FINGERPRINT_MISMATCH")` unless
+`authority.account_fingerprint_sha256` equals the SHA-256 of the synthetic broker's canonical
+initial account truth (`runtime/host_fake_broker.py: account_state_sha256`), so no port or
+adapter exists before the armed session is bound to the observed synthetic account.
+
+```text
+INPUT
+  CompositionFeed of CompositionFeedEvent values, each carrying:
+    window_id + V2 lane candidate_id from the armed session windows
+    evidence_manifest_bytes / market_window_bytes (sourcedata fixture sections)
+    capture_at, market_publisher, market_entitlement, market_redistribution
+  one RiskLedger, one SyntheticPaperBroker, the validated host authority
+    |
+    v
+EVENT
+  DueWindow backend: emits each not-yet-emitted feed event for the due window as a
+    HostCandidateObservation with a content-addressed strategy context
+  Candidate backend: rejoins the fixture bytes -> CaptureConfiguration + fixture sources
+    -> compile_strategy_snapshot -> engine decide (SyntheticRehearsalRoute, deterministic
+    confirmation-sign direction, COMPLETED exchange bound to its raw hash)
+    -> autonomous_bridge.confirm_engine_outcome (epsilon from the frozen V1 policy)
+    -> PaperStrategyApplication.prepare_v2 (Gate D compile -> canonical permit ->
+    freeze_candidate -> derived_opportunity -> RiskKernel.authorize_entry_v2)
+    -> application.open through the synthetic broker under the rehearsal mutation gate
+    -> decision episode + hash-chained sidecar ACTIVE bundle -> HostCandidateOutcome.active
+  Lifecycle backend: rehydrates the sidecar ACTIVE bundle (canonical permit bytes, exit-plan
+    clock bytes, correlation, open order id) -> rebuilds the close-critical binding
+    -> application.close with a deterministic close permit -> terminal-flat proof sha
+    -> sidecar TERMINAL entry + outcome episode -> HostLifecycleOutcome.terminal_flat
+  Reconciliation backend: canonical account/orders/positions digests and open counts from the
+    synthetic broker -> SyntheticBrokerTruth.for_request -> complete/ambiguous/incomplete
+    observation; orphaned working orders are resolved through the risk-reducing cancel path only
+    |
+    v
+OUTPUT
+  typed host observations/outcomes consumed by the unchanged adapters and coordinator
+  AutonomousHostReceipt: TERMINAL only with a final flat summary plus FINAL flat synthetic truth
+  reason-code mapping: confirmation abstention -> ABSTAINED/PORT_OUTPUT_INVALID,
+    V2 risk abstention -> ABSTAINED/RISK_FREEZE, pipeline rejection ->
+    REJECTED_BEFORE_MUTATION/PORT_OUTPUT_INVALID (freeze=False), ambiguous broker mutation ->
+    MANUAL_RECONCILIATION_REQUIRED with UNKNOWN/PARTIAL + UNKNOWN_BROKER_STATE
+    |
+    v
+STATE
+  AutonomousSessionStore (unchanged sole writer of session state)
+  RiskLedger: candidate freeze, V2 reservation/permit, intents, submissions, passport,
+    decision + outcome episodes
+  SyntheticPaperBroker: in-memory orders/positions with canonical state hashes
+  host_persistence.jsonl: hash-chained ACTIVE/TERMINAL entries enabling close-only restart
+```
+
+All clocks are injected: the composition derives its decision/authorization/open/close instants
+from the frozen fixture snapshot deadlines and advances one monotonic rehearsal clock that also
+drives the synthetic broker. No wall time is read.
 
 ## Three distinct identities
 
@@ -166,11 +236,13 @@ a conflicting identity is rejected, and an in-progress claim found after restart
 `CLAIM_RECOVERY_UNKNOWN` instead of being submitted again.
 
 The store persists `ActiveLifecycleIdentity`: a sanitized synthetic identity used by coordinator
-replay. It does **not** persist or reconstruct the application's `ActivePaperLifecycle`, canonical
-permit bytes, lifecycle clocks, close-critical binding, MCP request/order correlation, or broker
-intent state. Consequently, a restart test that replays `ActiveLifecycleIdentity` through a fake
-`LifecycleCloserPort` is a synthetic coordinator restart test, not durable application-lifecycle
-rehydration and not proof that a new process can safely close real exposure.
+replay. It deliberately does **not** persist the application's `ActivePaperLifecycle`, canonical
+permit bytes, lifecycle clocks, close-critical binding, or correlation. The composition layer
+carries those in the hash-chained `host_persistence.jsonl` sidecar
+(`runtime/host_persistence.py`), so a fresh process can rebuild close-only authority from durable
+bytes and close real (synthetic-broker) exposure through `PaperStrategyApplication.close`. The
+store identity and the sidecar bundle are joined by the lifecycle id; a missing, tampered, or
+non-terminal sidecar bundle fails closed into manual reconciliation instead of guessing.
 
 At hard-flat, the coordinator visits known synthetic active identities in deterministic order,
 records only translated terminal-flat attestations, marks unresolved closes manual-required, and
@@ -190,48 +262,75 @@ checkpoint or broker-reconciliation path.
 - Fake fixtures, structured fake truth, green tests, and synthetic receipts are engineering
   evidence only.
 
-## Exact blockers to completing issue #82
+## Exact blockers: resolution status
 
-1. **The host ports stop before the accepted source-to-application path.** The collector accepts
-   host-created candidate observations and the candidate adapter accepts a host-created outcome.
-   Neither adapter consumes the accepted fake's exact source bytes or invokes V2 context,
-   reasoner, confirmation, expression, risk, application, or monitored lifecycle code.
-2. **V2 has no execution authority.** `StrategyV2DirectionDecision` is deliberately
-   `DIRECTION_ONLY_UNCONFIRMED`, and `accepted_event_policy_v2.json` explicitly says it defines no
-   validated alpha threshold. Creating a confirmed decision from that proposal would invent
-   authority unless an owner-approved deterministic confirmation contract is added.
-3. **The downstream execution seams are still legacy-shaped.** The expression compiler and
-   compiled-to-permit bridge accept the legacy `StrategyDecision`; `PaperStrategyApplication`
-   calls legacy `RiskKernel.authorize_entry`, while the autonomous release binds V2 risk policy.
-   There is also no authority-bearing compiler that deterministically derives the risk tier
-   instead of accepting caller-supplied `decision_ready`/tier values.
-4. **The host account is not attested before mutation.** `HostMcpPaperSessionFactory` validates the
-   pinned PAPER capability and sanitizes account status, but it does not derive and bind the
-   observed host account fingerprint to `AutonomousSessionArm.account_fingerprint_sha256`.
-5. **A real active lifecycle cannot be durably rehydrated.** `AutonomousSessionStore` persists only
-   `ActiveLifecycleIdentity`; `RiskLedger` retains permit identity/hash rather than canonical
-   permit bytes; and `LifecycleMcpPaperBroker` keeps request/order correlation in process-local
-   memory. A fresh process therefore lacks the exact permit, clocks, close-critical binding, and
-   correlation needed for safe close-only authority.
-6. **Claim recovery deliberately stops instead of reconstructing mutation truth.** A persisted
-   `CLAIMED` opportunity becomes `CLAIM_RECOVERY_UNKNOWN`. This avoids duplicate submission but
-   does not reconcile a crash between external mutation and recording an active lifecycle.
-7. **Real final reconciliation is absent.** `SyntheticBrokerTruth` makes the fake receipt
-   structurally explicit, but no concrete MCP reconciler produces canonical account/order/position
-   bytes and proves their session/account attribution and flatness.
-8. **Dynamic host authority is not release-bound.** `module:function` code is trusted and
-   unsandboxed, and its bytes are not bound to the selected release build. A production-capable
-   host needs an authenticated, release-bound composition instead of an arbitrary import.
-9. **The timeline is replay input, not a production scheduler.** The caller supplies the complete
-   observation timeline up front. The scaffold validates ordering and arm containment, but it does
-   not read a trusted current clock, wait for due windows, bind collection to actual wall time, or
-   drive expiry and hard-flat transitions after process restarts. A production runner needs an
-   owned clock/scheduler loop whose observations cannot be backdated or selected by the host.
+1. **RESOLVED — the host ports now drive the accepted source-to-application path.** The
+   collector backend consumes the exact synthetic source bytes of a feed event and the candidate
+   backend invokes the real pipeline: `compile_strategy_snapshot`/`compiled_strategy_input`
+   (`sourcedata/compiler.py`), `BoundedDecisionEngine.decide` with the deterministic
+   `SyntheticRehearsalRoute`, confirmation, Gate D `compile_or_no_package`, the canonical permit
+   bridge, `RiskKernel.freeze_candidate`, and `PaperStrategyApplication.prepare_v2`/`open`/`close`
+   (`runtime/host_composition.py`, `application/paper_pipeline.py`). No decision, permit,
+   lifecycle, or flat result is hand-constructed; `tests/test_autonomous_host_composition.py`
+   traverses the path end-to-end through `run_autonomous_host_command` and the CLI.
+2. **RESOLVED — an owner-visible deterministic confirmation contract now exists.**
+   `application/autonomous_bridge.py` defines `SYNTHETIC_CONFIRMATION_RULE_ID`, a
+   content-addressed rule (`confirmation_rule_sha256`) over the frozen V1 policy epsilons, and
+   `confirm_engine_outcome`, which confirms only when the candidate's frozen confirmation
+   feature clears its epsilon with the decision's sign. `StrategyV2DirectionDecision` remains
+   `DIRECTION_ONLY_UNCONFIRMED`; the rehearsal never promotes it and the rule is permanently
+   labelled synthetic (`NOT_ALPHA_EVIDENCE`), so no validated-alpha authority is invented.
+3. **RESOLVED — the V2 execution seam is joined.** `prepare_v2` authorizes through
+   `RiskKernel.authorize_entry_v2` with `autonomous_bridge.derived_opportunity`, whose risk tier
+   is always derived from the packaged V2 policy's first owner-approved tier
+   (`derived_risk_tier` → `RiskTier.FIVE_PERCENT`) and whose readiness is the deterministic
+   confirmation result — never caller-supplied. Documented seam behavior: Gate D stamps
+   `CompiledExpression.policy_sha256` with the promoted expression-policy digest, while the V2
+   kernel binds that field to the active V2 risk policy; `prepare_v2` deterministically rebinds
+   the compiled expression to the V2 risk-policy digest for the freeze/allocation/authorization
+   join while the prepared lifecycle retains the exact Gate-D expression that `open` revalidates.
+4. **RESOLVED — the host account is attested before mutation.** `composition_plan_factory`
+   compares `authority.account_fingerprint_sha256` against the SHA-256 of the synthetic broker's
+   canonical initial account truth and raises
+   `AutonomousHostRejected("ACCOUNT_FINGERPRINT_MISMATCH")` before any backend exists
+   (`runtime/host_composition.py`, `runtime/host_fake_broker.py`). Against the synthetic broker
+   this is an observed binding; against a real account it would remain an attestation until #68.
+5. **RESOLVED — a real active lifecycle is durably rehydrated.**
+   `runtime/host_persistence.py` writes a hash-chained JSONL sidecar
+   (`host_persistence.jsonl`) whose ACTIVE entries carry the canonical permit bytes, exit-plan
+   clock bytes, correlation payload/sha, open order id, account id, application identity, and
+   opened_at; TERMINAL entries carry the terminal-flat proof. `CompositionLifecycleBackend`
+   rehydrates a `RehydratedActiveBundle` in a fresh process, rebuilds the close-critical
+   binding, and closes through `PaperStrategyApplication.close` (restart scenario S3 in
+   `tests/test_autonomous_host_composition.py`).
+6. **OPEN (#68) — claim recovery still stops instead of reconstructing mutation truth.** A
+   persisted `CLAIMED` opportunity still becomes `CLAIM_RECOVERY_UNKNOWN`
+   (`runtime/autonomous.py`, deliberately unmodified). The sidecar narrows the crash window —
+   an opening that completed but was never journaled still leaves broker state that only the
+   reconciliation cancel path (working orders) or manual intervention (filled orphans) can
+   resolve. A production runner needs broker-side reconstruction of unjournaled mutations.
+7. **RESOLVED — a concrete final reconciler exists for the synthetic boundary.**
+   `CompositionReconciliationBackend` produces canonical account/order/position digests, open
+   counts, and flatness from the synthetic broker's state and attests them through
+   `SyntheticBrokerTruth.for_request`, proving session/account/phase attribution and flatness at
+   CHECKPOINT and FINAL. This remains synthetic truth: no MCP reconciler observes a real
+   broker, which stays scoped to #68.
+8. **OPEN (#68) — dynamic host authority is not release-bound.** The `module:function`
+   selector is unchanged (`cli.py`): trusted, unsandboxed host Python whose bytes are not bound
+   to the selected release build. A production-capable host needs an authenticated,
+   release-bound composition instead of an arbitrary import.
+9. **OPEN (#68) — the timeline is replay input, not a production scheduler.** The caller still
+   supplies the complete observation timeline up front; the runner validates ordering and arm
+   containment but never reads a trusted current clock, waits for due windows, or drives expiry
+   and hard-flat transitions after restarts. All composition clocks are injected
+   fixture-derived rehearsal clocks by design.
 
-Until those interfaces exist and an acceptance test traverses them without hand-constructing the
-decision, opportunity authority, permit, active lifecycle, close result, or flat result, the
-runner must remain named and documented as a synthetic coordinator rehearsal scaffold. A pull
-request for this slice may reference issue #82, but it must not claim to close it.
+With blockers 1–5 and 7 resolved for the synthetic execution class, the acceptance path for
+issue #82 runs end-to-end without hand-constructed decisions, opportunity authority, permits,
+active lifecycles, close results, or flat results — while every artifact remains labelled
+`SYNTHETIC_FAKE` / `NOT_ALPHA_EVIDENCE`. Blockers 6, 8, and 9 keep the runner honestly named a
+synthetic rehearsal: productionizing claim recovery, release-bound host authority, and an owned
+clock/scheduler loop belongs to #68.
 
 ## Stacked dependency
 

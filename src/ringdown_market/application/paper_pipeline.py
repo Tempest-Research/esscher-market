@@ -10,7 +10,7 @@ supplies an approval gate.
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 from typing import Protocol
 
@@ -47,7 +47,14 @@ from ringdown_market.lifecycle import (
 )
 from ringdown_market.lifecycle.broker import PaperBroker
 from ringdown_market.lifecycle.worker import MutationGate
-from ringdown_market.risk import RiskApproval, RiskKernel, RiskLedger
+from ringdown_market.risk import (
+    RiskAbstentionV2,
+    RiskApproval,
+    RiskKernel,
+    RiskLedger,
+    load_risk_policy_v2,
+    risk_policy_v2_sha256,
+)
 from ringdown_market.sourcedata import (
     CaptureConfiguration,
     CompiledSnapshot,
@@ -500,6 +507,159 @@ class PaperStrategyApplication:
             permit=permit,
             now=current,
         )
+        permit_sha = canonical_permit_sha256(permit)
+        expression_sha = compiled_expression_sha256(compiled)
+        if approval.permit_id != permit.permit_id or approval.permit_sha256 != permit_sha:
+            raise PaperPipelineRejected(
+                "risk ledger approval did not bind the exact canonical permit"
+            )
+        clocks = self.lifecycle_clocks(
+            snapshot=source_snapshot,
+            expression=compiled,
+            permit=permit,
+        )
+        correlation = CorrelationIdentity(
+            event_run_id=permit.event_run_id,
+            snapshot_sha256=permit.snapshot_sha256,
+            decision_sha256=permit.decision_sha256,
+            expression_sha256=expression_sha,
+            reservation_id=approval.reservation_id,
+            open_permit_id=permit.permit_id,
+        )
+        return PreparedPaperLifecycle(
+            source_snapshot=source_snapshot,
+            strategy_input=strategy_input,
+            engine_outcome=outcome,
+            trace_sha256=sha256_bytes(outcome.trace_bytes),
+            application_identity_sha256=self.application_identity_sha256,
+            compiled_expression=compiled,
+            expression_sha256=expression_sha,
+            permit=permit,
+            permit_sha256=permit_sha,
+            risk_approval=approval,
+            correlation=correlation,
+            lifecycle_clocks=clocks,
+            lifecycle_clocks_sha256=lifecycle_clocks_sha256(clocks),
+        )
+
+    def prepare_v2(
+        self,
+        *,
+        capture_configuration: CaptureConfiguration,
+        evidence: EvidenceSource,
+        market: MarketDataSource,
+        expression_snapshot: ExpressionMarketSnapshot | ExpressionSnapshotFactory,
+        now: datetime,
+        decision_started_at: datetime | None = None,
+    ) -> PreparedPaperLifecycle:
+        """Run all non-mutating V2 stages with synthetic confirmation and V2 risk.
+
+        This mirrors :meth:`prepare` exactly, except the engine outcome must also
+        survive the deterministic synthetic confirmation rule, and authorization
+        uses ``authorize_entry_v2`` with a bridge-derived defined-risk
+        opportunity.  The V2 kernel binds ``compiled.policy_sha256`` to the
+        active V2 risk policy, so the Gate-D expression is deterministically
+        rebound to that policy for the freeze/allocation/authorization seam
+        while the prepared lifecycle keeps the exact Gate-D expression its
+        later open revalidates.  It performs no broker mutation.
+        """
+
+        from ringdown_market.application import autonomous_bridge
+
+        current = self._utc(now, "now")
+        decision_started = (
+            current
+            if decision_started_at is None
+            else self._utc(decision_started_at, "decision_started_at")
+        )
+        if decision_started > current:
+            raise PaperPipelineRejected("decision_started_at cannot postdate Gate D compilation")
+        policy_v2 = load_risk_policy_v2()
+        if risk_policy_v2_sha256(policy_v2) != self.risk_policy_sha256:
+            raise PaperPipelineRejected(
+                "prepare_v2 requires the packaged V2 risk policy bound to this application"
+            )
+        source_snapshot = compile_strategy_snapshot(capture_configuration, evidence, market)
+        strategy_input = compiled_strategy_input(source_snapshot)
+        outcome = self._engine.decide(
+            strategy_input,
+            started_at=decision_started,
+            ablate_text=False,
+        )
+        confirmation = autonomous_bridge.confirm_engine_outcome(outcome.decision, strategy_input)
+        if not confirmation.confirmed:
+            raise autonomous_bridge.SyntheticConfirmationAbstained(confirmation)
+        if outcome.decision.disposition is not DecisionDisposition.ACCEPTED:
+            raise PaperPipelineRejected(
+                "bounded decision engine did not produce an accepted direction-only decision"
+            )
+        if outcome.ablate_text or not outcome.route_invoked:
+            raise PaperPipelineRejected(
+                "executable PAPER entry requires a non-ablated decision from an invoked route"
+            )
+        gate_d_snapshot = (
+            expression_snapshot(sha256_bytes(outcome.decision_bytes))
+            if callable(expression_snapshot)
+            else expression_snapshot
+        )
+        if not isinstance(gate_d_snapshot, ExpressionMarketSnapshot):
+            raise PaperPipelineRejected("Gate D snapshot factory returned an invalid snapshot")
+        expression_policy_sha = promoted_expression_policy_sha256(self.expression_policy)
+        status, compiled_or_reason = compile_or_no_package(
+            decision=outcome.decision,
+            decision_bytes=outcome.decision_bytes,
+            snapshot=gate_d_snapshot,
+            policy=self.expression_policy,
+            policy_sha256=expression_policy_sha,
+            gate_d_report_sha256=self.gate_d_report_sha256,
+            compiled_at=current,
+        )
+        if status != COMPILED:
+            assert status == NO_PACKAGE
+            raise PaperPipelineRejected(
+                f"Gate D produced no executable package: {compiled_or_reason}"
+            )
+        if not isinstance(compiled_or_reason, CompiledExpression):
+            raise PaperPipelineRejected("Gate D returned an invalid compiled-expression object")
+        compiled = compiled_or_reason
+        if compiled.event_id != strategy_input.snapshot.event_id:
+            raise PaperPipelineRejected("Gate D event identity did not match the strategy input")
+        risk_bound_expression = replace(compiled, policy_sha256=self.risk_policy_sha256)
+        bridge = self._bridge_constants()
+        deadline = strategy_input.snapshot.candidate_entry_deadline_at
+        expires_at = min(current + self.permit_ttl, deadline)
+        permit = build_debit_vertical_permit(
+            compiled=compiled,
+            strategy_input=strategy_input,
+            decision=outcome.decision,
+            constants=bridge,
+            issued_at=current,
+            expires_at=expires_at,
+        )
+        self.risk_kernel.freeze_candidate(
+            event_id=compiled.event_id,
+            candidate_id=strategy_input.snapshot.candidate_id,
+            compiled=risk_bound_expression,
+            evidence_mode="PAPER_PIPELINE",
+            now=current,
+        )
+        opportunity = autonomous_bridge.derived_opportunity(
+            decision=outcome.decision,
+            compiled=risk_bound_expression,
+            permit=permit,
+            policy_v2=policy_v2,
+            confirmation=confirmation,
+        )
+        approval = self.risk_kernel.authorize_entry_v2(
+            event_id=compiled.event_id,
+            candidate_id=strategy_input.snapshot.candidate_id,
+            opportunity=opportunity,
+            compiled=risk_bound_expression,
+            permit=permit,
+            now=current,
+        )
+        if isinstance(approval, RiskAbstentionV2):
+            raise autonomous_bridge.RiskAbstentionRejected(approval)
         permit_sha = canonical_permit_sha256(permit)
         expression_sha = compiled_expression_sha256(compiled)
         if approval.permit_id != permit.permit_id or approval.permit_sha256 != permit_sha:
