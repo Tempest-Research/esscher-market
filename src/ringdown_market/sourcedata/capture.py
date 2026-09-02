@@ -341,7 +341,7 @@ def _open_windows_pin_file(kernel32, output_dir: Path) -> int:
         ):
             raise _unsafe_output_path("output-directory pin is not a regular file")
         actual_path = _normalize_windows_path(_windows_final_path(kernel32, handle))
-        expected_path = _normalize_windows_path(str(path))
+        expected_path = _normalize_windows_path(os.path.realpath(str(path)))
         if actual_path != expected_path:
             raise _unsafe_output_path("output-directory pin resolved outside the validated path")
         opened = True
