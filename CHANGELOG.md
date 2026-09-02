@@ -11,6 +11,7 @@
 - Owner-approved PAPER autonomy policy, typed untrusted-news evidence, a cutoff-safe episodic ledger, and deterministic liquid-universe selection.
 - V2 strategy and risk policies, account-relative allocation, an autonomous session coordinator, and typed decision/allocation seams.
 - Canonical `StrategyRelease` records with append-only promotion, exact-load, supersession, and revocation behavior, plus a minimal `ArmRecord` handoff for #66.
+- Deterministic option assignment, exercise, expiry, sell-out, contract-adjustment, and buying-power-rejection reconciliation with canonical activity coverage, exposure receipts, and an atomic account-global SQLite journal for the focused #66 runtime child.
 
 ### Changed
 
@@ -26,6 +27,7 @@
 - The reasoner route and latency gate authorize no broker call, PAPER order, provider purchase, probe, deployment, or live call. The host reads only `KIMI_API_KEY`; credentials, account/broker/order data, exception strings, and forbidden sampling fields never enter request payloads, application arguments, or exchange receipts.
 - No provider completion, token, measured p95, or successful-inference claim is made. The currently stored host key is an external HTTP 401 `invalid_authentication_error` blocker, and V1 compatibility remains closed even if that credential is replaced.
 - The autonomous coordinator and release records are not armed by this change; tests use fakes and no provider, account, broker, or PAPER mutation is performed.
+- Option-event receipts consume only synthetic or explicitly host-normalized inputs and permanently disclaim broker-connectivity and alpha evidence; this slice adds no account-activity client, order, cancel, exercise, or PAPER mutation capability.
 
 ## [0.3.0] - Unreleased
 
