@@ -20,6 +20,7 @@
 ### Fixed
 
 - Sealed `LifecycleMcpPaperBroker` construction and lifecycle state inside the preflighted host-MCP capability path, so raw or independently guarded sessions, copies, and state retargeting cannot reach a tool call.
+- Reworked the Windows capture-output pin to retain replacement-race protection without holding incompatible directory `DELETE` access, restoring atomic publication and repeat capture on Windows.
 
 ### Safety
 

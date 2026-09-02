@@ -195,8 +195,8 @@ def test_windows_capture_pins_output_directory_against_junction_swap(
             swap_attempted = True
             try:
                 output_dir.rmdir()
-            except PermissionError as error:
-                assert error.winerror == 32
+            except OSError as error:
+                assert error.winerror in {32, 145}
                 swap_blocked = True
             else:
                 _junction_or_skip(output_dir, outside_dir)
