@@ -12,6 +12,7 @@
 - V2 strategy and risk policies, account-relative allocation, an autonomous session coordinator, and typed decision/allocation seams.
 - Canonical `StrategyRelease` records with append-only promotion, exact-load, supersession, and revocation behavior, plus a minimal `ArmRecord` handoff for #66.
 - Deterministic option assignment, exercise, expiry, sell-out, contract-adjustment, and buying-power-rejection reconciliation with canonical activity coverage, exposure receipts, and an atomic account-global SQLite journal for the focused #66 runtime child.
+- Deadline-aware autonomous application service (`runtime/autonomous_application_service.py`) whose nine content-addressed stage receipts bind each prerequisite SHA-256 from the armed session arm through capture, decision, expression, risk, lifecycle open, monitored execution, option-event reconciliation, and terminal binding, with derived p95 stage budgets (`runtime/stage_budgets.py`), canonical operational health receipts (`runtime/health_receipts.py`), durable claim-based duplicate-run suppression, fail-closed deadline exhaustion that retains only the bounded close authority, and deterministic exposure recomputation after assignment/exercise/expiry reconciliation.
 
 ### Changed
 
