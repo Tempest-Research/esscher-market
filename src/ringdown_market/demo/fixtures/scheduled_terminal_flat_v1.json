@@ -10,24 +10,24 @@
     "disposition": "EXECUTED_TO_TERMINAL",
     "event_run_id": "rd-event-dddddddddddddddddddddddddddddddd",
     "lifecycle": "CLOSED_FLAT",
-    "manifest_sha256": "5c3c74d1d4611b5e16b179496aabbd49a9891fb30ccd62f8cf39c6cd1743ac41",
+    "manifest_sha256": "538a998e73d524d1440c8f756f6d051b1d191e5349c90b28956f171adcc780b1",
     "observed_at": "2026-08-29T20:00:00+00:00",
     "receipt": {
-      "capability_sha256": "b201168f2f031fbf628e10e587076cac1caff6a1728c94e062ef1ee0526380ca",
+      "capability_sha256": "e459f66b4d206ebed21fb3ec0d377a78797b52a32e48c1ff1e88d05780b42dba",
       "claims": [
         "PAPER_OPERATIONAL_OBSERVATION",
         "NOT_ALPHA_EVIDENCE"
       ],
       "close_order_sha256": "be6a4e24d65ad4f3d68c83106b0e09e4ab4ac9585ed64b9b8aab233ae91fc53a",
       "close_permit_id": "permit-close-test-001",
-      "close_request_sha256": "5cef2f8090b66d379a4d6673f8a2835b267c9c5702ca5d55861636502ef659dc",
+      "close_request_sha256": "c0aaab63ada87c93b6dc9dec0fdc48ed0b1f389c5903c3303b996204fd1b5925",
       "data_class": "INDICATIVE_DATA",
       "event_run_id": "rd-event-dddddddddddddddddddddddddddddddd",
       "final_flat_observed_at": "2026-08-29T20:00:00+00:00",
       "lifecycle_outcome": "CLOSED_FLAT",
       "open_order_sha256": "75ac39a2db4d631d825b7dfb84eb78fa7b5843acc999edfd45e666c41091ea1e",
-      "open_permit_id": "rd-permit-95ea8700372293d0c3ae79190e96bcb1",
-      "open_request_sha256": "8445202ad37346ee3f642e7b0e594eddae4ac357eaa2cd3cd30df018433ef38e",
+      "open_permit_id": "rd-permit-2a1c0013531fb625a61d9346e20ec8bf",
+      "open_request_sha256": "dbb2e03ad6e47d1e79795fadb8e3b65cc6cf4639e206147a2b754de2f6d1841d",
       "paper_pnl": {
         "broker_fees": null,
         "classification": "PAPER_REALIZED_PNL",
@@ -37,7 +37,7 @@
         "open_filled_at": "2026-08-29T19:59:50+00:00",
         "unavailable_reason": null
       },
-      "receipt_sha256": "4cf77562036f26c2688fa71f3566bc51da66459fed61aba2e50a14f8fdcfce2d",
+      "receipt_sha256": "13e81c0fe7248c98a98c74db19b3c3b23b4594fac4235870b163936ada16c653",
       "run_mode": "PAPER",
       "schema": "ringdown.paper_receipt_bundle",
       "schema_version": 1

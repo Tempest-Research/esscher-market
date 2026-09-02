@@ -13,8 +13,9 @@
     "retry_count": 0
   },
   "candidate_ids": [
-    "EARNINGS_RESIDUAL_CONTINUATION_V1",
-    "MACRO_SPY_CONTINUATION_CHALLENGER_V1"
+    "EARNINGS_RESIDUAL_CONTINUATION_V2",
+    "MARKET_ANCHOR_INTRADAY_CONTINUATION_V1",
+    "LIQUID_STOCK_CATALYST_CONTINUATION_V1"
   ],
   "claim_labels": [
     "NO_BROKER_AUTHORITY",
@@ -30,13 +31,13 @@
   },
   "decoding": {
     "max_output_tokens": 512,
-    "seed": 7,
-    "temperature": "0.0",
-    "top_p": "1"
+    "seed": null,
+    "temperature": "1.0",
+    "top_p": "0.95"
   },
   "model": "kimi-k3",
   "model_revision": null,
-  "policy_sha256": "afce93b52b96e0d8c71deeb80027a1c87a4cf3623e9417db14de00279fc23bca",
+  "policy_sha256": "a9785b25feca845d22bc78b248315141cf9a9f0da4bf449e5dc93caa104dc293",
   "provider": "moonshot_direct",
   "provider_request_policy": {
     "effective_decoding": {
@@ -57,15 +58,15 @@
     "reasoning_effort": "low",
     "response_format": {
       "json_schema": {
-        "name": "esscher_reasoner_decision_v1",
-        "schema_sha256": "c8275548471afc1def1e0e80dde68d40fde7ad32b4605afc74e1cc7bd360f409",
+        "name": "esscher_reasoner_decision_v2",
+        "schema_sha256": "5aa0cf27af8fd3cad5fdb036a6f607dc571af03745511e4e524b621702d261bd",
         "strict": true
       },
       "type": "json_schema"
     },
     "tool_choice": "none"
   },
-  "route_id": "ESSCHER_BOUNDED_REASONER_ROUTE_V1",
+  "route_id": "ESSCHER_BOUNDED_REASONER_ROUTE_V2",
   "schema": "esscher.reasoner_route",
-  "schema_version": 1
+  "schema_version": 2
 }

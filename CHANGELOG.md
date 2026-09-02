@@ -1,13 +1,20 @@
 # Changelog
 
-## [0.3.1] - Unreleased
+## [0.4.0] - Unreleased
 
 ### Added
 
-- Frozen host-managed reasoner route contract (`esscher.reasoner_route/v1`) and approval receipt (`esscher.reasoner_route_approval/v1`) with a proposed `dashscope`/`kimi-k3` OpenAI-compatible adapter, pending explicit owner approval; fail-closed loader/validator for absent, stale, malformed, hash-mismatched, or unauthorized route inputs.
+- Corrected the frozen host-managed reasoner route contract (`esscher.reasoner_route/v1`) and approval receipt (`esscher.reasoner_route_approval/v1`) from obsolete DashScope assumptions to the owner-selected direct `moonshot_direct` / `https://api.moonshot.ai/v1` / `kimi-k3` boundary. The owner approval is recorded separately from operational readiness: V1 rejects route construction with `FROZEN_POLICY_DECODING_INCOMPATIBLE` because its frozen caller decoding cannot truthfully represent K3's provider-fixed effective sampling.
 - Frozen p95 execution-latency profile contract (`esscher.latency_profile/v1`) with a `PREREGISTERED` 30,000 ms nearest-rank profile; synthetic placeholders fail evaluation and promotion, and stale or hash-mismatched profiles fail closed.
-- Inert host reasoner adapter boundary (`strategy/host_route.py`) that records exchange receipts identical to the deterministic fake and makes no live call unless a transport is injected.
+- Pure direct-Kimi payload and fake-transport boundary (`strategy/host_route.py`) that binds canonical snapshot/evidence/feature data, strict six-field JSON Schema bytes, request identity, one-call/no-retry error mapping, and an 8-second route policy without network access.
 - Optional latency-profile binding on `panel.assembler.assemble_panel_report`; real panel manifests now accept `HOST_MEASURED` or `PREREGISTERED` p95 measurement kinds.
+- Owner-approved PAPER autonomy policy, typed untrusted-news evidence, a cutoff-safe episodic ledger, and deterministic liquid-universe selection.
+- V2 strategy and risk policies, account-relative allocation, an autonomous session coordinator, and typed decision/allocation seams.
+- Canonical `StrategyRelease` records with append-only promotion, exact-load, supersession, and revocation behavior, plus a minimal `ArmRecord` handoff for #66.
+
+### Changed
+
+- The release train version advances from `0.3.1` to `0.4.0`.
 
 ### Fixed
 
@@ -16,7 +23,9 @@
 ### Safety
 
 - This internal provenance hardening creates no provider, credential, account, broker, PAPER-mutation, or live-execution capability.
-- The reasoner route and latency gate authorize no broker call, PAPER order, provider purchase, deployment, or live probe; a pending or revoked approval can never authorize strategy evaluation, and credentials never enter repository artifacts or application arguments.
+- The reasoner route and latency gate authorize no broker call, PAPER order, provider purchase, probe, deployment, or live call. The host reads only `KIMI_API_KEY`; credentials, account/broker/order data, exception strings, and forbidden sampling fields never enter request payloads, application arguments, or exchange receipts.
+- No provider completion, token, measured p95, or successful-inference claim is made. The currently stored host key is an external HTTP 401 `invalid_authentication_error` blocker, and V1 compatibility remains closed even if that credential is replaced.
+- The autonomous coordinator and release records are not armed by this change; tests use fakes and no provider, account, broker, or PAPER mutation is performed.
 
 ## [0.3.0] - Unreleased
 

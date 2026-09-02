@@ -11,9 +11,11 @@ defaults.
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from decimal import Decimal
+from importlib import resources
 from typing import Final
 
 from ringdown_market.risk.reasons import RiskReason, RiskRejected, _reject
@@ -243,3 +245,330 @@ def parse_risk_policy(raw: bytes) -> RiskPolicy:
     if risk_policy_bytes(result) != raw:
         raise _reject(RiskReason.UNSUPPORTED_INPUT, "risk_policy", "policy bytes are not canonical")
     return result
+
+
+# -- V2 account-relative autonomy policy ------------------------------------
+
+RISK_POLICY_V2_SCHEMA: Final = "esscher.paper_account_risk_policy"
+RISK_POLICY_V2_SCHEMA_VERSION: Final = 2
+RISK_POLICY_V2_RESOURCE_NAME: Final = "policies/risk_policy_v2.json"
+_RISK_POLICY_V2_ID: Final = "PAPER_ACCOUNT_RISK_POLICY_V2"
+_RISK_POLICY_V2_VERSION: Final = "v2"
+_V2_STARTING_EQUITY: Final = Decimal("100000")
+_V2_RISK_TIERS: Final = (Decimal("0.05"), Decimal("0.10"), Decimal("0.20"))
+_V2_PER_UNDERLYING_FRACTION: Final = Decimal("0.20")
+_V2_AGGREGATE_FRACTION: Final = Decimal("0.50")
+_V2_FREEZE_FRACTION: Final = Decimal("0.50")
+_V2_TRUTH_MAX_AGE_SECONDS: Final = 30
+_SHA256 = re.compile(r"^[0-9a-f]{64}$")
+_V2_POLICY_FIELDS: Final = frozenset(
+    {
+        "schema",
+        "schema_version",
+        "policy_id",
+        "version",
+        "run_mode",
+        "starting_equity",
+        "risk_tiers",
+        "max_per_underlying_open_debit_fraction",
+        "max_aggregate_open_debit_fraction",
+        "emergency_drawdown_freeze_fraction",
+        "daily_loss_stop",
+        "trade_count_cap",
+        "open_expression_count_cap",
+        "cash_only",
+        "defined_risk_only",
+        "truth_max_age_seconds",
+        "owner_policy_sha256",
+        "constants_source_sha256",
+    }
+)
+
+
+def _approved_owner_policy_sha256() -> str:
+    """Return the digest of the immutable owner autonomy-policy resource."""
+
+    # Import lazily so retaining V1 never requires this newer package resource.
+    from ringdown_market.autonomy.policy import autonomous_policy_sha256
+
+    return autonomous_policy_sha256()
+
+
+def _v2_decimal(value: object, *, path: str, expected: Decimal) -> Decimal:
+    if not isinstance(value, str):
+        raise _reject(RiskReason.UNSUPPORTED_INPUT, path, "must be canonical decimal text")
+    try:
+        result = Decimal(value)
+    except ArithmeticError as error:
+        raise _reject(RiskReason.UNSUPPORTED_INPUT, path, str(error)) from None
+    if not result.is_finite():
+        raise _reject(RiskReason.POLICY_UNVERIFIED_CONSTANT, path, "must be finite")
+    if str(result) != value or result != expected:
+        raise _reject(RiskReason.POLICY_UNVERIFIED_CONSTANT, path, "does not equal the owner value")
+    return result
+
+
+def _v2_text(value: object, *, path: str, expected: str) -> str:
+    if type(value) is not str or value != expected:
+        raise _reject(RiskReason.UNSUPPORTED_INPUT, path, "does not equal the owner value")
+    return value
+
+
+def _v2_sha256(value: object, *, path: str, expected: str) -> str:
+    if type(value) is not str or _SHA256.fullmatch(value) is None:
+        raise _reject(RiskReason.UNSUPPORTED_INPUT, path, "must be a lowercase SHA-256 digest")
+    if value != expected:
+        raise _reject(RiskReason.POLICY_HASH_MISMATCH, path, "does not bind owner-approved bytes")
+    return value
+
+
+def _reject_float_literal(value: str) -> object:
+    raise _reject(
+        RiskReason.UNSUPPORTED_INPUT,
+        "risk_policy_v2",
+        f"JSON float literal {value} is forbidden; use canonical decimal text",
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class RiskPolicyV2:
+    """The fixed owner-bound, cash-only autonomy policy for account-relative sizing."""
+
+    policy_id: str
+    version: str
+    run_mode: str
+    starting_equity: Decimal
+    risk_tiers: tuple[Decimal, Decimal, Decimal]
+    max_per_underlying_open_debit_fraction: Decimal
+    max_aggregate_open_debit_fraction: Decimal
+    emergency_drawdown_freeze_fraction: Decimal
+    daily_loss_stop: None
+    trade_count_cap: None
+    open_expression_count_cap: None
+    cash_only: bool
+    defined_risk_only: bool
+    truth_max_age_seconds: int
+    owner_policy_sha256: str
+    constants_source_sha256: str
+
+    def __post_init__(self) -> None:
+        if self.policy_id != _RISK_POLICY_V2_ID or self.version != _RISK_POLICY_V2_VERSION:
+            raise ValueError("RiskPolicyV2 identity is immutable")
+        if self.run_mode != "PAPER":
+            raise ValueError("RiskPolicyV2 is permanently PAPER-only")
+        if self.starting_equity != _V2_STARTING_EQUITY or not self.starting_equity.is_finite():
+            raise ValueError("starting_equity must equal the owner-approved Decimal")
+        if self.risk_tiers != _V2_RISK_TIERS:
+            raise ValueError("risk_tiers must equal the owner-approved tiers")
+        for field, expected in (
+            ("max_per_underlying_open_debit_fraction", _V2_PER_UNDERLYING_FRACTION),
+            ("max_aggregate_open_debit_fraction", _V2_AGGREGATE_FRACTION),
+            ("emergency_drawdown_freeze_fraction", _V2_FREEZE_FRACTION),
+        ):
+            value = getattr(self, field)
+            if not isinstance(value, Decimal) or not value.is_finite() or value != expected:
+                raise ValueError(f"{field} must equal the owner-approved Decimal")
+        if (
+            self.daily_loss_stop is not None
+            or self.trade_count_cap is not None
+            or self.open_expression_count_cap is not None
+        ):
+            raise ValueError("V2 nullable caps must remain null")
+        if self.cash_only is not True or self.defined_risk_only is not True:
+            raise ValueError("V2 must remain cash-only and defined-risk-only")
+        if self.truth_max_age_seconds != _V2_TRUTH_MAX_AGE_SECONDS:
+            raise ValueError("truth_max_age_seconds must equal the owner value")
+        owner = _approved_owner_policy_sha256()
+        if (
+            _SHA256.fullmatch(self.owner_policy_sha256) is None
+            or _SHA256.fullmatch(self.constants_source_sha256) is None
+            or self.owner_policy_sha256 != owner
+            or self.constants_source_sha256 != owner
+        ):
+            raise ValueError("V2 policy must bind the exact owner autonomy-policy bytes")
+
+    @property
+    def constants_verified(self) -> bool:
+        owner = _approved_owner_policy_sha256()
+        return self.owner_policy_sha256 == owner and self.constants_source_sha256 == owner
+
+    @property
+    def emergency_drawdown_freeze_equity(self) -> Decimal:
+        return self.starting_equity * self.emergency_drawdown_freeze_fraction
+
+
+def risk_policy_v2_payload(value: RiskPolicyV2) -> dict[str, object]:
+    """Return the single strict schema used for a V2 autonomy policy."""
+
+    if not isinstance(value, RiskPolicyV2):
+        raise _reject(RiskReason.UNSUPPORTED_INPUT, "risk_policy_v2", "must be a RiskPolicyV2")
+    return {
+        "schema": RISK_POLICY_V2_SCHEMA,
+        "schema_version": RISK_POLICY_V2_SCHEMA_VERSION,
+        "policy_id": value.policy_id,
+        "version": value.version,
+        "run_mode": value.run_mode,
+        "starting_equity": str(value.starting_equity),
+        "risk_tiers": [str(tier) for tier in value.risk_tiers],
+        "max_per_underlying_open_debit_fraction": str(value.max_per_underlying_open_debit_fraction),
+        "max_aggregate_open_debit_fraction": str(value.max_aggregate_open_debit_fraction),
+        "emergency_drawdown_freeze_fraction": str(value.emergency_drawdown_freeze_fraction),
+        "daily_loss_stop": value.daily_loss_stop,
+        "trade_count_cap": value.trade_count_cap,
+        "open_expression_count_cap": value.open_expression_count_cap,
+        "cash_only": value.cash_only,
+        "defined_risk_only": value.defined_risk_only,
+        "truth_max_age_seconds": value.truth_max_age_seconds,
+        "owner_policy_sha256": value.owner_policy_sha256,
+        "constants_source_sha256": value.constants_source_sha256,
+    }
+
+
+def _packaged_risk_policy_v2_bytes() -> bytes:
+    return (
+        resources.files("ringdown_market.risk").joinpath(RISK_POLICY_V2_RESOURCE_NAME).read_bytes()
+    )
+
+
+def risk_policy_v2_bytes(value: RiskPolicyV2 | None = None) -> bytes:
+    """Return V2 canonical serialization, or the exact packaged bytes when omitted."""
+
+    if value is None:
+        return _packaged_risk_policy_v2_bytes()
+    return canonical_json_bytes(risk_policy_v2_payload(value))
+
+
+def risk_policy_v2_sha256(value: RiskPolicyV2 | None = None) -> str:
+    """Return the digest of exact V2 policy bytes."""
+
+    return sha256_bytes(risk_policy_v2_bytes(value))
+
+
+def parse_risk_policy_v2(raw: bytes) -> RiskPolicyV2:
+    """Strictly parse one canonical owner-bound V2 policy; no defaults are permitted."""
+
+    if type(raw) is not bytes:
+        raise _reject(RiskReason.UNSUPPORTED_INPUT, "risk_policy_v2", "input must be bytes")
+    try:
+        payload = json.loads(
+            raw.decode("utf-8"),
+            object_pairs_hook=_unique_object,
+            parse_constant=_reject_constant,
+            parse_float=_reject_float_literal,
+        )
+    except _DuplicateFieldError as error:
+        raise _reject(
+            RiskReason.UNSUPPORTED_INPUT, "risk_policy_v2", f"duplicate JSON field {error}"
+        ) from None
+    except RiskRejected:
+        raise
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
+        raise _reject(RiskReason.UNSUPPORTED_INPUT, "risk_policy_v2", str(error)) from None
+    if not isinstance(payload, dict):
+        raise _reject(RiskReason.UNSUPPORTED_INPUT, "risk_policy_v2", "root must be an object")
+    actual = frozenset(payload)
+    missing = sorted(_V2_POLICY_FIELDS - actual)
+    unknown = sorted(actual - _V2_POLICY_FIELDS)
+    if missing or unknown:
+        raise _reject(
+            RiskReason.UNSUPPORTED_INPUT,
+            "risk_policy_v2",
+            f"field mismatch; missing={missing} unknown={unknown}",
+        )
+    if payload["schema"] != RISK_POLICY_V2_SCHEMA:
+        raise _reject(RiskReason.UNSUPPORTED_INPUT, "risk_policy_v2.schema", "unsupported schema")
+    if payload["schema_version"] != RISK_POLICY_V2_SCHEMA_VERSION:
+        raise _reject(
+            RiskReason.UNSUPPORTED_INPUT, "risk_policy_v2.schema_version", "unsupported version"
+        )
+    if payload["run_mode"] != "PAPER":
+        raise _reject(RiskReason.POLICY_NOT_PAPER_ONLY, "risk_policy_v2.run_mode", "must be PAPER")
+    tiers = payload["risk_tiers"]
+    if not isinstance(tiers, list) or len(tiers) != len(_V2_RISK_TIERS):
+        raise _reject(RiskReason.POLICY_UNVERIFIED_CONSTANT, "risk_policy_v2.risk_tiers", "invalid")
+    parsed_tiers = tuple(
+        _v2_decimal(value, path=f"risk_policy_v2.risk_tiers[{index}]", expected=expected)
+        for index, (value, expected) in enumerate(zip(tiers, _V2_RISK_TIERS, strict=True))
+    )
+    owner = _approved_owner_policy_sha256()
+    result = RiskPolicyV2(
+        policy_id=_v2_text(
+            payload["policy_id"], path="risk_policy_v2.policy_id", expected=_RISK_POLICY_V2_ID
+        ),
+        version=_v2_text(
+            payload["version"], path="risk_policy_v2.version", expected=_RISK_POLICY_V2_VERSION
+        ),
+        run_mode="PAPER",
+        starting_equity=_v2_decimal(
+            payload["starting_equity"],
+            path="risk_policy_v2.starting_equity",
+            expected=_V2_STARTING_EQUITY,
+        ),
+        risk_tiers=parsed_tiers,  # type: ignore[arg-type]
+        max_per_underlying_open_debit_fraction=_v2_decimal(
+            payload["max_per_underlying_open_debit_fraction"],
+            path="risk_policy_v2.max_per_underlying_open_debit_fraction",
+            expected=_V2_PER_UNDERLYING_FRACTION,
+        ),
+        max_aggregate_open_debit_fraction=_v2_decimal(
+            payload["max_aggregate_open_debit_fraction"],
+            path="risk_policy_v2.max_aggregate_open_debit_fraction",
+            expected=_V2_AGGREGATE_FRACTION,
+        ),
+        emergency_drawdown_freeze_fraction=_v2_decimal(
+            payload["emergency_drawdown_freeze_fraction"],
+            path="risk_policy_v2.emergency_drawdown_freeze_fraction",
+            expected=_V2_FREEZE_FRACTION,
+        ),
+        daily_loss_stop=_v2_null(payload["daily_loss_stop"], "risk_policy_v2.daily_loss_stop"),
+        trade_count_cap=_v2_null(payload["trade_count_cap"], "risk_policy_v2.trade_count_cap"),
+        open_expression_count_cap=_v2_null(
+            payload["open_expression_count_cap"], "risk_policy_v2.open_expression_count_cap"
+        ),
+        cash_only=_v2_true(payload["cash_only"], "risk_policy_v2.cash_only"),
+        defined_risk_only=_v2_true(
+            payload["defined_risk_only"], "risk_policy_v2.defined_risk_only"
+        ),
+        truth_max_age_seconds=_v2_int(
+            payload["truth_max_age_seconds"], "risk_policy_v2.truth_max_age_seconds"
+        ),
+        owner_policy_sha256=_v2_sha256(
+            payload["owner_policy_sha256"],
+            path="risk_policy_v2.owner_policy_sha256",
+            expected=owner,
+        ),
+        constants_source_sha256=_v2_sha256(
+            payload["constants_source_sha256"],
+            path="risk_policy_v2.constants_source_sha256",
+            expected=owner,
+        ),
+    )
+    if risk_policy_v2_bytes(result) != raw:
+        raise _reject(
+            RiskReason.UNSUPPORTED_INPUT, "risk_policy_v2", "policy bytes are not canonical"
+        )
+    return result
+
+
+def _v2_null(value: object, path: str) -> None:
+    if value is not None:
+        raise _reject(RiskReason.POLICY_UNVERIFIED_CONSTANT, path, "must be null")
+    return None
+
+
+def _v2_true(value: object, path: str) -> bool:
+    if value is not True:
+        raise _reject(RiskReason.POLICY_UNVERIFIED_CONSTANT, path, "must be true")
+    return True
+
+
+def _v2_int(value: object, path: str) -> int:
+    if type(value) is not int or value != _V2_TRUTH_MAX_AGE_SECONDS:
+        raise _reject(RiskReason.POLICY_UNVERIFIED_CONSTANT, path, "must equal the owner value")
+    return value
+
+
+def load_risk_policy_v2() -> RiskPolicyV2:
+    """Load the packaged owner-bound V2 policy after strict byte validation."""
+
+    return parse_risk_policy_v2(risk_policy_v2_bytes())

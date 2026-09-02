@@ -12,11 +12,26 @@ from importlib import import_module
 from typing import NoReturn, Protocol
 from weakref import WeakKeyDictionary
 
-from ringdown_market.contracts.execution_policy import ACCOUNT_TOOL
+from ringdown_market.contracts.execution_policy import (
+    ACCOUNT_TOOL,
+    ALPACA_MCP_V2_DISCOVERED_TOOL_COUNT,
+    ALPACA_MCP_V2_DISTRIBUTION_TYPE,
+    ALPACA_MCP_V2_FASTMCP_SPEC,
+    ALPACA_MCP_V2_FASTMCP_VERSION,
+    ALPACA_MCP_V2_PROTOCOL_SHA256,
+    ALPACA_MCP_V2_PROVENANCE,
+    ALPACA_MCP_V2_SDIST_FILENAME,
+    ALPACA_MCP_V2_SDIST_SHA256,
+    ALPACA_MCP_V2_SELECTED_SCHEMA_COUNT,
+    ALPACA_MCP_V2_SELECTED_SCHEMA_SHA256,
+    ALPACA_MCP_V2_SOURCE_EQUIVALENT_COMMIT,
+    ALPACA_MCP_V2_SOURCE_EQUIVALENT_VERSION,
+    ALPACA_MCP_V2_VERSION,
+    ALPACA_MCP_V2_WHEEL_FILENAME,
+    ALPACA_MCP_V2_WHEEL_SHA256,
+)
 
 from .mcp import (
-    ALPACA_MCP_COMMIT,
-    ALPACA_MCP_VERSION,
     CANCEL_TOOL,
     OPEN_TOOL,
     ORDER_BY_ID_TOOL,
@@ -91,8 +106,26 @@ class HostMcpSessionIdentity:
 
     environment: HostMcpEnvironment
     adapter: str = field(default="ALPACA_MCP", init=False)
-    adapter_version: str = field(default=ALPACA_MCP_VERSION, init=False)
-    adapter_commit: str = field(default=ALPACA_MCP_COMMIT, init=False)
+    adapter_version: str = field(default=ALPACA_MCP_V2_VERSION, init=False)
+    distribution_type: str = field(default=ALPACA_MCP_V2_DISTRIBUTION_TYPE, init=False)
+    wheel_filename: str = field(default=ALPACA_MCP_V2_WHEEL_FILENAME, init=False)
+    wheel_sha256: str = field(default=ALPACA_MCP_V2_WHEEL_SHA256, init=False)
+    sdist_filename: str = field(default=ALPACA_MCP_V2_SDIST_FILENAME, init=False)
+    sdist_sha256: str = field(default=ALPACA_MCP_V2_SDIST_SHA256, init=False)
+    provenance_class: str = field(default=ALPACA_MCP_V2_PROVENANCE, init=False)
+    source_equivalent_version: str = field(
+        default=ALPACA_MCP_V2_SOURCE_EQUIVALENT_VERSION, init=False
+    )
+    source_equivalent_commit: str = field(
+        default=ALPACA_MCP_V2_SOURCE_EQUIVALENT_COMMIT, init=False
+    )
+    fastmcp_version: str = field(default=ALPACA_MCP_V2_FASTMCP_VERSION, init=False)
+    fastmcp_spec: str = field(default=ALPACA_MCP_V2_FASTMCP_SPEC, init=False)
+    discovered_tool_count: int = field(default=ALPACA_MCP_V2_DISCOVERED_TOOL_COUNT, init=False)
+    selected_schema_count: int = field(default=ALPACA_MCP_V2_SELECTED_SCHEMA_COUNT, init=False)
+    selected_schema_sha256: str = field(default=ALPACA_MCP_V2_SELECTED_SCHEMA_SHA256, init=False)
+    tool_names: tuple[str, ...] = field(default=tuple(sorted(_REQUIRED_TOOLS)), init=False)
+    execution_protocol_sha256: str = field(default=ALPACA_MCP_V2_PROTOCOL_SHA256, init=False)
 
     def __post_init__(self) -> None:
         if not isinstance(self.environment, HostMcpEnvironment):
@@ -113,8 +146,22 @@ class HostMcpCapabilityObservation:
     observed_at: datetime
     environment: HostMcpEnvironment = HostMcpEnvironment.PAPER
     adapter: str = "ALPACA_MCP"
-    adapter_version: str = ALPACA_MCP_VERSION
-    adapter_commit: str = ALPACA_MCP_COMMIT
+    adapter_version: str = ALPACA_MCP_V2_VERSION
+    distribution_type: str = ALPACA_MCP_V2_DISTRIBUTION_TYPE
+    wheel_filename: str = ALPACA_MCP_V2_WHEEL_FILENAME
+    wheel_sha256: str = ALPACA_MCP_V2_WHEEL_SHA256
+    sdist_filename: str = ALPACA_MCP_V2_SDIST_FILENAME
+    sdist_sha256: str = ALPACA_MCP_V2_SDIST_SHA256
+    provenance_class: str = ALPACA_MCP_V2_PROVENANCE
+    source_equivalent_version: str = ALPACA_MCP_V2_SOURCE_EQUIVALENT_VERSION
+    source_equivalent_commit: str = ALPACA_MCP_V2_SOURCE_EQUIVALENT_COMMIT
+    fastmcp_version: str = ALPACA_MCP_V2_FASTMCP_VERSION
+    fastmcp_spec: str = ALPACA_MCP_V2_FASTMCP_SPEC
+    discovered_tool_count: int = ALPACA_MCP_V2_DISCOVERED_TOOL_COUNT
+    selected_schema_count: int = ALPACA_MCP_V2_SELECTED_SCHEMA_COUNT
+    selected_schema_sha256: str = ALPACA_MCP_V2_SELECTED_SCHEMA_SHA256
+    tool_names: tuple[str, ...] = tuple(sorted(_REQUIRED_TOOLS))
+    execution_protocol_sha256: str = ALPACA_MCP_V2_PROTOCOL_SHA256
 
 
 class HostManagedMcpSession(Protocol):
@@ -208,10 +255,23 @@ def _contains_secret_like(value: object) -> bool:
 def _capability_sha256(identity: HostMcpSessionIdentity) -> str:
     payload = {
         "adapter": identity.adapter,
-        "adapter_commit": identity.adapter_commit,
         "adapter_version": identity.adapter_version,
+        "discovered_tool_count": identity.discovered_tool_count,
+        "distribution_type": identity.distribution_type,
         "environment": identity.environment.value,
-        "required_tools": sorted(_REQUIRED_TOOLS),
+        "execution_protocol_sha256": identity.execution_protocol_sha256,
+        "fastmcp_spec": identity.fastmcp_spec,
+        "fastmcp_version": identity.fastmcp_version,
+        "provenance_class": identity.provenance_class,
+        "sdist_filename": identity.sdist_filename,
+        "sdist_sha256": identity.sdist_sha256,
+        "selected_schema_count": identity.selected_schema_count,
+        "selected_schema_sha256": identity.selected_schema_sha256,
+        "source_equivalent_commit": identity.source_equivalent_commit,
+        "source_equivalent_version": identity.source_equivalent_version,
+        "tool_names": list(identity.tool_names),
+        "wheel_filename": identity.wheel_filename,
+        "wheel_sha256": identity.wheel_sha256,
     }
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
     return hashlib.sha256(canonical).hexdigest()
@@ -305,6 +365,27 @@ class HostMcpPaperSessionFactory:
             trading_blocked=trading_blocked,
             account_blocked=account_blocked,
             observed_at=observed_at,
+            environment=self._identity.environment,
+            adapter=self._identity.adapter,
+            adapter_version=self._identity.adapter_version,
+            distribution_type=self._identity.distribution_type,
+            wheel_filename=self._identity.wheel_filename,
+            wheel_sha256=self._identity.wheel_sha256,
+            sdist_filename=self._identity.sdist_filename,
+            sdist_sha256=self._identity.sdist_sha256,
+            provenance_class=self._identity.provenance_class,
+            source_equivalent_version=self._identity.source_equivalent_version,
+            source_equivalent_commit=self._identity.source_equivalent_commit,
+            fastmcp_version=self._identity.fastmcp_version,
+            fastmcp_spec=self._identity.fastmcp_spec,
+            selected_schema_count=self._identity.selected_schema_count,
+            selected_schema_sha256=self._identity.selected_schema_sha256,
+            tool_names=self._identity.tool_names,
+            execution_protocol_sha256=self._identity.execution_protocol_sha256,
+            # The host's attestation is the registered discovery receipt.  The
+            # fake/normalized list is only checked for the required lifecycle
+            # names and must not silently redefine that receipt.
+            discovered_tool_count=self._identity.discovered_tool_count,
         )
 
     async def smoke(self, host: HostManagedMcpSession) -> HostMcpCapabilityObservation:
@@ -352,7 +433,21 @@ def _wire_prepared_host_mcp_capability() -> None:
             or observation.environment is not HostMcpEnvironment.PAPER
             or observation.adapter != expected_identity.adapter
             or observation.adapter_version != expected_identity.adapter_version
-            or observation.adapter_commit != expected_identity.adapter_commit
+            or observation.distribution_type != expected_identity.distribution_type
+            or observation.wheel_filename != expected_identity.wheel_filename
+            or observation.wheel_sha256 != expected_identity.wheel_sha256
+            or observation.sdist_filename != expected_identity.sdist_filename
+            or observation.sdist_sha256 != expected_identity.sdist_sha256
+            or observation.provenance_class != expected_identity.provenance_class
+            or observation.source_equivalent_version != expected_identity.source_equivalent_version
+            or observation.source_equivalent_commit != expected_identity.source_equivalent_commit
+            or observation.fastmcp_version != expected_identity.fastmcp_version
+            or observation.fastmcp_spec != expected_identity.fastmcp_spec
+            or observation.discovered_tool_count != expected_identity.discovered_tool_count
+            or observation.selected_schema_count != expected_identity.selected_schema_count
+            or observation.selected_schema_sha256 != expected_identity.selected_schema_sha256
+            or observation.tool_names != expected_identity.tool_names
+            or observation.execution_protocol_sha256 != expected_identity.execution_protocol_sha256
             or not isinstance(observation.observed_at, datetime)
             or observation.observed_at.tzinfo is None
             or observation.observed_at.utcoffset() is None

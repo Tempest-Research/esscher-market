@@ -40,10 +40,13 @@ class AccountSnapshot:
     buying_power: Decimal
     currency: str
     observed_at: datetime
+    cash: Decimal | None = None
 
     def __post_init__(self) -> None:
         _require_decimal(self.equity, "account.equity")
         _require_decimal(self.buying_power, "account.buying_power")
+        if self.cash is not None and _require_decimal(self.cash, "account.cash") < 0:
+            raise _reject(RiskReason.UNSUPPORTED_INPUT, "account.cash", "must be non-negative")
         if not isinstance(self.currency, str) or not self.currency:
             raise _reject(
                 RiskReason.UNSUPPORTED_INPUT, "account.currency", "must be non-empty text"
