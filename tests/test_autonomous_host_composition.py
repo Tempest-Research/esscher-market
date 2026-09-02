@@ -9,6 +9,7 @@ no test performs a network, provider, broker, or account call.
 from __future__ import annotations
 
 import ast
+import hashlib
 import json
 import socket
 import sys
@@ -45,10 +46,12 @@ from ringdown_market.runtime.autonomous_host import (
     AutonomousHostDisposition,
     AutonomousHostInvocation,
     AutonomousHostRejected,
+    HostLifecycleCloserAdapter,
     run_autonomous_host_command,
 )
 from ringdown_market.runtime.host_composition import (
     EARNINGS_LANE_V2,
+    MARKET_ANCHOR_LANE_V2,
     CompositionFeed,
     CompositionFeedEvent,
     composition_plan_factory,
@@ -241,6 +244,26 @@ def test_s1_neutral_confirmation_abstains_without_any_mutation(tmp_path: Path) -
     _assert_synthetic_claims(receipt)
 
 
+def test_v2_lane_cannot_relabel_an_unrelated_v1_source_fixture(tmp_path: Path) -> None:
+    broker = SyntheticPaperBroker()
+    ledger = RiskLedger(tmp_path / "risk.sqlite3")
+    authority_input, arm = _authority(tmp_path, broker)
+    feed = CompositionFeed(events=(_feed_event(candidate_id=MARKET_ANCHOR_LANE_V2),))
+
+    receipt = run_autonomous_host_command(
+        authority_input=authority_input,
+        plan_factory=composition_plan_factory(feed, ledger=ledger, broker=broker),
+        observation_timeline=(_window_point(arm), arm.hard_flat_at),
+    )
+
+    assert receipt.disposition is AutonomousHostDisposition.TERMINAL
+    assert receipt.disposition_counts["REJECTED_BEFORE_MUTATION"] == 1
+    assert broker.open_submissions == 0
+    assert broker.close_submissions == 0
+    assert ledger.decision_episode_rows() == []
+    assert ledger.outcome_episode_rows() == []
+
+
 def test_s2_accepted_candidate_opens_atomically_and_flattens_at_hard_flat(
     tmp_path: Path,
 ) -> None:
@@ -320,6 +343,12 @@ def test_s3_restart_rehydrates_close_only_authority_from_the_sidecar(
     assert broker.open_submissions == 1
     assert broker.close_submissions == 0
     assert not broker.is_flat()
+    sidecar = HostPersistenceSidecar(authority_input.state_dir / HOST_PERSISTENCE_FILENAME)
+    active_bundle = sidecar.rehydrate(lifecycle_id)
+    expected_opportunity = _opportunity_for(arm, feed.events[0])
+    assert active_bundle is not None
+    assert active_bundle.opportunity_id == expected_opportunity.opportunity_id
+    assert active_bundle.opportunity_sha256 == expected_opportunity.opportunity_sha256
     first_ledger.close()
 
     restarted_ledger = RiskLedger(ledger_path)
@@ -341,7 +370,6 @@ def test_s3_restart_rehydrates_close_only_authority_from_the_sidecar(
     assert len(restarted_ledger.decision_episode_rows()) == 1
     assert len(outcomes) == 1
     assert int(outcomes[0]["final_flat"]) == 1
-    sidecar = HostPersistenceSidecar(authority_input.state_dir / HOST_PERSISTENCE_FILENAME)
     assert sidecar.is_terminal(lifecycle_id)
     _assert_synthetic_claims(closing)
 
@@ -455,6 +483,89 @@ def test_sidecar_chain_detects_tampering(tmp_path: Path) -> None:
     assert tampered != raw
     sidecar_path.write_bytes(tampered)
     assert not sidecar.chain_valid()
+
+
+def test_rehashed_sidecar_opportunity_forgery_cannot_rebuild_close_authority(
+    tmp_path: Path,
+) -> None:
+    broker = SyntheticPaperBroker()
+    ledger_path = tmp_path / "risk.sqlite3"
+    ledger = RiskLedger(ledger_path)
+    authority_input, arm = _authority(tmp_path, broker)
+    feed = CompositionFeed(events=(_feed_event(),))
+    factory = composition_plan_factory(feed, ledger=ledger, broker=broker)
+    opening = run_autonomous_host_command(
+        authority_input=authority_input,
+        plan_factory=factory,
+        observation_timeline=(_window_point(arm),),
+    )
+    assert opening.disposition is AutonomousHostDisposition.INCOMPLETE
+    ledger.close()
+
+    sidecar_path = authority_input.state_dir / HOST_PERSISTENCE_FILENAME
+    entries = _sidecar_entries(authority_input.state_dir)
+    assert len(entries) == 1
+    entry = entries[0]
+    payload = entry["payload"]
+    assert isinstance(payload, dict)
+    payload["opportunity_sha256"] = "f" * 64
+    unsigned = {key: value for key, value in entry.items() if key != "entry_sha256"}
+    entry["entry_sha256"] = hashlib.sha256(
+        json.dumps(
+            unsigned,
+            ensure_ascii=False,
+            allow_nan=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+    ).hexdigest()
+    sidecar_path.write_bytes(
+        json.dumps(
+            entry,
+            ensure_ascii=False,
+            allow_nan=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+        + b"\n"
+    )
+
+    lifecycle_id = opening.active_lifecycle_ids[0]
+    lifecycle = ActiveLifecycleIdentity.for_candidate(
+        arm=arm,
+        opportunity=_opportunity_for(arm, feed.events[0]),
+        lifecycle_id=lifecycle_id,
+    )
+    close_request = LifecycleCloseRequest(
+        arm=arm,
+        lifecycle=lifecycle,
+        observed_at=arm.hard_flat_at,
+    )
+    direct_result = HostLifecycleCloserAdapter(
+        host_composition.CompositionLifecycleBackend(factory.states[-1])
+    ).close_and_reconcile(close_request)
+    assert direct_result.reason_code == "CLAIM_RECOVERY_UNKNOWN"
+
+    restarted_ledger = RiskLedger(ledger_path)
+    receipt = run_autonomous_host_command(
+        authority_input=authority_input,
+        plan_factory=composition_plan_factory(
+            feed,
+            ledger=restarted_ledger,
+            broker=broker,
+        ),
+        observation_timeline=(arm.hard_flat_at,),
+    )
+
+    assert receipt.disposition is AutonomousHostDisposition.MANUAL_RECONCILIATION_REQUIRED
+    assert receipt.manual_reasons == (
+        "CLAIM_RECOVERY_UNKNOWN",
+        "HARD_FLAT_UNRESOLVED",
+        "RECONCILIATION_INCOMPLETE",
+    )
+    assert broker.open_submissions == 1
+    assert broker.close_submissions == 0
+    assert not broker.is_flat()
 
 
 def test_close_fault_with_residual_positions_maps_to_manual_at_backend_level(

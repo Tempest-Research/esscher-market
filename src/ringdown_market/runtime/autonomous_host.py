@@ -249,6 +249,25 @@ def _canonical_disposition_counts(value: object, *, path: str) -> dict[str, int]
     return counts
 
 
+def _is_path_indirection(path: Path) -> bool:
+    is_junction = getattr(path, "is_junction", None)
+    return path.is_symlink() or (is_junction is not None and is_junction())
+
+
+def _validate_no_path_indirection(path: Path, *, label: str) -> None:
+    absolute = Path(os.path.abspath(path))
+    component = Path(absolute.anchor)
+    try:
+        for part in absolute.parts[1:]:
+            component /= part
+            if _is_path_indirection(component):
+                raise AutonomousHostRejected(f"{label} must not contain a link or junction")
+            if not component.exists():
+                break
+    except OSError as error:
+        raise AutonomousHostRejected(f"{label} cannot be inspected safely") from error
+
+
 @dataclass(frozen=True, slots=True)
 class AutonomousHostAuthorityInput:
     """Canonical authority bytes plus identities observed by the running host."""
@@ -291,10 +310,12 @@ class ValidatedAutonomousHostAuthority:
 
 
 def _validate_existing_state_paths(state_dir: Path) -> None:
-    if state_dir.is_symlink() or (state_dir.exists() and not state_dir.is_dir()):
+    _validate_no_path_indirection(state_dir, label="autonomous state_dir")
+    if state_dir.exists() and not state_dir.is_dir():
         raise AutonomousHostRejected("autonomous state_dir must be a real directory")
     store_path = state_dir / AUTONOMOUS_HOST_STATE_FILENAME
-    if store_path.is_symlink() or (store_path.exists() and not store_path.is_file()):
+    _validate_no_path_indirection(store_path, label="autonomous session state")
+    if store_path.exists() and not store_path.is_file():
         raise AutonomousHostRejected("autonomous session state must be a real file")
 
 
@@ -333,11 +354,8 @@ def validate_autonomous_host_authority(
         raise AutonomousHostRejected("state_dir must be a pathlib.Path")
     if not isinstance(value.release_log_path, Path):
         raise AutonomousHostRejected("release_log_path must be a pathlib.Path")
-    if (
-        value.release_log_path.is_symlink()
-        or not value.release_log_path.exists()
-        or not value.release_log_path.is_file()
-    ):
+    _validate_no_path_indirection(value.release_log_path, label="release_log_path")
+    if not value.release_log_path.exists() or not value.release_log_path.is_file():
         raise AutonomousHostRejected("release_log_path must be an existing real file")
     _validate_existing_state_paths(value.state_dir)
     store_path = value.state_dir / AUTONOMOUS_HOST_STATE_FILENAME
@@ -1087,7 +1105,7 @@ def _state_directory_lock(root: Path) -> Iterator[None]:
     root.mkdir(parents=True, exist_ok=True)
     _validate_existing_state_paths(root)
     lock_path = root / ".autonomous-host.lock"
-    if lock_path.is_symlink() or (lock_path.exists() and not lock_path.is_file()):
+    if _is_path_indirection(lock_path) or (lock_path.exists() and not lock_path.is_file()):
         raise AutonomousHostRejected("autonomous host lock must be a real file")
     handle = lock_path.open("a+b")
     if os.fstat(handle.fileno()).st_size == 0:
@@ -1460,7 +1478,7 @@ def run_autonomous_host_command(
 
         summary = store.final_summary(authority.session_arm.session_id)
         active_ids = store.active_lifecycle_ids(authority.session_arm.session_id)
-        manual_reasons = store.manual_reasons(authority.session_arm.session_id)
+        manual_reasons = tuple(sorted(set(store.manual_reasons(authority.session_arm.session_id))))
         session_state = store.session_state(authority.session_arm.session_id)
         if manual_reasons or session_state == "MANUAL_RECONCILIATION_REQUIRED":
             disposition = AutonomousHostDisposition.MANUAL_RECONCILIATION_REQUIRED

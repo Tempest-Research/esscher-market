@@ -72,9 +72,12 @@ _WINDOWS_FILE_READ_ATTRIBUTES = 0x80
 _WINDOWS_DELETE = 0x10000
 _WINDOWS_FILE_SHARE_READ = 0x1
 _WINDOWS_FILE_SHARE_WRITE = 0x2
+_WINDOWS_CREATE_NEW = 1
 _WINDOWS_OPEN_EXISTING = 3
 _WINDOWS_FILE_FLAG_BACKUP_SEMANTICS = 0x02000000
+_WINDOWS_FILE_FLAG_DELETE_ON_CLOSE = 0x04000000
 _WINDOWS_FILE_FLAG_OPEN_REPARSE_POINT = 0x00200000
+_WINDOWS_FILE_ATTRIBUTE_NORMAL = 0x80
 _WINDOWS_FILE_ATTRIBUTE_DIRECTORY = 0x10
 _WINDOWS_FILE_ATTRIBUTE_REPARSE_POINT = 0x400
 _WINDOWS_FILE_BASIC_INFO = 0
@@ -304,21 +307,72 @@ def _open_windows_output_directory(kernel32, output_dir: Path) -> int:
             kernel32.CloseHandle(handle)
 
 
+def _open_windows_pin_file(kernel32, output_dir: Path) -> int:
+    """Create an unreplaceable empty child in the resolved output directory."""
+
+    resolved_output_dir = Path(os.path.realpath(str(output_dir)))
+    path = resolved_output_dir / f".esscher-capture-{uuid.uuid4().hex}.pin"
+    handle = kernel32.CreateFileW(
+        str(path),
+        _WINDOWS_FILE_READ_ATTRIBUTES | _WINDOWS_DELETE,
+        _WINDOWS_FILE_SHARE_READ | _WINDOWS_FILE_SHARE_WRITE,
+        None,
+        _WINDOWS_CREATE_NEW,
+        _WINDOWS_FILE_ATTRIBUTE_NORMAL
+        | _WINDOWS_FILE_FLAG_DELETE_ON_CLOSE
+        | _WINDOWS_FILE_FLAG_OPEN_REPARSE_POINT,
+        None,
+    )
+    if handle == ctypes.c_void_p(-1).value:
+        raise OSError(ctypes.get_last_error(), "cannot create output-directory pin")
+
+    opened = False
+    try:
+        information = _WindowsFileBasicInfo()
+        if not kernel32.GetFileInformationByHandleEx(
+            handle,
+            _WINDOWS_FILE_BASIC_INFO,
+            ctypes.byref(information),
+            ctypes.sizeof(information),
+        ):
+            raise OSError(ctypes.get_last_error(), "cannot inspect output-directory pin")
+        if information.file_attributes & (
+            _WINDOWS_FILE_ATTRIBUTE_DIRECTORY | _WINDOWS_FILE_ATTRIBUTE_REPARSE_POINT
+        ):
+            raise _unsafe_output_path("output-directory pin is not a regular file")
+        actual_path = _normalize_windows_path(_windows_final_path(kernel32, handle))
+        expected_path = _normalize_windows_path(str(path))
+        if actual_path != expected_path:
+            raise _unsafe_output_path("output-directory pin resolved outside the validated path")
+        opened = True
+        return handle
+    finally:
+        if not opened:
+            kernel32.CloseHandle(handle)
+
+
 @contextlib.contextmanager
 def _pin_windows_output_directory(output_dir: Path):
     """Keep the output directory and ancestor tree fixed while publishing.
 
-    Holding DELETE access without FILE_SHARE_DELETE makes Windows reject attempts
-    to remove or move this directory, including moves of an ancestor that contains
-    it. The resolved-handle comparison closes the race before that pin is acquired.
+    A DELETE handle closes the acquisition race but conflicts with child renames.
+    While it is held, create a delete-on-close child in the resolved directory;
+    that child keeps the directory and its ancestors in place during publication.
     """
 
     kernel32 = _windows_kernel32()
-    handle = _open_windows_output_directory(kernel32, output_dir)
+    directory_handle = _open_windows_output_directory(kernel32, output_dir)
+    pin_handle: int | None = None
     try:
+        pin_handle = _open_windows_pin_file(kernel32, output_dir)
+        kernel32.CloseHandle(directory_handle)
+        directory_handle = None
         yield
     finally:
-        kernel32.CloseHandle(handle)
+        if directory_handle is not None:
+            kernel32.CloseHandle(directory_handle)
+        if pin_handle is not None:
+            kernel32.CloseHandle(pin_handle)
 
 
 def _validate_output_destinations(

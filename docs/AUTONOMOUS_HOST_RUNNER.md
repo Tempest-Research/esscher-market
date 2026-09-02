@@ -88,6 +88,7 @@ EVENT
   DueWindow backend: emits each not-yet-emitted feed event for the due window as a
     HostCandidateObservation with a content-addressed strategy context
   Candidate backend: rejoins the fixture bytes -> CaptureConfiguration + fixture sources
+    -> require the frozen earnings V2 lane -> earnings V1 source-candidate bridge
     -> compile_strategy_snapshot -> engine decide (SyntheticRehearsalRoute, deterministic
     confirmation-sign direction, COMPLETED exchange bound to its raw hash)
     -> autonomous_bridge.confirm_engine_outcome (epsilon from the frozen V1 policy)
@@ -121,6 +122,12 @@ STATE
   host_persistence.jsonl: hash-chained ACTIVE/TERMINAL entries enabling close-only restart
 ```
 
+The current source compiler path implements only
+`EARNINGS_RESIDUAL_CONTINUATION_V2` -> `EARNINGS_RESIDUAL_CONTINUATION_V1`.
+Market-anchor or catalyst lane labels cannot relabel the earnings fixture: unsupported lanes and
+source-candidate mismatches are rejected before risk authorization or broker mutation. The
+autonomous lane is included in the strategy-context hash.
+
 All clocks are injected: the composition derives its decision/authorization/open/close instants
 from the frozen fixture snapshot deadlines and advances one monotonic rehearsal clock that also
 drives the synthetic broker. No wall time is read.
@@ -143,6 +150,10 @@ the installed wheel or source tree, so that runtime identity remains an attestat
 build provenance. The account capability ID in `ArmRecord` is not the account fingerprint in
 `AutonomousSessionArm`. Session/arm IDs and clock containment also require explicit validation;
 matching one hash does not imply the others.
+
+Every existing component of the release-log and state-directory paths is checked for symlink or
+Windows-junction indirection before the host plan is constructed. The session store, lock, and
+sidecar therefore cannot be redirected through an indirect parent supplied by the operator.
 
 The autonomous arm is compared with a deterministically rebuilt
 `AutonomousSessionArm.for_trading_date(...)`. The lower-level validator authenticates current
@@ -241,8 +252,11 @@ permit bytes, lifecycle clocks, close-critical binding, or correlation. The comp
 carries those in the hash-chained `host_persistence.jsonl` sidecar
 (`runtime/host_persistence.py`), so a fresh process can rebuild close-only authority from durable
 bytes and close real (synthetic-broker) exposure through `PaperStrategyApplication.close`. The
-store identity and the sidecar bundle are joined by the lifecycle id; a missing, tampered, or
-non-terminal sidecar bundle fails closed into manual reconciliation instead of guessing.
+store identity and the sidecar bundle are joined by lifecycle ID plus the exact autonomous
+opportunity ID/SHA-256. The sidecar uses closed canonical entry/payload schemas, validates every
+permit/clock/correlation edge and ACTIVE-to-TERMINAL transition before extending the chain, and
+fsyncs every append. A missing, tampered, semantically substituted, or non-terminal sidecar bundle
+fails closed into manual reconciliation instead of guessing.
 
 At hard-flat, the coordinator visits known synthetic active identities in deterministic order,
 records only translated terminal-flat attestations, marks unresolved closes manual-required, and

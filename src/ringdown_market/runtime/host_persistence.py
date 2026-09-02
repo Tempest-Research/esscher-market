@@ -14,6 +14,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import os
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from decimal import Decimal
@@ -52,6 +53,39 @@ HOST_PERSISTENCE_TERMINAL_KIND = "TERMINAL"
 HOST_PERSISTENCE_GENESIS_SHA256 = "0" * 64
 HOST_PERSISTENCE_CLAIMS = ("SYNTHETIC_FAKE", "NOT_ALPHA_EVIDENCE")
 
+_ENTRY_FIELDS = frozenset(
+    {
+        "claims",
+        "entry_sha256",
+        "kind",
+        "lifecycle_id",
+        "payload",
+        "prior_entry_sha256",
+        "recorded_at",
+        "schema",
+        "schema_version",
+        "session_id",
+    }
+)
+_ACTIVE_PAYLOAD_FIELDS = frozenset(
+    {
+        "account_id",
+        "application_identity_sha256",
+        "clocks_base64",
+        "clocks_sha256",
+        "correlation_base64",
+        "correlation_sha256",
+        "decision_episode_id",
+        "open_order_id",
+        "opened_at",
+        "opportunity_id",
+        "opportunity_sha256",
+        "permit_base64",
+        "permit_sha256",
+    }
+)
+_TERMINAL_PAYLOAD_FIELDS = frozenset({"terminal_flat_proof_sha256"})
+
 
 class HostPersistenceRejected(ValueError):
     """Raised when sidecar state is malformed, non-canonical, or broken."""
@@ -63,6 +97,8 @@ class RehydratedActiveBundle:
 
     session_id: str
     lifecycle_id: str
+    opportunity_id: str
+    opportunity_sha256: str
     permit: DebitVerticalPermit
     permit_sha256: str
     clocks: LifecycleClocks
@@ -99,8 +135,13 @@ def _timestamp_text(value: datetime) -> str:
 def _parse_timestamp(value: object) -> datetime:
     if not isinstance(value, str) or not value.endswith("Z"):
         raise HostPersistenceRejected("stored timestamp must be canonical UTC text")
-    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    return parsed.astimezone(UTC)
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(UTC)
+    except ValueError as error:
+        raise HostPersistenceRejected("stored timestamp is invalid") from error
+    if _timestamp_text(parsed) != value:
+        raise HostPersistenceRejected("stored timestamp is not canonical")
+    return parsed
 
 
 def _b64encode(value: bytes) -> str:
@@ -123,7 +164,11 @@ def _text(value: object, *, path: str) -> str:
 
 
 def _digest(value: object, *, path: str) -> str:
-    if not isinstance(value, str) or len(value) != 64 or value != value.lower():
+    if (
+        not isinstance(value, str)
+        or len(value) != 64
+        or any(character not in "0123456789abcdef" for character in value)
+    ):
         raise HostPersistenceRejected(f"{path} must be a lowercase SHA-256 digest")
     return value
 
@@ -248,7 +293,7 @@ class HostPersistenceSidecar:
         return self._path
 
     def _prior_entry_sha256(self) -> str:
-        entries = self._read_entries()
+        entries = self._validated_entries()
         if not entries:
             return HOST_PERSISTENCE_GENESIS_SHA256
         return entries[-1]["entry_sha256"]
@@ -272,6 +317,7 @@ class HostPersistenceSidecar:
         with self._path.open("ab") as handle:
             handle.write(line + b"\n")
             handle.flush()
+            os.fsync(handle.fileno())
         return entry_sha256
 
     def append_active(
@@ -279,6 +325,8 @@ class HostPersistenceSidecar:
         *,
         lifecycle_id: str,
         session_id: str,
+        opportunity_id: str,
+        opportunity_sha256: str,
         recorded_at: datetime,
         permit: DebitVerticalPermit,
         clocks: LifecycleClocks,
@@ -305,6 +353,11 @@ class HostPersistenceSidecar:
             "decision_episode_id": decision_episode_id,
             "open_order_id": _text(open_order_id, path="open_order_id"),
             "opened_at": _timestamp_text(opened_at),
+            "opportunity_id": _text(opportunity_id, path="opportunity_id"),
+            "opportunity_sha256": _digest(
+                opportunity_sha256,
+                path="opportunity_sha256",
+            ),
             "permit_base64": _b64encode(permit_bytes),
             "permit_sha256": _sha256(permit_bytes),
         }
@@ -355,23 +408,78 @@ class HostPersistenceSidecar:
                 raise HostPersistenceRejected("sidecar entry is not valid JSON") from error
             if not isinstance(entry, dict):
                 raise HostPersistenceRejected("sidecar entry must be a JSON object")
+            if _canonical_json(entry) != line:
+                raise HostPersistenceRejected("sidecar entry bytes are not canonical")
             entries.append(entry)
         return entries
 
     def _validated_entries(self) -> list[dict]:
         entries = self._read_entries()
         prior = HOST_PERSISTENCE_GENESIS_SHA256
+        active_sessions: dict[str, str] = {}
+        terminal_lifecycles: set[str] = set()
         for index, entry in enumerate(entries):
-            stored = entry.get("entry_sha256")
-            if not isinstance(stored, str):
-                raise HostPersistenceRejected(f"sidecar entry {index} has no identity")
+            if set(entry) != _ENTRY_FIELDS:
+                raise HostPersistenceRejected(f"sidecar entry {index} has an invalid schema")
+            stored = _digest(
+                entry.get("entry_sha256"),
+                path=f"sidecar entry {index}.entry_sha256",
+            )
             unsigned = {key: value for key, value in entry.items() if key != "entry_sha256"}
             if unsigned.get("prior_entry_sha256") != prior:
                 raise HostPersistenceRejected(f"sidecar entry {index} breaks the hash chain")
             if _sha256(_canonical_json(unsigned)) != stored:
                 raise HostPersistenceRejected(f"sidecar entry {index} hash is invalid")
-            if unsigned.get("schema") != HOST_PERSISTENCE_SCHEMA:
+            if (
+                unsigned.get("schema") != HOST_PERSISTENCE_SCHEMA
+                or unsigned.get("schema_version") != HOST_PERSISTENCE_SCHEMA_VERSION
+                or unsigned.get("claims") != list(HOST_PERSISTENCE_CLAIMS)
+            ):
                 raise HostPersistenceRejected(f"sidecar entry {index} has an unsupported schema")
+            _digest(
+                unsigned.get("prior_entry_sha256"),
+                path=f"sidecar entry {index}.prior_entry_sha256",
+            )
+            lifecycle_id = _text(
+                unsigned.get("lifecycle_id"),
+                path=f"sidecar entry {index}.lifecycle_id",
+            )
+            session_id = _text(
+                unsigned.get("session_id"),
+                path=f"sidecar entry {index}.session_id",
+            )
+            _parse_timestamp(unsigned.get("recorded_at"))
+            payload = unsigned.get("payload")
+            if not isinstance(payload, dict):
+                raise HostPersistenceRejected(f"sidecar entry {index} payload is invalid")
+            kind = unsigned.get("kind")
+            if kind == HOST_PERSISTENCE_ACTIVE_KIND:
+                if set(payload) != _ACTIVE_PAYLOAD_FIELDS or lifecycle_id in active_sessions:
+                    raise HostPersistenceRejected(
+                        f"sidecar entry {index} has an invalid active transition"
+                    )
+                bundle = self._bundle(entry)
+                if bundle.lifecycle_id != lifecycle_id or bundle.session_id != session_id:
+                    raise HostPersistenceRejected(
+                        f"sidecar entry {index} active identity is invalid"
+                    )
+                active_sessions[lifecycle_id] = session_id
+            elif kind == HOST_PERSISTENCE_TERMINAL_KIND:
+                if (
+                    set(payload) != _TERMINAL_PAYLOAD_FIELDS
+                    or active_sessions.get(lifecycle_id) != session_id
+                    or lifecycle_id in terminal_lifecycles
+                ):
+                    raise HostPersistenceRejected(
+                        f"sidecar entry {index} has an invalid terminal transition"
+                    )
+                _digest(
+                    payload.get("terminal_flat_proof_sha256"),
+                    path=f"sidecar entry {index}.terminal_flat_proof_sha256",
+                )
+                terminal_lifecycles.add(lifecycle_id)
+            else:
+                raise HostPersistenceRejected(f"sidecar entry {index} kind is unsupported")
             prior = stored
         return entries
 
@@ -441,20 +549,42 @@ class HostPersistenceSidecar:
         clocks_sha256 = _digest(payload.get("clocks_sha256"), path="payload.clocks_sha256")
         if lifecycle_clocks_sha256(clocks) != clocks_sha256:
             raise HostPersistenceRejected("stored clocks hash does not bind the stored bytes")
-        correlation = _parse_correlation(
-            json.loads(_b64decode(payload.get("correlation_base64")).decode("utf-8"))
-        )
+        correlation_bytes = _b64decode(payload.get("correlation_base64"))
+        try:
+            correlation_payload_value = json.loads(correlation_bytes.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise HostPersistenceRejected("stored correlation is not valid JSON") from error
+        if _canonical_json(correlation_payload_value) != correlation_bytes:
+            raise HostPersistenceRejected("stored correlation bytes are not canonical")
+        correlation = _parse_correlation(correlation_payload_value)
         stored_correlation_sha256 = _digest(
             payload.get("correlation_sha256"), path="payload.correlation_sha256"
         )
         if correlation_sha256(correlation) != stored_correlation_sha256:
             raise HostPersistenceRejected("stored correlation hash does not bind its payload")
-        if correlation.open_permit_id != permit.permit_id:
-            raise HostPersistenceRejected("stored correlation does not bind the stored permit")
+        if (
+            correlation.open_permit_id != permit.permit_id
+            or correlation.event_run_id != permit.event_run_id
+            or correlation.snapshot_sha256 != permit.snapshot_sha256
+            or correlation.decision_sha256 != permit.decision_sha256
+            or clocks.event_run_id != permit.event_run_id
+            or clocks.policy_sha256 != permit.policy_sha256
+        ):
+            raise HostPersistenceRejected(
+                "stored clocks or correlation do not bind the stored permit"
+            )
         decision_episode_id = payload.get("decision_episode_id")
         return RehydratedActiveBundle(
             session_id=_text(entry.get("session_id"), path="entry.session_id"),
             lifecycle_id=_text(entry.get("lifecycle_id"), path="entry.lifecycle_id"),
+            opportunity_id=_text(
+                payload.get("opportunity_id"),
+                path="payload.opportunity_id",
+            ),
+            opportunity_sha256=_digest(
+                payload.get("opportunity_sha256"),
+                path="payload.opportunity_sha256",
+            ),
             permit=permit,
             permit_sha256=permit_sha256,
             clocks=clocks,

@@ -169,6 +169,11 @@ EARNINGS_LANE_V2 = "EARNINGS_RESIDUAL_CONTINUATION_V2"
 MARKET_ANCHOR_LANE_V2 = "MARKET_ANCHOR_INTRADAY_CONTINUATION_V1"
 CATALYST_LANE_V2 = "LIQUID_STOCK_CATALYST_CONTINUATION_V1"
 
+_EARNINGS_SOURCE_CANDIDATE_V1 = "EARNINGS_RESIDUAL_CONTINUATION_V1"
+_SOURCE_CANDIDATE_BY_AUTONOMOUS_LANE = {
+    EARNINGS_LANE_V2: _EARNINGS_SOURCE_CANDIDATE_V1,
+}
+
 MARKET_FIXTURE_KEYS = ("daily_bars", "prior_window_trades", "reaction_quotes", "reaction_trades")
 
 _EQUITY_FEED = FeedIdentity(
@@ -393,6 +398,7 @@ class CompositionFeedEvent:
                 {
                     "schema": "esscher.synthetic_composition_context",
                     "schema_version": 1,
+                    "autonomous_candidate_id": self.candidate_id,
                     "claims": list(SYNTHETIC_REHEARSAL_CLAIMS),
                     "event_id": self.event_id,
                     "evidence_manifest_sha256": sha256_bytes(self.evidence_manifest_bytes),
@@ -788,6 +794,11 @@ class CompositionCandidateBackend:
             return HostCandidateOutcome.rejected_before_mutation(
                 request, reason_code="PORT_OUTPUT_INVALID"
             )
+        expected_source_candidate = _SOURCE_CANDIDATE_BY_AUTONOMOUS_LANE.get(event.candidate_id)
+        if expected_source_candidate is None:
+            return HostCandidateOutcome.rejected_before_mutation(
+                request, reason_code="PORT_OUTPUT_INVALID"
+            )
         fixture = rejoin_composition_fixture(
             event.evidence_manifest_bytes, event.market_window_bytes
         )
@@ -804,6 +815,8 @@ class CompositionCandidateBackend:
         try:
             probe = compile_strategy_snapshot(capture, evidence, market)
             joined = compiled_strategy_input(probe)
+            if joined.snapshot.candidate_id != expected_source_candidate:
+                raise CompositionRejected("source candidate does not match the autonomous lane")
             timeline = rehearsal_timeline(joined)
         except (CollectorRejected, CompositionRejected, ValueError, TypeError):
             return HostCandidateOutcome.rejected_before_mutation(
@@ -893,6 +906,8 @@ class CompositionCandidateBackend:
         state.sidecar.append_active(
             lifecycle_id=lifecycle_id,
             session_id=request.arm.session_id,
+            opportunity_id=request.opportunity.opportunity_id,
+            opportunity_sha256=request.opportunity.opportunity_sha256,
             recorded_at=request.observed_at,
             permit=prepared.permit,
             clocks=prepared.lifecycle_clocks,
@@ -925,7 +940,12 @@ class CompositionLifecycleBackend:
             bundle = state.sidecar.rehydrate(lifecycle_id)
         except HostPersistenceRejected:
             bundle = None
-        if bundle is None or bundle.session_id != request.arm.session_id:
+        if (
+            bundle is None
+            or bundle.session_id != request.arm.session_id
+            or bundle.opportunity_id != request.lifecycle.opportunity_id
+            or bundle.opportunity_sha256 != request.lifecycle.opportunity_sha256
+        ):
             return HostLifecycleOutcome.manual_reconciliation_required(
                 request,
                 mutation_state=MutationState.UNKNOWN,

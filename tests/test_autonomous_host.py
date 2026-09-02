@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import subprocess
 from dataclasses import replace
 from datetime import date, timedelta
 from pathlib import Path
@@ -63,6 +65,23 @@ def _canonical_json(value: object) -> bytes:
         separators=(",", ":"),
         sort_keys=True,
     ).encode("utf-8")
+
+
+def _directory_link_or_skip(path: Path, target: Path) -> None:
+    if os.name == "nt" and hasattr(Path, "is_junction"):
+        result = subprocess.run(
+            ["cmd", "/c", "mklink", "/J", str(path), str(target)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0 and path.is_junction():
+            return
+        pytest.skip("junction creation is unavailable to this test process")
+    try:
+        path.symlink_to(target, target_is_directory=True)
+    except (NotImplementedError, OSError) as error:
+        pytest.skip(f"directory symlinks are unavailable: {error}")
 
 
 def _authority(tmp_path: Path) -> tuple[AutonomousHostAuthorityInput, AutonomousSessionArm]:
@@ -268,6 +287,36 @@ def test_release_log_cannot_alias_the_autonomous_session_store(tmp_path: Path) -
         )
 
     assert plan_calls == 0
+
+
+def test_state_directory_parent_indirection_rejects_before_plan(
+    tmp_path: Path,
+) -> None:
+    authority_input, arm = _authority(tmp_path)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    redirected_parent = tmp_path / "redirected-parent"
+    _directory_link_or_skip(redirected_parent, outside)
+    redirected = replace(
+        authority_input,
+        state_dir=redirected_parent / "state",
+    )
+    plan_calls = 0
+
+    def plan_factory(_):
+        nonlocal plan_calls
+        plan_calls += 1
+        return _RecordingBackends().plan()
+
+    with pytest.raises(AutonomousHostRejected, match="link or junction"):
+        run_autonomous_host_command(
+            authority_input=redirected,
+            plan_factory=plan_factory,
+            observation_timeline=(arm.hard_flat_at,),
+        )
+
+    assert plan_calls == 0
+    assert tuple(outside.iterdir()) == ()
 
 
 def test_conflicting_persisted_arm_rejects_before_delayed_plan_construction(
