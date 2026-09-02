@@ -21,12 +21,14 @@ a provider, broker, account, or network.
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from enum import StrEnum
+from pathlib import Path
 from typing import Final, NoReturn
 
 from ringdown_market.application.autonomous_bridge import (
@@ -580,6 +582,87 @@ def exposure_state_sha256(value: ExposureState) -> str:
     return sha256_bytes(canonical_json_bytes(exposure_state_payload(value)))
 
 
+EXPOSURE_JOURNAL_FILENAME: Final = "exposure_state.jsonl"
+EXPOSURE_JOURNAL_SCHEMA: Final = "esscher.exposure_journal_entry"
+EXPOSURE_JOURNAL_SCHEMA_VERSION: Final = 1
+EXPOSURE_JOURNAL_GENESIS: Final = "0" * 64
+
+
+def _exposure_journal_path(state_dir: Path) -> Path:
+    return state_dir / EXPOSURE_JOURNAL_FILENAME
+
+
+def _exposure_journal_entries(path: Path) -> tuple[dict[str, object], ...]:
+    """Read and verify the service-owned exposure hash chain."""
+
+    if not path.is_file():
+        return ()
+    entries: list[dict[str, object]] = []
+    prior = EXPOSURE_JOURNAL_GENESIS
+    for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        if not line.strip():
+            continue
+        try:
+            entry = json.loads(line)
+        except json.JSONDecodeError as error:
+            raise ApplicationServiceRejected(
+                f"exposure journal line {line_number} is invalid"
+            ) from error
+        if not isinstance(entry, dict):
+            raise ApplicationServiceRejected(
+                f"exposure journal line {line_number} is not an object"
+            )
+        if (
+            entry.get("schema") != EXPOSURE_JOURNAL_SCHEMA
+            or entry.get("schema_version") != EXPOSURE_JOURNAL_SCHEMA_VERSION
+        ):
+            raise ApplicationServiceRejected(
+                f"exposure journal line {line_number} has an unsupported schema"
+            )
+        if entry.get("prior_entry_sha256") != prior:
+            raise ApplicationServiceRejected(
+                f"exposure journal line {line_number} breaks the hash chain"
+            )
+        unsigned = {key: value for key, value in entry.items() if key != "entry_sha256"}
+        digest = sha256_bytes(canonical_json_bytes(unsigned))
+        if entry.get("entry_sha256") != digest:
+            raise ApplicationServiceRejected(f"exposure journal line {line_number} hash is invalid")
+        prior = digest
+        entries.append(entry)
+    return tuple(entries)
+
+
+def _exposure_journal_append(
+    path: Path,
+    *,
+    session_id: str,
+    lifecycle_id: str,
+    recorded_at: datetime,
+    payload: Mapping[str, object],
+) -> str:
+    """Append one tamper-evident exposure entry to the service-owned journal."""
+
+    entries = _exposure_journal_entries(path)
+    prior = entries[-1]["entry_sha256"] if entries else EXPOSURE_JOURNAL_GENESIS
+    entry: dict[str, object] = {
+        "schema": EXPOSURE_JOURNAL_SCHEMA,
+        "schema_version": EXPOSURE_JOURNAL_SCHEMA_VERSION,
+        "kind": EXPOSURE_ENTRY_KIND,
+        "session_id": session_id,
+        "lifecycle_id": lifecycle_id,
+        "recorded_at": _timestamp_text(recorded_at),
+        "prior_entry_sha256": prior,
+        "payload": dict(payload),
+    }
+    digest = sha256_bytes(canonical_json_bytes(entry))
+    with path.open("a", encoding="utf-8", newline="\n") as handle:
+        handle.write(
+            json.dumps({**entry, "entry_sha256": digest}, sort_keys=True, separators=(",", ":"))
+            + "\n"
+        )
+    return digest
+
+
 @dataclass(frozen=True, slots=True)
 class WindowRunResult:
     """The closed result of one run_window call."""
@@ -1131,7 +1214,7 @@ class AutonomousApplicationService:
         opportunity = AutonomousOpportunity.for_window(
             arm=arm,
             window_id=window.window_id,
-            opportunity_id=event.opportunity_id,
+            opportunity_id=event.event_id,
             candidate_id=event.candidate_id,
             strategy_context_sha256=event.strategy_context_sha256(window.window_sha256),
         )
@@ -1162,6 +1245,8 @@ class AutonomousApplicationService:
                 option_receipt_sha256s=(),
                 exposure_sha256=None,
             )
+        context["opportunity"] = opportunity
+        context["observed_at"] = observed_at
 
         receipts: list[StageReceipt] = []
         latencies: dict[str, int] = {}
@@ -1497,6 +1582,8 @@ class AutonomousApplicationService:
         decision = prepared.engine_outcome.decision
         exchange = prepared.engine_outcome.exchange
         opened_at = timeline.open_at  # type: ignore[attr-defined]
+        open_opportunity = context["opportunity"]
+        assert isinstance(open_opportunity, AutonomousOpportunity)
         try:
             append_decision_episode(
                 self._ledger,
@@ -1527,6 +1614,8 @@ class AutonomousApplicationService:
             self._sidecar.append_active(
                 lifecycle_id=lifecycle_id,
                 session_id=arm.session_id,
+                opportunity_id=open_opportunity.opportunity_id,
+                opportunity_sha256=open_opportunity.opportunity_sha256,
                 recorded_at=observed_at,
                 permit=prepared.permit,
                 clocks=prepared.lifecycle_clocks,
@@ -1571,13 +1660,8 @@ class AutonomousApplicationService:
         if self._broker.open_position_count() <= 0:
             raise _StageWorkFailure(REASON_EXECUTION_STATE_INVALID)
         try:
-            derived_opportunity = AutonomousOpportunity.for_window(
-                arm=arm,
-                window_id=window.window_id,
-                opportunity_id=prepared.permit.event_run_id,
-                candidate_id=event.candidate_id,
-                strategy_context_sha256=event.strategy_context_sha256(window.window_sha256),
-            )
+            derived_opportunity = context["opportunity"]
+            assert isinstance(derived_opportunity, AutonomousOpportunity)
             identity = ActiveLifecycleIdentity.for_candidate(
                 arm=arm,
                 opportunity=derived_opportunity,
@@ -1585,6 +1669,12 @@ class AutonomousApplicationService:
             )
         except ValueError as error:
             raise _StageWorkFailure(REASON_EXECUTION_STATE_INVALID) from error
+        self._store.record_active_lifecycle(
+            arm=arm,
+            opportunity=derived_opportunity,
+            lifecycle=identity,
+            observed_at=_utc(context["observed_at"], path="context.observed_at"),
+        )
         context["identity"] = identity
         return identity.lifecycle_sha256
 
@@ -1745,12 +1835,12 @@ class AutonomousApplicationService:
         payload = exposure_state_payload(provisional)
         digest = sha256_bytes(canonical_json_bytes(payload))
         state = replace(provisional, exposure_sha256=digest)
-        self._sidecar._append(
-            kind=EXPOSURE_ENTRY_KIND,
-            lifecycle_id=lifecycle_id,
+        _exposure_journal_append(
+            _exposure_journal_path(self._authority.state_dir),
             session_id=arm.session_id,
-            payload={**payload, "exposure_sha256": digest},
+            lifecycle_id=lifecycle_id,
             recorded_at=observed_at,
+            payload={**payload, "exposure_sha256": digest},
         )
         return state
 
@@ -1759,7 +1849,7 @@ class AutonomousApplicationService:
 
         session = _text(session_id, path="session_id")
         states: list[ExposureState] = []
-        for entry in self._sidecar._validated_entries():
+        for entry in _exposure_journal_entries(_exposure_journal_path(self._authority.state_dir)):
             if entry.get("kind") != EXPOSURE_ENTRY_KIND:
                 continue
             if entry.get("session_id") != session:
@@ -1906,6 +1996,18 @@ class AutonomousApplicationService:
             raise ApplicationServiceRejected("CLOSE_BUNDLE_INVALID") from error
         if bundle is None or bundle.session_id != arm.session_id:
             raise ApplicationServiceRejected("CLOSE_BUNDLE_MISSING")
+        active_identities = {
+            identity.lifecycle_id: identity
+            for identity in self._store.active_lifecycles(arm.session_id)
+        }
+        active_identity = active_identities.get(lifecycle)
+        if active_identity is None:
+            raise ApplicationServiceRejected("CLOSE_LIFECYCLE_NOT_ACTIVE")
+        if (
+            bundle.opportunity_id != active_identity.opportunity_id
+            or bundle.opportunity_sha256 != active_identity.opportunity_sha256
+        ):
+            raise ApplicationServiceRejected("CLOSE_BUNDLE_OPPORTUNITY_MISMATCH")
         close_at = bundle.clocks.time_exit_at + SYNTHETIC_CLOSE_DELAY
         current = self._rehearsal_current()
         if current is not None and current > close_at:
@@ -2025,6 +2127,12 @@ class AutonomousApplicationService:
             )
         except (HostPersistenceRejected, TypeError, ValueError) as error:
             raise ApplicationServiceRejected("CLOSE_PERSISTENCE_FAILED") from error
+        self._store.record_lifecycle_terminal_flat(
+            arm=arm,
+            lifecycle=active_identity,
+            terminal_flat_proof_sha256=proof,
+            observed_at=close_at,
+        )
         self._record_close_disposition(
             lifecycle_id=lifecycle,
             event_run_id=bundle.permit.event_run_id,

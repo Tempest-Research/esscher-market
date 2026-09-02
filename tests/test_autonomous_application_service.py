@@ -42,6 +42,7 @@ from ringdown_market.runtime.autonomous import (
     autonomous_session_arm_bytes,
 )
 from ringdown_market.runtime.autonomous_application_service import (
+    EXPOSURE_JOURNAL_FILENAME,
     REASON_BUDGET_VIOLATION,
     REASON_CAPTURE_REJECTED,
     REASON_DEADLINE_EXHAUSTED,
@@ -508,6 +509,13 @@ def _sidecar_entries(rig: _Rig) -> list[dict[str, object]]:
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line]
 
 
+def _exposure_entries(rig: _Rig) -> list[dict[str, object]]:
+    path = rig.authority.state_dir / EXPOSURE_JOURNAL_FILENAME
+    if not path.exists():
+        return []
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line]
+
+
 def _staleness_by_source(health) -> dict[str, object]:
     return {entry.source_id: entry for entry in health.staleness}
 
@@ -781,8 +789,8 @@ def test_duplicate_window_run_suppresses_without_duplicate_episodes(tmp_path: Pa
         assert stored is not None
         assert stored.receipt_sha256 == first.option_receipt_sha256s[0]
         assert len(service.exposure_state(rig.session_id)) == 1
-        assert [entry for entry in _sidecar_entries(rig) if entry["kind"] == "EXPOSURE"] != []
-        assert len([entry for entry in _sidecar_entries(rig) if entry["kind"] == "EXPOSURE"]) == 1
+        assert [entry for entry in _exposure_entries(rig) if entry["kind"] == "EXPOSURE"] != []
+        assert len([entry for entry in _exposure_entries(rig) if entry["kind"] == "EXPOSURE"]) == 1
     finally:
         service.close()
 
