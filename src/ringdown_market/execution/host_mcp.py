@@ -256,6 +256,23 @@ class PreparedHostMcpSession:
             raise HostMcpConfigurationError("host MCP read-only door does not admit this tool")
         return await self._validated_state().session.call_tool(name, arguments)
 
+    async def risk_reducing_cancel(self, order_id: str) -> object:
+        """Cancel exactly one working order under the arm's flatten authority.
+
+        Issue #90: this is the sole non-lifecycle mutation door.  It exists
+        only for reconciliation/recovery to resolve orphaned working orders
+        risk-reducing; it can never place, replace, or close-by-order, and a
+        timeout remains an ambiguous mutation that must be read back and never
+        retried.
+        """
+
+        if not isinstance(order_id, str) or not order_id:
+            raise HostMcpConfigurationError("host MCP cancel requires a non-empty order ID")
+        return await self._validated_state().session.call_tool(
+            CANCEL_TOOL,
+            {"order_id": order_id},
+        )
+
 
 def _tool_names(response: object) -> frozenset[str]:
     if isinstance(response, (str, bytes, Mapping)) or not isinstance(response, Sequence):

@@ -650,9 +650,26 @@ class OpenAiCompatibleReasonerRoute:
             raise HostRouteSecretBoundaryError("route requires a host-owned credential")
         # Validate and deliberately discard the key.  A future host transport owns
         # authentication; strategy payloads, arguments, and receipts never do.
-        _validate_direct_kimi_route(route)
+        # Issue #90: the adapter also accepts the exact packaged approved V2
+        # route object so the production composition can carry the owner-approved
+        # binding; the V1 request seam below remains closed for it until the V2
+        # engine assembly lands, and any call fails closed rather than falling
+        # back to another provider, model, or schema.
+        _validate_direct_kimi_route(route, v2=route is load_approved_reasoner_route_v2())
         self._route = route
         self._transport = transport
+
+    @property
+    def validated_route(self) -> ValidatedRoute:
+        """The frozen validated route this adapter is bound to (credential-free).
+
+        Issue #90: the production composition authenticates the exact approved
+        direct-Kimi route through this read-only view before any decision; the
+        credential itself was validated and discarded at construction and never
+        leaves the host transport.
+        """
+
+        return self._route
 
     def __call__(self, request: ReasonerRouteRequest) -> ReasonerRouteResult:
         if self._transport is None:

@@ -980,9 +980,13 @@ def build_portfolio_observation(
     )
 
 
-_EXPOSURE_ORDER_STATES = frozenset(OPEN_WORKING_STATES) | frozenset(
-    {BrokerOrderState.PARTIALLY_FILLED, BrokerOrderState.FILLED}
+# Working states can still be cancelled through the risk-reducing path; the
+# exposure set additionally includes filled orders, whose truth lives in the
+# position book rather than the cancel path.
+WORKING_ORDER_STATES = frozenset(OPEN_WORKING_STATES) | frozenset(
+    {BrokerOrderState.PARTIALLY_FILLED}
 )
+_EXPOSURE_ORDER_STATES = WORKING_ORDER_STATES | frozenset({BrokerOrderState.FILLED})
 _ALL_ORDER_STATES = frozenset(
     {
         BrokerOrderState.NEW,
@@ -1008,10 +1012,16 @@ class OrdersStateSummary:
     open_order_count: int
     status_counts: tuple[tuple[str, int], ...]
     orders_state_sha256: str
+    working_orders: tuple[tuple[str, str | None, str], ...] = ()
 
 
 def summarize_orders_state(raw_orders: bytes) -> OrdersStateSummary:
-    """Summarize one raw `get_orders` payload; unknown statuses fail closed."""
+    """Summarize one raw `get_orders` payload; unknown statuses fail closed.
+
+    ``working_orders`` lists ``(order_id, client_order_id)`` pairs for every
+    order in an exposure state (working or filled), which reconciliation and
+    restart recovery use to bind broker truth to durable local identities.
+    """
 
     if type(raw_orders) is not bytes:
         raise ActivityAcquisitionRejected(
@@ -1026,6 +1036,7 @@ def summarize_orders_state(raw_orders: bytes) -> OrdersStateSummary:
     items = _validate_page_items(decoded)
     counts: dict[str, int] = {}
     open_count = 0
+    working: list[tuple[str, str | None, str]] = []
     for item in items:
         status = item.get("status")
         if not isinstance(status, str) or status not in _ALL_ORDER_STATES:
@@ -1036,11 +1047,27 @@ def summarize_orders_state(raw_orders: bytes) -> OrdersStateSummary:
         counts[status] = counts.get(status, 0) + 1
         if status in _EXPOSURE_ORDER_STATES:
             open_count += 1
+            order_id = item.get("id")
+            if not isinstance(order_id, str) or not order_id:
+                raise ActivityAcquisitionRejected(
+                    ActivityAcquisitionReason.INVALID_PAGE,
+                    "exposure order record lacks an order id",
+                )
+            client_order_id = item.get("client_order_id")
+            if client_order_id is not None and (
+                not isinstance(client_order_id, str) or not client_order_id
+            ):
+                raise ActivityAcquisitionRejected(
+                    ActivityAcquisitionReason.INVALID_PAGE,
+                    "exposure order record has an invalid client order id",
+                )
+            working.append((order_id, client_order_id, status))
     return OrdersStateSummary(
         total_order_count=len(items),
         open_order_count=open_count,
         status_counts=tuple(sorted(counts.items())),
         orders_state_sha256=sha256_bytes(raw_orders),
+        working_orders=tuple(sorted(working)),
     )
 
 
@@ -1054,6 +1081,7 @@ __all__ = [
     "ACTIVITY_MAPPING_V1_SHA256",
     "ACTIVITY_PAGE_MAX_SIZE",
     "ACTIVITY_SOURCE_ID",
+    "WORKING_ORDER_STATES",
     "AccountActivitySource",
     "ActivityAcquisition",
     "ActivityAcquisitionReason",

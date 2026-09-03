@@ -1645,6 +1645,10 @@ _ALLOWED_REASON_CODES: Final = frozenset(
         "WINDOW_EXPIRED",
         "LATE_WINDOW",
         "UNEXPECTED_ACTIVE_LIFECYCLE",
+        # Issue #90 production PAPER_MCP vocabulary extensions.
+        "MUTATION_GATE_CLOSED",
+        "ACTIVITY_MANUAL_ROUTE",
+        "BLOCKED_RETRY_BUDGET_EXHAUSTED",
     }
 )
 
