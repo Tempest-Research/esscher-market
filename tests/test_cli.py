@@ -35,6 +35,19 @@ def test_cli_help_uses_public_product_name_and_compatibility_command(
     assert "paper-only" in help_text
 
 
+def test_run_scheduled_event_help_mentions_resuming_from_durable_state(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as exit_info:
+        main(["run-scheduled-event", "--help"])
+
+    assert exit_info.value.code == 0
+    help_text = capsys.readouterr().out
+    assert "Run at most one approved scheduled PAPER event." in help_text
+    assert "including from another environment" in help_text
+    assert "durable state directory preserved across restarts" in help_text
+
+
 def test_cli_writes_a_deterministic_explicitly_limited_report(tmp_path: Path) -> None:
     first = tmp_path / "first.json"
     second = tmp_path / "second.json"
