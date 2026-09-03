@@ -363,8 +363,7 @@ def _build_parser() -> argparse.ArgumentParser:
         type=Path,
         default=None,
         help=(
-            "receipt path (default: artifacts/paper-preflight/<receipt-id>/"
-            "preflight-receipt.json)"
+            "receipt path (default: artifacts/paper-preflight/<receipt-id>/preflight-receipt.json)"
         ),
     )
     paper_run = subparsers.add_parser(
