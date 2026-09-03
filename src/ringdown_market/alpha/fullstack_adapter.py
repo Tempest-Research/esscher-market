@@ -10,12 +10,13 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import dataclass
 from decimal import Decimal
 from enum import StrEnum
 from typing import Final, NoReturn
 
+from .direction_receipts import _DuplicateFieldError, _unique_object
 from .evaluation import EventEvaluation
 from .shadow_ledger import SHADOW_LIFECYCLE, SHADOW_PNL_CLASS, shadow_decision_episode
 from .shadow_runner import ShadowRunResult
@@ -69,10 +70,6 @@ _EVENT_FIELDS: Final = frozenset(
 )
 
 
-class _DuplicateFieldError(ValueError):
-    pass
-
-
 def _decode(raw: bytes, *, path: str) -> Mapping[str, object]:
     if type(raw) is not bytes:
         _reject(ReplayPlanReason.MALFORMED_VALUE, path, "plan must be immutable bytes")
@@ -83,15 +80,6 @@ def _decode(raw: bytes, *, path: str) -> Mapping[str, object]:
     if not isinstance(decoded, Mapping):
         _reject(ReplayPlanReason.MALFORMED_VALUE, path, "plan must be a JSON object")
     return decoded
-
-
-def _unique_object(pairs: Sequence[tuple[str, object]]) -> dict[str, object]:
-    record: dict[str, object] = {}
-    for key, value in pairs:
-        if key in record:
-            raise _DuplicateFieldError(key)
-        record[key] = value
-    return record
 
 
 @dataclass(frozen=True, slots=True)
