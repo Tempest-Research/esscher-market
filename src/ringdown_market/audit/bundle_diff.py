@@ -250,10 +250,32 @@ def _is_sha256(value: object) -> bool:
     )
 
 
+def _canonicalize_set_like(value: object, *, set_like: bool = False) -> object:
+    if isinstance(value, Mapping):
+        normalized: dict[str, object] = {}
+        for key in sorted(value):
+            child = value[key]
+            child_set_like = set_like or key in _SET_LIKE_LIST_KEYS or key == "event_ids"
+            normalized[key] = _canonicalize_set_like(child, set_like=child_set_like)
+        return normalized
+    if isinstance(value, list):
+        items = [_canonicalize_set_like(item, set_like=False) for item in value]
+        if set_like:
+            return sorted(
+                items,
+                key=lambda item: _canonical_json(item),
+            )
+        return items
+    if isinstance(value, tuple):
+        return _canonicalize_set_like(list(value), set_like=set_like)
+    return value
+
+
 def _canonical_json(value: object) -> bytes:
     try:
+        normalized = _canonicalize_set_like(value)
         return json.dumps(
-            value,
+            normalized,
             sort_keys=True,
             separators=(",", ":"),
             ensure_ascii=False,
