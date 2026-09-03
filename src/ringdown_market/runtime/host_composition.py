@@ -129,6 +129,7 @@ from ringdown_market.strategy.reasoner import (
     ReasonerRouteRequest,
     ReasonerRouteResult,
     RouteIdentity,
+    _cited_evidence_ids,
     deadline_for,
 )
 
@@ -258,18 +259,6 @@ def _confirmation_feature_id(candidate_id: str) -> str:
     if feature_id is None:
         raise CompositionRejected(f"candidate {candidate_id} has no confirmation feature")
     return feature_id
-
-
-def _cited_evidence_ids(strategy_input: StrategyInput) -> tuple[str, ...]:
-    primary = sorted(
-        ref.evidence_id for ref in strategy_input.snapshot.evidence_refs if ref.role.is_primary
-    )
-    market = sorted(
-        ref.evidence_id for ref in strategy_input.snapshot.evidence_refs if ref.role.is_market
-    )
-    if not primary or not market:
-        return ()
-    return tuple(sorted({primary[0], market[0]}))
 
 
 class SyntheticRehearsalRoute:
