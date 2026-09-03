@@ -318,10 +318,23 @@ def _build_parser() -> argparse.ArgumentParser:
     panel.add_argument("--output", type=Path, required=True)
     scheduled = subparsers.add_parser(
         "run-scheduled-event",
-        help="run at most one approved scheduled PAPER event, then exit",
+        help="run at most one approved scheduled PAPER event, resume from durable state, then exit",
+        description=(
+            "Run at most one approved scheduled PAPER event. Preserve the exact manifest, "
+            "host plan, and durable state directory with its contents unchanged to resume "
+            "the same event after an interruption, including from another environment."
+        ),
     )
     scheduled.add_argument("--manifest", type=Path, required=True)
-    scheduled.add_argument("--state-dir", type=Path, required=True)
+    scheduled.add_argument(
+        "--state-dir",
+        type=Path,
+        required=True,
+        help=(
+            "durable state directory whose contents must be preserved unchanged across "
+            "restarts or environment handoff"
+        ),
+    )
     scheduled.add_argument(
         "--host-plan",
         required=True,

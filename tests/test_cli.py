@@ -35,6 +35,28 @@ def test_cli_help_uses_public_product_name_and_compatibility_command(
     assert "paper-only" in help_text
 
 
+def test_run_scheduled_event_help_mentions_resuming_from_durable_state(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as exit_info:
+        main(["run-scheduled-event", "--help"])
+
+    assert exit_info.value.code == 0
+    # Whitespace-normalized, intent-level fragments: the test protects the
+    # resume/handoff contract without coupling to argparse wrapping or exact
+    # punctuation (Copilot review).
+    help_text = " ".join(capsys.readouterr().out.split())
+    for fragment in (
+        "approved scheduled PAPER event",
+        "exact manifest",
+        "host plan",
+        "durable state directory",
+        "preserved unchanged",
+        "another environment",
+    ):
+        assert fragment in help_text
+
+
 def test_cli_writes_a_deterministic_explicitly_limited_report(tmp_path: Path) -> None:
     first = tmp_path / "first.json"
     second = tmp_path / "second.json"
