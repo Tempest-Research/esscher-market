@@ -42,6 +42,7 @@ from ringdown_market.lifecycle.broker import PAPER_ACCOUNT_CLASS
 from ringdown_market.runtime.paper_mcp_composition import (
     PaperMcpCompositionReason,
     PaperMcpCompositionRejected,
+    _nonzero_position_count,
     _readonly_canonical_bytes,
 )
 from ringdown_market.sourcedata.alpaca_option_events import (
@@ -126,26 +127,6 @@ class BrokerPreflightExpectations:
                 PaperPreflightReason.EXPECTATIONS_INVALID,
                 "starting_equity_contract must be a finite positive Decimal",
             )
-
-
-def _nonzero_position_count(raw_positions: bytes) -> int:
-    items = json.loads(raw_positions.decode("utf-8"))
-    if isinstance(items, (str, bytes)) or not isinstance(items, list):
-        raise PaperMcpCompositionRejected(
-            PaperMcpCompositionReason.BROKER_TRUTH_UNAVAILABLE,
-            "positions payload must be a list",
-        )
-    count = 0
-    for item in items:
-        if not isinstance(item, Mapping):
-            raise PaperMcpCompositionRejected(
-                PaperMcpCompositionReason.BROKER_TRUTH_UNAVAILABLE,
-                "position record must be an object",
-            )
-        quantity = Decimal(str(item.get("qty", "0")))
-        if quantity != 0:
-            count += 1
-    return count
 
 
 class _PaginationCycle(Exception):
