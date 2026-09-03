@@ -1,0 +1,357 @@
+{
+  "schema": "esscher.paper_rc_integration_manifest",
+  "schema_version": 1,
+  "observed_at_utc": "2026-09-03T16:00:48Z",
+  "release": {
+    "repository": "Tempest-Research/esscher-market",
+    "version": "0.4.0",
+    "version_impact": "minor",
+    "branch": "release/v0.4.0-paper-rc1",
+    "mode": "PAPER_ONLY",
+    "issue": {
+      "number": 89,
+      "url": "https://github.com/Tempest-Research/esscher-market/issues/89"
+    },
+    "prd_pull_request": {
+      "number": 92,
+      "head_sha": "3de6645d23e2d49d2337c6768ae0ee4da60a2d03",
+      "url": "https://github.com/Tempest-Research/esscher-market/pull/92"
+    }
+  },
+  "identity_scope": {
+    "final_sha_semantics": "final source and release-metadata commit before the evidence-only manifest commit",
+    "reason": "A Git commit or tree cannot contain its own cryptographic identity without a self-reference cycle. The manifest therefore binds the last source-bearing candidate commit and tree. The branch-head evidence commit that adds this content-addressed file is recorded in the draft PR and review handoff.",
+    "manifest_addressing": "The final manifest filename is the lowercase SHA-256 of these exact UTF-8 bytes, followed by .json."
+  },
+  "base": {
+    "ref": "origin/main",
+    "sha": "f8219a0e98f412c35f2f98051339aefeef0b7ea9",
+    "tree_hash": "e7e9893d45e8517cc477c6eb6e2adb0a2d1f779f"
+  },
+  "source_pull_requests": [
+    {
+      "number": 70,
+      "head_sha": "8f930c056b9d6dc87b180349fe15c0840c792faf",
+      "base_ref": "main",
+      "base_sha": "f8219a0e98f412c35f2f98051339aefeef0b7ea9",
+      "disposition": "included_exact_via_pr_88_spine",
+      "incremental_commits": [
+        {
+          "sha": "dd12729c47651c2e5ce9e0420c634313e6d356cb",
+          "stable_patch_id": "8ecea08d95e69ea5eff376d2242b158c7d9a9e70"
+        },
+        {
+          "sha": "8f930c056b9d6dc87b180349fe15c0840c792faf",
+          "stable_patch_id": "cb2d10e6fee00a3cb98f396b5d187ad7466fcda1"
+        }
+      ]
+    },
+    {
+      "number": 81,
+      "head_sha": "35474234043f4c087541654c46ebd5a10b7e0556",
+      "base_ref": "feat/qwen-14b-reasoner-route",
+      "base_sha": "8f930c056b9d6dc87b180349fe15c0840c792faf",
+      "disposition": "included_exact_via_pr_88_spine",
+      "incremental_commits": [
+        {
+          "sha": "35474234043f4c087541654c46ebd5a10b7e0556",
+          "stable_patch_id": "eee6fb318a432fb251a5537ba8223ce40476b658"
+        }
+      ]
+    },
+    {
+      "number": 84,
+      "head_sha": "63fc1d954c96378dd41ff1298cac02e5d65b1db5",
+      "base_ref": "feat/strategy-release",
+      "base_sha": "35474234043f4c087541654c46ebd5a10b7e0556",
+      "disposition": "included_exact_as_second_parent_of_merge_05ffa87149e536372bab7bfe56ad3d31f2ab9d12",
+      "incremental_commits": [
+        {
+          "sha": "63fc1d954c96378dd41ff1298cac02e5d65b1db5",
+          "stable_patch_id": "9b24dbd0e71c4328130551941761c5e4a5dd6e48"
+        }
+      ]
+    },
+    {
+      "number": 85,
+      "head_sha": "d8e4539d61dbed15ba45925166f0a5af479991a1",
+      "base_ref": "feat/strategy-release",
+      "base_sha": "35474234043f4c087541654c46ebd5a10b7e0556",
+      "disposition": "included_exact_via_pr_88_spine",
+      "incremental_commits": [
+        {
+          "sha": "905fc98bd727ddc3332ee51abdccee20f3ff00bb",
+          "stable_patch_id": "37d418e73009d71097166cf1f6f6dfc5269b4da0"
+        },
+        {
+          "sha": "e29be540853d8e343bdba5832e9cf76e5b5b9d50",
+          "stable_patch_id": "facc8c916dc4c9511d8b251227af61c98ff2ff0c"
+        },
+        {
+          "sha": "196e2947d3b481be50ec02660ab28d68cf33b871",
+          "stable_patch_id": "7fd9b1c6e794a1ae5cf3cf2d55f66e534ca53e1e"
+        },
+        {
+          "sha": "d8e4539d61dbed15ba45925166f0a5af479991a1",
+          "stable_patch_id": "6031d016c6a45312a7bf9b0999df988d5c2e9564"
+        }
+      ]
+    },
+    {
+      "number": 86,
+      "head_sha": "f880e8d5c918c8cf6a8cb92a3f5533a44ac0263d",
+      "base_ref": "feat/strategy-release",
+      "base_sha": "35474234043f4c087541654c46ebd5a10b7e0556",
+      "semantic_parent_sha": "d8e4539d61dbed15ba45925166f0a5af479991a1",
+      "disposition": "included_exact_via_pr_88_spine",
+      "incremental_commits_after_pr_85": [
+        {
+          "sha": "aaae563cf40dddca9e017d6d875a892f2a8398d1",
+          "stable_patch_id": "beefa5155a1fa41efe79529149943e601333f14c"
+        },
+        {
+          "sha": "893a9b89f41068a4bdc743aabcf2420504ad1aad",
+          "stable_patch_id": "cefd4f2add4e2cf20544bba549adc8cf774cb6cf"
+        },
+        {
+          "sha": "b061df366c32127768cb1ab24945dbb1974b49fa",
+          "stable_patch_id": "b3757ae35cd9fac37cd14d4b38f05ccbf489dcc9"
+        },
+        {
+          "sha": "b81bd84dd8c3422a60e1145713c436eafbd56aff",
+          "stable_patch_id": "b249eb3be3fc1b4bfb40a8c07ff195cbc428b140"
+        },
+        {
+          "sha": "d9f0b0e3be5992f34c85648133857a73bc3eb8ca",
+          "stable_patch_id": "7811d829c8785c053d58c385e76261ae912ef28e"
+        },
+        {
+          "sha": "7527f002454d96c6d85cc8a114d507bf321f0ec5",
+          "stable_patch_id": "913d108b9d2cd433330f1088fa4e965d265e4526"
+        },
+        {
+          "sha": "f880e8d5c918c8cf6a8cb92a3f5533a44ac0263d",
+          "stable_patch_id": "4c8e6f5426cb6e58a74b3331e7e77f6743434ecf"
+        }
+      ]
+    },
+    {
+      "number": 87,
+      "head_sha": "9bb77e5431dc239e66124dd7b8c33074a9bc3474",
+      "base_ref": "feat/strategy-release",
+      "base_sha": "35474234043f4c087541654c46ebd5a10b7e0556",
+      "disposition": "partially_superseded_with_one_novel_delta",
+      "incremental_commits": [
+        {
+          "sha": "1044f260fdd271fc7c06e24a0262dc37b1fc6c0f",
+          "stable_patch_id": "beefa5155a1fa41efe79529149943e601333f14c",
+          "disposition": "superseded_exact_patch_by_aaae563cf40dddca9e017d6d875a892f2a8398d1"
+        },
+        {
+          "sha": "39c0513a838c453e4ce8f75d810917cdf6032fb0",
+          "stable_patch_id": "0521e1e3c7cccfa7b16af8ae79a5d393fac0a60d",
+          "disposition": "superseded_by_composed_capture_lineage_196e2947_893a9b89_b061df36",
+          "file_level_decision": "Keep the PR #88 capture blob 7e2831f35244742cbc0155b0883f6496ac324ef2. It retains the Windows child-pin publication protection already replayed in PR #85 and the later PR #86 realpath adjustment that admits validated junction ancestors. Reapplying PR #87's older final blob b89099ccee30a0b3ef6ff73c98eee2027b8a736c would remove that junction-compatible resolution."
+        },
+        {
+          "sha": "9bb77e5431dc239e66124dd7b8c33074a9bc3474",
+          "stable_patch_id": "2afe246ef096973c173f912b702e2605b38ac2bc",
+          "disposition": "novel_delta_cherry_picked_as_2d73289390edb71fae661ee6ddbccd3e791c18e0"
+        }
+      ]
+    },
+    {
+      "number": 88,
+      "head_sha": "b5a132dd5232d2a9ae5611287ed92442431bcc3e",
+      "base_ref": "feat/67-qfast-shadow-runner",
+      "base_sha": "f880e8d5c918c8cf6a8cb92a3f5533a44ac0263d",
+      "disposition": "included_exact_as_release_candidate_spine",
+      "incremental_commits": [
+        {
+          "sha": "b5a132dd5232d2a9ae5611287ed92442431bcc3e",
+          "stable_patch_id": "656308c59b2e0b4c2ce4ff4d3c450e305b8dee8f"
+        }
+      ]
+    }
+  ],
+  "integration": {
+    "strategy": "Fast-forward the RC branch from the exact main base to PR #88, preserving the complete #70/#81/#85/#86/#88 first-parent spine; merge the exact PR #84 head as the second parent; cherry-pick only PR #87's novel canonical-hashing commit; add release-candidate notes.",
+    "spine_head": "b5a132dd5232d2a9ae5611287ed92442431bcc3e",
+    "exact_pr_84_merge_commit": {
+      "sha": "05ffa87149e536372bab7bfe56ad3d31f2ab9d12",
+      "parents": [
+        "b5a132dd5232d2a9ae5611287ed92442431bcc3e",
+        "63fc1d954c96378dd41ff1298cac02e5d65b1db5"
+      ],
+      "staged_patch_id": "9b24dbd0e71c4328130551941761c5e4a5dd6e48",
+      "conflicts": []
+    },
+    "novel_pr_87_result_commit": {
+      "source_sha": "9bb77e5431dc239e66124dd7b8c33074a9bc3474",
+      "result_sha": "2d73289390edb71fae661ee6ddbccd3e791c18e0",
+      "source_and_result_stable_patch_id": "2afe246ef096973c173f912b702e2605b38ac2bc",
+      "author_preserved": "akurkar07 <akurkar07@users.noreply.github.com>"
+    },
+    "release_notes_commit": "ec3f8e28afeab7dd90c826675caf6b8411b75e28",
+    "blanket_conflict_resolution_used": false,
+    "conflict_decisions": [
+      "The PR #84 merge was clean; its staged stable patch ID exactly matched the source PR patch ID, so no file-level conflict choice was required.",
+      "PR #87 commit 1044f260 was omitted because its stable patch ID exactly equals integrated PR #86 commit aaae563c.",
+      "PR #87 commit 39c0513a was omitted after file-level comparison showed its publication-pin behavior already composed into PR #85 and then intentionally extended by PR #86 commit b061df36 for validated junction ancestors.",
+      "PR #87 commit 9bb77e54 was retained as the only novel delta; its result commit has the same stable patch ID and original author metadata."
+    ],
+    "authorship_policy": "Exact spine and PR #84 commits remain ancestors. The one cherry-pick retains its source Author field. Integration and release-note commits use the integrator's configured public Git identity."
+  },
+  "candidate": {
+    "final_sha": "ec3f8e28afeab7dd90c826675caf6b8411b75e28",
+    "final_tree_hash": "927ba32e8a2a7130e03c532cb8b09beb1c0a49d0",
+    "changed_file_count_against_base": 100,
+    "diff_shortstat_against_base": "100 files changed, 42848 insertions(+), 110 deletions(-)",
+    "version_sources": {
+      "pyproject_project_version": "0.4.0",
+      "runtime_distribution_version": "0.4.0",
+      "changelog_section": "0.4.0 - Unreleased"
+    }
+  },
+  "verification": {
+    "environment": {
+      "os": "Windows 11",
+      "python": "CPython 3.12.13",
+      "uv": "0.11.29",
+      "pytest": "8.4.2",
+      "ruff": "0.16.5"
+    },
+    "focused_cross_module": {
+      "command": "uv run --locked --python 3.12 pytest -q tests/test_reasoner_route_contract.py tests/test_latency_profile_contract.py tests/test_strategy_release.py tests/test_issue77_v2_boundaries.py tests/test_autonomous_host.py tests/test_autonomous_host_composition.py tests/test_autonomous_application_service.py tests/test_option_events.py tests/test_qfast_shadow_runner.py tests/test_qfast_panel_evidence.py tests/test_bundle_diff.py tests/test_capture_output_boundaries.py tests/test_paper_demo_runner.py",
+      "status": "passed",
+      "passed": 279,
+      "skipped": 14,
+      "duration_seconds": 22.19
+    },
+    "canonical_gates": [
+      {
+        "command": "git diff --check origin/main...HEAD",
+        "status": "passed"
+      },
+      {
+        "command": "uv lock --check --python 3.12",
+        "status": "passed"
+      },
+      {
+        "command": "uv run --locked --python 3.12 python scripts/check_repo_hygiene.py",
+        "status": "passed",
+        "summary": "repository hygiene: PASS (362 visible files checked)"
+      },
+      {
+        "command": "uv run --locked --python 3.12 ruff check .",
+        "status": "passed"
+      },
+      {
+        "command": "uv run --locked --python 3.12 ruff format --check .",
+        "status": "passed",
+        "summary": "236 files already formatted"
+      },
+      {
+        "command": "uv run --locked --python 3.12 python -m compileall -q src tests scripts",
+        "status": "passed",
+        "classification": "syntax_and_bytecode_compilation_not_static_type_checking"
+      },
+      {
+        "command": "uv run --locked --python 3.12 pytest -q",
+        "status": "passed",
+        "passed": 1644,
+        "skipped": 15,
+        "duration_seconds": 148.23,
+        "skip_reason_summary": "Expected platform capability skips for unavailable Windows symlink privilege plus POSIX-only symlink coverage."
+      }
+    ],
+    "static_type_gate": {
+      "status": "unmet",
+      "configured_in_repository": false,
+      "release_effect": "The draft must not be represented as satisfying PRD #92's project-wide type-gate acceptance criterion.",
+      "probes": [
+        {
+          "command": "uvx mypy src/ringdown_market",
+          "tool_version": "mypy 2.3.1",
+          "status": "failed",
+          "summary": "509 errors in 52 files; 119 source files checked"
+        },
+        {
+          "command": "uvx pyright src/ringdown_market",
+          "tool_version": "pyright 1.1.411",
+          "status": "failed",
+          "summary": "353 errors, 1 warning"
+        },
+        {
+          "command": "uvx pyright <origin-main-archive>/src/ringdown_market",
+          "tool_version": "pyright 1.1.411",
+          "status": "failed",
+          "summary": "227 errors, 1 warning across 91 files on the exact origin/main base"
+        }
+      ],
+      "decision": "Do not add blanket ignores, disable diagnostics, or mix a repository-wide typing migration into this bounded convergence. Surface the unmet gate for owner/reviewer disposition."
+    },
+    "package_build": {
+      "command": "uv build --out-dir <fresh-os-temp>/dist",
+      "status": "passed",
+      "artifact_count": {
+        "wheel": 1,
+        "sdist": 1
+      },
+      "artifacts": [
+        {
+          "filename": "ringdown_market-0.4.0-py3-none-any.whl",
+          "sha256": "033ea74bd9b83f0b67cef8d88ea3ba6513c222e6ca83b12fd96b6fa51465205b"
+        },
+        {
+          "filename": "ringdown_market-0.4.0.tar.gz",
+          "sha256": "881f23d1f7c83e3cc34e4ba910b6554ad737153bb01dd9a19155621ce46203d2"
+        }
+      ]
+    },
+    "clean_wheel_smoke": {
+      "status": "passed",
+      "working_directory": "outside_checkout",
+      "installed_module_under_clean_venv": true,
+      "installed_module_outside_checkout_src": true,
+      "direct_url_matches_exact_wheel": true,
+      "metadata_version": "0.4.0",
+      "runtime_version": "0.4.0",
+      "cli_version": "ringdown 0.4.0",
+      "evaluation": {
+        "mode": "OFFLINE_RESEARCH",
+        "event_count": 4
+      },
+      "rendered_trace_markers": [
+        "ACCEPTED_TERMINAL_FLAT",
+        "MANUAL_RECONCILIATION",
+        "STATIC · READ-ONLY · NO NETWORK"
+      ]
+    }
+  },
+  "safety": {
+    "credentials_used": false,
+    "provider_or_broker_connection_used": false,
+    "order_cancel_exercise_or_paper_mutation_used": false,
+    "release_merge_or_deployment_authorized": false,
+    "local_proof_output_committed": false,
+    "claim_boundary": "Automated and synthetic verification does not prove broker readiness, order fills, account flatness, executable P&L, predictive alpha, or live PAPER-session safety."
+  },
+  "deferred_gates": [
+    {
+      "reference": "PRD #92 static type gate",
+      "status": "unmet",
+      "reason": "No type checker is configured and both project-wide probes fail; suppressing the baseline would be misleading."
+    },
+    {
+      "reference": "issue #90",
+      "status": "not_started_by_this_candidate",
+      "reason": "Production PAPER host integration is intentionally downstream of this convergence."
+    },
+    {
+      "reference": "issue #91",
+      "status": "not_started_by_this_candidate",
+      "reason": "Final owner rehearsal, credentialed PAPER proof, arm approval, release, and deployment remain outside worker authority."
+    }
+  ]
+}
