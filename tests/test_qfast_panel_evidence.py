@@ -13,7 +13,7 @@ import hashlib
 import json
 import socket
 from dataclasses import dataclass, replace
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, tzinfo
 from decimal import Decimal
 from functools import lru_cache
 from pathlib import Path
@@ -83,6 +83,7 @@ from ringdown_market.runtime.autonomous_application_service import (
     stage_receipt_sha256,
 )
 from ringdown_market.runtime.health_receipts import (
+    HealthReceiptRejected,
     build_operational_health_receipt,
     health_receipt_sha256,
 )
@@ -1199,3 +1200,27 @@ def test_comparison_module_stays_synthetic_labelled() -> None:
         "NO_BROKER_EXECUTION",
         "SYNTHETIC_FAKE",
     )
+
+
+def test_health_receipt_rejects_tzinfo_that_reports_no_utcoffset() -> None:
+    """Copilot review (#93/#70): a tzinfo whose utcoffset() is None must fail
+    the typed guard instead of leaking a raw ValueError from astimezone()."""
+
+    class _NoOffsetTZ(tzinfo):
+        def utcoffset(self, dt):
+            return None
+
+        def dst(self, dt):
+            return None
+
+        def tzname(self, dt):
+            return "NO_OFFSET"
+
+    with pytest.raises(HealthReceiptRejected, match="timezone-aware"):
+        build_operational_health_receipt(
+            run_id="RUN-TZ-GUARD",
+            arm_sha256=ARM_SHA,
+            observed_at=STAGE_CLOCK.replace(tzinfo=_NoOffsetTZ()),
+            budget_sha256=BUDGET_SHA,
+            stage_latencies={"DECISION": 10},
+        )

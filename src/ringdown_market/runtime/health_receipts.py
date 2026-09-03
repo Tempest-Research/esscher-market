@@ -161,7 +161,11 @@ def build_operational_health_receipt(
     source_ids = tuple(entry.source_id for entry in staleness)
     if len(source_ids) != len(set(source_ids)):
         raise HealthReceiptRejected("staleness source identities must be unique")
-    if not isinstance(observed_at, datetime) or observed_at.tzinfo is None:
+    if (
+        not isinstance(observed_at, datetime)
+        or observed_at.tzinfo is None
+        or observed_at.utcoffset() is None
+    ):
         raise HealthReceiptRejected("observed_at must be a timezone-aware datetime")
     return OperationalHealthReceipt(
         run_id=_run_id(run_id),
