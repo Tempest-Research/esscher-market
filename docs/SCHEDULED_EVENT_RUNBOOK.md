@@ -81,7 +81,7 @@ Successful terminal output is labeled `PAPER_OPERATIONAL_RESULT` and `INDICATIVE
 
 ## 4. Restart and reconciliation
 
-For an interrupted `RECONCILING` event, rerun the exact same manifest, state directory, and host plan. Local state is only a restart cursor. Deterministic broker order and position readback remains authoritative.
+For an interrupted `RECONCILING` event, rerun the exact same manifest, state directory, and host plan. You may hand that exact tuple to another trusted environment, including a cloud runner, only if the same durable state directory contents are preserved unchanged. Local state is only a restart cursor. Deterministic broker order and position readback remains authoritative.
 
 - Never delete or edit an attempt marker to make a submission possible.
 - Never change manifest bytes for the same `event_run_id`.
