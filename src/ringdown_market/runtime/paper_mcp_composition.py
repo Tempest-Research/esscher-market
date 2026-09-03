@@ -69,6 +69,10 @@ from ringdown_market.contracts.execution_policy import (
     ORDERS_TOOL,
     POSITIONS_TOOL,
 )
+from ringdown_market.contracts.latency_profile import (
+    LatencyProfileRejected,
+    load_latency_profile,
+)
 from ringdown_market.contracts.reasoner_route import load_approved_reasoner_route_v2
 from ringdown_market.execution.expression import ExpressionMarketSnapshot, PromotedExpressionPolicy
 from ringdown_market.execution.host_mcp import (
@@ -88,6 +92,7 @@ from ringdown_market.lifecycle import (
     issue_close_permit,
 )
 from ringdown_market.lifecycle.broker import BrokerOutage
+from ringdown_market.lifecycle.reasons import LifecycleReason
 from ringdown_market.risk import (
     RiskKernel,
     RiskLedger,
@@ -791,6 +796,17 @@ class PaperMcpCompositionState:
         return self.doors.ledger
 
 
+def _lifecycle_manual_reason(error: LifecycleRejected) -> str:
+    """Map one post-submission lifecycle rejection to its stable manual reason."""
+
+    if error.reason in (
+        LifecycleReason.OPEN_ORDER_PARTIAL,
+        LifecycleReason.CLOSE_ORDER_PARTIAL,
+    ):
+        return "PARTIAL_FILL"
+    return "UNKNOWN_BROKER_STATE"
+
+
 def paper_mcp_terminal_flat_proof_sha256(
     *,
     session_id: str,
@@ -1093,17 +1109,17 @@ class PaperMcpCandidateBackend:
                 mutation_state=MutationState.UNKNOWN,
                 reason_code="UNKNOWN_BROKER_STATE",
             )
-        except LifecycleRejected:
+        except LifecycleRejected as error:
             # The opening was already submitted when the monitored lifecycle
             # rejects; broker state is unknown-to-partial and must never be
-            # classified as a pre-mutation rejection.
-            state.blocked.record_failure(
-                opportunity_id, "UNKNOWN_BROKER_STATE", request.observed_at
-            )
+            # classified as a pre-mutation rejection. A partial fill keeps its
+            # own stable manual reason.
+            reason_code = _lifecycle_manual_reason(error)
+            state.blocked.record_failure(opportunity_id, reason_code, request.observed_at)
             return HostCandidateOutcome.manual_reconciliation_required(
                 request,
                 mutation_state=MutationState.UNKNOWN,
-                reason_code="UNKNOWN_BROKER_STATE",
+                reason_code=reason_code,
             )
         except Exception:
             state.blocked.record_failure(
@@ -1113,6 +1129,21 @@ class PaperMcpCandidateBackend:
                 request,
                 mutation_state=MutationState.UNKNOWN,
                 reason_code="UNKNOWN_BROKER_STATE",
+            )
+
+        if active.open_state is not LifecycleState.OPEN_FILLED:
+            # A submitted opening that is not provably filled (partial fill,
+            # canceled, or unknown state) is never adopted as an active
+            # lifecycle; it freezes into manual reconciliation with its stable
+            # reason, and the residual working order is left for the
+            # risk-reducing reconciliation cancel path.
+            partial = active.open_state is LifecycleState.OPEN_PARTIAL
+            reason_code = "PARTIAL_FILL" if partial else "UNKNOWN_BROKER_STATE"
+            state.blocked.record_failure(opportunity_id, reason_code, request.observed_at)
+            return HostCandidateOutcome.manual_reconciliation_required(
+                request,
+                mutation_state=MutationState.PARTIAL if partial else MutationState.UNKNOWN,
+                reason_code=reason_code,
             )
 
         lifecycle_id = prepared.permit.permit_id
@@ -1269,7 +1300,15 @@ class PaperMcpLifecycleBackend:
                 mutation_state=MutationState.PARTIAL,
                 reason_code="UNKNOWN_BROKER_STATE",
             )
-        except (LifecycleRejected, PaperPipelineRejected, RiskRejected):
+        except LifecycleRejected as error:
+            reason_code = _lifecycle_manual_reason(error)
+            state.blocked.record_failure(lifecycle_id, reason_code, request.observed_at)
+            return HostLifecycleOutcome.manual_reconciliation_required(
+                request,
+                mutation_state=MutationState.PARTIAL,
+                reason_code=reason_code,
+            )
+        except (PaperPipelineRejected, RiskRejected):
             state.blocked.record_failure(lifecycle_id, "UNKNOWN_BROKER_STATE", request.observed_at)
             return HostLifecycleOutcome.manual_reconciliation_required(
                 request,
@@ -1521,6 +1560,14 @@ class PaperMcpPlanFactory:
             # identity; a door that names a different account fails closed here
             # instead of at the first post-mutation truth check.
             raise AutonomousHostRejected("ACCOUNT_IDENTITY_MISMATCH")
+        # The frozen p95 latency profile must load and validate; a stale or
+        # hash-mismatched packaged profile blocks the composition instead of
+        # degrading silently (PRD PR-2: composition is impossible unless the
+        # latency profile validates).
+        try:
+            latency_profile = load_latency_profile()
+        except LatencyProfileRejected as error:
+            raise AutonomousHostRejected("LATENCY_PROFILE_STALE") from error
         binding_sha256 = sha256_bytes(
             canonical_json_bytes(
                 {
@@ -1533,6 +1580,7 @@ class PaperMcpPlanFactory:
                     "host_operations_protocol_sha256": ALPACA_MCP_HOST_OPERATIONS_PROTOCOL_SHA256,
                     "route_sha256": route.route_sha256,
                     "model_config_sha256": route.model_config_sha256,
+                    "latency_profile_sha256": latency_profile.content_sha256,
                     "account_fingerprint_sha256": fingerprint,
                     "mutation_permitted": doors.mutation_permitted,
                 }

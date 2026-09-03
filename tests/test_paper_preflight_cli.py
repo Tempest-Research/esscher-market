@@ -341,3 +341,112 @@ def test_scheduler_stops_at_manual_reconciliation_without_later_points(
     # never waited for the remaining timeline points.
     assert len(scheduler.sleeps) < len(timeline)
     assert host.place_calls == 1
+
+
+def test_preflight_open_order_probe_paginates_and_counts_every_page(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import ringdown_market.runtime.paper_preflight as preflight_module
+
+    monkeypatch.setattr(preflight_module, "PREFLIGHT_ORDERS_PAGE_LIMIT", 2)
+    host = FakeMcpHost(
+        open_working=[
+            {"client_order_id": f"c-{index}", "id": f"o-{index}", "status": "new"}
+            for index in range(1, 4)
+        ]
+    )
+    _install_session_selector(monkeypatch, host, "test_preflight_session_module")
+    output = tmp_path / "preflight-receipt.json"
+
+    exit_code = cli_main(_preflight_args(output), clock=lambda: NOW)
+
+    assert exit_code == 2
+    receipt = parse_broker_preflight_receipt(output.read_bytes())
+    assert receipt.verdict is PreflightVerdict.REJECTED
+    assert "NON_FLAT_START" in receipt.reason_codes
+    assert receipt.orders_query_succeeded is True
+    assert receipt.orders_page_count == 2
+    assert receipt.open_order_count == 3
+    assert not ({name for name, _ in host.calls} & MUTATING_TOOLS)
+
+
+class CyclingOrdersHost(FakeMcpHost):
+    """Ignores the continuation token so pagination provably cycles."""
+
+    async def call_tool(self, name: str, arguments) -> object:
+        args = dict(arguments)
+        if name == "get_orders" and args.get("status") == "open":
+            self.calls.append((name, args))
+            return [
+                {"client_order_id": "c-1", "id": "o-1", "status": "new"},
+                {"client_order_id": "c-2", "id": "o-2", "status": "new"},
+            ]
+        return await super().call_tool(name, arguments)
+
+
+def test_preflight_open_order_pagination_cycle_is_incomplete_never_guessed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import ringdown_market.runtime.paper_preflight as preflight_module
+
+    monkeypatch.setattr(preflight_module, "PREFLIGHT_ORDERS_PAGE_LIMIT", 2)
+    host = CyclingOrdersHost()
+    _install_session_selector(monkeypatch, host, "test_preflight_session_module")
+    output = tmp_path / "preflight-receipt.json"
+
+    exit_code = cli_main(_preflight_args(output), clock=lambda: NOW)
+
+    assert exit_code == 2
+    receipt = parse_broker_preflight_receipt(output.read_bytes())
+    assert receipt.verdict is PreflightVerdict.REJECTED
+    assert "PAGINATION_INCOMPLETE" in receipt.reason_codes
+
+
+def test_readonly_door_rejects_every_mutating_and_unselected_tool() -> None:
+    host = FakeMcpHost()
+    factory = HostMcpPaperSessionFactory(
+        HostMcpSessionIdentity(environment=HostMcpEnvironment.PAPER), clock=lambda: NOW
+    )
+    prepared = asyncio.run(factory.connect(host))
+    host.calls.clear()
+
+    forbidden = (
+        "place_option_order",
+        "cancel_order_by_id",
+        "replace_order_by_id",
+        "cancel_all_orders",
+        "close_position",
+        "close_all_positions",
+        "exercise_options_position",
+        "do_not_exercise_options_position",
+        "update_account_config",
+    )
+    for tool in forbidden:
+        with pytest.raises(HostMcpConfigurationError):
+            asyncio.run(prepared.readonly_call(tool, {}))
+
+    assert host.calls == []
+
+
+def test_preflight_cli_default_artifact_path_follows_the_prd_layout(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    host = FakeMcpHost()
+    _install_session_selector(monkeypatch, host, "test_preflight_session_module")
+    monkeypatch.chdir(tmp_path)
+    args = _preflight_args(tmp_path / "unused.json")
+    output_index = args.index("--output")
+    del args[output_index : output_index + 2]
+
+    exit_code = cli_main(args, clock=lambda: NOW)
+
+    assert exit_code == 0
+    artifact = (
+        tmp_path
+        / "artifacts"
+        / "paper-preflight"
+        / "preflight-run-0001"
+        / ("preflight-receipt.json")
+    )
+    receipt = parse_broker_preflight_receipt(artifact.read_bytes())
+    assert receipt.verdict is PreflightVerdict.PASSED

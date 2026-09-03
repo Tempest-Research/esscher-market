@@ -358,7 +358,15 @@ def _build_parser() -> argparse.ArgumentParser:
     preflight.add_argument("--runtime-build-sha256", required=True)
     preflight.add_argument("--route-config-sha256", default=None)
     preflight.add_argument("--latency-profile-sha256", default=None)
-    preflight.add_argument("--output", type=Path, required=True)
+    preflight.add_argument(
+        "--output",
+        type=Path,
+        default=None,
+        help=(
+            "receipt path (default: artifacts/paper-preflight/<receipt-id>/"
+            "preflight-receipt.json)"
+        ),
+    )
     paper_run = subparsers.add_parser(
         "paper-run",
         help="run one armed production PAPER_MCP session under the wall-clock scheduler",
@@ -640,10 +648,18 @@ def main(
             PreflightVerdict,
             broker_preflight_receipt_bytes,
         )
+        from .runtime.paper_preflight import preflight_receipt_artifact_path
 
+        output_path = (
+            args.output
+            if args.output is not None
+            else preflight_receipt_artifact_path(
+                Path("artifacts") / "paper-preflight", args.receipt_id
+            )
+        )
         receipt_bytes = broker_preflight_receipt_bytes(preflight_receipt)
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_bytes(receipt_bytes)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_bytes(receipt_bytes)
         print(receipt_bytes.decode("utf-8"))
         return 0 if preflight_receipt.verdict is PreflightVerdict.PASSED else 2
     if args.command == "paper-run":

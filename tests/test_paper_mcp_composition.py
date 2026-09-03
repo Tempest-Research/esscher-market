@@ -118,6 +118,7 @@ class FakeMcpHost:
         open_working: list[dict[str, object]] | None = None,
         open_timeout: bool = False,
         readback_timeout: bool = False,
+        partial_open: bool = False,
         on_first_fill=None,
     ) -> None:
         self.account = dict(account or ACCOUNT_PAYLOAD)
@@ -125,6 +126,7 @@ class FakeMcpHost:
         self.open_working = list(open_working or [])
         self.open_timeout = open_timeout
         self.readback_timeout = readback_timeout
+        self.partial_open = partial_open
         self.on_first_fill = on_first_fill
         self.calls: list[tuple[str, dict[str, object]]] = []
         self.orders: dict[str, dict[str, object]] = {}
@@ -161,7 +163,16 @@ class FakeMcpHost:
                     self._close_phase = True
                     self.on_first_fill()
                 return [dict(record) for record in self.orders.values()]
-            return [dict(item) for item in self.open_working]
+            items = sorted(
+                (dict(item) for item in self.open_working), key=lambda record: str(record.get("id"))
+            )
+            after = args.get("after_order_id")
+            if isinstance(after, str):
+                items = [record for record in items if str(record.get("id")) > after]
+            limit = args.get("limit")
+            if isinstance(limit, int) and not isinstance(limit, bool) and limit >= 0:
+                items = items[:limit]
+            return items
         if name == "get_all_positions":
             return [dict(item) for item in self.positions]
         if name == "place_option_order":
@@ -172,6 +183,22 @@ class FakeMcpHost:
             client_order_id = str(args["client_order_id"])
             order_id = f"mcp-order-{len(self.orders) + 1}"
             legs = list(args.get("legs") or [])
+            intents = [str(leg.get("position_intent", "")) for leg in legs]
+            opening = not any(intent.endswith("_to_close") for intent in intents)
+            if opening and self.partial_open:
+                record = {
+                    "id": order_id,
+                    "client_order_id": client_order_id,
+                    "status": "partially_filled",
+                    "filled_qty": "0",
+                    "legs": [{"symbol": str(leg["symbol"])} for leg in legs],
+                }
+                self.orders[order_id] = record
+                self.by_client[client_order_id] = order_id
+                # A real broker keeps the unfilled remainder working; the
+                # risk-reducing reconciliation cancel path must resolve it.
+                self.open_working.append(dict(record))
+                return dict(record)
             record = {
                 "id": order_id,
                 "client_order_id": client_order_id,
@@ -181,8 +208,6 @@ class FakeMcpHost:
             }
             self.orders[order_id] = record
             self.by_client[client_order_id] = order_id
-            intents = [str(leg.get("position_intent", "")) for leg in legs]
-            opening = not any(intent.endswith("_to_close") for intent in intents)
             if opening:
                 positions = []
                 for leg in legs:
@@ -712,3 +737,73 @@ def test_candidate_processing_refuses_mutation_before_startup_broker_truth(
     )
     state = backend._state  # whitebox invariant check
     assert state.broker_truth_established is False
+
+
+def test_partial_open_fill_maps_to_the_stable_partial_fill_manual_reason(
+    tmp_path: Path,
+) -> None:
+    authority_input, arm = _session(tmp_path)
+    clock = PhaseClock(_decision_now())
+    host = FakeMcpHost(partial_open=True)
+    ledger = RiskLedger(tmp_path / "risk.sqlite3")
+    doors = _doors(host, ledger, clock, arm)
+
+    receipt = _run(authority_input, arm, doors)
+
+    assert receipt.disposition is AutonomousHostDisposition.MANUAL_RECONCILIATION_REQUIRED
+    assert "PARTIAL_FILL" in receipt.manual_reasons
+    # The partial opening is never retried into a second exposure, and the
+    # residual working remainder is resolved risk-reducing by reconciliation.
+    assert host.place_calls == 1
+    assert host.positions == []
+    assert host.cancel_calls == ["mcp-order-1"]
+    blocked_lines = (authority_input.state_dir / BLOCKED_STATE_FILENAME).read_text(encoding="utf-8")
+    assert "PARTIAL_FILL" in blocked_lines
+
+
+def test_stale_timeline_outside_the_arm_is_rejected_before_any_backend(
+    tmp_path: Path,
+) -> None:
+    authority_input, arm = _session(tmp_path)
+    clock = PhaseClock(_decision_now())
+    host = FakeMcpHost()
+    ledger = RiskLedger(tmp_path / "risk.sqlite3")
+    doors = _doors(host, ledger, clock, arm)
+
+    from datetime import timedelta
+
+    with pytest.raises(AutonomousHostRejected):
+        run_autonomous_host_command(
+            authority_input=authority_input,
+            plan_factory=paper_mcp_plan_factory(doors),
+            observation_timeline=(arm.hard_flat_at + timedelta(hours=1),),
+        )
+    # Only the factory-connect preflight calls happened; the runner rejected
+    # the stale timeline before any plan or backend existed.
+    assert "place_option_order" not in [name for name, _ in host.calls]
+
+
+def test_stale_latency_profile_blocks_the_production_plan(tmp_path: Path, monkeypatch) -> None:
+    import ringdown_market.runtime.paper_mcp_composition as production
+    from ringdown_market.contracts.latency_profile import (
+        LatencyProfileReason,
+        LatencyProfileRejected,
+    )
+
+    authority_input, arm = _session(tmp_path)
+    clock = PhaseClock(_decision_now())
+    host = FakeMcpHost()
+    ledger = RiskLedger(tmp_path / "risk.sqlite3")
+    doors = _doors(host, ledger, clock, arm)
+    authority = validate_autonomous_host_authority(authority_input)
+
+    def stale_profile():
+        raise LatencyProfileRejected(
+            LatencyProfileReason.STALE_PROFILE, "latency_profile", "injected staleness"
+        )
+
+    monkeypatch.setattr(production, "load_latency_profile", stale_profile)
+
+    with pytest.raises(AutonomousHostRejected, match="LATENCY_PROFILE_STALE"):
+        paper_mcp_plan_factory(doors)(authority)
+    assert "place_option_order" not in [name for name, _ in host.calls]

@@ -51,11 +51,13 @@ from ringdown_market.sourcedata.alpaca_option_events import (
     acquire_account_activities,
     summarize_orders_state,
 )
-from ringdown_market.strategy.contracts import sha256_bytes
+from ringdown_market.strategy.contracts import canonical_json_bytes, sha256_bytes
 
 PREFLIGHT_ACTIVITIES_LOOKBACK = timedelta(days=1)
 PREFLIGHT_ACTIVITIES_PAGE_SIZE = 100
 PREFLIGHT_ACTIVITIES_MAX_PAGES = 5
+PREFLIGHT_ORDERS_PAGE_LIMIT = 100
+PREFLIGHT_ORDERS_MAX_PAGES = 5
 
 
 class PaperPreflightReason(StrEnum):
@@ -146,6 +148,66 @@ def _nonzero_position_count(raw_positions: bytes) -> int:
     return count
 
 
+class _PaginationCycle(Exception):
+    """The open-order probe repeated a continuation token."""
+
+
+class _PaginationBudgetExhausted(Exception):
+    """The open-order probe exceeded its bounded page budget."""
+
+
+async def _paginated_open_orders(
+    prepared: PreparedHostMcpSession,
+) -> tuple[list[object], int]:
+    """Read every open order through ascending id-cursor pagination.
+
+    Completion is a short page; a repeated cursor is a cycle and an overrun is
+    budget exhaustion.  Both become a `PAGINATION_INCOMPLETE` receipt reason
+    instead of a guessed-complete order set.
+    """
+
+    items: list[object] = []
+    pages = 0
+    page_token: str | None = None
+    while True:
+        if pages >= PREFLIGHT_ORDERS_MAX_PAGES:
+            raise _PaginationBudgetExhausted()
+        arguments: dict[str, object] = {
+            "status": "open",
+            "direction": "asc",
+            "limit": PREFLIGHT_ORDERS_PAGE_LIMIT,
+        }
+        if page_token is not None:
+            arguments["after_order_id"] = page_token
+        raw = await _readonly_canonical_bytes(prepared, ORDERS_TOOL, arguments)
+        decoded = json.loads(raw.decode("utf-8"))
+        if isinstance(decoded, (str, bytes)) or not isinstance(decoded, list):
+            raise PaperMcpCompositionRejected(
+                PaperMcpCompositionReason.BROKER_TRUTH_UNAVAILABLE,
+                "orders page must be a list",
+            )
+        for item in decoded:
+            if not isinstance(item, Mapping):
+                raise PaperMcpCompositionRejected(
+                    PaperMcpCompositionReason.BROKER_TRUTH_UNAVAILABLE,
+                    "order record must be an object",
+                )
+        pages += 1
+        items.extend(decoded)
+        if len(decoded) < PREFLIGHT_ORDERS_PAGE_LIMIT:
+            return items, pages
+        last = decoded[-1]
+        last_id = last.get("id") if isinstance(last, Mapping) else None
+        if not isinstance(last_id, str) or not last_id:
+            raise PaperMcpCompositionRejected(
+                PaperMcpCompositionReason.BROKER_TRUTH_UNAVAILABLE,
+                "orders page lacks a continuation id",
+            )
+        if last_id == page_token:
+            raise _PaginationCycle()
+        page_token = last_id
+
+
 async def run_broker_preflight(
     prepared: PreparedHostMcpSession,
     *,
@@ -228,12 +290,17 @@ async def run_broker_preflight(
     open_order_count = 0
     orders_state_sha256: str | None = None
     try:
-        orders_raw = await _readonly_canonical_bytes(prepared, ORDERS_TOOL, {"status": "open"})
-        summary = summarize_orders_state(orders_raw)
+        combined_items, orders_page_count = await _paginated_open_orders(prepared)
+        summary = summarize_orders_state(canonical_json_bytes(combined_items))
         orders_query_succeeded = True
-        orders_page_count = 1
         open_order_count = summary.open_order_count
         orders_state_sha256 = summary.orders_state_sha256
+    except _PaginationCycle:
+        orders_query_succeeded = True
+        reasons.append("PAGINATION_INCOMPLETE")
+    except _PaginationBudgetExhausted:
+        orders_query_succeeded = True
+        reasons.append("PAGINATION_INCOMPLETE")
     except (HostMcpError, PaperMcpCompositionRejected, ActivityAcquisitionRejected):
         reasons.append("ORDERS_QUERY_FAILED")
 
