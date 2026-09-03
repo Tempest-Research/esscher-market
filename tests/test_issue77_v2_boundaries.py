@@ -128,7 +128,14 @@ def test_v2_provenance_manifest_is_self_consistent() -> None:
 
 class Fake:
     async def list_tools(self):
-        return _v2_payload()["tool_names"]
+        return sorted(
+            {
+                *_v2_payload()["tool_names"],
+                # Issue #90 read-only operational extension tools.
+                "get_account_activities",
+                "get_orders",
+            }
+        )
 
     async def call_tool(self, name, arguments):
         assert name == "get_account_info"

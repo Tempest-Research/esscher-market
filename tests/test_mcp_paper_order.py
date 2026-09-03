@@ -126,10 +126,12 @@ class HostTimeoutThenReadbackSession:
     async def list_tools(self) -> tuple[str, ...]:
         return (
             "cancel_order_by_id",
+            "get_account_activities",
             "get_account_info",
             "get_all_positions",
             "get_order_by_client_id",
             "get_order_by_id",
+            "get_orders",
             "place_option_order",
         )
 

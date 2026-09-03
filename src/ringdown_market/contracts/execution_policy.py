@@ -40,6 +40,23 @@ ORDER_BY_ID_TOOL = "get_order_by_id"
 CANCEL_TOOL = "cancel_order_by_id"
 POSITIONS_TOOL = "get_all_positions"
 
+# Issue #90 read-only operational extension over the same pinned 2.3.1
+# artifact.  The frozen V2 mutation protocol and its six-tool selection are
+# unchanged; this extension adds exactly the two read-only tools required for
+# production preflight, broker reconciliation, and account-activity
+# acquisition.  Selecting them never widens mutation capability.
+ORDERS_TOOL = "get_orders"
+ACTIVITIES_TOOL = "get_account_activities"
+ALPACA_MCP_READONLY_EXTENSION_TOOLS = (ACTIVITIES_TOOL, ORDERS_TOOL)
+ALPACA_MCP_READONLY_EXTENSION_COUNT = 2
+ALPACA_MCP_READONLY_EXTENSION_CANONICALIZATION = ALPACA_MCP_V2_SELECTED_SCHEMA_CANONICALIZATION
+ALPACA_MCP_READONLY_EXTENSION_SCHEMA_SHA256 = (
+    "49170e3aea5a8d2606cde937232ea7b0972027e794f625db87adf7477d6b65a7"
+)
+ALPACA_MCP_READONLY_EXTENSION_RECEIPT_SHA256 = (
+    "e351e0913312d63271217b30a324dbe7d9d81b604f0a92e303ae4df05bb4c38c"
+)
+
 PAPER_PERMIT_POLICY_VERSION = "paper-debit-vertical/v1"
 PAPER_PERMIT_TTL_SECONDS = 60
 PAPER_PERMIT_MAXIMUM_LOSS = Decimal("500.00")
@@ -118,6 +135,31 @@ ALPACA_MCP_PROTOCOL = ALPACA_MCP_V2_PROTOCOL
 ALPACA_MCP_PROTOCOL_SHA256 = ALPACA_MCP_V2_PROTOCOL_SHA256
 ALPACA_MCP_CURRENT_PROTOCOL = ALPACA_MCP_V2_PROTOCOL
 ALPACA_MCP_CURRENT_PROTOCOL_SHA256 = ALPACA_MCP_V2_PROTOCOL_SHA256
+
+# Host-operations identity for the production PAPER host (#90): the frozen V2
+# mutation protocol plus the exactly hashed read-only extension selection over
+# the identical pinned artifact.  This object never redefines the V2 protocol.
+ALPACA_MCP_HOST_OPERATIONS_PROTOCOL = {
+    "schema": "ringdown.alpaca_mcp_host_operations_protocol",
+    "schema_version": 1,
+    "adapter": "ALPACA_MCP",
+    "adapter_version": ALPACA_MCP_V2_VERSION,
+    "distribution_type": ALPACA_MCP_V2_DISTRIBUTION_TYPE,
+    "wheel_filename": ALPACA_MCP_V2_WHEEL_FILENAME,
+    "wheel_sha256": ALPACA_MCP_V2_WHEEL_SHA256,
+    "provenance_class": ALPACA_MCP_V2_PROVENANCE,
+    "mutation_protocol_sha256": ALPACA_MCP_V2_PROTOCOL_SHA256,
+    "selected_schema_count": ALPACA_MCP_V2_SELECTED_SCHEMA_COUNT,
+    "selected_schema_sha256": ALPACA_MCP_V2_SELECTED_SCHEMA_SHA256,
+    "readonly_extension_count": ALPACA_MCP_READONLY_EXTENSION_COUNT,
+    "readonly_extension_canonicalization": ALPACA_MCP_READONLY_EXTENSION_CANONICALIZATION,
+    "readonly_extension_schema_sha256": ALPACA_MCP_READONLY_EXTENSION_SCHEMA_SHA256,
+    "readonly_extension_receipt_sha256": ALPACA_MCP_READONLY_EXTENSION_RECEIPT_SHA256,
+    "readonly_extension_tools": list(ALPACA_MCP_READONLY_EXTENSION_TOOLS),
+    "run_mode": "PAPER",
+    "data_class": "INDICATIVE_DATA",
+}
+ALPACA_MCP_HOST_OPERATIONS_PROTOCOL_SHA256 = _sha256_object(ALPACA_MCP_HOST_OPERATIONS_PROTOCOL)
 
 RESEARCH_DECISION_PROTOCOL = {
     "schema": "ringdown.research_decision_protocol",

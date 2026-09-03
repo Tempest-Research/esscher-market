@@ -158,6 +158,8 @@ class FakeHostMcp:
             ORDER_BY_ID_TOOL,
             CANCEL_TOOL,
             POSITIONS_TOOL,
+            "get_account_activities",
+            "get_orders",
         )
 
     async def call_tool(self, name: str, arguments: Mapping[str, object]) -> object:
