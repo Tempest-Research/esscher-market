@@ -11,7 +11,7 @@
     "error_code": "AMBIGUOUS_OR_PARTIAL_BROKER_STATE",
     "event_run_id": "rd-event-dddddddddddddddddddddddddddddddd",
     "lifecycle": "MANUAL_RECONCILIATION",
-    "manifest_sha256": "538a998e73d524d1440c8f756f6d051b1d191e5349c90b28956f171adcc780b1",
+    "manifest_sha256": "73718c308048b91e954f0bdc477336afcb18ff112e1fa46245c858807193714b",
     "observed_at": "2026-08-29T20:00:00+00:00",
     "run_mode": "PAPER",
     "schema": "ringdown.scheduled_run_error",

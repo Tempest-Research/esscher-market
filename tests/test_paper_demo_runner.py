@@ -52,7 +52,7 @@ from ringdown_market.execution.paper_demo import (
 NOW = datetime(2026, 8, 29, 17, 0, tzinfo=UTC)
 LONG_SYMBOL = "NVDA260918C00180000"
 SHORT_SYMBOL = "NVDA260918C00185000"
-CAPABILITY_SHA256 = "e459f66b4d206ebed21fb3ec0d377a78797b52a32e48c1ff1e88d05780b42dba"
+CAPABILITY_SHA256 = "032ff33e6e7333341d1341912dcf3ce92f053acdd87ec0513cb852340da84a8d"
 FIXTURE_PATH = Path(__file__).parent / "contract_fixtures" / "paper_demo_lifecycle_v1.json"
 
 
