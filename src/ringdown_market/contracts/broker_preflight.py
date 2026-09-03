@@ -565,8 +565,8 @@ def parse_broker_preflight_receipt(raw: bytes) -> BrokerPreflightReceipt:
         )
 
     account_class = _text(payload["account_class"], path="preflight_receipt.account_class")
-    if account_class != "PAPER":
-        _reject("preflight_receipt.account_class", "preflight receipts only admit PAPER accounts")
+    if verdict is PreflightVerdict.PASSED and account_class != "PAPER":
+        _reject("preflight_receipt.account_class", "a PASSED receipt only admits PAPER accounts")
 
     trading_blocked = _boolean(payload["trading_blocked"], path="preflight_receipt.trading_blocked")
     account_blocked = _boolean(payload["account_blocked"], path="preflight_receipt.account_blocked")
