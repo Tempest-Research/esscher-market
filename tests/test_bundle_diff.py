@@ -179,6 +179,16 @@ def test_set_like_list_order_is_semantically_equal() -> None:
     assert _categories(report) <= {"IDENTITY"}
 
 
+def test_set_like_list_order_keeps_canonical_hash_stable() -> None:
+    left = EVIDENCE.read_bytes()
+    right = _mutated(left, lambda payload: payload["limitations"].reverse())
+
+    report = compare_artifacts(left, right)
+
+    assert report["left"]["canonical_sha256"] == report["right"]["canonical_sha256"]
+    assert report["left"]["raw_sha256"] != report["right"]["raw_sha256"]
+
+
 @pytest.mark.parametrize(
     ("category", "mutation"),
     [

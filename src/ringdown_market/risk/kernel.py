@@ -14,6 +14,17 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 
+from ringdown_market.autonomy.universe import (
+    AllocationDecision,
+    AllocationReservation,
+    AllocationStatus,
+    DefinedRiskOpportunity,
+    PortfolioState,
+    RiskTier,
+    UnderlyingExposure,
+    allocate_defined_risk,
+    defined_risk_opportunity_sha256,
+)
 from ringdown_market.execution.expression.compiler import (
     CompiledExpression,
     compiled_expression_sha256,
@@ -26,12 +37,19 @@ from ringdown_market.execution.models import (
 )
 from ringdown_market.risk.controls import ControlTrigger, entry_allowed, next_control_state
 from ringdown_market.risk.exposure import expression_exposure
-from ringdown_market.risk.ledger import RiskLedger
-from ringdown_market.risk.policy import RiskPolicy, risk_policy_sha256
+from ringdown_market.risk.ledger import RiskLedger, V2ReservationReceipt
+from ringdown_market.risk.policy import (
+    RiskPolicy,
+    RiskPolicyV2,
+    risk_policy_sha256,
+    risk_policy_v2_sha256,
+)
 from ringdown_market.risk.reasons import ControlState, RiskReason, RiskRejected, _reject
 from ringdown_market.risk.snapshots import (
+    AccountSnapshot,
     AccountTruthSource,
     OrderSnapshot,
+    PositionSnapshot,
     _require_utc,
     validate_account_freshness,
     validate_orders_freshness,
@@ -59,6 +77,82 @@ class RiskApproval:
     permit_sha256: str
     exposure: Decimal
     control_state: ControlState
+
+
+@dataclass(frozen=True, slots=True)
+class RiskApprovalV2:
+    """One V2 allocation whose exact permit and reservation committed together."""
+
+    event_id: str
+    candidate_id: str
+    opportunity_id: str
+    opportunity_sha256: str
+    reservation_id: str
+    allocation_reservation_id: str
+    risk_tier: RiskTier
+    quantity: int
+    max_loss: Decimal
+    account_equity: Decimal
+    account_cash: Decimal
+    policy_sha256: str
+    permit_id: str
+    permit_sha256: str
+    control_state: ControlState
+
+
+@dataclass(frozen=True, slots=True)
+class RiskAbstentionV2:
+    """A valid V2 request with no current cash/debit capacity to reserve."""
+
+    event_id: str
+    candidate_id: str
+    opportunity_id: str
+    account_equity: Decimal
+    account_cash: Decimal
+    allocation: AllocationDecision
+    control_state: ControlState
+
+    @property
+    def reason_codes(self) -> tuple[object, ...]:
+        """Expose pure-allocation abstention evidence without inventing a permit."""
+
+        return self.allocation.reason_codes
+
+
+@dataclass(frozen=True, slots=True)
+class RiskAllocationPreviewV2:
+    """A current-truth allocation calculation that cannot authorize an entry.
+
+    This receipt deliberately has no candidate, permit, reservation, or order
+    identity. Authorization must re-read truth and atomically allocate again.
+    """
+
+    authority: str
+    opportunity_id: str
+    opportunity_sha256: str
+    expression_sha256: str
+    policy_sha256: str
+    account_equity: Decimal
+    account_cash: Decimal
+    control_state: ControlState
+    allocation: AllocationDecision
+
+    def __post_init__(self) -> None:
+        if self.authority != "NON_AUTHORITATIVE_PREVIEW":
+            raise ValueError("V2 allocation previews have no authorization authority")
+        if not isinstance(self.opportunity_id, str) or not self.opportunity_id:
+            raise ValueError("V2 allocation preview requires an opportunity identity")
+        for value in (self.opportunity_sha256, self.expression_sha256, self.policy_sha256):
+            if not isinstance(value, str) or len(value) != 64:
+                raise ValueError("V2 allocation preview hashes must be exact SHA-256 identities")
+        if not isinstance(self.account_equity, Decimal) or not isinstance(
+            self.account_cash, Decimal
+        ):
+            raise ValueError("V2 allocation preview requires Decimal account truth")
+        if not isinstance(self.control_state, ControlState):
+            raise ValueError("V2 allocation preview requires a closed control state")
+        if not isinstance(self.allocation, AllocationDecision):
+            raise ValueError("V2 allocation preview requires a typed pure allocation")
 
 
 def _identifier(value: object, path: str) -> str:
@@ -216,7 +310,9 @@ def _validate_permit_binding(
 class RiskKernel:
     """Authorizes only PAPER entries against durable, broker-observed truth."""
 
-    def __init__(self, policy: RiskPolicy, ledger: RiskLedger, truth: AccountTruthSource) -> None:
+    def __init__(
+        self, policy: RiskPolicy | RiskPolicyV2, ledger: RiskLedger, truth: AccountTruthSource
+    ) -> None:
         self._policy = policy
         self._ledger = ledger
         self._truth = truth
@@ -231,7 +327,24 @@ class RiskKernel:
     def policy_sha256(self) -> str:
         """Return the exact active policy identity a permit must bind."""
 
+        if isinstance(self._policy, RiskPolicyV2):
+            return risk_policy_v2_sha256(self._policy)
         return risk_policy_sha256(self._policy)
+
+    def _v2_policy(self) -> RiskPolicyV2:
+        if not isinstance(self._policy, RiskPolicyV2):
+            raise _reject(
+                RiskReason.UNSUPPORTED_INPUT,
+                "risk_policy",
+                "V2 authorization requires a RiskPolicyV2",
+            )
+        if not self._policy.constants_verified:
+            raise _reject(
+                RiskReason.POLICY_UNVERIFIED_CONSTANT,
+                "risk_policy",
+                "owner-policy and constants-source hashes must bind packaged policy bytes",
+            )
+        return self._policy
 
     # -- state and startup reconciliation -----------------------------------
 
@@ -325,7 +438,7 @@ class RiskKernel:
         self._ledger.freeze_candidate(
             event_id=event,
             candidate_id=candidate,
-            policy_sha256=risk_policy_sha256(self._policy),
+            policy_sha256=self.policy_sha256,
             decision_sha256=_identifier(compiled.decision_sha256, "compiled.decision_sha256"),
             expression_sha256=_compiled_hash(compiled),
             evidence_mode=_identifier(evidence_mode, "candidate.evidence_mode"),
@@ -375,7 +488,7 @@ class RiskKernel:
                 f"candidate.{event}",
                 "a matching immutable candidate was not frozen",
             )
-        active_policy = risk_policy_sha256(self._policy)
+        active_policy = self.policy_sha256
         if frozen["policy_sha256"] != active_policy:
             raise _reject(
                 RiskReason.POLICY_HASH_MISMATCH,
@@ -396,7 +509,352 @@ class RiskKernel:
                 )
         return event, caller_underlying, active_policy
 
+    def _v2_fresh_truth(
+        self, *, now: datetime, policy: RiskPolicyV2
+    ) -> tuple[AccountSnapshot, tuple[PositionSnapshot, ...], tuple[OrderSnapshot, ...]]:
+        """Read every V2 truth surface once before the local SQLite transaction."""
+
+        try:
+            broker_clock = _require_utc(self._truth.broker_clock(), "broker_clock")
+            skew = abs((broker_clock - now).total_seconds())
+            if skew > policy.truth_max_age_seconds:
+                raise _reject(
+                    RiskReason.STALE_CLOCK,
+                    "broker_clock",
+                    f"broker clock skew {skew:.0f}s exceeds {policy.truth_max_age_seconds}s",
+                )
+            account = validate_account_freshness(
+                self._truth.account(), now=now, max_age_seconds=policy.truth_max_age_seconds
+            )
+            positions = validate_positions_freshness(
+                self._truth.positions(), now=now, max_age_seconds=policy.truth_max_age_seconds
+            )
+            orders = validate_orders_freshness(
+                self._truth.orders(), now=now, max_age_seconds=policy.truth_max_age_seconds
+            )
+            if account.cash is None:
+                raise _reject(
+                    RiskReason.CONTRADICTORY_TRUTH,
+                    "account.cash",
+                    "V2 requires a fresh explicit unborrowed-cash snapshot",
+                )
+            if (
+                not account.equity.is_finite()
+                or account.equity <= 0
+                or not account.cash.is_finite()
+                or account.cash < 0
+                or account.cash > account.equity
+            ):
+                raise _reject(
+                    RiskReason.CONTRADICTORY_TRUTH,
+                    "account",
+                    "equity/cash must be finite, positive-equity, and unborrowed",
+                )
+        except RiskRejected as error:
+            self._apply_trigger(self._failure_trigger(error), now=now)
+            raise
+        except (ArithmeticError, AttributeError, TypeError, ValueError) as error:
+            self._apply_trigger(ControlTrigger.CONTRADICTORY_TRUTH, now=now)
+            raise _reject(RiskReason.CONTRADICTORY_TRUTH, "truth", str(error)) from None
+        return account, positions, orders
+
+    @staticmethod
+    def _v2_row_amount(row: Mapping[str, object], field: str) -> Decimal:
+        value = row.get(field)
+        if not isinstance(value, str):
+            raise _reject(
+                RiskReason.UNKNOWN_EXPOSURE,
+                f"v2_reservations.{field}",
+                "durable amount must be canonical decimal text",
+            )
+        try:
+            amount = Decimal(value)
+        except (ArithmeticError, ValueError) as error:
+            raise _reject(
+                RiskReason.UNKNOWN_EXPOSURE,
+                f"v2_reservations.{field}",
+                f"durable amount is malformed: {error}",
+            ) from None
+        if not amount.is_finite() or amount < 0 or format(amount.normalize(), "f") != value:
+            raise _reject(
+                RiskReason.UNKNOWN_EXPOSURE,
+                f"v2_reservations.{field}",
+                "durable amount is non-finite, negative, or non-canonical",
+            )
+        return amount
+
+    def _v2_portfolio(
+        self,
+        *,
+        account: AccountSnapshot,
+        positions: tuple[PositionSnapshot, ...],
+        orders: tuple[OrderSnapshot, ...],
+        policy_sha256: str,
+    ) -> tuple[PortfolioState, tuple[AllocationReservation, ...]]:
+        """Build allocation truth from consumed rows plus only pending reservations.
+
+        A consumed debit remains open exposure but is already reflected in broker
+        cash; a reserved debit is absent from broker cash and is therefore passed
+        only as a pending ``AllocationReservation``.
+        """
+
+        if self._ledger.has_non_v2_open_reservations():
+            raise _reject(
+                RiskReason.UNKNOWN_EXPOSURE,
+                "reservations",
+                "an open reservation has no V2 opportunity/allocation binding",
+            )
+        consumed_total = Decimal("0")
+        consumed_by_underlying: dict[str, Decimal] = {}
+        reservations: list[AllocationReservation] = []
+        known_consumed_underlyings: set[str] = set()
+        for row in self._ledger.v2_open_reservation_rows():
+            state = row.get("state")
+            permit_state = row.get("permit_state")
+            row_policy = row.get("policy_sha256")
+            if row_policy != policy_sha256:
+                raise _reject(
+                    RiskReason.UNKNOWN_EXPOSURE,
+                    "v2_reservations.policy_sha256",
+                    "open V2 exposure is bound to a different owner policy",
+                )
+            amount = self._v2_row_amount(row, "amount")
+            if amount <= 0:
+                raise _reject(
+                    RiskReason.UNKNOWN_EXPOSURE,
+                    "v2_reservations.amount",
+                    "open debit must be positive",
+                )
+            underlying = _underlying(row.get("underlying"), "v2_reservations.underlying")
+            if state == "CONSUMED":
+                if permit_state != "FILLED":
+                    raise _reject(
+                        RiskReason.UNKNOWN_EXPOSURE,
+                        "v2_reservations.permit_state",
+                        "consumed debit lacks broker-confirmed FILLED permit state",
+                    )
+                consumed_total += amount
+                consumed_by_underlying[underlying] = (
+                    consumed_by_underlying.get(underlying, Decimal("0")) + amount
+                )
+                known_consumed_underlyings.add(underlying)
+                continue
+            if state != "RESERVED" or permit_state not in {"ISSUED", "SUBMITTED"}:
+                raise _reject(
+                    RiskReason.UNKNOWN_EXPOSURE,
+                    "v2_reservations.state",
+                    "open V2 state is not an attributable pending or consumed debit",
+                )
+            quantity = row.get("quantity")
+            if isinstance(quantity, bool) or not isinstance(quantity, int) or quantity < 1:
+                raise _reject(
+                    RiskReason.UNKNOWN_EXPOSURE,
+                    "v2_reservations.quantity",
+                    "pending quantity must be a positive integer",
+                )
+            try:
+                reservations.append(
+                    AllocationReservation(
+                        opportunity_id=_identifier(
+                            row.get("opportunity_id"), "v2_reservations.opportunity_id"
+                        ),
+                        opportunity_sha256=_identifier(
+                            row.get("opportunity_sha256"), "v2_reservations.opportunity_sha256"
+                        ),
+                        reservation_id=_identifier(
+                            row.get("allocation_reservation_id"),
+                            "v2_reservations.allocation_reservation_id",
+                        ),
+                        underlying=underlying,
+                        quantity=quantity,
+                        max_loss=amount,
+                    )
+                )
+            except ValueError as error:
+                raise _reject(
+                    RiskReason.UNKNOWN_EXPOSURE,
+                    "v2_reservations",
+                    f"pending V2 row cannot become an allocation reservation: {error}",
+                ) from None
+
+        unknown_positions = [
+            position.underlying
+            for position in positions
+            if position.quantity != Decimal("0")
+            and position.underlying not in known_consumed_underlyings
+        ]
+        if unknown_positions:
+            raise _reject(
+                RiskReason.UNKNOWN_EXPOSURE,
+                "positions",
+                "broker position has no consumed V2 debit attribution",
+            )
+        known_order_ids = self._ledger.v2_submitted_order_ids()
+        terminal_order_states = frozenset(
+            {"FILLED", "CANCELLED", "CANCELED", "REJECTED", "EXPIRED"}
+        )
+        for order in orders:
+            if order.is_partial_fill:
+                raise _reject(
+                    RiskReason.PARTIAL_FILL_STATE,
+                    "orders",
+                    "a partial fill leaves V2 debit exposure ambiguous",
+                )
+            if order.status not in terminal_order_states and order.order_id not in known_order_ids:
+                raise _reject(
+                    RiskReason.UNKNOWN_EXPOSURE,
+                    "orders",
+                    "open broker order has no V2 permit/submission attribution",
+                )
+        try:
+            portfolio = PortfolioState(
+                equity=account.equity,
+                cash=account.cash if account.cash is not None else Decimal("0"),
+                open_debit=consumed_total,
+                exposures=tuple(
+                    UnderlyingExposure(underlying=underlying, open_debit=amount)
+                    for underlying, amount in sorted(consumed_by_underlying.items())
+                ),
+            )
+        except ValueError as error:
+            raise _reject(
+                RiskReason.CONTRADICTORY_TRUTH,
+                "portfolio",
+                f"fresh cash/equity and consumed debit state conflict: {error}",
+            ) from None
+        return portfolio, tuple(reservations)
+
     # -- pre-permit gate -----------------------------------------------------
+
+    def preview_allocation_v2(
+        self,
+        *,
+        opportunity: DefinedRiskOpportunity,
+        compiled: CompiledExpression,
+        now: datetime,
+    ) -> RiskAllocationPreviewV2:
+        """Calculate the current V2 allocation without creating any entry state.
+
+        Normal previews only read ledger/truth state. Unsafe broker truth and
+        drawdown conditions retain the kernel's existing fail-closed control
+        transitions; a later authorization always re-reads and re-allocates.
+        """
+
+        current = _require_utc(now, "now")
+        policy = self._v2_policy()
+        if policy.run_mode != "PAPER" or not policy.cash_only or not policy.defined_risk_only:
+            raise _reject(
+                RiskReason.POLICY_NOT_PAPER_ONLY,
+                "risk_policy_v2",
+                "V2 previews require cash-backed PAPER defined-risk policy",
+            )
+        state, state_reason = self._ledger.get_control_state()
+        if not entry_allowed(state):
+            raise _reject(
+                RiskReason.CONTROL_STATE_BLOCKS_ENTRY,
+                f"control_state.{state.value}",
+                state_reason or "entry is blocked by the current control state",
+            )
+        if not isinstance(opportunity, DefinedRiskOpportunity):
+            raise _reject(
+                RiskReason.UNSUPPORTED_INPUT,
+                "opportunity",
+                "V2 preview requires a DefinedRiskOpportunity",
+            )
+        if not opportunity.decision_ready:
+            raise _reject(
+                RiskReason.UNSUPPORTED_INPUT,
+                "opportunity.decision_ready",
+                "unready opportunities cannot reach the V2 allocation preview",
+            )
+        if not isinstance(compiled, CompiledExpression):
+            raise _reject(RiskReason.UNSUPPORTED_INPUT, "compiled", "must be a CompiledExpression")
+        if compiled.expression_kind is not ExpressionKind.DEBIT_VERTICAL:
+            raise _reject(
+                RiskReason.UNSUPPORTED_INPUT,
+                "compiled.expression_kind",
+                "V2 preview rejects shares, long options, cash, and non-atomic expressions",
+            )
+        active_policy = self.policy_sha256
+        if compiled.policy_sha256 != active_policy:
+            raise _reject(
+                RiskReason.POLICY_HASH_MISMATCH,
+                "compiled.policy_sha256",
+                "compiled expression is not bound to the active V2 policy",
+            )
+        compiled_hash = _compiled_hash(compiled)
+        compiled_symbol = _compiled_underlying(compiled)
+        if opportunity.decision_id != compiled.decision_sha256:
+            raise _reject(
+                RiskReason.UNSUPPORTED_INPUT,
+                "opportunity.decision_id",
+                "opportunity decision identity differs from the compiled decision hash",
+            )
+        if opportunity.expression_id != compiled_hash:
+            raise _reject(
+                RiskReason.UNSUPPORTED_INPUT,
+                "opportunity.expression_id",
+                "opportunity expression identity differs from the compiled expression hash",
+            )
+        if opportunity.underlying != compiled_symbol:
+            raise _reject(
+                RiskReason.UNSUPPORTED_INPUT,
+                "opportunity.underlying",
+                "opportunity underlying differs from the compiled debit vertical",
+            )
+        if opportunity.risk_tier.fraction not in policy.risk_tiers:
+            raise _reject(
+                RiskReason.POLICY_UNVERIFIED_CONSTANT,
+                "opportunity.risk_tier",
+                "opportunity tier is not an exact owner-approved V2 tier",
+            )
+        account, positions, orders = self._v2_fresh_truth(now=current, policy=policy)
+        assert account.cash is not None
+        if account.equity <= policy.starting_equity * policy.emergency_drawdown_freeze_fraction:
+            self._apply_trigger(ControlTrigger.DRAWDOWN_LIMIT_BREACHED, now=current)
+            raise _reject(
+                RiskReason.DRAWDOWN_LIMIT_BREACHED,
+                "account.equity",
+                "current equity is at or below the V2 50% starting-equity freeze threshold",
+            )
+        try:
+            portfolio, existing_reservations = self._v2_portfolio(
+                account=account,
+                positions=positions,
+                orders=orders,
+                policy_sha256=active_policy,
+            )
+        except RiskRejected as error:
+            self._apply_trigger(
+                ControlTrigger.PARTIAL_FILL_STATE
+                if error.reason is RiskReason.PARTIAL_FILL_STATE
+                else ControlTrigger.CONTRADICTORY_TRUTH,
+                now=current,
+            )
+            raise
+        try:
+            allocation = allocate_defined_risk(
+                portfolio,
+                opportunity,
+                existing_reservations=existing_reservations,
+            )
+        except (ArithmeticError, AttributeError, TypeError, ValueError) as error:
+            raise _reject(
+                RiskReason.UNKNOWN_EXPOSURE,
+                "allocation",
+                f"pure defined-risk allocation could not be evaluated: {error}",
+            ) from None
+        return RiskAllocationPreviewV2(
+            authority="NON_AUTHORITATIVE_PREVIEW",
+            opportunity_id=opportunity.opportunity_id,
+            opportunity_sha256=defined_risk_opportunity_sha256(opportunity),
+            expression_sha256=compiled_hash,
+            policy_sha256=active_policy,
+            account_equity=account.equity,
+            account_cash=account.cash,
+            control_state=state,
+            allocation=allocation,
+        )
 
     def authorize_entry(
         self,
@@ -412,6 +870,12 @@ class RiskKernel:
 
         current = _require_utc(now, "now")
         policy = self._policy
+        if not isinstance(policy, RiskPolicy):
+            raise _reject(
+                RiskReason.UNSUPPORTED_INPUT,
+                "risk_policy",
+                "V1 authorization requires a RiskPolicy",
+            )
         if not policy.constants_verified:
             raise _reject(
                 RiskReason.POLICY_UNVERIFIED_CONSTANT,
@@ -572,6 +1036,265 @@ class RiskKernel:
             permit_id=issued_permit_id,
             permit_sha256=permit_sha256,
             exposure=exposure,
+            control_state=state,
+        )
+
+    def authorize_entry_v2(
+        self,
+        *,
+        event_id: str,
+        candidate_id: str,
+        opportunity: DefinedRiskOpportunity,
+        compiled: CompiledExpression,
+        permit: DebitVerticalPermit,
+        now: datetime,
+    ) -> RiskApprovalV2 | RiskAbstentionV2:
+        """Atomically authorize one exact V2 defined-risk allocation or abstain.
+
+        The pure allocation receives current equity/cash, broker-confirmed
+        ``CONSUMED`` debit, and only pending ``RESERVED`` debit. Its exact output
+        must equal the compiled debit vertical and permit before SQLite performs
+        the serializable local reservation transaction.
+        """
+
+        current = _require_utc(now, "now")
+        policy = self._v2_policy()
+        if policy.run_mode != "PAPER" or not policy.cash_only or not policy.defined_risk_only:
+            raise _reject(
+                RiskReason.POLICY_NOT_PAPER_ONLY,
+                "risk_policy_v2",
+                "V2 permits only cash-backed PAPER defined-risk debit verticals",
+            )
+        state, state_reason = self._ledger.get_control_state()
+        if not entry_allowed(state):
+            raise _reject(
+                RiskReason.CONTROL_STATE_BLOCKS_ENTRY,
+                f"control_state.{state.value}",
+                state_reason or "entry is blocked by the current control state",
+            )
+        if not isinstance(opportunity, DefinedRiskOpportunity):
+            raise _reject(
+                RiskReason.UNSUPPORTED_INPUT,
+                "opportunity",
+                "V2 requires a DefinedRiskOpportunity",
+            )
+        if not opportunity.decision_ready:
+            raise _reject(
+                RiskReason.UNSUPPORTED_INPUT,
+                "opportunity.decision_ready",
+                "unready opportunities cannot reach the V2 permit path",
+            )
+        if not isinstance(compiled, CompiledExpression):
+            raise _reject(RiskReason.UNSUPPORTED_INPUT, "compiled", "must be a CompiledExpression")
+        if compiled.expression_kind is not ExpressionKind.DEBIT_VERTICAL:
+            raise _reject(
+                RiskReason.UNSUPPORTED_INPUT,
+                "compiled.expression_kind",
+                "V2 rejects shares, long options, cash, and non-atomic expressions",
+            )
+        active_policy = self.policy_sha256
+        if compiled.policy_sha256 != active_policy:
+            raise _reject(
+                RiskReason.POLICY_HASH_MISMATCH,
+                "compiled.policy_sha256",
+                "compiled expression is not bound to the active V2 policy",
+            )
+        event = _identifier(event_id, "event_id")
+        candidate = _identifier(candidate_id, "candidate_id")
+        compiled_hash = _compiled_hash(compiled)
+        compiled_symbol = _compiled_underlying(compiled)
+        if event != _identifier(compiled.event_id, "compiled.event_id"):
+            raise _reject(
+                RiskReason.UNSUPPORTED_INPUT,
+                "event_id",
+                "caller event differs from the compiled expression",
+            )
+        if opportunity.decision_id != compiled.decision_sha256:
+            raise _reject(
+                RiskReason.UNSUPPORTED_INPUT,
+                "opportunity.decision_id",
+                "opportunity decision identity differs from the compiled decision hash",
+            )
+        if opportunity.expression_id != compiled_hash:
+            raise _reject(
+                RiskReason.UNSUPPORTED_INPUT,
+                "opportunity.expression_id",
+                "opportunity expression identity differs from the compiled expression hash",
+            )
+        if opportunity.underlying != compiled_symbol:
+            raise _reject(
+                RiskReason.UNSUPPORTED_INPUT,
+                "opportunity.underlying",
+                "opportunity underlying differs from the compiled debit vertical",
+            )
+        if opportunity.risk_tier.fraction not in policy.risk_tiers:
+            raise _reject(
+                RiskReason.POLICY_UNVERIFIED_CONSTANT,
+                "opportunity.risk_tier",
+                "opportunity tier is not an exact owner-approved V2 tier",
+            )
+        event, symbol, active_policy = self._validate_candidate_binding(
+            event_id=event,
+            underlying=compiled_symbol,
+            candidate_id=candidate,
+            compiled=compiled,
+        )
+        _validate_permit_binding(
+            permit=permit,
+            compiled=compiled,
+            active_policy_sha256=active_policy,
+            now=current,
+        )
+        block = compiled.debit_vertical
+        quantity = block.get("quantity") if isinstance(block, Mapping) else None
+        if isinstance(quantity, bool) or not isinstance(quantity, int) or quantity < 1:
+            raise _reject(
+                RiskReason.UNSUPPORTED_INPUT,
+                "compiled.debit_vertical.quantity",
+                "V2 requires an exact positive compiled vertical quantity",
+            )
+        try:
+            max_loss = expression_exposure(compiled)
+        except RiskRejected:
+            raise
+        except (ArithmeticError, AttributeError, TypeError, ValueError) as error:
+            raise _reject(
+                RiskReason.EXPOSURE_NOT_CALCULABLE,
+                "compiled.debit_vertical",
+                str(error),
+            ) from None
+        if not max_loss.is_finite() or max_loss <= 0:
+            raise _reject(
+                RiskReason.UNKNOWN_EXPOSURE,
+                "compiled.debit_vertical",
+                "compiled maximum loss must be finite and positive",
+            )
+        if opportunity.max_debit_per_contract * quantity != max_loss:
+            raise _reject(
+                RiskReason.UNSUPPORTED_INPUT,
+                "opportunity.max_debit_per_contract",
+                "opportunity debit, compiled quantity, and maximum loss differ",
+            )
+        if permit.quantity != quantity or permit.maximum_loss != max_loss:
+            raise _reject(
+                RiskReason.UNSUPPORTED_INPUT,
+                "permit",
+                "permit quantity or maximum loss differs from compiled allocation terms",
+            )
+
+        account, positions, orders = self._v2_fresh_truth(now=current, policy=policy)
+        assert account.cash is not None
+        if account.equity <= policy.starting_equity * policy.emergency_drawdown_freeze_fraction:
+            self._apply_trigger(ControlTrigger.DRAWDOWN_LIMIT_BREACHED, now=current)
+            raise _reject(
+                RiskReason.DRAWDOWN_LIMIT_BREACHED,
+                "account.equity",
+                "current equity is at or below the V2 50% starting-equity freeze threshold",
+            )
+        try:
+            portfolio, existing_reservations = self._v2_portfolio(
+                account=account,
+                positions=positions,
+                orders=orders,
+                policy_sha256=active_policy,
+            )
+        except RiskRejected as error:
+            trigger = (
+                ControlTrigger.PARTIAL_FILL_STATE
+                if error.reason is RiskReason.PARTIAL_FILL_STATE
+                else ControlTrigger.CONTRADICTORY_TRUTH
+            )
+            self._apply_trigger(trigger, now=current)
+            raise
+        try:
+            allocation = allocate_defined_risk(
+                portfolio,
+                opportunity,
+                existing_reservations=existing_reservations,
+            )
+        except (ArithmeticError, AttributeError, TypeError, ValueError) as error:
+            raise _reject(
+                RiskReason.UNKNOWN_EXPOSURE,
+                "allocation",
+                f"pure defined-risk allocation could not be evaluated: {error}",
+            ) from None
+        if allocation.status is AllocationStatus.ABSTAINED:
+            return RiskAbstentionV2(
+                event_id=event,
+                candidate_id=candidate,
+                opportunity_id=opportunity.opportunity_id,
+                account_equity=account.equity,
+                account_cash=account.cash,
+                allocation=allocation,
+                control_state=state,
+            )
+        if (
+            allocation.status is not AllocationStatus.ALLOCATED
+            or allocation.reservation_id is None
+            or allocation.quantity != quantity
+            or allocation.max_loss != max_loss
+        ):
+            raise _reject(
+                RiskReason.UNSUPPORTED_INPUT,
+                "allocation",
+                "allocated quantity, maximum loss, or reservation identity differs from expression",
+            )
+        opportunity_sha256 = defined_risk_opportunity_sha256(opportunity)
+        receipt: V2ReservationReceipt = self._ledger.reserve_v2_and_issue_permit(
+            event_id=event,
+            candidate_id=candidate,
+            underlying=symbol,
+            policy_sha256=active_policy,
+            decision_sha256=compiled.decision_sha256,
+            expression_sha256=compiled_hash,
+            opportunity_id=opportunity.opportunity_id,
+            opportunity_sha256=opportunity_sha256,
+            allocation_reservation_id=allocation.reservation_id,
+            risk_tier=opportunity.risk_tier.fraction,
+            quantity=allocation.quantity,
+            amount=allocation.max_loss,
+            account_equity=account.equity,
+            account_cash=account.cash,
+            max_per_underlying_fraction=policy.max_per_underlying_open_debit_fraction,
+            max_aggregate_fraction=policy.max_aggregate_open_debit_fraction,
+            permit=permit,
+            now=current,
+        )
+        expected_permit_sha256 = _permit_sha256(permit)
+        if (
+            receipt.reservation_id != allocation.reservation_id
+            or receipt.allocation_reservation_id != allocation.reservation_id
+            or receipt.opportunity_id != opportunity.opportunity_id
+            or receipt.opportunity_sha256 != opportunity_sha256
+            or receipt.risk_tier != opportunity.risk_tier.fraction
+            or receipt.quantity != allocation.quantity
+            or receipt.amount != allocation.max_loss
+            or receipt.account_equity != account.equity
+            or receipt.account_cash != account.cash
+            or receipt.policy_sha256 != active_policy
+            or receipt.permit_id != permit.permit_id
+            or receipt.permit_sha256 != expected_permit_sha256
+        ):
+            raise _reject(
+                RiskReason.UNSUPPORTED_INPUT,
+                "v2_authorization.receipt",
+                "transaction receipt does not preserve every exact allocation/permit binding",
+            )
+        return RiskApprovalV2(
+            event_id=event,
+            candidate_id=candidate,
+            opportunity_id=opportunity.opportunity_id,
+            opportunity_sha256=opportunity_sha256,
+            reservation_id=receipt.reservation_id,
+            allocation_reservation_id=receipt.allocation_reservation_id,
+            risk_tier=opportunity.risk_tier,
+            quantity=receipt.quantity,
+            max_loss=receipt.amount,
+            account_equity=receipt.account_equity,
+            account_cash=receipt.account_cash,
+            policy_sha256=receipt.policy_sha256,
+            permit_id=receipt.permit_id,
+            permit_sha256=receipt.permit_sha256,
             control_state=state,
         )
 

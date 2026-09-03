@@ -72,9 +72,12 @@ _WINDOWS_FILE_READ_ATTRIBUTES = 0x80
 _WINDOWS_DELETE = 0x10000
 _WINDOWS_FILE_SHARE_READ = 0x1
 _WINDOWS_FILE_SHARE_WRITE = 0x2
+_WINDOWS_CREATE_NEW = 1
 _WINDOWS_OPEN_EXISTING = 3
 _WINDOWS_FILE_FLAG_BACKUP_SEMANTICS = 0x02000000
+_WINDOWS_FILE_FLAG_DELETE_ON_CLOSE = 0x04000000
 _WINDOWS_FILE_FLAG_OPEN_REPARSE_POINT = 0x00200000
+_WINDOWS_FILE_ATTRIBUTE_NORMAL = 0x80
 _WINDOWS_FILE_ATTRIBUTE_DIRECTORY = 0x10
 _WINDOWS_FILE_ATTRIBUTE_REPARSE_POINT = 0x400
 _WINDOWS_FILE_BASIC_INFO = 0
@@ -168,19 +171,42 @@ def _absolute_output_directory(output_dir: Path) -> Path:
     return Path(os.path.abspath(output_dir))
 
 
-def _validate_output_directory(output_dir: Path) -> Path:
-    """Require a real, pre-existing directory with no redirecting component."""
+def _validate_output_directory(output_dir: Path, *, strict_leaf: bool = True) -> Path:
+    """Require a real, pre-existing directory with no redirecting destination.
+
+    Ancestor components that are directory links or reparse points are followed
+    and admitted only when they resolve to a directory; links resolving to
+    non-directories remain rejected.  The destination leaf itself keeps the
+    strict no-follow check so the published output directory can never be an
+    indirection boundary.
+    """
 
     absolute = _absolute_output_directory(output_dir)
     component = Path(absolute.anchor)
-    for part in absolute.parts[1:]:
+    parts = absolute.parts[1:]
+    last_index = len(parts)
+    for index, part in enumerate(parts, start=1):
         component = component / part
         try:
             status = _lstat(component)
         except OSError as error:
             raise _unsafe_output_path(f"cannot inspect output component '{component}'") from error
         if _is_link_or_reparse_point(status):
-            raise _unsafe_output_path(f"output component '{component}' is a link or reparse point")
+            if strict_leaf and index == last_index:
+                raise _unsafe_output_path(
+                    f"output component '{component}' is a link or reparse point"
+                )
+            try:
+                followed = os.stat(component)
+            except OSError as error:
+                raise _unsafe_output_path(
+                    f"output component '{component}' does not resolve to an existing target"
+                ) from error
+            if not stat.S_ISDIR(followed.st_mode):
+                raise _unsafe_output_path(
+                    f"output component '{component}' is a link to a non-directory"
+                )
+            continue
         if not stat.S_ISDIR(status.st_mode):
             raise _unsafe_output_path(f"output component '{component}' is not a directory")
     return absolute
@@ -271,9 +297,53 @@ def _open_windows_output_directory(kernel32, output_dir: Path) -> int:
         if information.file_attributes & _WINDOWS_FILE_ATTRIBUTE_REPARSE_POINT:
             raise _unsafe_output_path("pinned output path is a link or reparse point")
         actual_path = _normalize_windows_path(_windows_final_path(kernel32, handle))
-        expected_path = _normalize_windows_path(str(output_dir))
+        expected_path = _normalize_windows_path(os.path.realpath(str(output_dir)))
         if actual_path != expected_path:
             raise _unsafe_output_path("output path resolved to a different directory while pinning")
+        opened = True
+        return handle
+    finally:
+        if not opened:
+            kernel32.CloseHandle(handle)
+
+
+def _open_windows_pin_file(kernel32, output_dir: Path) -> int:
+    """Create an unreplaceable empty child in the resolved output directory."""
+
+    resolved_output_dir = Path(os.path.realpath(str(output_dir)))
+    path = resolved_output_dir / f".esscher-capture-{uuid.uuid4().hex}.pin"
+    handle = kernel32.CreateFileW(
+        str(path),
+        _WINDOWS_FILE_READ_ATTRIBUTES | _WINDOWS_DELETE,
+        _WINDOWS_FILE_SHARE_READ | _WINDOWS_FILE_SHARE_WRITE,
+        None,
+        _WINDOWS_CREATE_NEW,
+        _WINDOWS_FILE_ATTRIBUTE_NORMAL
+        | _WINDOWS_FILE_FLAG_DELETE_ON_CLOSE
+        | _WINDOWS_FILE_FLAG_OPEN_REPARSE_POINT,
+        None,
+    )
+    if handle == ctypes.c_void_p(-1).value:
+        raise OSError(ctypes.get_last_error(), "cannot create output-directory pin")
+
+    opened = False
+    try:
+        information = _WindowsFileBasicInfo()
+        if not kernel32.GetFileInformationByHandleEx(
+            handle,
+            _WINDOWS_FILE_BASIC_INFO,
+            ctypes.byref(information),
+            ctypes.sizeof(information),
+        ):
+            raise OSError(ctypes.get_last_error(), "cannot inspect output-directory pin")
+        if information.file_attributes & (
+            _WINDOWS_FILE_ATTRIBUTE_DIRECTORY | _WINDOWS_FILE_ATTRIBUTE_REPARSE_POINT
+        ):
+            raise _unsafe_output_path("output-directory pin is not a regular file")
+        actual_path = _normalize_windows_path(_windows_final_path(kernel32, handle))
+        expected_path = _normalize_windows_path(os.path.realpath(str(path)))
+        if actual_path != expected_path:
+            raise _unsafe_output_path("output-directory pin resolved outside the validated path")
         opened = True
         return handle
     finally:
@@ -285,17 +355,24 @@ def _open_windows_output_directory(kernel32, output_dir: Path) -> int:
 def _pin_windows_output_directory(output_dir: Path):
     """Keep the output directory and ancestor tree fixed while publishing.
 
-    Holding DELETE access without FILE_SHARE_DELETE makes Windows reject attempts
-    to remove or move this directory, including moves of an ancestor that contains
-    it. The resolved-handle comparison closes the race before that pin is acquired.
+    A DELETE handle closes the acquisition race but conflicts with child renames.
+    While it is held, create a delete-on-close child in the resolved directory;
+    that child keeps the directory and its ancestors in place during publication.
     """
 
     kernel32 = _windows_kernel32()
-    handle = _open_windows_output_directory(kernel32, output_dir)
+    directory_handle = _open_windows_output_directory(kernel32, output_dir)
+    pin_handle: int | None = None
     try:
+        pin_handle = _open_windows_pin_file(kernel32, output_dir)
+        kernel32.CloseHandle(directory_handle)
+        directory_handle = None
         yield
     finally:
-        kernel32.CloseHandle(handle)
+        if directory_handle is not None:
+            kernel32.CloseHandle(directory_handle)
+        if pin_handle is not None:
+            kernel32.CloseHandle(pin_handle)
 
 
 def _validate_output_destinations(
@@ -337,12 +414,20 @@ def _supports_secure_directory_fds() -> bool:
 
 
 def _open_secure_output_directory(output_dir: Path) -> int:
-    """Open every POSIX component without following a replacement symlink."""
+    """Open POSIX components, following only directory links before the leaf.
 
-    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
-    descriptor = os.open(output_dir.anchor, flags)
+    Ancestor components may be directory symlinks: an ``O_DIRECTORY`` open
+    admits them only when they resolve to a directory.  The output directory
+    itself keeps ``O_NOFOLLOW`` so the destination leaf can never be a link.
+    """
+
+    follow_flags = os.O_RDONLY | os.O_DIRECTORY
+    nofollow_flags = follow_flags | os.O_NOFOLLOW
+    descriptor = os.open(output_dir.anchor, nofollow_flags)
     try:
-        for part in output_dir.parts[1:]:
+        parts = output_dir.parts[1:]
+        for index, part in enumerate(parts):
+            flags = nofollow_flags if index == len(parts) - 1 else follow_flags
             next_descriptor = os.open(part, flags, dir_fd=descriptor)
             os.close(descriptor)
             descriptor = next_descriptor
@@ -423,7 +508,7 @@ def _write_temporary_output(path: Path, contents: bytes) -> None:
 def _write_outputs_with_path_checks(output_dir: Path, outputs: Sequence[tuple[str, bytes]]) -> None:
     """Use checked staging where directory file descriptors are unavailable."""
 
-    staging_directory = _validate_output_directory(output_dir.parent)
+    staging_directory = _validate_output_directory(output_dir.parent, strict_leaf=False)
     staged: list[Path] = []
     try:
         for name, contents in outputs:

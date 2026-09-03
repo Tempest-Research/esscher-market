@@ -1,0 +1,27 @@
+{
+  "adapter_kind": "OPENAI_COMPATIBLE_CHAT_V1",
+  "approval_id": "ESSCHER_ROUTE_APPROVAL_V2",
+  "approval_state": "APPROVED",
+  "approved_at": "2026-09-01T13:33:32Z",
+  "approver": "bbeennyy860-cyber",
+  "base_url": "https://api.moonshot.ai/v1",
+  "clauses": [
+    "The owner selected this exact direct Moonshot/Kimi K3 V2 route for prospective strategy evaluation; the route has no broker, account, order, sizing, or secret authority.",
+    "Each paid or live reasoner probe receives separate current approval before execution.",
+    "The route accepts only the exact packaged V2 descriptor and approval bytes."
+  ],
+  "cost_ceiling": {
+    "entitlement_note": "Host-owned direct Kimi entitlement is configured outside this repository; no provider purchase, probe, or live call is authorized by this artifact.",
+    "max_output_tokens_per_call": 512,
+    "paid_provider_purchase": false,
+    "probe_budget_calls": 0
+  },
+  "model": "kimi-k3",
+  "model_config_sha256": "5bdc837892af380352531724302fc2f121fcc058718c5d0500dd2ff958fa8e0c",
+  "model_revision": null,
+  "provider": "moonshot_direct",
+  "route_sha256": "a345394d96098c2aee7640e467b78c163cf3c10556d17b8077aa660f58a7a5c8",
+  "schema": "esscher.reasoner_route_approval",
+  "schema_version": 2,
+  "scope": "ESSCHER_V2_STRATEGY_EVALUATION"
+}

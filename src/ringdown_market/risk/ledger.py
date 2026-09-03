@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from collections.abc import Mapping
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -24,7 +25,7 @@ from ringdown_market.risk.passport import GENESIS_SHA256, PassportEventType
 from ringdown_market.risk.reasons import ControlState, RiskReason, _reject
 from ringdown_market.strategy.contracts import canonical_json_bytes, sha256_bytes
 
-SCHEMA_VERSION: int = 3
+SCHEMA_VERSION: int = 5
 
 _MIGRATIONS: dict[int, str] = {
     1: """
@@ -141,7 +142,171 @@ _MIGRATIONS: dict[int, str] = {
     CREATE INDEX IF NOT EXISTS lifecycle_intents_event_id_idx
         ON lifecycle_intents(event_id);
     """,
+    4: """
+    CREATE TABLE IF NOT EXISTS decision_episodes (
+        episode_id TEXT PRIMARY KEY,
+        event_id TEXT NOT NULL,
+        candidate_id TEXT NOT NULL,
+        symbol TEXT NOT NULL,
+        occurred_at TEXT NOT NULL,
+        decision_cutoff_at TEXT NOT NULL,
+        source_policy_sha256 TEXT NOT NULL,
+        source_evidence_sha256 TEXT NOT NULL,
+        source_feature_sha256 TEXT NOT NULL,
+        source_snapshot_sha256 TEXT NOT NULL,
+        prior_summary_sha256 TEXT NOT NULL,
+        route_sha256 TEXT NOT NULL,
+        prompt_sha256 TEXT NOT NULL,
+        model_config_sha256 TEXT NOT NULL,
+        exchange_sha256 TEXT NOT NULL,
+        decision_sha256 TEXT NOT NULL,
+        disposition TEXT NOT NULL,
+        direction TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        supersedes_episode_id TEXT,
+        supersedes_episode_sha256 TEXT,
+        payload_sha256 TEXT NOT NULL,
+        payload BLOB NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS decision_episodes_cutoff_idx
+        ON decision_episodes(occurred_at, decision_cutoff_at, episode_id);
+
+    CREATE TABLE IF NOT EXISTS outcome_episodes (
+        outcome_id TEXT PRIMARY KEY,
+        decision_episode_id TEXT NOT NULL,
+        event_id TEXT NOT NULL,
+        open_permit_id TEXT,
+        close_permit_id TEXT,
+        open_order_id TEXT,
+        close_order_id TEXT,
+        terminal_at TEXT NOT NULL,
+        observed_at TEXT NOT NULL,
+        lifecycle_outcome TEXT NOT NULL,
+        pnl_classification TEXT NOT NULL,
+        gross_pnl TEXT,
+        net_pnl TEXT,
+        reconciliation_sha256 TEXT NOT NULL,
+        final_flat INTEGER NOT NULL CHECK(final_flat IN (0, 1)),
+        supersedes_outcome_id TEXT,
+        supersedes_outcome_sha256 TEXT,
+        created_at TEXT NOT NULL,
+        payload_sha256 TEXT NOT NULL,
+        payload BLOB NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS outcome_episodes_decision_idx
+        ON outcome_episodes(decision_episode_id, terminal_at, outcome_id);
+
+    CREATE TABLE IF NOT EXISTS broker_truth_snapshots (
+        snapshot_id TEXT PRIMARY KEY,
+        observed_at TEXT NOT NULL,
+        account_sha256 TEXT NOT NULL,
+        orders_sha256 TEXT NOT NULL,
+        positions_sha256 TEXT NOT NULL,
+        equity TEXT NOT NULL,
+        open_exposure TEXT NOT NULL,
+        is_flat INTEGER NOT NULL CHECK(is_flat IN (0, 1)),
+        created_at TEXT NOT NULL,
+        supersedes_snapshot_id TEXT,
+        supersedes_snapshot_sha256 TEXT,
+        payload_sha256 TEXT NOT NULL,
+        payload BLOB NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS broker_truth_snapshots_observed_idx
+        ON broker_truth_snapshots(observed_at, snapshot_id);
+    """,
+    5: """
+    CREATE TABLE IF NOT EXISTS v2_reservations (
+        reservation_id TEXT PRIMARY KEY,
+        event_id TEXT NOT NULL UNIQUE,
+        candidate_id TEXT NOT NULL,
+        underlying TEXT NOT NULL,
+        decision_sha256 TEXT NOT NULL,
+        expression_sha256 TEXT NOT NULL,
+        opportunity_id TEXT NOT NULL UNIQUE,
+        opportunity_sha256 TEXT NOT NULL,
+        allocation_reservation_id TEXT NOT NULL UNIQUE,
+        risk_tier TEXT NOT NULL CHECK(risk_tier IN ('0.05', '0.10', '0.20')),
+        quantity INTEGER NOT NULL CHECK(quantity > 0),
+        amount TEXT NOT NULL,
+        account_equity TEXT NOT NULL,
+        account_cash TEXT NOT NULL,
+        policy_sha256 TEXT NOT NULL,
+        permit_id TEXT NOT NULL UNIQUE,
+        permit_sha256 TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY(reservation_id) REFERENCES reservations(reservation_id),
+        FOREIGN KEY(permit_id) REFERENCES permits(permit_id)
+    );
+    CREATE INDEX IF NOT EXISTS v2_reservations_underlying_idx
+        ON v2_reservations(underlying, reservation_id);
+    """,
 }
+
+_DECISION_EPISODE_COLUMNS = (
+    "episode_id",
+    "event_id",
+    "candidate_id",
+    "symbol",
+    "occurred_at",
+    "decision_cutoff_at",
+    "source_policy_sha256",
+    "source_evidence_sha256",
+    "source_feature_sha256",
+    "source_snapshot_sha256",
+    "prior_summary_sha256",
+    "route_sha256",
+    "prompt_sha256",
+    "model_config_sha256",
+    "exchange_sha256",
+    "decision_sha256",
+    "disposition",
+    "direction",
+    "created_at",
+    "supersedes_episode_id",
+    "supersedes_episode_sha256",
+)
+_OUTCOME_EPISODE_COLUMNS = (
+    "outcome_id",
+    "decision_episode_id",
+    "event_id",
+    "open_permit_id",
+    "close_permit_id",
+    "open_order_id",
+    "close_order_id",
+    "terminal_at",
+    "observed_at",
+    "lifecycle_outcome",
+    "pnl_classification",
+    "gross_pnl",
+    "net_pnl",
+    "reconciliation_sha256",
+    "final_flat",
+    "supersedes_outcome_id",
+    "supersedes_outcome_sha256",
+    "created_at",
+)
+_BROKER_TRUTH_SNAPSHOT_COLUMNS = (
+    "snapshot_id",
+    "observed_at",
+    "account_sha256",
+    "orders_sha256",
+    "positions_sha256",
+    "equity",
+    "open_exposure",
+    "is_flat",
+    "created_at",
+    "supersedes_snapshot_id",
+    "supersedes_snapshot_sha256",
+)
+
+
+class ImmutableEpisodeConflict(ValueError):
+    """A durable append identity was replayed with different exact bytes."""
+
+    def __init__(self, *, table: str, identity: str) -> None:
+        self.table = table
+        self.identity = identity
+        super().__init__(f"conflicting immutable append for {table}.{identity}")
 
 
 def _timestamp(value: object, path: str = "timestamp") -> str:
@@ -205,6 +370,93 @@ def _positive_int(value: object, path: str) -> int:
     return value
 
 
+def _v2_decimal_text(value: Decimal, path: str) -> str:
+    """Persist exact non-negative Decimal values in one canonical text form."""
+
+    amount = _amount(value, path)
+    if amount == 0:
+        return "0"
+    return format(amount.normalize(), "f")
+
+
+def _v2_stored_amount(value: object, path: str, *, positive: bool = False) -> Decimal:
+    """Decode an immutable V2 amount, rejecting malformed durable state."""
+
+    if not isinstance(value, str):
+        raise _reject(RiskReason.EXPOSURE_NOT_CALCULABLE, path, "stored amount must be text")
+    try:
+        amount = Decimal(value)
+    except (ArithmeticError, ValueError) as error:
+        raise _reject(
+            RiskReason.EXPOSURE_NOT_CALCULABLE,
+            path,
+            f"stored amount is malformed: {error}",
+        ) from None
+    result = _amount(amount, path)
+    if positive and result <= 0:
+        raise _reject(RiskReason.EXPOSURE_NOT_CALCULABLE, path, "stored amount must be positive")
+    if _v2_decimal_text(result, path) != value:
+        raise _reject(
+            RiskReason.EXPOSURE_NOT_CALCULABLE,
+            path,
+            "stored amount is not canonical",
+        )
+    return result
+
+
+_V2_RISK_TIERS = frozenset((Decimal("0.05"), Decimal("0.10"), Decimal("0.20")))
+
+
+def _v2_risk_tier(value: object, path: str) -> Decimal:
+    tier = _positive_limit(value, path)
+    if tier not in _V2_RISK_TIERS:
+        raise _reject(RiskReason.UNSUPPORTED_INPUT, path, "must be an approved V2 risk tier")
+    return tier
+
+
+def _v2_risk_tier_text(value: object, path: str) -> str:
+    """Return the one two-decimal representation accepted by the V2 schema."""
+
+    return format(_v2_risk_tier(value, path), ".2f")
+
+
+def _v2_stored_risk_tier(value: object, path: str) -> Decimal:
+    """Decode a durable V2 tier without normalizing away its required trailing zero."""
+
+    if not isinstance(value, str):
+        raise _reject(RiskReason.EXPOSURE_NOT_CALCULABLE, path, "stored risk tier must be text")
+    try:
+        tier = Decimal(value)
+    except (ArithmeticError, ValueError) as error:
+        raise _reject(
+            RiskReason.EXPOSURE_NOT_CALCULABLE, path, f"stored risk tier is malformed: {error}"
+        ) from None
+    result = _v2_risk_tier(tier, path)
+    if _v2_risk_tier_text(result, path) != value:
+        raise _reject(RiskReason.EXPOSURE_NOT_CALCULABLE, path, "stored risk tier is not canonical")
+    return result
+
+
+@dataclass(frozen=True, slots=True)
+class V2ReservationReceipt:
+    """The exact durable receipt returned by the V2 atomic reservation path."""
+
+    event_id: str
+    candidate_id: str
+    reservation_id: str
+    allocation_reservation_id: str
+    opportunity_id: str
+    opportunity_sha256: str
+    risk_tier: Decimal
+    quantity: int
+    amount: Decimal
+    account_equity: Decimal
+    account_cash: Decimal
+    policy_sha256: str
+    permit_id: str
+    permit_sha256: str
+
+
 class RiskLedger:
     """A deterministic SQLite WAL ledger for the PAPER risk kernel."""
 
@@ -258,6 +510,151 @@ class RiskLedger:
 
     def close(self) -> None:
         self._conn.close()
+
+    # -- append-only episodic records ---------------------------------------
+
+    def _append_episode_row(
+        self,
+        *,
+        table: str,
+        columns: tuple[str, ...],
+        identity_column: str,
+        values: Mapping[str, object],
+        payload: bytes,
+        payload_sha256: str,
+    ) -> bool:
+        """Append one pre-validated episode record or accept its exact replay.
+
+        Canonical contract validation belongs to ``autonomy.episodes``. This
+        narrow ledger boundary owns only the durable serializable append: an
+        existing identity is idempotent solely when both the canonical bytes
+        and their supplied digest are byte-for-byte identical.
+        """
+
+        if table not in {
+            "decision_episodes",
+            "outcome_episodes",
+            "broker_truth_snapshots",
+        }:
+            raise ValueError(f"unsupported episode table {table}")
+        if type(payload) is not bytes:
+            raise TypeError("episode payload must be immutable bytes")
+        if not isinstance(payload_sha256, str):
+            raise TypeError("episode payload SHA-256 must be text")
+        if set(values) != set(columns):
+            raise ValueError("episode row columns do not match its fixed schema")
+        identity = values.get(identity_column)
+        if not isinstance(identity, str):
+            raise TypeError("episode identity must be text")
+
+        self._begin()
+        try:
+            existing = self._conn.execute(
+                f"SELECT payload_sha256, payload FROM {table} WHERE {identity_column}=?",
+                (identity,),
+            ).fetchone()
+            if existing is not None:
+                if (
+                    str(existing["payload_sha256"]) == payload_sha256
+                    and bytes(existing["payload"]) == payload
+                ):
+                    self._conn.execute("COMMIT")
+                    return False
+                raise ImmutableEpisodeConflict(table=table, identity=identity)
+
+            insert_columns = (*columns, "payload_sha256", "payload")
+            placeholders = ", ".join("?" for _ in insert_columns)
+            self._conn.execute(
+                f"INSERT INTO {table} ({', '.join(insert_columns)}) VALUES ({placeholders})",
+                (
+                    *(values[column] for column in columns),
+                    payload_sha256,
+                    sqlite3.Binary(payload),
+                ),
+            )
+            self._conn.execute("COMMIT")
+            return True
+        except Exception:
+            self._rollback()
+            raise
+
+    def append_decision_episode(
+        self, *, values: Mapping[str, object], payload: bytes, payload_sha256: str
+    ) -> bool:
+        """Durably append one canonical decision episode."""
+
+        return self._append_episode_row(
+            table="decision_episodes",
+            columns=_DECISION_EPISODE_COLUMNS,
+            identity_column="episode_id",
+            values=values,
+            payload=payload,
+            payload_sha256=payload_sha256,
+        )
+
+    def append_outcome_episode(
+        self, *, values: Mapping[str, object], payload: bytes, payload_sha256: str
+    ) -> bool:
+        """Durably append one canonical execution outcome episode."""
+
+        return self._append_episode_row(
+            table="outcome_episodes",
+            columns=_OUTCOME_EPISODE_COLUMNS,
+            identity_column="outcome_id",
+            values=values,
+            payload=payload,
+            payload_sha256=payload_sha256,
+        )
+
+    def append_broker_truth_snapshot(
+        self, *, values: Mapping[str, object], payload: bytes, payload_sha256: str
+    ) -> bool:
+        """Durably append one canonical broker-observed truth snapshot."""
+
+        return self._append_episode_row(
+            table="broker_truth_snapshots",
+            columns=_BROKER_TRUTH_SNAPSHOT_COLUMNS,
+            identity_column="snapshot_id",
+            values=values,
+            payload=payload,
+            payload_sha256=payload_sha256,
+        )
+
+    def _episode_rows(
+        self, *, table: str, columns: tuple[str, ...], order_by: str
+    ) -> list[Mapping[str, object]]:
+        """Read fixed-schema episode records in a stable local order."""
+
+        selected = ", ".join((*columns, "payload_sha256", "payload"))
+        rows = self._conn.execute(f"SELECT {selected} FROM {table} ORDER BY {order_by}").fetchall()
+        return [dict(row) for row in rows]
+
+    def decision_episode_rows(self) -> list[Mapping[str, object]]:
+        """Return canonical decision rows; callers still validate their BLOBs."""
+
+        return self._episode_rows(
+            table="decision_episodes",
+            columns=_DECISION_EPISODE_COLUMNS,
+            order_by="occurred_at, episode_id",
+        )
+
+    def outcome_episode_rows(self) -> list[Mapping[str, object]]:
+        """Return canonical outcome rows; callers still validate their BLOBs."""
+
+        return self._episode_rows(
+            table="outcome_episodes",
+            columns=_OUTCOME_EPISODE_COLUMNS,
+            order_by="terminal_at, observed_at, outcome_id",
+        )
+
+    def broker_truth_snapshot_rows(self) -> list[Mapping[str, object]]:
+        """Return canonical broker-truth rows; callers still validate their BLOBs."""
+
+        return self._episode_rows(
+            table="broker_truth_snapshots",
+            columns=_BROKER_TRUTH_SNAPSHOT_COLUMNS,
+            order_by="observed_at, snapshot_id",
+        )
 
     def _begin(self) -> None:
         self._conn.execute("BEGIN IMMEDIATE")
@@ -585,6 +982,75 @@ class RiskLedger:
 
     def reservation_for_event(self, event_id: str) -> Mapping[str, object] | None:
         return self._reservation_for_event(_identifier(event_id, "reservation.event_id"))
+
+    def _v2_reservation_row(self, *, field: str, value: str) -> Mapping[str, object] | None:
+        if field not in {"event_id", "opportunity_id"}:
+            raise AssertionError("V2 reservation lookup field is fixed by the caller")
+        row = self._conn.execute(
+            (
+                "SELECT v.reservation_id, v.event_id, v.candidate_id, v.underlying, "
+                "v.decision_sha256, v.expression_sha256, v.opportunity_id, "
+                "v.opportunity_sha256, v.allocation_reservation_id, v.risk_tier, "
+                "v.quantity, v.amount, v.account_equity, v.account_cash, v.policy_sha256, "
+                "v.permit_id, v.permit_sha256, v.created_at, r.state AS state, "
+                "p.state AS permit_state FROM v2_reservations v "
+                "JOIN reservations r ON r.reservation_id=v.reservation_id "
+                "JOIN permits p ON p.permit_id=v.permit_id "
+                f"WHERE v.{field}=?"
+            ),
+            (value,),
+        ).fetchone()
+        return None if row is None else dict(row)
+
+    def v2_reservation_for_event(self, event_id: str) -> Mapping[str, object] | None:
+        """Return the complete V2 binding for an event, including lifecycle state."""
+
+        return self._v2_reservation_row(
+            field="event_id", value=_identifier(event_id, "v2_reservation.event_id")
+        )
+
+    def v2_reservation_for_opportunity(self, opportunity_id: str) -> Mapping[str, object] | None:
+        """Return the complete V2 binding for an opportunity, if already held."""
+
+        return self._v2_reservation_row(
+            field="opportunity_id",
+            value=_identifier(opportunity_id, "v2_reservation.opportunity_id"),
+        )
+
+    def v2_open_reservation_rows(self) -> list[Mapping[str, object]]:
+        """Return only V2 rows still consuming debit capacity."""
+
+        rows = self._conn.execute(
+            "SELECT v.reservation_id, v.event_id, v.candidate_id, v.underlying, "
+            "v.decision_sha256, v.expression_sha256, v.opportunity_id, "
+            "v.opportunity_sha256, v.allocation_reservation_id, v.risk_tier, "
+            "v.quantity, v.amount, v.account_equity, v.account_cash, v.policy_sha256, "
+            "v.permit_id, v.permit_sha256, v.created_at, r.state AS state, "
+            "p.state AS permit_state FROM v2_reservations v "
+            "JOIN reservations r ON r.reservation_id=v.reservation_id "
+            "JOIN permits p ON p.permit_id=v.permit_id "
+            "WHERE r.state IN ('RESERVED', 'CONSUMED') ORDER BY v.reservation_id"
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+    def has_non_v2_open_reservations(self) -> bool:
+        """Fail-closed signal for legacy/open state V2 cannot attribute safely."""
+
+        row = self._conn.execute(
+            "SELECT 1 FROM reservations r LEFT JOIN v2_reservations v "
+            "ON v.reservation_id=r.reservation_id "
+            "WHERE r.state IN ('RESERVED', 'CONSUMED') AND v.reservation_id IS NULL LIMIT 1"
+        ).fetchone()
+        return row is not None
+
+    def v2_submitted_order_ids(self) -> frozenset[str]:
+        """Broker order IDs whose pending/open exposure is V2-bound."""
+
+        rows = self._conn.execute(
+            "SELECT s.broker_order_id FROM submissions s "
+            "JOIN v2_reservations v ON v.permit_id=s.permit_id"
+        ).fetchall()
+        return frozenset(str(row["broker_order_id"]) for row in rows)
 
     def reservation_state(self, event_id: str) -> str | None:
         reservation = self.reservation_for_event(event_id)
@@ -1604,6 +2070,394 @@ class RiskLedger:
                 RiskReason.DUPLICATE_EVENT_RESERVATION,
                 f"reservation.{event}",
                 f"duplicate or inconsistent reservation: {error}",
+            ) from None
+        except Exception:
+            self._rollback()
+            raise
+
+    def _v2_receipt_from_row(self, row: Mapping[str, object]) -> V2ReservationReceipt:
+        """Decode a complete V2 row after validating every durable binding."""
+
+        tier = _v2_stored_risk_tier(row["risk_tier"], "v2_reservations.risk_tier")
+        return V2ReservationReceipt(
+            event_id=_identifier(row["event_id"], "v2_reservations.event_id"),
+            candidate_id=_identifier(row["candidate_id"], "v2_reservations.candidate_id"),
+            reservation_id=_sha256(row["reservation_id"], "v2_reservations.reservation_id"),
+            allocation_reservation_id=_sha256(
+                row["allocation_reservation_id"], "v2_reservations.allocation_reservation_id"
+            ),
+            opportunity_id=_identifier(row["opportunity_id"], "v2_reservations.opportunity_id"),
+            opportunity_sha256=_sha256(
+                row["opportunity_sha256"], "v2_reservations.opportunity_sha256"
+            ),
+            risk_tier=tier,
+            quantity=_positive_int(row["quantity"], "v2_reservations.quantity"),
+            amount=_v2_stored_amount(row["amount"], "v2_reservations.amount", positive=True),
+            account_equity=_v2_stored_amount(
+                row["account_equity"], "v2_reservations.account_equity", positive=True
+            ),
+            account_cash=_v2_stored_amount(row["account_cash"], "v2_reservations.account_cash"),
+            policy_sha256=_sha256(row["policy_sha256"], "v2_reservations.policy_sha256"),
+            permit_id=_identifier(row["permit_id"], "v2_reservations.permit_id"),
+            permit_sha256=_sha256(row["permit_sha256"], "v2_reservations.permit_sha256"),
+        )
+
+    def reserve_v2_and_issue_permit(
+        self,
+        *,
+        event_id: str,
+        candidate_id: str,
+        underlying: str,
+        policy_sha256: str,
+        decision_sha256: str,
+        expression_sha256: str,
+        opportunity_id: str,
+        opportunity_sha256: str,
+        allocation_reservation_id: str,
+        risk_tier: Decimal,
+        quantity: int,
+        amount: Decimal,
+        account_equity: Decimal,
+        account_cash: Decimal,
+        max_per_underlying_fraction: Decimal,
+        max_aggregate_fraction: Decimal,
+        permit: DebitVerticalPermit,
+        now: datetime,
+    ) -> V2ReservationReceipt:
+        """Atomically bind a V2 allocation, exact permit, and capacity reservation.
+
+        This local ``BEGIN IMMEDIATE`` transaction intentionally performs no broker
+        operation. It serializes identity replay and all cash/debit capacity checks
+        over the same fresh account snapshot passed by the caller.
+        """
+
+        event = _identifier(event_id, "v2_authorization.event_id")
+        candidate = _identifier(candidate_id, "v2_authorization.candidate_id")
+        symbol = _underlying(underlying, "v2_authorization.underlying")
+        policy = _sha256(policy_sha256, "v2_authorization.policy_sha256")
+        decision = _sha256(decision_sha256, "v2_authorization.decision_sha256")
+        expression = _sha256(expression_sha256, "v2_authorization.expression_sha256")
+        opportunity = _identifier(opportunity_id, "v2_authorization.opportunity_id")
+        opportunity_digest = _sha256(opportunity_sha256, "v2_authorization.opportunity_sha256")
+        allocation_id = _sha256(
+            allocation_reservation_id, "v2_authorization.allocation_reservation_id"
+        )
+        tier = _v2_risk_tier(risk_tier, "v2_authorization.risk_tier")
+        allocated_quantity = _positive_int(quantity, "v2_authorization.quantity")
+        exposure = _positive_limit(amount, "v2_authorization.amount")
+        equity = _positive_limit(account_equity, "v2_authorization.account_equity")
+        cash = _amount(account_cash, "v2_authorization.account_cash")
+        if cash > equity:
+            raise _reject(
+                RiskReason.CONTRADICTORY_TRUTH,
+                "v2_authorization.account_cash",
+                "unborrowed cash exceeds current equity",
+            )
+        per_underlying_fraction = _positive_limit(
+            max_per_underlying_fraction, "v2_authorization.max_per_underlying_fraction"
+        )
+        aggregate_fraction = _positive_limit(
+            max_aggregate_fraction, "v2_authorization.max_aggregate_fraction"
+        )
+        if per_underlying_fraction != Decimal("0.20") or aggregate_fraction != Decimal("0.50"):
+            raise _reject(
+                RiskReason.POLICY_UNVERIFIED_CONSTANT,
+                "v2_authorization.capacity_fractions",
+                "V2 fractions must be the owner-approved 20%/50% constants",
+            )
+        if not isinstance(permit, DebitVerticalPermit):
+            raise _reject(
+                RiskReason.UNSUPPORTED_INPUT,
+                "v2_authorization.permit",
+                "must be an exact DebitVerticalPermit",
+            )
+        if permit.permit_id != debit_vertical_permit_id(permit):
+            raise _reject(
+                RiskReason.UNSUPPORTED_INPUT,
+                "v2_authorization.permit_id",
+                "must equal the canonical permit identity",
+            )
+        permit_sha256 = sha256_bytes(debit_vertical_permit_bytes(permit))
+        if (
+            permit.event_run_id != event
+            or permit.decision_sha256 != decision
+            or permit.policy_sha256 != policy
+            or permit.underlying != symbol
+            or permit.quantity != allocated_quantity
+            or permit.maximum_loss != exposure
+        ):
+            raise _reject(
+                RiskReason.UNSUPPORTED_INPUT,
+                "v2_authorization.permit",
+                "permit identity, quantity, or maximum loss differs from V2 allocation",
+            )
+        created = datetime.fromisoformat(
+            _timestamp(now, "v2_authorization.now").replace("Z", "+00:00")
+        )
+        tier_text = _v2_risk_tier_text(tier, "v2_authorization.risk_tier")
+        amount_text = _v2_decimal_text(exposure, "v2_authorization.amount")
+        equity_text = _v2_decimal_text(equity, "v2_authorization.account_equity")
+        cash_text = _v2_decimal_text(cash, "v2_authorization.account_cash")
+        expected = {
+            "reservation_id": allocation_id,
+            "event_id": event,
+            "candidate_id": candidate,
+            "underlying": symbol,
+            "decision_sha256": decision,
+            "expression_sha256": expression,
+            "opportunity_id": opportunity,
+            "opportunity_sha256": opportunity_digest,
+            "allocation_reservation_id": allocation_id,
+            "risk_tier": tier_text,
+            "quantity": allocated_quantity,
+            "amount": amount_text,
+            "account_equity": equity_text,
+            "account_cash": cash_text,
+            "policy_sha256": policy,
+            "permit_id": permit.permit_id,
+            "permit_sha256": permit_sha256,
+        }
+
+        self._begin()
+        try:
+            if self._not_run_exists(event):
+                raise _reject(RiskReason.NOT_RUN_EVENT, f"event.{event}", "event is marked NOT_RUN")
+            frozen = self.candidate_for_event(event)
+            if frozen is None:
+                raise _reject(
+                    RiskReason.UNSUPPORTED_INPUT,
+                    f"candidate.{event}",
+                    "a matching immutable candidate was not frozen",
+                )
+            if frozen["policy_sha256"] != policy:
+                raise _reject(
+                    RiskReason.POLICY_HASH_MISMATCH,
+                    f"candidate.{event}.policy_sha256",
+                    "frozen candidate does not bind the active V2 policy",
+                )
+            for field, value in {
+                "candidate_id": candidate,
+                "decision_sha256": decision,
+                "expression_sha256": expression,
+            }.items():
+                if frozen[field] != value:
+                    raise _reject(
+                        RiskReason.UNSUPPORTED_INPUT,
+                        f"candidate.{event}.{field}",
+                        "authorization identity differs from the frozen candidate",
+                    )
+
+            event_row = self._v2_reservation_row(field="event_id", value=event)
+            opportunity_row = self._v2_reservation_row(field="opportunity_id", value=opportunity)
+            if event_row is not None or opportunity_row is not None:
+                row = event_row or opportunity_row
+                assert row is not None
+                if (
+                    event_row is not opportunity_row
+                    and event_row is not None
+                    and opportunity_row is not None
+                    and event_row["reservation_id"] != opportunity_row["reservation_id"]
+                ):
+                    raise _reject(
+                        RiskReason.DUPLICATE_EVENT_RESERVATION,
+                        f"v2_reservation.{event}",
+                        "event and opportunity are already bound to different reservations",
+                    )
+                if all(row[key] == value for key, value in expected.items()):
+                    if row["state"] == "RESERVED" and row["permit_state"] == "ISSUED":
+                        self._conn.execute("COMMIT")
+                        return self._v2_receipt_from_row(row)
+                    raise _reject(
+                        RiskReason.EVENT_LIFECYCLE_INVALID,
+                        f"v2_reservation.{event}",
+                        "an exact replay is only valid before submission or consumption",
+                    )
+                raise _reject(
+                    RiskReason.DUPLICATE_EVENT_RESERVATION,
+                    f"v2_reservation.{event}",
+                    "event or opportunity was already bound to different exact values",
+                )
+            if self._reservation_for_event(event) is not None:
+                raise _reject(
+                    RiskReason.DUPLICATE_EVENT_RESERVATION,
+                    f"reservation.{event}",
+                    "a non-V2 reservation already exists for this event",
+                )
+
+            consumed_total = Decimal("0")
+            reserved_total = Decimal("0")
+            consumed_underlying = Decimal("0")
+            reserved_underlying = Decimal("0")
+            open_rows = self._conn.execute(
+                "SELECT r.reservation_id, r.amount AS reservation_amount, r.state, r.underlying, "
+                "v.reservation_id AS v2_reservation_id, v.amount AS v2_amount "
+                "FROM reservations r LEFT JOIN v2_reservations v "
+                "ON v.reservation_id=r.reservation_id "
+                "WHERE r.state IN ('RESERVED', 'CONSUMED')"
+            ).fetchall()
+            for open_row in open_rows:
+                if open_row["v2_reservation_id"] is None:
+                    raise _reject(
+                        RiskReason.UNKNOWN_EXPOSURE,
+                        "v2_authorization.open_reservations",
+                        "an open reservation has no V2 attribution",
+                    )
+                reservation_amount = _v2_stored_amount(
+                    open_row["reservation_amount"], "reservations.amount", positive=True
+                )
+                v2_amount = _v2_stored_amount(
+                    open_row["v2_amount"], "v2_reservations.amount", positive=True
+                )
+                if reservation_amount != v2_amount:
+                    raise _reject(
+                        RiskReason.CONTRADICTORY_TRUTH,
+                        "v2_authorization.open_reservations",
+                        "reservation and V2 amount bindings differ",
+                    )
+                state = str(open_row["state"])
+                is_underlying = str(open_row["underlying"]) == symbol
+                if state == "CONSUMED":
+                    consumed_total += reservation_amount
+                    if is_underlying:
+                        consumed_underlying += reservation_amount
+                elif state == "RESERVED":
+                    reserved_total += reservation_amount
+                    if is_underlying:
+                        reserved_underlying += reservation_amount
+                else:
+                    raise _reject(
+                        RiskReason.UNKNOWN_EXPOSURE,
+                        "v2_authorization.open_reservations",
+                        "open reservation state is unknown",
+                    )
+
+            if exposure > tier * equity:
+                raise _reject(
+                    RiskReason.BUDGET_EXCEEDED,
+                    "v2_authorization.risk_tier",
+                    "allocation exceeds its owner-approved tier capacity",
+                )
+            if consumed_total + reserved_total + exposure > aggregate_fraction * equity:
+                raise _reject(
+                    RiskReason.BUDGET_EXCEEDED,
+                    "v2_authorization.aggregate",
+                    "aggregate open debit exceeds the 50% current-equity cap",
+                )
+            if (
+                consumed_underlying + reserved_underlying + exposure
+                > per_underlying_fraction * equity
+            ):
+                raise _reject(
+                    RiskReason.CONCENTRATION_LIMIT_BREACHED,
+                    "v2_authorization.underlying",
+                    "per-underlying open debit exceeds the 20% current-equity cap",
+                )
+            if exposure > cash - reserved_total:
+                raise _reject(
+                    RiskReason.BUDGET_EXCEEDED,
+                    "v2_authorization.cash",
+                    "pending reserved debit exceeds current unborrowed cash",
+                )
+
+            created_text = _timestamp(created, "v2_authorization.created_at")
+            self._conn.execute(
+                (
+                    "INSERT INTO reservations "
+                    "(reservation_id, event_id, amount, state, created_at, "
+                    "updated_at, underlying) VALUES (?, ?, ?, 'RESERVED', ?, ?, ?)"
+                ),
+                (allocation_id, event, amount_text, created_text, created_text, symbol),
+            )
+            self._insert_permit(
+                permit_id=permit.permit_id,
+                event_id=event,
+                reservation_id=allocation_id,
+                permit_sha256=permit_sha256,
+                now=created,
+            )
+            self._conn.execute(
+                (
+                    "INSERT INTO v2_reservations "
+                    "(reservation_id, event_id, candidate_id, underlying, "
+                    "decision_sha256, expression_sha256, opportunity_id, opportunity_sha256, "
+                    "allocation_reservation_id, risk_tier, quantity, amount, account_equity, "
+                    "account_cash, policy_sha256, permit_id, permit_sha256, created_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                ),
+                (
+                    allocation_id,
+                    event,
+                    candidate,
+                    symbol,
+                    decision,
+                    expression,
+                    opportunity,
+                    opportunity_digest,
+                    allocation_id,
+                    tier_text,
+                    allocated_quantity,
+                    amount_text,
+                    equity_text,
+                    cash_text,
+                    policy,
+                    permit.permit_id,
+                    permit_sha256,
+                    created_text,
+                ),
+            )
+            payload = {
+                "event_id": event,
+                "candidate_id": candidate,
+                "underlying": symbol,
+                "decision_sha256": decision,
+                "expression_sha256": expression,
+                "opportunity_id": opportunity,
+                "opportunity_sha256": opportunity_digest,
+                "reservation_id": allocation_id,
+                "allocation_reservation_id": allocation_id,
+                "risk_tier": tier_text,
+                "quantity": allocated_quantity,
+                "amount": amount_text,
+                "account_equity": equity_text,
+                "account_cash": cash_text,
+                "policy_sha256": policy,
+                "risk_policy_sha256": policy,
+                "permit_id": permit.permit_id,
+                "permit_sha256": permit_sha256,
+            }
+            self._append_passport(
+                event_type=PassportEventType.RESERVATION_HELD.value,
+                payload=payload,
+                now=created,
+            )
+            self._append_passport(
+                event_type=PassportEventType.PERMIT_ISSUED.value,
+                payload=payload,
+                now=created,
+            )
+            self._conn.execute("COMMIT")
+            return V2ReservationReceipt(
+                event_id=event,
+                candidate_id=candidate,
+                reservation_id=allocation_id,
+                allocation_reservation_id=allocation_id,
+                opportunity_id=opportunity,
+                opportunity_sha256=opportunity_digest,
+                risk_tier=tier,
+                quantity=allocated_quantity,
+                amount=exposure,
+                account_equity=equity,
+                account_cash=cash,
+                policy_sha256=policy,
+                permit_id=permit.permit_id,
+                permit_sha256=permit_sha256,
+            )
+        except sqlite3.IntegrityError as error:
+            self._rollback()
+            raise _reject(
+                RiskReason.DUPLICATE_EVENT_RESERVATION,
+                f"v2_reservation.{event}",
+                f"duplicate or inconsistent V2 reservation: {error}",
             ) from None
         except Exception:
             self._rollback()

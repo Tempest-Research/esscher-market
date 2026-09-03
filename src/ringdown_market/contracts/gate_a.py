@@ -15,8 +15,28 @@ from typing import NoReturn
 from urllib.parse import urlsplit
 
 from ringdown_market.contracts.execution_policy import (
+    ACCOUNT_TOOL,
     ALPACA_MCP_COMMIT,
+    ALPACA_MCP_V2_DISCOVERED_TOOL_COUNT,
+    ALPACA_MCP_V2_DISTRIBUTION_TYPE,
+    ALPACA_MCP_V2_FASTMCP_SPEC,
+    ALPACA_MCP_V2_FASTMCP_VERSION,
+    ALPACA_MCP_V2_PROVENANCE,
+    ALPACA_MCP_V2_SDIST_FILENAME,
+    ALPACA_MCP_V2_SDIST_SHA256,
+    ALPACA_MCP_V2_SELECTED_SCHEMA_COUNT,
+    ALPACA_MCP_V2_SELECTED_SCHEMA_SHA256,
+    ALPACA_MCP_V2_SOURCE_EQUIVALENT_COMMIT,
+    ALPACA_MCP_V2_SOURCE_EQUIVALENT_VERSION,
+    ALPACA_MCP_V2_VERSION,
+    ALPACA_MCP_V2_WHEEL_FILENAME,
+    ALPACA_MCP_V2_WHEEL_SHA256,
     ALPACA_MCP_VERSION,
+    CANCEL_TOOL,
+    OPEN_TOOL,
+    ORDER_BY_ID_TOOL,
+    POSITIONS_TOOL,
+    READBACK_TOOL,
 )
 
 PROGRAMME_SCHEMA = "esscher.gate_a_programme_contract"
@@ -79,6 +99,37 @@ _CAPABILITY_FIELDS = frozenset(
         "schema_version",
     }
 )
+_CAPABILITY_V2_FIELDS = frozenset(
+    {
+        "schema",
+        "schema_version",
+        "receipt_id",
+        "observed_at",
+        "expires_at",
+        "environment",
+        "adapter",
+        "adapter_version",
+        "distribution_type",
+        "wheel_filename",
+        "wheel_sha256",
+        "sdist_filename",
+        "sdist_sha256",
+        "provenance_class",
+        "source_equivalent_version",
+        "source_equivalent_commit",
+        "fastmcp_version",
+        "fastmcp_spec",
+        "discovered_tool_count",
+        "selected_schema_count",
+        "selected_schema_sha256",
+        "tool_names",
+        "programme_contract_sha256",
+    }
+)
+_V2_TOOLS = tuple(
+    sorted({ACCOUNT_TOOL, OPEN_TOOL, READBACK_TOOL, ORDER_BY_ID_TOOL, CANCEL_TOOL, POSITIONS_TOOL})
+)
+
 _OBSERVATION_FIELDS = frozenset(
     {"capability_id", "evidence_sha256", "limitation", "status", "value"}
 )
@@ -257,6 +308,34 @@ class CapabilityReceipt:
     @property
     def observations_by_id(self) -> Mapping[str, CapabilityObservation]:
         return MappingProxyType({item.capability_id: item for item in self.observations})
+
+
+@dataclass(frozen=True, slots=True)
+class CurrentCapabilityReceipt:
+    """Closed V2 artifact/runtime attestation; deliberately has no adapter commit."""
+
+    receipt_id: str
+    programme_contract_sha256: str
+    observed_at: datetime
+    expires_at: datetime
+    environment: str
+    adapter: str
+    adapter_version: str
+    distribution_type: str
+    wheel_filename: str
+    wheel_sha256: str
+    sdist_filename: str
+    sdist_sha256: str
+    provenance_class: str
+    source_equivalent_version: str
+    source_equivalent_commit: str
+    fastmcp_version: str
+    fastmcp_spec: str
+    discovered_tool_count: int
+    selected_schema_count: int
+    selected_schema_sha256: str
+    tool_names: tuple[str, ...]
+    sha256: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -538,7 +617,104 @@ def _parse_capability_observation(value: object, *, path: str) -> CapabilityObse
     )
 
 
-def parse_capability_receipt(raw: bytes) -> CapabilityReceipt:
+def parse_current_capability_receipt(raw: bytes) -> CurrentCapabilityReceipt:
+    """Parse the exact V2 current-session artifact attestation."""
+    digest = hashlib.sha256(raw).hexdigest() if type(raw) is bytes else ""
+    payload = _strict_object(
+        _decode(raw, label="current capability receipt"), path="$", fields=_CAPABILITY_V2_FIELDS
+    )
+    if (
+        payload["schema"] != CAPABILITY_SCHEMA
+        or type(payload["schema_version"]) is not int
+        or payload["schema_version"] != 2
+    ):
+        _reject("current capability receipt schema/version is unsupported")
+    expected = {
+        "environment": "PAPER",
+        "adapter": "ALPACA_MCP",
+        "adapter_version": ALPACA_MCP_V2_VERSION,
+        "distribution_type": ALPACA_MCP_V2_DISTRIBUTION_TYPE,
+        "wheel_filename": ALPACA_MCP_V2_WHEEL_FILENAME,
+        "wheel_sha256": ALPACA_MCP_V2_WHEEL_SHA256,
+        "sdist_filename": ALPACA_MCP_V2_SDIST_FILENAME,
+        "sdist_sha256": ALPACA_MCP_V2_SDIST_SHA256,
+        "provenance_class": ALPACA_MCP_V2_PROVENANCE,
+        "source_equivalent_version": ALPACA_MCP_V2_SOURCE_EQUIVALENT_VERSION,
+        "source_equivalent_commit": ALPACA_MCP_V2_SOURCE_EQUIVALENT_COMMIT,
+        "fastmcp_version": ALPACA_MCP_V2_FASTMCP_VERSION,
+        "fastmcp_spec": ALPACA_MCP_V2_FASTMCP_SPEC,
+        "discovered_tool_count": ALPACA_MCP_V2_DISCOVERED_TOOL_COUNT,
+        "selected_schema_count": ALPACA_MCP_V2_SELECTED_SCHEMA_COUNT,
+        "selected_schema_sha256": ALPACA_MCP_V2_SELECTED_SCHEMA_SHA256,
+    }
+    for field, value in expected.items():
+        if payload[field] != value:
+            _reject(f"current capability receipt has unsupported {field}")
+    tools = payload["tool_names"]
+    if not isinstance(tools, list) or tuple(tools) != _V2_TOOLS:
+        _reject("current capability receipt toolset does not match the PAPER lifecycle")
+    observed_at = _timestamp(payload["observed_at"], path="$.observed_at")
+    expires_at = _timestamp(payload["expires_at"], path="$.expires_at")
+    if expires_at <= observed_at:
+        _reject("current capability receipt must expire after observation")
+    return CurrentCapabilityReceipt(
+        receipt_id=_identifier(payload["receipt_id"], path="$.receipt_id"),
+        programme_contract_sha256=_sha256(
+            payload["programme_contract_sha256"], path="$.programme_contract_sha256"
+        ),
+        observed_at=observed_at,
+        expires_at=expires_at,
+        environment=payload["environment"],
+        adapter=payload["adapter"],
+        adapter_version=payload["adapter_version"],
+        distribution_type=payload["distribution_type"],
+        wheel_filename=payload["wheel_filename"],
+        wheel_sha256=payload["wheel_sha256"],
+        sdist_filename=payload["sdist_filename"],
+        sdist_sha256=payload["sdist_sha256"],
+        provenance_class=payload["provenance_class"],
+        source_equivalent_version=payload["source_equivalent_version"],
+        source_equivalent_commit=payload["source_equivalent_commit"],
+        fastmcp_version=payload["fastmcp_version"],
+        fastmcp_spec=payload["fastmcp_spec"],
+        discovered_tool_count=payload["discovered_tool_count"],
+        selected_schema_count=payload["selected_schema_count"],
+        selected_schema_sha256=payload["selected_schema_sha256"],
+        tool_names=tuple(tools),
+        sha256=digest,
+    )
+
+
+def capability_v2_receipt_bytes(value: CurrentCapabilityReceipt) -> bytes:
+    """Serialize a V2 receipt canonically; no derived or Git-commit claim is added."""
+    return _canonical_json_bytes(
+        {
+            key: getattr(value, key)
+            for key in _CAPABILITY_V2_FIELDS
+            if key != "schema" and key != "schema_version"
+        }
+        | {"schema": CAPABILITY_SCHEMA, "schema_version": 2}
+    )
+
+
+parse_current_capability_receipt.__doc__ = (
+    "Parse the exact V2 current-session artifact attestation."
+)
+
+
+def parse_capability_receipt(raw: bytes) -> CapabilityReceipt | CurrentCapabilityReceipt:
+    """Parse V1 history or V2 current capability receipts."""
+    if type(raw) is bytes:
+        try:
+            peek = json.loads(raw)
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            peek = None
+        if isinstance(peek, Mapping) and peek.get("schema_version") == 2:
+            return parse_current_capability_receipt(raw)
+    return _parse_v1_capability_receipt(raw)
+
+
+def _parse_v1_capability_receipt(raw: bytes) -> CapabilityReceipt:
     """Strictly parse a canonical sanitized account-capability receipt."""
 
     digest = hashlib.sha256(raw).hexdigest() if type(raw) is bytes else ""
@@ -656,7 +832,7 @@ def _timestamp_text(value: datetime) -> str:
 
 def evaluate_gate_a(
     programme: ProgrammeContract,
-    capability: CapabilityReceipt,
+    capability: CapabilityReceipt | CurrentCapabilityReceipt,
     *,
     evaluated_at: datetime,
     approved_producer_build_sha256: str | None = None,
@@ -673,7 +849,14 @@ def evaluate_gate_a(
         reasons.add("PROGRAMME_CONTRACT_MISMATCH")
     programme = registered_programme
     try:
-        authenticated_capability = parse_capability_receipt(capability_receipt_bytes(capability))
+        if isinstance(capability, CurrentCapabilityReceipt):
+            authenticated_capability = parse_current_capability_receipt(
+                capability_v2_receipt_bytes(capability)
+            )
+        else:
+            authenticated_capability = parse_capability_receipt(
+                capability_receipt_bytes(capability)
+            )
     except (AttributeError, GateAContractError, TypeError, ValueError):
         authenticated_capability = None
         reasons.add("CAPABILITY_RECEIPT_INVALID")
@@ -688,6 +871,7 @@ def evaluate_gate_a(
     if authenticated_capability != capability:
         reasons.add("CAPABILITY_RECEIPT_INVALID")
     capability = authenticated_capability
+
     if capability.programme_contract_sha256 != programme.sha256:
         reasons.add("PROGRAMME_CONTRACT_MISMATCH")
     if programme.retrieved_at > evaluated_at:
@@ -696,8 +880,12 @@ def evaluate_gate_a(
         reasons.add("CAPABILITY_RECEIPT_FROM_FUTURE")
     if evaluated_at >= capability.expires_at:
         reasons.add("CAPABILITY_RECEIPT_STALE")
-    verified_observations = tuple(
-        item for item in capability.observations if item.status is VerificationStatus.VERIFIED
+    verified_observations = (
+        tuple(
+            item for item in capability.observations if item.status is VerificationStatus.VERIFIED
+        )
+        if isinstance(capability, CapabilityReceipt)
+        else ()
     )
     if verified_observations:
         if (
@@ -721,16 +909,17 @@ def evaluate_gate_a(
             and fact.status is not VerificationStatus.VERIFIED
         ):
             reasons.add(_PROGRAMME_REASON_CODES.get(fact.fact_id, "PROGRAMME_FACT_UNVERIFIED"))
-    for item in capability.observations:
-        if item.status is not VerificationStatus.VERIFIED:
-            reasons.add(_CAPABILITY_REASON_CODES[item.capability_id])
-            continue
-        expected = _EXPECTED_CAPABILITY_VALUES.get(item.capability_id)
-        if expected is not None and item.value != expected:
-            reasons.add(_CAPABILITY_REASON_CODES[item.capability_id])
-        allowed = _ALLOWED_CAPABILITY_VALUES.get(item.capability_id)
-        if allowed is not None and item.value not in allowed:
-            reasons.add(_CAPABILITY_REASON_CODES[item.capability_id])
+    if isinstance(capability, CapabilityReceipt):
+        for item in capability.observations:
+            if item.status is not VerificationStatus.VERIFIED:
+                reasons.add(_CAPABILITY_REASON_CODES[item.capability_id])
+                continue
+            expected = _EXPECTED_CAPABILITY_VALUES.get(item.capability_id)
+            if expected is not None and item.value != expected:
+                reasons.add(_CAPABILITY_REASON_CODES[item.capability_id])
+            allowed = _ALLOWED_CAPABILITY_VALUES.get(item.capability_id)
+            if allowed is not None and item.value not in allowed:
+                reasons.add(_CAPABILITY_REASON_CODES[item.capability_id])
     entry_state = EntryState.ELIGIBLE if not reasons else EntryState.ENTRY_DISABLED
     return GateADecision(
         programme_contract_sha256=programme.sha256,

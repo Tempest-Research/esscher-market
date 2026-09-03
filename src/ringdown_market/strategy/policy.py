@@ -18,6 +18,14 @@ ACCEPTED_EVENT_POLICY_V1_SHA256: Final = (
     "afce93b52b96e0d8c71deeb80027a1c87a4cf3623e9417db14de00279fc23bca"
 )
 
+# V2 is a separate immutable policy package.  V1's resource name, bytes, and
+# digest deliberately remain untouched so historical V1 evidence can continue
+# to load against the policy that produced it.
+POLICY_V2_RESOURCE_NAME: Final = "policies/accepted_event_policy_v2.json"
+ACCEPTED_EVENT_POLICY_V2_SHA256: Final = (
+    "a9785b25feca845d22bc78b248315141cf9a9f0da4bf449e5dc93caa104dc293"
+)
+
 _TOP_LEVEL_FIELDS = frozenset(
     {
         "amendment",
@@ -734,3 +742,299 @@ def load_strategy_policy() -> StrategyPolicy:
     """Load the exact packaged accepted policy as a deeply immutable object."""
 
     return parse_strategy_policy(strategy_policy_bytes())
+
+
+_V2_TOP_LEVEL_FIELDS = frozenset(
+    {
+        "authority",
+        "candidates",
+        "claims",
+        "policy_id",
+        "policy_version",
+        "reasoner",
+        "schema",
+        "schema_version",
+    }
+)
+_V2_CANDIDATE_FIELDS = frozenset(
+    {
+        "candidate_id",
+        "confirmation",
+        "critical_unknown_codes",
+        "evidence",
+        "features",
+        "lane",
+        "requirements",
+    }
+)
+_V2_EXPECTED_CANDIDATES: Final = (
+    "EARNINGS_RESIDUAL_CONTINUATION_V2",
+    "MARKET_ANCHOR_INTRADAY_CONTINUATION_V1",
+    "LIQUID_STOCK_CATALYST_CONTINUATION_V1",
+)
+_V2_EXPECTED_LANES: Final = (
+    "EARNINGS_RESIDUAL_CONTINUATION",
+    "MARKET_ANCHOR_INTRADAY_CONTINUATION",
+    "LIQUID_STOCK_CATALYST_CONTINUATION",
+)
+_V2_OUTPUT_FIELDS: Final = (
+    "decision",
+    "evidence_ids",
+    "contradictions",
+    "unknowns",
+    "strongest_falsifier",
+    "summary",
+)
+
+
+def _validate_v2_policy_shape(value: Any) -> dict[str, Any]:
+    """Validate the closed prospective V2 policy without widening V1 parsing."""
+
+    root = _expect_object(value, "$", _V2_TOP_LEVEL_FIELDS)
+    if root["schema"] != "esscher.strategy_policy" or root["schema_version"] != 2:
+        raise StrategyPolicyError("V2 policy must use esscher.strategy_policy schema version 2")
+    if root["policy_id"] != "ESSCHER_AUTONOMOUS_STRATEGY_POLICY_V2" or root["policy_version"] != 2:
+        raise StrategyPolicyError("V2 policy identity or version differs from the accepted package")
+
+    authority = _expect_object(
+        root["authority"],
+        "$.authority",
+        frozenset({"deterministic_controls", "llm_controls", "prohibited_llm_controls"}),
+    )
+    for field, item in authority.items():
+        _validate_string_list(item, f"$.authority.{field}")
+    if "self_confidence" not in authority["prohibited_llm_controls"]:
+        raise StrategyPolicyError("V2 prohibits reasoner self-confidence as an authority field")
+
+    claims = _expect_object(
+        root["claims"],
+        "$.claims",
+        frozenset({"prospective_contest_policy", "validated_alpha_or_profitability"}),
+    )
+    if (
+        _expect_bool(claims["prospective_contest_policy"], "$.claims.prospective_contest_policy")
+        is not True
+        or _expect_bool(
+            claims["validated_alpha_or_profitability"], "$.claims.validated_alpha_or_profitability"
+        )
+        is not False
+    ):
+        raise StrategyPolicyError("V2 must remain prospective policy, not validated alpha evidence")
+
+    candidates = _validate_records(root["candidates"], "$.candidates", _V2_CANDIDATE_FIELDS)
+    candidate_ids = tuple(
+        _expect_string(item["candidate_id"], f"$.candidates[{index}].candidate_id")
+        for index, item in enumerate(candidates)
+    )
+    if candidate_ids != _V2_EXPECTED_CANDIDATES:
+        raise StrategyPolicyError(
+            "V2 policy does not contain the frozen ordered three-lane candidate set"
+        )
+    for index, candidate in enumerate(candidates):
+        path = f"$.candidates[{index}]"
+        if _expect_string(candidate["lane"], f"{path}.lane") != _V2_EXPECTED_LANES[index]:
+            raise StrategyPolicyError(f"{path}.lane differs from the approved autonomous lane")
+        critical_unknowns = _validate_string_list(
+            candidate["critical_unknown_codes"], f"{path}.critical_unknown_codes"
+        )
+        if not critical_unknowns:
+            raise StrategyPolicyError(f"{path}.critical_unknown_codes must be non-empty")
+        features = _validate_string_list(candidate["features"], f"{path}.features")
+        if not features:
+            raise StrategyPolicyError(f"{path}.features must be non-empty")
+        evidence = _expect_object(
+            candidate["evidence"],
+            f"{path}.evidence",
+            frozenset({"required_source_classes", "vocabulary"}),
+        )
+        if not _validate_string_list(
+            evidence["required_source_classes"], f"{path}.evidence.required_source_classes"
+        ):
+            raise StrategyPolicyError(f"{path}.evidence.required_source_classes must be non-empty")
+        if not _validate_string_list(evidence["vocabulary"], f"{path}.evidence.vocabulary"):
+            raise StrategyPolicyError(f"{path}.evidence.vocabulary must be non-empty")
+        confirmation = _expect_object(
+            candidate["confirmation"],
+            f"{path}.confirmation",
+            frozenset({"deterministic_downstream_only", "rule", "validated_alpha_claim"}),
+        )
+        if (
+            _expect_bool(
+                confirmation["deterministic_downstream_only"],
+                f"{path}.confirmation.deterministic_downstream_only",
+            )
+            is not True
+            or _expect_bool(
+                confirmation["validated_alpha_claim"], f"{path}.confirmation.validated_alpha_claim"
+            )
+            is not False
+        ):
+            raise StrategyPolicyError(
+                f"{path}.confirmation must remain deterministic and unvalidated"
+            )
+        _expect_string(confirmation["rule"], f"{path}.confirmation.rule")
+        requirements = _expect_object(
+            candidate["requirements"],
+            f"{path}.requirements",
+            frozenset(
+                {
+                    "requires_complete_authorized_benzinga_news",
+                    "requires_decision_ready_universe",
+                    "symbol_allowlist",
+                }
+            ),
+        )
+        allowlist = _validate_string_list(
+            requirements["symbol_allowlist"], f"{path}.requirements.symbol_allowlist"
+        )
+        if allowlist != tuple(sorted(allowlist)):
+            raise StrategyPolicyError(f"{path}.requirements.symbol_allowlist must be sorted")
+        requires_universe = _expect_bool(
+            requirements["requires_decision_ready_universe"],
+            f"{path}.requirements.requires_decision_ready_universe",
+        )
+        requires_news = _expect_bool(
+            requirements["requires_complete_authorized_benzinga_news"],
+            f"{path}.requirements.requires_complete_authorized_benzinga_news",
+        )
+        if index == 1 and allowlist != ("QQQ", "SPY"):
+            raise StrategyPolicyError("market-anchor V2 lane permits exactly QQQ and SPY")
+        if index != 1 and allowlist:
+            raise StrategyPolicyError("only the market-anchor V2 lane may have a symbol allowlist")
+        if index == 2 and (not requires_universe or not requires_news):
+            raise StrategyPolicyError(
+                "catalyst V2 lane requires decision-ready universe and authorized news"
+            )
+        if index != 2 and (requires_universe or requires_news):
+            raise StrategyPolicyError(
+                "only catalyst V2 lane may require universe or authorized news"
+            )
+
+    reasoner = _expect_object(
+        root["reasoner"],
+        "$.reasoner",
+        frozenset(
+            {
+                "call_policy",
+                "critical_unknown_codes",
+                "direction_values",
+                "forbidden_output_fields",
+                "news_text_rule",
+                "output_fields",
+                "tolerated_unknown_codes",
+            }
+        ),
+    )
+    call_policy = _expect_object(
+        reasoner["call_policy"],
+        "$.reasoner.call_policy",
+        frozenset({"hard_timeout_seconds", "max_calls", "max_completion_tokens", "retry_count"}),
+    )
+    if (
+        _expect_int(
+            call_policy["hard_timeout_seconds"],
+            "$.reasoner.call_policy.hard_timeout_seconds",
+            minimum=1,
+        )
+        != 8
+        or _expect_int(call_policy["max_calls"], "$.reasoner.call_policy.max_calls", minimum=1) != 1
+        or _expect_int(call_policy["retry_count"], "$.reasoner.call_policy.retry_count") != 0
+        or _expect_int(
+            call_policy["max_completion_tokens"],
+            "$.reasoner.call_policy.max_completion_tokens",
+            minimum=1,
+        )
+        != 512
+    ):
+        raise StrategyPolicyError(
+            "V2 reasoner call policy must remain eight-second, one-call, no-retry, 512-token"
+        )
+    if _validate_string_list(reasoner["direction_values"], "$.reasoner.direction_values") != (
+        "UP",
+        "DOWN",
+        "UNCERTAIN",
+    ):
+        raise StrategyPolicyError("V2 reasoner direction enum must be UP, DOWN, UNCERTAIN")
+    if (
+        _validate_string_list(reasoner["output_fields"], "$.reasoner.output_fields")
+        != _V2_OUTPUT_FIELDS
+    ):
+        raise StrategyPolicyError("V2 reasoner output must use the strict six-field schema")
+    forbidden = _validate_string_list(
+        reasoner["forbidden_output_fields"], "$.reasoner.forbidden_output_fields"
+    )
+    if "self_confidence" not in forbidden:
+        raise StrategyPolicyError("V2 reasoner output must not contain self-confidence")
+    _expect_string(reasoner["news_text_rule"], "$.reasoner.news_text_rule")
+    tolerated = _validate_string_list(
+        reasoner["tolerated_unknown_codes"], "$.reasoner.tolerated_unknown_codes"
+    )
+    critical = _validate_string_list(
+        reasoner["critical_unknown_codes"], "$.reasoner.critical_unknown_codes"
+    )
+    if set(tolerated) & set(critical):
+        raise StrategyPolicyError("V2 unknown-code classes must be disjoint")
+    return root
+
+
+def strategy_policy_v2_bytes() -> bytes:
+    """Return the exact canonical bytes of the separate accepted V2 package."""
+
+    package_root = resources.files("ringdown_market.strategy")
+    return package_root.joinpath(POLICY_V2_RESOURCE_NAME).read_bytes()
+
+
+def strategy_policy_v2_sha256() -> str:
+    """Verify and return the immutable V2 package digest."""
+
+    actual = hashlib.sha256(strategy_policy_v2_bytes()).hexdigest()
+    if actual != ACCEPTED_EVENT_POLICY_V2_SHA256:
+        raise StrategyPolicyError(
+            "accepted V2 policy bytes do not match the immutable registry digest"
+        )
+    return actual
+
+
+def parse_strategy_policy_v2(raw: bytes) -> StrategyPolicy:
+    """Authenticate, strictly validate, and deeply freeze exact V2 bytes."""
+
+    if type(raw) is not bytes:
+        raise StrategyPolicyError("accepted V2 policy input must be immutable bytes")
+    digest = hashlib.sha256(raw).hexdigest()
+    if digest != ACCEPTED_EVENT_POLICY_V2_SHA256:
+        raise StrategyPolicyError(
+            "accepted V2 policy bytes do not match the immutable registry digest"
+        )
+    try:
+        text = raw.decode("utf-8", errors="strict")
+    except UnicodeDecodeError as error:
+        raise StrategyPolicyError("accepted V2 policy must be valid UTF-8") from error
+    try:
+        parsed = json.loads(
+            text,
+            object_pairs_hook=_unique_object,
+            parse_constant=_reject_constant,
+            parse_float=_reject_float,
+        )
+    except json.JSONDecodeError as error:
+        raise StrategyPolicyError("accepted V2 policy is not valid JSON") from error
+    validated = _validate_v2_policy_shape(parsed)
+    canonical = json.dumps(
+        validated,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    ).encode("utf-8")
+    if raw != canonical:
+        raise StrategyPolicyError("accepted V2 policy bytes are not canonical JSON")
+    frozen = _deep_freeze(validated)
+    if not isinstance(frozen, MappingProxyType):  # pragma: no cover - root is validated above
+        raise StrategyPolicyError("accepted V2 policy root must be an object")
+    return StrategyPolicy(data=frozen, sha256=digest)
+
+
+def load_strategy_policy_v2() -> StrategyPolicy:
+    """Load the exact immutable autonomous-lane V2 policy package."""
+
+    return parse_strategy_policy_v2(strategy_policy_v2_bytes())

@@ -7,8 +7,10 @@ import asyncio
 import hashlib
 import importlib
 import json
+import os
 import sys
 from collections.abc import Callable, Mapping, Sequence
+from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import asdict
 from datetime import UTC, datetime
 from importlib.metadata import version
@@ -53,6 +55,62 @@ def _canonical_json(value: object) -> bytes:
 
 def _sha256(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest()
+
+
+def _autonomous_rejection_bytes(
+    *,
+    error_code: str,
+    release_bytes: bytes | None,
+    arm_record_bytes: bytes | None,
+    pre_host_failure: bool,
+) -> bytes:
+    """Return one sanitized rejection without overstating post-host broker state."""
+
+    if pre_host_failure:
+        broker_mutation = "NOT_ATTEMPTED"
+        claims = ["NO_BROKER_EXECUTION", "NO_CREDENTIALS"]
+        disposition = "REJECTED"
+    else:
+        broker_mutation = "UNKNOWN"
+        claims = ["FAIL_CLOSED", "OPERATOR_INTERVENTION_REQUIRED"]
+        disposition = "MANUAL_RECONCILIATION_REQUIRED"
+
+    unsigned = {
+        "arm_record_input_sha256": (
+            None if arm_record_bytes is None else _sha256(arm_record_bytes)
+        ),
+        "broker_mutation": broker_mutation,
+        "claims": claims,
+        "disposition": disposition,
+        "error_code": error_code,
+        "release_input_sha256": None if release_bytes is None else _sha256(release_bytes),
+        "schema": "esscher.autonomous_host_cli_rejection",
+        "schema_version": 1,
+    }
+    return _canonical_json(
+        {
+            **unsigned,
+            "receipt_sha256": _sha256(_canonical_json(unsigned)),
+        }
+    )
+
+
+def _print_autonomous_rejection(
+    *,
+    error_code: str,
+    release_bytes: bytes | None,
+    arm_record_bytes: bytes | None,
+    pre_host_failure: bool,
+) -> int:
+    print(
+        _autonomous_rejection_bytes(
+            error_code=error_code,
+            release_bytes=release_bytes,
+            arm_record_bytes=arm_record_bytes,
+            pre_host_failure=pre_host_failure,
+        ).decode("utf-8")
+    )
+    return 2 if pre_host_failure else 3
 
 
 def _parse_datetime(value: object, field: str) -> datetime:
@@ -278,6 +336,18 @@ def _build_parser() -> argparse.ArgumentParser:
         help="host-owned module:function returning PaperDemoPlan",
     )
     scheduled.add_argument("--dry-run", action="store_true")
+    autonomous = subparsers.add_parser(
+        "run-autonomous-session",
+        help="rehearse one exact armed autonomous PAPER session with synthetic host ports",
+    )
+    autonomous.add_argument("--release", type=Path, required=True)
+    autonomous.add_argument("--arm", type=Path, required=True)
+    autonomous.add_argument("--state-dir", type=Path, required=True)
+    autonomous.add_argument(
+        "--host-plan",
+        required=True,
+        help="host-owned module:function returning an AutonomousHostInvocation",
+    )
     trace = subparsers.add_parser(
         "render-judge-trace",
         help="render the packaged offline read-only evidence-to-receipt walkthrough",
@@ -304,6 +374,30 @@ def _load_plan_factory(reference: str) -> Callable[[], object]:
     if not callable(factory):
         raise ScheduledManifestRejected("scheduled host-plan target is not callable")
     return factory
+
+
+def _load_autonomous_invocation_factory(reference: str) -> Callable[..., object]:
+    if reference.count(":") != 1:
+        raise ValueError("autonomous host-plan selector is invalid")
+    module_name, attribute = reference.split(":", 1)
+    if (
+        not module_name
+        or not attribute
+        or module_name != module_name.strip()
+        or attribute != attribute.strip()
+    ):
+        raise ValueError("autonomous host-plan selector is invalid")
+    try:
+        factory = getattr(importlib.import_module(module_name), attribute)
+    except (ImportError, AttributeError):
+        raise ValueError("autonomous host-plan selector is unavailable") from None
+    if not callable(factory):
+        raise ValueError("autonomous host-plan target is not callable")
+    return factory
+
+
+def _normalized_cli_path(path: Path) -> Path:
+    return path.expanduser().resolve(strict=False)
 
 
 def main(
@@ -348,6 +442,93 @@ def main(
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_bytes(rendered)
         return 0
+    if args.command == "run-autonomous-session":
+        release_bytes: bytes | None = None
+        arm_record_bytes: bytes | None = None
+        try:
+            from .contracts.strategy_release import (
+                parse_arm_record,
+                parse_strategy_release,
+            )
+
+            release_bytes = args.release.read_bytes()
+            arm_record_bytes = args.arm.read_bytes()
+            parse_strategy_release(release_bytes)
+            parse_arm_record(arm_record_bytes)
+        except (OSError, TypeError, ValueError):
+            return _print_autonomous_rejection(
+                error_code="AUTHORITY_INPUT_REJECTED",
+                release_bytes=release_bytes,
+                arm_record_bytes=arm_record_bytes,
+                pre_host_failure=True,
+            )
+
+        try:
+            from .runtime.autonomous_host import (
+                AutonomousHostBusy,
+                AutonomousHostDisposition,
+                AutonomousHostInvocation,
+                AutonomousHostReceipt,
+                AutonomousHostRejected,
+                run_autonomous_host_invocation,
+            )
+        except ImportError:
+            return _print_autonomous_rejection(
+                error_code="AUTONOMOUS_HOST_UNAVAILABLE",
+                release_bytes=release_bytes,
+                arm_record_bytes=arm_record_bytes,
+                pre_host_failure=True,
+            )
+
+        host_error_code: str | None = None
+        receipt: AutonomousHostReceipt | None = None
+        receipt_bytes: bytes | None = None
+        with (
+            open(os.devnull, "w", encoding="utf-8") as suppressed_output,
+            redirect_stdout(suppressed_output),
+            redirect_stderr(suppressed_output),
+        ):
+            try:
+                invocation_factory = _load_autonomous_invocation_factory(args.host_plan)
+                invocation = invocation_factory(
+                    release_bytes=release_bytes,
+                    arm_record_bytes=arm_record_bytes,
+                    state_dir=args.state_dir,
+                )
+                if not isinstance(invocation, AutonomousHostInvocation):
+                    raise ValueError("autonomous host plan did not return an invocation")
+                if (
+                    invocation.authority_input.release_bytes != release_bytes
+                    or invocation.authority_input.arm_record_bytes != arm_record_bytes
+                    or _normalized_cli_path(invocation.authority_input.state_dir)
+                    != _normalized_cli_path(args.state_dir)
+                ):
+                    raise ValueError("autonomous host invocation substituted CLI authority")
+                receipt = run_autonomous_host_invocation(invocation)
+                if not isinstance(receipt, AutonomousHostReceipt):
+                    raise ValueError("autonomous host runner returned an invalid receipt")
+                receipt_bytes = receipt.to_json_bytes()
+            except AutonomousHostBusy:
+                host_error_code = "AUTONOMOUS_HOST_BUSY"
+            except AutonomousHostRejected:
+                host_error_code = "AUTONOMOUS_HOST_REJECTED"
+            except Exception:
+                host_error_code = "HOST_PLAN_REJECTED"
+
+        if host_error_code is not None or receipt is None or receipt_bytes is None:
+            return _print_autonomous_rejection(
+                error_code=host_error_code or "HOST_PLAN_REJECTED",
+                release_bytes=release_bytes,
+                arm_record_bytes=arm_record_bytes,
+                pre_host_failure=False,
+            )
+
+        print(receipt_bytes.decode("utf-8"))
+        if receipt.disposition is AutonomousHostDisposition.TERMINAL:
+            return 0
+        if receipt.disposition is AutonomousHostDisposition.MANUAL_RECONCILIATION_REQUIRED:
+            return 3
+        return 4
     if args.command == "run-scheduled-event":
         runtime_clock = (lambda: datetime.now(UTC)) if clock is None else clock
         manifest_bytes = args.manifest.read_bytes()

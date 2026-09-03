@@ -1,0 +1,303 @@
+{
+  "adapter_version": "2.3.1",
+  "distribution_type": "PYPI",
+  "provenance_class": "PYPI_RELEASE_NO_GIT_TAG",
+  "pypi_url": "https://pypi.org/project/alpaca-mcp-server/2.3.1/",
+  "receipt_sha256": "5d1ea91a6506ce35057945c93926d2e1e27346ffa335ebd86e341324be3a3160",
+  "runtime": {
+    "all_toolsets_discovered_tool_count": 72,
+    "discovered_tool_count": 26,
+    "fastmcp_spec": "fastmcp>=3.1.0,<4",
+    "fastmcp_version": "3.4.7",
+    "server_toolsets": [
+      "account",
+      "trading"
+    ]
+  },
+  "schema": "esscher.alpaca_mcp_provenance",
+  "schema_version": 1,
+  "sdist": {
+    "filename": "alpaca_mcp_server-2.3.1.tar.gz",
+    "sha256": "0b50c14c8bc62fa7a914606922c92d71819e669edef10db3b386810cc0b3cee1",
+    "size": 112831,
+    "upload_time": "2026-09-01T09:22:19.783690Z"
+  },
+  "selected_tool_schema_canonicalization": "JSON_SORTED_KEYS_COMPACT_UTF8_EXPLICIT_NULL_V1",
+  "selected_tool_schema_count": 6,
+  "selected_tool_schema_sha256": "8df3ec51f2468b6ed938763c3fb8a2d9d8ce2390c18225fe3c9e6d2e3a894787",
+  "selected_tool_schemas": [
+    {
+      "inputSchema": {
+        "properties": {
+          "order_id": {
+            "description": "order id",
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "order_id"
+        ],
+        "type": "object"
+      },
+      "name": "cancel_order_by_id",
+      "outputSchema": null
+    },
+    {
+      "inputSchema": {
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "name": "get_account_info",
+      "outputSchema": {
+        "additionalProperties": true,
+        "type": "object"
+      }
+    },
+    {
+      "inputSchema": {
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "name": "get_all_positions",
+      "outputSchema": {
+        "additionalProperties": true,
+        "type": "object",
+        "x-fastmcp-wrap-result": true
+      }
+    },
+    {
+      "inputSchema": {
+        "properties": {
+          "client_order_id": {
+            "description": "The client-assigned order ID.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_order_id"
+        ],
+        "type": "object"
+      },
+      "name": "get_order_by_client_id",
+      "outputSchema": {
+        "additionalProperties": true,
+        "type": "object"
+      }
+    },
+    {
+      "inputSchema": {
+        "properties": {
+          "nested": {
+            "description": "If true, the result will roll up multi-leg orders under the legs field of primary order.",
+            "type": "boolean"
+          },
+          "order_id": {
+            "description": "order id",
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "order_id"
+        ],
+        "type": "object"
+      },
+      "name": "get_order_by_id",
+      "outputSchema": {
+        "additionalProperties": true,
+        "type": "object"
+      }
+    },
+    {
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "client_order_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Unique idempotency key. If the request times out,\n             you can safely retry with the same value — the API\n             will reject duplicates. Recommended for every order."
+          },
+          "legs": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "List of leg dicts for multi-leg orders (max 4). Each leg\n  requires \"symbol\" and \"ratio_qty\" (string). Optional\n  per-leg fields: \"side\" (\"buy\" or \"sell\") and\n  \"position_intent\"."
+          },
+          "limit_price": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Required for limit orders. For multi-leg, this is\n         the net debit/credit (positive = debit/cost,\n         negative = credit/proceeds)."
+          },
+          "order_class": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Set to \"mleg\" for multi-leg orders. Automatically\n         inferred when legs are provided."
+          },
+          "position_intent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "\"buy_to_open\", \"buy_to_close\", \"sell_to_open\",\n             or \"sell_to_close\". Clarifies whether the trade\n             opens or closes a position. Optional but\n             recommended."
+          },
+          "qty": {
+            "description": "Number of contracts. Required for both single-leg and\n multi-leg orders. For multi-leg, this is the strategy\n multiplier — each leg's ratio_qty is scaled by this\n value (e.g., qty=\"10\" with ratio_qty=\"2\" = 20\n contracts for that leg).",
+            "type": "string"
+          },
+          "side": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "\"buy\" or \"sell\". Required for single-leg."
+          },
+          "symbol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "OCC option symbol (e.g., \"AAPL250321C00150000\").\n    Required for single-leg."
+          },
+          "time_in_force": {
+            "default": "day",
+            "description": "\"day\" only. Options do not support other\n           values.",
+            "type": "string"
+          },
+          "type": {
+            "default": "market",
+            "description": "\"market\" or \"limit\".",
+            "type": "string"
+          }
+        },
+        "required": [
+          "qty"
+        ],
+        "type": "object"
+      },
+      "name": "place_option_order",
+      "outputSchema": {
+        "additionalProperties": true,
+        "type": "object"
+      }
+    }
+  ],
+  "source": {
+    "commit": "94a0d9a721b0e81c5c7bcd1063aaa8eeb8bed087",
+    "comparison_sha256": "9156612590e90a4eeae41c61e3365d8fb23dca1a6fc8de13e0b5765f2afd9791",
+    "files": [
+      {
+        "path": "alpaca_mcp_server/__init__.py",
+        "sha256": "1cc930f8733b019331dd4dbd5fd1ff34770b63c9a0185c8ea8cda2aba28e0113",
+        "size": 623
+      },
+      {
+        "path": "alpaca_mcp_server/cli.py",
+        "sha256": "4d417e2bdb9004cf3b1c48da672e8262ac1367159fd832fc09e39a977b4eed40",
+        "size": 1957
+      },
+      {
+        "path": "alpaca_mcp_server/market_data_overrides.py",
+        "sha256": "104d5ded53a63ae395dbf48ec596ce137fb230457eaf6e14fce6955f532fc9c8",
+        "size": 15254
+      },
+      {
+        "path": "alpaca_mcp_server/overrides.py",
+        "sha256": "bc8503dd3aae8415a5d622899f5170e14945c775336c799ed6a688ca9016e3e3",
+        "size": 14076
+      },
+      {
+        "path": "alpaca_mcp_server/readme_docs.py",
+        "sha256": "68d1261e4608d41d99bb2977476e7a5a3d3720e5bda494736aaf8e6675cccfa7",
+        "size": 9323
+      },
+      {
+        "path": "alpaca_mcp_server/security.py",
+        "sha256": "f050be417925762caca8d4037efb42adf5116cf3cfdc9a0602b5d814a56173ed",
+        "size": 3539
+      },
+      {
+        "path": "alpaca_mcp_server/server.py",
+        "sha256": "c19963b6d923de9f341f80fc1d604cadcbc8ffe9d70d99f0c0a11ffa364bb736",
+        "size": 7617
+      },
+      {
+        "path": "alpaca_mcp_server/specs/market-data-api.json",
+        "sha256": "960d3fed868caffae3f64e04f94e5e7a19e62d8112f6b6cf5c65ecdbb2c3fc92",
+        "size": 182120
+      },
+      {
+        "path": "alpaca_mcp_server/specs/trading-api.json",
+        "sha256": "e78a8c0c38669ae2baa319de08c11613215f8ac087bf2e4f3d2f8c29acafb394",
+        "size": 213695
+      },
+      {
+        "path": "alpaca_mcp_server/tool_registry.py",
+        "sha256": "417a211a01058166249121ac178b2c90beabf66746081c9bbdfa55af3ec983ad",
+        "size": 16459
+      },
+      {
+        "path": "alpaca_mcp_server/toolsets.py",
+        "sha256": "94478057b38e087925fac76e08d387cf496cc7c09753002caf9bb8f6da548428",
+        "size": 4378
+      }
+    ],
+    "matched_file_count": 11,
+    "repository": "https://github.com/alpacahq/alpaca-mcp-server",
+    "version": "2.3.1"
+  },
+  "wheel": {
+    "filename": "alpaca_mcp_server-2.3.1-py3-none-any.whl",
+    "sha256": "f27157048cf46e5f43c68e41af5b62bae7b0c4348e48d13fa896209e65da3813",
+    "size": 108708,
+    "upload_time": "2026-09-01T09:22:20.998616Z"
+  }
+}

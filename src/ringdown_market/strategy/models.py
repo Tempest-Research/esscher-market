@@ -6,6 +6,7 @@ broker execution.  The strategy package is a pure research/data boundary.
 
 from __future__ import annotations
 
+import hashlib
 import re
 import unicodedata
 from dataclasses import dataclass
@@ -892,3 +893,178 @@ class StrategyDecision:
             or self.reaction_relation is not ReactionRelation.NOT_APPLICABLE
         ):
             raise ValueError("abstention must originate from reasoner UNCERTAIN")
+
+
+@dataclass(frozen=True, slots=True)
+class StrategyV2Context:
+    """Host-validated V2 join including ledger-backed memory and news identities.
+
+    This is data, not an authority token.  The host must call
+    ``contracts.validate_strategy_v2_context`` with its trusted ledger
+    immediately before building a request, so public construction of this
+    frozen dataclass cannot promote a structurally plausible context.
+    """
+
+    candidate_manifest: CandidateManifest
+    snapshot: StrategySnapshot
+    feature_receipt: FeatureReceipt
+    episodic_summary: object
+    universe_scan: object | None
+    news_observations: tuple[object, ...]
+    article_attributions: tuple[object, ...]
+    policy_sha256: str
+    candidate_manifest_sha256: str
+    strategy_snapshot_sha256: str
+    feature_receipt_sha256: str
+    episodic_summary_sha256: str
+    universe_scan_sha256: str | None
+    news_source_policy_sha256: str | None
+    news_observation_sha256: tuple[str, ...]
+    article_attribution_sha256: tuple[str, ...]
+    context_sha256: str
+
+
+class StrategyV2DirectionState(StrEnum):
+    """The deliberately non-confirming states of a V2 Kimi direction receipt."""
+
+    PROPOSED_UNCONFIRMED = "PROPOSED_UNCONFIRMED"
+    ABSTAINED = "ABSTAINED"
+    REJECTED = "REJECTED"
+
+
+DIRECTION_ONLY_UNCONFIRMED_AUTHORITY = "DIRECTION_ONLY_UNCONFIRMED"
+
+
+@dataclass(frozen=True, slots=True)
+class StrategyV2DirectionDecision:
+    """A canonical V2 direction receipt with no risk or execution authority.
+
+    This intentionally is not a :class:`StrategyDecision`.  A directional
+    outcome is only a proposal; confirmation, expression compilation, risk,
+    permit issuance, and submission remain separate future boundaries.
+    """
+
+    authority: str
+    state: StrategyV2DirectionState
+    event_id: str
+    security_id: str
+    candidate_id: str
+    cohort_id: str
+    policy_sha256: str
+    candidate_manifest_sha256: str
+    strategy_snapshot_sha256: str
+    feature_receipt_sha256: str
+    episodic_summary_sha256: str
+    context_sha256: str
+    route_sha256: str
+    model_config_sha256: str
+    prompt_sha256: str
+    output_schema_sha256: str
+    request_sha256: str
+    raw_response_bytes: bytes | None
+    raw_response_sha256: str | None
+    reasoner_decision_sha256: str | None
+    transport_status: ExchangeStatus
+    started_at: datetime
+    responded_at: datetime | None
+    deadline_at: datetime
+    decision_at: datetime
+    producer_identity: str
+    producer_build_sha256: str
+    reasoner_direction: Direction | None
+    direction: Direction
+    allowed_citation_ids: tuple[str, ...]
+    evidence_ids: tuple[str, ...]
+    contradictions: tuple[Contradiction, ...]
+    unknowns: tuple[str, ...]
+    strongest_falsifier: Falsifier | None
+    reason_codes: tuple[str, ...]
+    summary: str | None
+
+    def __post_init__(self) -> None:
+        if self.authority != DIRECTION_ONLY_UNCONFIRMED_AUTHORITY:
+            raise ValueError("V2 direction receipt has no confirmation authority")
+        if not isinstance(self.state, StrategyV2DirectionState):
+            raise ValueError("V2 direction receipt state must be closed")
+        for field in (
+            "event_id",
+            "security_id",
+            "candidate_id",
+            "cohort_id",
+            "producer_identity",
+        ):
+            _require_identifier(getattr(self, field), field)
+        for field in (
+            "policy_sha256",
+            "candidate_manifest_sha256",
+            "strategy_snapshot_sha256",
+            "feature_receipt_sha256",
+            "episodic_summary_sha256",
+            "context_sha256",
+            "route_sha256",
+            "model_config_sha256",
+            "prompt_sha256",
+            "output_schema_sha256",
+            "request_sha256",
+            "producer_build_sha256",
+        ):
+            _require_sha256(getattr(self, field), field)
+        if self.raw_response_bytes is None:
+            if self.raw_response_sha256 is not None:
+                raise ValueError("raw response hash requires exact raw response bytes")
+        elif type(self.raw_response_bytes) is not bytes:
+            raise ValueError("raw response bytes must be exact bytes or absent")
+        elif self.raw_response_sha256 != hashlib.sha256(self.raw_response_bytes).hexdigest():
+            raise ValueError("raw response hash does not bind exact raw response bytes")
+        for field in ("raw_response_sha256", "reasoner_decision_sha256"):
+            value = getattr(self, field)
+            if value is not None:
+                _require_sha256(value, field)
+        if not isinstance(self.transport_status, ExchangeStatus):
+            raise ValueError("V2 direction receipt transport status must be closed")
+        for field in ("started_at", "deadline_at", "decision_at"):
+            _require_utc(getattr(self, field), field)
+        if self.responded_at is not None:
+            _require_utc(self.responded_at, "responded_at")
+        if self.deadline_at < self.started_at:
+            raise ValueError("V2 direction deadline cannot precede start")
+        if self.responded_at is not None and self.responded_at < self.started_at:
+            raise ValueError("V2 direction response cannot precede start")
+        if self.decision_at != (self.responded_at or self.deadline_at):
+            raise ValueError("V2 direction decision clock must bind response or deadline")
+        _require_identifiers(self.allowed_citation_ids, "allowed_citation_ids")
+        _require_identifiers(self.evidence_ids, "evidence_ids")
+        _require_reason_codes(self.unknowns, "unknowns")
+        _require_reason_codes(self.reason_codes, "reason_codes")
+        contradiction_keys = tuple(item.evidence_ids for item in self.contradictions)
+        if contradiction_keys != tuple(sorted(set(contradiction_keys))):
+            raise ValueError("V2 direction contradictions must be sorted and unique")
+        if self.summary is not None:
+            _require_normalized_text(
+                self.summary,
+                "V2 direction summary",
+                maximum=_MAX_REASONER_SUMMARY_CHARS,
+            )
+        cited = set(self.evidence_ids)
+        for contradiction in self.contradictions:
+            cited.update(contradiction.evidence_ids)
+        if self.strongest_falsifier is not None:
+            cited.add(self.strongest_falsifier.evidence_id)
+        if self.state is StrategyV2DirectionState.PROPOSED_UNCONFIRMED:
+            if (
+                self.direction not in {Direction.UP, Direction.DOWN}
+                or self.reasoner_direction is not self.direction
+                or self.reason_codes
+                or not self.evidence_ids
+                or self.raw_response_sha256 is None
+                or self.reasoner_decision_sha256 is None
+                or not cited <= set(self.allowed_citation_ids)
+            ):
+                raise ValueError("direction proposals require exact, cited, parsed provider output")
+        elif self.direction is not Direction.UNCERTAIN or not self.reason_codes:
+            raise ValueError("V2 abstentions and rejections require UNCERTAIN plus stable reasons")
+        if self.state is StrategyV2DirectionState.ABSTAINED and (
+            self.reasoner_direction is not Direction.UNCERTAIN
+            or self.reason_codes != ("REASONER_UNCERTAIN",)
+        ):
+            raise ValueError("only an otherwise-valid model UNCERTAIN is an abstention")

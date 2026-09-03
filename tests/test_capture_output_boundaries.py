@@ -9,7 +9,6 @@ from pathlib import Path
 import pytest
 
 from ringdown_market.sourcedata import capture
-from ringdown_market.sourcedata.reasons import CollectorRejected
 
 REPO_ROOT = Path(__file__).parent.parent
 FIXTURE_PATH = REPO_ROOT / "tests" / "fixtures" / "sourcedata" / "synthetic_snapshot_inputs_v1.json"
@@ -103,11 +102,13 @@ def test_capture_rejects_symlinked_output_directory_without_writing_through_it(
     assert tuple(outside_dir.iterdir()) == ()
 
 
-def test_capture_rejects_symlinked_parent_component_without_writing_through_it(
+def test_capture_allows_directory_symlink_ancestor_that_resolves_to_a_directory(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A non-link leaf is still unsafe when an existing parent redirects it."""
+    """A POSIX directory-symlink ancestor is followed when it resolves to a directory."""
 
+    if os.name == "nt":
+        pytest.skip("POSIX directory-symlink ancestors are covered by the junction test")
     outside_parent = tmp_path / "outside-parent"
     outside_parent.mkdir()
     redirected_parent = tmp_path / "redirected-parent"
@@ -116,9 +117,28 @@ def test_capture_rejects_symlinked_parent_component_without_writing_through_it(
     output_dir.mkdir()
 
     monkeypatch.setenv("ESSCHER_CAPTURE_AUTHORIZED", "yes")
+    assert capture.main(_capture_args(output_dir)) == 0
+
+    assert {path.name for path in (outside_parent / "capture-output").iterdir()} == set(
+        CAPTURE_OUTPUT_NAMES
+    )
+
+
+def test_capture_rejects_ancestor_link_that_resolves_to_a_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An ancestor link whose target is not a directory remains rejected."""
+
+    regular_file = tmp_path / "regular-file"
+    regular_file.write_bytes(b"not a directory")
+    redirected_parent = tmp_path / "redirected-parent"
+    _symlink_or_skip(redirected_parent, regular_file)
+    output_dir = redirected_parent / "capture-output"
+
+    monkeypatch.setenv("ESSCHER_CAPTURE_AUTHORIZED", "yes")
     assert capture.main(_capture_args(output_dir)) == 2
 
-    assert tuple(output_dir.iterdir()) == ()
+    assert regular_file.read_bytes() == b"not a directory"
 
 
 def test_capture_rejects_reparse_points_when_platform_exposes_them(
@@ -136,10 +156,10 @@ def test_capture_rejects_reparse_points_when_platform_exposes_them(
     assert tuple(outside_dir.iterdir()) == ()
 
 
-def test_capture_rejects_junction_parent_component_when_platform_exposes_them(
+def test_capture_allows_junction_ancestor_when_platform_exposes_them(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A Windows parent junction must not redirect a non-link output leaf."""
+    """A Windows junction ancestor publishes into the resolved directory."""
 
     outside_parent = tmp_path / "outside-parent"
     outside_parent.mkdir()
@@ -149,8 +169,11 @@ def test_capture_rejects_junction_parent_component_when_platform_exposes_them(
     output_dir.mkdir()
 
     monkeypatch.setenv("ESSCHER_CAPTURE_AUTHORIZED", "yes")
-    assert capture.main(_capture_args(output_dir)) == 2
-    assert tuple((outside_parent / "capture-output").iterdir()) == ()
+    assert capture.main(_capture_args(output_dir)) == 0
+
+    published = outside_parent / "capture-output"
+    assert {path.name for path in published.iterdir()} == set(CAPTURE_OUTPUT_NAMES)
+    assert {path.name for path in output_dir.iterdir()} == set(CAPTURE_OUTPUT_NAMES)
 
 
 def test_capture_replaces_existing_regular_outputs_without_leaving_staging_files(
@@ -195,8 +218,8 @@ def test_windows_capture_pins_output_directory_against_junction_swap(
             swap_attempted = True
             try:
                 output_dir.rmdir()
-            except PermissionError as error:
-                assert error.winerror == 32
+            except OSError as error:
+                assert error.winerror in {32, 145}
                 swap_blocked = True
             else:
                 _junction_or_skip(output_dir, outside_dir)
@@ -254,8 +277,8 @@ def test_windows_capture_pins_existing_parent_against_junction_swap(
 
 
 @pytest.mark.skipif(os.name != "nt", reason="Windows directory handles are required")
-def test_windows_pin_rejects_parent_junction_resolved_during_acquisition(tmp_path: Path) -> None:
-    """The native pin detects a parent redirect that races after lexical validation."""
+def test_windows_pin_follows_junction_parent_to_the_real_directory(tmp_path: Path) -> None:
+    """The native pin admits a junction parent and resolves to the real directory."""
 
     outside_parent = tmp_path / "outside-parent"
     outside_output = outside_parent / "capture-output"
@@ -263,11 +286,11 @@ def test_windows_pin_rejects_parent_junction_resolved_during_acquisition(tmp_pat
     redirected_parent = tmp_path / "redirected-parent"
     _junction_or_skip(redirected_parent, outside_parent)
 
-    with (
-        pytest.raises(CollectorRejected, match="resolved to a different directory"),
-        capture._pin_windows_output_directory(redirected_parent / "capture-output"),
-    ):
-        pass
+    with capture._pin_windows_output_directory(redirected_parent / "capture-output"):
+        sentinel = outside_output / "pin-held.txt"
+        sentinel.write_bytes(b"pinned")
+
+    assert sentinel.read_bytes() == b"pinned"
 
 
 def test_capture_rejects_destination_replaced_with_link_before_publish(

@@ -10,6 +10,7 @@ from typing import Any
 import pytest
 
 import ringdown_market.execution.host_mcp as host_mcp
+from ringdown_market.contracts.execution_policy import ALPACA_MCP_V2_PROTOCOL_SHA256
 from ringdown_market.execution.host_mcp import (
     HostMcpAccountError,
     HostMcpConfigurationError,
@@ -24,7 +25,6 @@ from ringdown_market.execution.host_mcp import (
 )
 from ringdown_market.execution.lifecycle_mcp import LifecycleMcpPaperBroker
 from ringdown_market.execution.mcp import (
-    ALPACA_MCP_COMMIT,
     ALPACA_MCP_VERSION,
     CANCEL_TOOL,
     OPEN_TOOL,
@@ -108,12 +108,27 @@ def test_session_identity_is_fixed_to_the_pinned_official_adapter() -> None:
     assert identity.environment is HostMcpEnvironment.PAPER
     assert identity.adapter == "ALPACA_MCP"
     assert identity.adapter_version == ALPACA_MCP_VERSION
-    assert identity.adapter_commit == ALPACA_MCP_COMMIT
+    assert identity.provenance_class == "PYPI_RELEASE_NO_GIT_TAG"
+    assert identity.execution_protocol_sha256 == ALPACA_MCP_V2_PROTOCOL_SHA256
     assert set(identity.__dataclass_fields__) == {
         "environment",
         "adapter",
         "adapter_version",
-        "adapter_commit",
+        "distribution_type",
+        "wheel_filename",
+        "wheel_sha256",
+        "sdist_filename",
+        "sdist_sha256",
+        "provenance_class",
+        "source_equivalent_version",
+        "source_equivalent_commit",
+        "fastmcp_version",
+        "fastmcp_spec",
+        "discovered_tool_count",
+        "selected_schema_count",
+        "selected_schema_sha256",
+        "tool_names",
+        "execution_protocol_sha256",
     }
 
 
@@ -297,7 +312,21 @@ def test_prepared_session_rejects_raw_or_different_guarded_session_with_copied_o
         ("environment", "PAPER"),
         ("adapter", "UNPINNED_ADAPTER"),
         ("adapter_version", "untrusted"),
-        ("adapter_commit", "untrusted"),
+        ("distribution_type", "untrusted"),
+        ("wheel_filename", "untrusted"),
+        ("wheel_sha256", "0" * 64),
+        ("sdist_filename", "untrusted"),
+        ("sdist_sha256", "0" * 64),
+        ("provenance_class", "untrusted"),
+        ("source_equivalent_version", "untrusted"),
+        ("source_equivalent_commit", "0" * 40),
+        ("fastmcp_version", "untrusted"),
+        ("fastmcp_spec", "untrusted"),
+        ("discovered_tool_count", 0),
+        ("selected_schema_count", 0),
+        ("selected_schema_sha256", "0" * 64),
+        ("tool_names", ()),
+        ("execution_protocol_sha256", "0" * 64),
         ("observed_at", NOW.replace(tzinfo=None)),
     ),
 )

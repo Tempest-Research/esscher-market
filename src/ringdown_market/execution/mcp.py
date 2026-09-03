@@ -13,9 +13,9 @@ from enum import StrEnum
 from typing import Protocol
 
 from ringdown_market.contracts.execution_policy import (
-    ALPACA_MCP_COMMIT,
-    ALPACA_MCP_PROTOCOL_SHA256,
-    ALPACA_MCP_VERSION,
+    ALPACA_MCP_V2_PROTOCOL_SHA256,
+    ALPACA_MCP_V2_PROVENANCE,
+    ALPACA_MCP_V2_VERSION,
     CANCEL_TOOL,
     OPEN_TOOL,
     ORDER_BY_ID_TOOL,
@@ -35,6 +35,8 @@ from .models import (
     RunMode,
     debit_vertical_permit_id,
 )
+
+ALPACA_MCP_VERSION = ALPACA_MCP_V2_VERSION
 
 
 class PermitNotExecutable(RuntimeError):
@@ -156,8 +158,7 @@ def build_lifecycle_order_call(
     request_sha256 = _sha256(
         {
             "adapter": "ALPACA_MCP",
-            "adapter_version": ALPACA_MCP_VERSION,
-            "adapter_commit": ALPACA_MCP_COMMIT,
+            "adapter_version": ALPACA_MCP_V2_VERSION,
             "tool": OPEN_TOOL,
             "arguments": arguments,
         }
@@ -183,8 +184,9 @@ class OpenOrderReceipt:
     run_mode: RunMode
     data_class: DataClass
     adapter: str = "ALPACA_MCP"
-    adapter_version: str = ALPACA_MCP_VERSION
-    adapter_commit: str = ALPACA_MCP_COMMIT
+    adapter_version: str = ALPACA_MCP_V2_VERSION
+    provenance_class: str = ALPACA_MCP_V2_PROVENANCE
+    execution_protocol_sha256: str = ALPACA_MCP_V2_PROTOCOL_SHA256
 
 
 class PaperLifecycleOutcome(StrEnum):
@@ -248,7 +250,7 @@ def _validate_registered_open_permit(permit: DebitVerticalPermit) -> None:
     expected_id = debit_vertical_permit_id(permit)
     if (
         permit.protocol_sha256 != RESEARCH_DECISION_PROTOCOL_SHA256
-        or permit.execution_protocol_sha256 != ALPACA_MCP_PROTOCOL_SHA256
+        or permit.execution_protocol_sha256 != ALPACA_MCP_V2_PROTOCOL_SHA256
         or permit.policy_sha256 != PAPER_PERMIT_POLICY_SHA256
         or permit.permit_id != expected_id
         or permit.event_run_id != paper_event_run_id(permit.decision_sha256)
@@ -317,8 +319,7 @@ def build_open_order_call(permit: DebitVerticalPermit) -> OpenOrderCall:
     request_sha256 = _sha256(
         {
             "adapter": "ALPACA_MCP",
-            "adapter_version": ALPACA_MCP_VERSION,
-            "adapter_commit": ALPACA_MCP_COMMIT,
+            "adapter_version": ALPACA_MCP_V2_VERSION,
             "tool": OPEN_TOOL,
             "arguments": arguments,
         }
@@ -403,8 +404,7 @@ def build_close_order_call(
     request_sha256 = _sha256(
         {
             "adapter": "ALPACA_MCP",
-            "adapter_version": ALPACA_MCP_VERSION,
-            "adapter_commit": ALPACA_MCP_COMMIT,
+            "adapter_version": ALPACA_MCP_V2_VERSION,
             "tool": OPEN_TOOL,
             "arguments": arguments,
         }
@@ -667,8 +667,9 @@ class McpPaperBroker:
             raise PermitNotExecutable("open receipt is outside the paper competition boundary")
         if (
             open_receipt.adapter != "ALPACA_MCP"
-            or open_receipt.adapter_version != ALPACA_MCP_VERSION
-            or open_receipt.adapter_commit != ALPACA_MCP_COMMIT
+            or open_receipt.adapter_version != ALPACA_MCP_V2_VERSION
+            or open_receipt.provenance_class != ALPACA_MCP_V2_PROVENANCE
+            or open_receipt.execution_protocol_sha256 != ALPACA_MCP_V2_PROTOCOL_SHA256
         ):
             raise PermitNotExecutable("open receipt does not match the pinned MCP adapter")
 

@@ -403,11 +403,11 @@ def _validate_latency_profile(
     record = _strict_object(measurement, path=f"{path}.measurement", fields=_MEASUREMENT_FIELDS)
     kind = record["kind"]
     if data_class == DATA_CLASS_REAL:
-        if kind != "HOST_MEASURED":
+        if kind not in ("HOST_MEASURED", "PREREGISTERED"):
             _reject(
                 PanelRejectionReason.LATENCY_PROFILE_NOT_MEASURED,
                 f"{path}.measurement.kind",
-                "real panels require a host-measured p95 latency profile",
+                "real panels require a measured or preregistered p95 latency profile",
             )
     elif kind != "SYNTHETIC":
         _reject(
