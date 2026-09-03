@@ -63,6 +63,8 @@ AUTONOMOUS_HOST_RECEIPT_SCHEMA_VERSION = 1
 SYNTHETIC_BROKER_TRUTH_SCHEMA = "esscher.synthetic_broker_truth"
 SYNTHETIC_BROKER_TRUTH_SCHEMA_VERSION = 1
 AUTONOMOUS_HOST_STATE_FILENAME = "autonomous.sqlite3"
+PAPER_MCP_BROKER_TRUTH_SCHEMA = "esscher.paper_mcp_broker_truth"
+PAPER_MCP_BROKER_TRUTH_SCHEMA_VERSION = 1
 AUTONOMOUS_HOST_CLAIMS = (
     "SYNTHETIC_FAKE",
     "NOT_HISTORICAL_DATA",
@@ -70,25 +72,42 @@ AUTONOMOUS_HOST_CLAIMS = (
     "HOST_PLAN_ATTESTS_NO_BROKER_EXECUTION",
 )
 AUTONOMOUS_HOST_CLAIM_BASIS = "HOST_PLAN_ATTESTATION"
+# Issue #90: claims for a production PAPER_MCP host receipt.  The run interacts
+# with a real PAPER broker through the guarded MCP door, so the synthetic
+# attestation claims never apply; the receipt still proves no alpha, no
+# historical data, and records no credential material.
+AUTONOMOUS_HOST_PAPER_MCP_CLAIMS = (
+    "PAPER_OPERATIONAL_RESULT",
+    "NOT_HISTORICAL_DATA",
+    "NOT_ALPHA_EVIDENCE",
+    "NO_CREDENTIALS_RECORDED",
+)
+AUTONOMOUS_HOST_PAPER_MCP_CLAIM_BASIS = "PRODUCTION_COMPOSITION"
+AUTONOMOUS_HOST_PAPER_MCP_DATA_CLASS = "PAPER_MCP_HOST_OBSERVATION"
 
 _DIGEST = re.compile(r"[0-9a-f]{64}")
 _REVISION = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})")
 _BOUNDED_IDENTIFIER = re.compile(r"[A-Za-z][A-Za-z0-9_.:-]{0,127}")
 _MANUAL_REASON_CODES = frozenset(
     {
+        "ACTIVITY_MANUAL_ROUTE",
         "ARM_IDENTITY_MISMATCH",
+        "BLOCKED_RETRY_BUDGET_EXHAUSTED",
         "CLAIM_RECOVERY_UNKNOWN",
         "HARD_FLAT_UNRESOLVED",
         "LATE_WINDOW",
         "PARTIAL_FILL",
         "PORT_EXCEPTION",
         "PORT_OUTPUT_INVALID",
+        "PREFLIGHT_NOT_PASSED",
         "PROVIDER_TIMEOUT_BEFORE_MUTATION",
         "PROVIDER_TIMEOUT_UNKNOWN_MUTATION",
         "RECONCILIATION_FAILED",
         "RECONCILIATION_IDENTITY_MISMATCH",
         "RECONCILIATION_INCOMPLETE",
+        "RELEASE_STALE",
         "RISK_FREEZE",
+        "ROUTE_NOT_APPROVED",
         "UNEXPECTED_ACTIVE_LIFECYCLE",
         "UNKNOWN_BROKER_STATE",
         "WINDOW_EXPIRED",
@@ -121,9 +140,17 @@ class AutonomousHostDisposition(StrEnum):
 
 
 class HostExecutionClass(StrEnum):
-    """The only execution boundary admitted by this rehearsal scaffold."""
+    """The execution boundaries admitted by the autonomous host runner.
+
+    ``SYNTHETIC_FAKE`` is the closed offline rehearsal class.  ``PAPER_MCP``
+    is the production class (#90): it only exists through the package-owned
+    production composition over one guarded, preflighted official Alpaca MCP
+    PAPER session.  The classes are mutually exclusive per plan and a plan can
+    never mix their backends or fall back from one to the other.
+    """
 
     SYNTHETIC_FAKE = "SYNTHETIC_FAKE"
+    PAPER_MCP = "PAPER_MCP"
 
 
 class HostReconciliationStatus(StrEnum):
@@ -500,9 +527,12 @@ class SyntheticBrokerTruth:
         )
 
 
-def _synthetic_broker_truth_payload(value: SyntheticBrokerTruth) -> dict[str, object]:
-    if type(value) is not SyntheticBrokerTruth:
-        raise AutonomousHostRejected("broker truth must be SyntheticBrokerTruth")
+def _broker_truth_payload(
+    value: SyntheticBrokerTruth | PaperMcpBrokerTruth,
+    *,
+    schema: str,
+    schema_version: int,
+) -> dict[str, object]:
     active_ids = _canonical_bounded_identity_set(
         value.active_lifecycle_ids,
         path="broker_truth.active_lifecycle_ids",
@@ -551,14 +581,24 @@ def _synthetic_broker_truth_payload(value: SyntheticBrokerTruth) -> dict[str, ob
             value.positions_state_sha256,
             path="broker_truth.positions_state_sha256",
         ),
-        "schema": SYNTHETIC_BROKER_TRUTH_SCHEMA,
-        "schema_version": SYNTHETIC_BROKER_TRUTH_SCHEMA_VERSION,
+        "schema": schema,
+        "schema_version": schema_version,
         "session_arm_sha256": _digest(
             value.session_arm_sha256,
             path="broker_truth.session_arm_sha256",
         ),
         "session_id": _identifier(value.session_id, path="broker_truth.session_id"),
     }
+
+
+def _synthetic_broker_truth_payload(value: SyntheticBrokerTruth) -> dict[str, object]:
+    if type(value) is not SyntheticBrokerTruth:
+        raise AutonomousHostRejected("broker truth must be SyntheticBrokerTruth")
+    return _broker_truth_payload(
+        value,
+        schema=SYNTHETIC_BROKER_TRUTH_SCHEMA,
+        schema_version=SYNTHETIC_BROKER_TRUTH_SCHEMA_VERSION,
+    )
 
 
 def synthetic_broker_truth_bytes(value: SyntheticBrokerTruth) -> bytes:
@@ -574,6 +614,90 @@ def synthetic_broker_truth_sha256(value: SyntheticBrokerTruth) -> str:
 
 
 @dataclass(frozen=True, slots=True)
+class PaperMcpBrokerTruth:
+    """Sanitized broker truth observed through the production PAPER_MCP door.
+
+    Structurally identical to the synthetic record but content-addressed under
+    its own schema, so a production receipt can never be mistaken for (or
+    forged from) a synthetic rehearsal truth, and vice versa.
+    """
+
+    session_id: str
+    session_arm_sha256: str
+    account_fingerprint_sha256: str
+    execution_protocol_sha256: str
+    observed_at: datetime
+    phase: str
+    active_lifecycle_ids: tuple[str, ...]
+    account_state_sha256: str
+    orders_state_sha256: str
+    positions_state_sha256: str
+    open_order_count: int
+    open_position_count: int
+    is_flat: bool
+
+    @classmethod
+    def for_request(
+        cls,
+        request: ReconciliationRequest,
+        *,
+        account_state_sha256: str,
+        orders_state_sha256: str,
+        positions_state_sha256: str,
+        open_order_count: int,
+        open_position_count: int,
+        is_flat: bool,
+    ) -> PaperMcpBrokerTruth:
+        return cls(
+            session_id=request.session_id,
+            session_arm_sha256=request.arm_sha256,
+            account_fingerprint_sha256=request.account_fingerprint_sha256,
+            execution_protocol_sha256=request.execution_protocol_sha256,
+            observed_at=request.observed_at,
+            phase=request.phase,
+            active_lifecycle_ids=request.active_lifecycle_ids,
+            account_state_sha256=account_state_sha256,
+            orders_state_sha256=orders_state_sha256,
+            positions_state_sha256=positions_state_sha256,
+            open_order_count=open_order_count,
+            open_position_count=open_position_count,
+            is_flat=is_flat,
+        )
+
+
+def _paper_mcp_broker_truth_payload(value: PaperMcpBrokerTruth) -> dict[str, object]:
+    if type(value) is not PaperMcpBrokerTruth:
+        raise AutonomousHostRejected("broker truth must be PaperMcpBrokerTruth")
+    return _broker_truth_payload(
+        value,
+        schema=PAPER_MCP_BROKER_TRUTH_SCHEMA,
+        schema_version=PAPER_MCP_BROKER_TRUTH_SCHEMA_VERSION,
+    )
+
+
+def paper_mcp_broker_truth_bytes(value: PaperMcpBrokerTruth) -> bytes:
+    """Return the canonical production broker-truth bytes."""
+
+    return _canonical_json(_paper_mcp_broker_truth_payload(value))
+
+
+def paper_mcp_broker_truth_sha256(value: PaperMcpBrokerTruth) -> str:
+    """Content-address one strict production broker-truth fact."""
+
+    return _sha256(paper_mcp_broker_truth_bytes(value))
+
+
+def broker_truth_record_sha256(value: object) -> str:
+    """Dispatch the exact truth-class content address; unknown types fail closed."""
+
+    if type(value) is SyntheticBrokerTruth:
+        return synthetic_broker_truth_sha256(value)
+    if type(value) is PaperMcpBrokerTruth:
+        return paper_mcp_broker_truth_sha256(value)
+    raise AutonomousHostRejected("broker truth record type is unsupported")
+
+
+@dataclass(frozen=True, slots=True)
 class HostReconciliationObservation:
     session_id: str
     arm_sha256: str
@@ -583,14 +707,14 @@ class HostReconciliationObservation:
     phase: str
     active_lifecycle_ids: tuple[str, ...]
     status: HostReconciliationStatus
-    broker_truth: SyntheticBrokerTruth
+    broker_truth: SyntheticBrokerTruth | PaperMcpBrokerTruth
 
     @classmethod
     def complete(
         cls,
         request: ReconciliationRequest,
         *,
-        broker_truth: SyntheticBrokerTruth,
+        broker_truth: SyntheticBrokerTruth | PaperMcpBrokerTruth,
     ) -> HostReconciliationObservation:
         return cls(
             session_id=request.session_id,
@@ -824,8 +948,14 @@ class AutonomousHostPlan:
 
 
 class HostReconciliationAdapter:
-    def __init__(self, backend: HostReconciliationBackend) -> None:
+    def __init__(
+        self,
+        backend: HostReconciliationBackend,
+        *,
+        execution_class: HostExecutionClass = HostExecutionClass.SYNTHETIC_FAKE,
+    ) -> None:
         self._backend = backend
+        self._execution_class = execution_class
 
     def reconcile(self, request: ReconciliationRequest) -> ReconciliationReceipt:
         receipt, _ = self.reconcile_with_truth(request)
@@ -857,8 +987,15 @@ class HostReconciliationAdapter:
         ):
             raise AutonomousHostBackendRejected("RECONCILIATION_IDENTITY_MISMATCH")
         truth = observation.broker_truth
+        expected_truth_type = (
+            SyntheticBrokerTruth
+            if self._execution_class is HostExecutionClass.SYNTHETIC_FAKE
+            else PaperMcpBrokerTruth
+        )
+        if type(truth) is not expected_truth_type:
+            raise AutonomousHostBackendRejected("PORT_OUTPUT_INVALID")
         try:
-            broker_truth_sha256 = synthetic_broker_truth_sha256(truth)
+            broker_truth_sha256 = broker_truth_record_sha256(truth)
         except AutonomousHostRejected as error:
             raise AutonomousHostBackendRejected("PORT_OUTPUT_INVALID") from error
         if (
@@ -1081,13 +1218,27 @@ class HostLifecycleCloserAdapter:
         raise AutonomousHostBackendRejected("PORT_OUTPUT_INVALID")
 
 
+def _production_binding_digest(value: object) -> str | None:
+    """Return the backend's production binding digest, or None when absent.
+
+    Production backends minted by the package-owned PAPER_MCP composition carry
+    one identical content-addressed binding over the session/arm/capability/
+    route identities they were composed from.  Like the other capability seams
+    in this repository, this is a provenance boundary for ordinary callers, not
+    a claim to resist arbitrary in-process reflection.
+    """
+
+    binding = getattr(value, "production_binding_sha256", None)
+    if binding is None:
+        return None
+    if not isinstance(binding, str) or _DIGEST.fullmatch(binding) is None:
+        raise AutonomousHostRejected("production backend binding digest is invalid")
+    return binding
+
+
 def _validate_plan(value: object) -> AutonomousHostPlan:
     if type(value) is not AutonomousHostPlan:
         raise AutonomousHostRejected("plan_factory must return AutonomousHostPlan")
-    if value.execution_class is not HostExecutionClass.SYNTHETIC_FAKE:
-        raise AutonomousHostRejected(
-            "autonomous host plan must attest the closed SYNTHETIC_FAKE execution class"
-        )
     required = (
         (value.reconciliation_backend, "observe_reconciliation"),
         (value.collector_backend, "observe_due_window"),
@@ -1096,6 +1247,23 @@ def _validate_plan(value: object) -> AutonomousHostPlan:
     )
     if any(not callable(getattr(backend, method, None)) for backend, method in required):
         raise AutonomousHostRejected("autonomous host plan contains an invalid backend")
+    bindings = tuple(_production_binding_digest(backend) for backend, _method in required)
+    if value.execution_class is HostExecutionClass.SYNTHETIC_FAKE:
+        if any(binding is not None for binding in bindings):
+            raise AutonomousHostRejected(
+                "SYNTHETIC_FAKE plans cannot carry production PAPER_MCP backends"
+            )
+    elif value.execution_class is HostExecutionClass.PAPER_MCP:
+        if any(binding is None for binding in bindings):
+            raise AutonomousHostRejected(
+                "PAPER_MCP plans require every backend from the package production composition"
+            )
+        if len(set(bindings)) != 1:
+            raise AutonomousHostRejected(
+                "PAPER_MCP backends must share one identical production binding"
+            )
+    else:
+        raise AutonomousHostRejected("autonomous host plan attests an unknown execution class")
     return value
 
 
@@ -1202,6 +1370,7 @@ class AutonomousHostReceipt:
         reconciliation_phase: str,
         reconciliation_broker_truth_sha256: str | None,
         terminal_flat_proven: bool,
+        execution_class: HostExecutionClass = HostExecutionClass.SYNTHETIC_FAKE,
     ) -> AutonomousHostReceipt:
         counts = MappingProxyType(
             _canonical_disposition_counts(
@@ -1229,7 +1398,7 @@ class AutonomousHostReceipt:
             runtime_code_revision=authority.runtime_code_revision,
             account_capability_id=authority.account_capability_id,
             account_fingerprint_sha256=authority.account_fingerprint_sha256,
-            execution_class=HostExecutionClass.SYNTHETIC_FAKE,
+            execution_class=execution_class,
             session_id=authority.session_arm.session_id,
             disposition=disposition,
             observed_at=_utc(observed_at, path="receipt.observed_at"),
@@ -1312,8 +1481,16 @@ def _receipt_payload(value: AutonomousHostReceipt) -> dict[str, object]:
         item = getattr(value, name)
         if item is not None:
             _digest(item, path=f"receipt.{name}")
-    if value.execution_class is not HostExecutionClass.SYNTHETIC_FAKE:
-        raise AutonomousHostRejected("receipt execution_class must remain SYNTHETIC_FAKE")
+    if value.execution_class is HostExecutionClass.SYNTHETIC_FAKE:
+        claims: tuple[str, ...] = AUTONOMOUS_HOST_CLAIMS
+        claim_basis = AUTONOMOUS_HOST_CLAIM_BASIS
+        data_class = "SYNTHETIC_CONTRACT_FIXTURE"
+    elif value.execution_class is HostExecutionClass.PAPER_MCP:
+        claims = AUTONOMOUS_HOST_PAPER_MCP_CLAIMS
+        claim_basis = AUTONOMOUS_HOST_PAPER_MCP_CLAIM_BASIS
+        data_class = AUTONOMOUS_HOST_PAPER_MCP_DATA_CLASS
+    else:
+        raise AutonomousHostRejected("receipt execution_class is unsupported")
     if value.reconciliation_phase not in {"CHECKPOINT", "FINAL"}:
         raise AutonomousHostRejected("receipt reconciliation_phase is unsupported")
     if value.reconciliation_phase == "CHECKPOINT" and value.final_summary_sha256 is not None:
@@ -1355,9 +1532,9 @@ def _receipt_payload(value: AutonomousHostReceipt) -> dict[str, object]:
         "account_capability_id": value.account_capability_id,
         "account_fingerprint_sha256": value.account_fingerprint_sha256,
         "arm_record_sha256": value.arm_record_sha256,
-        "claim_basis": AUTONOMOUS_HOST_CLAIM_BASIS,
-        "claims": list(AUTONOMOUS_HOST_CLAIMS),
-        "data_class": "SYNTHETIC_CONTRACT_FIXTURE",
+        "claim_basis": claim_basis,
+        "claims": list(claims),
+        "data_class": data_class,
         "disposition": value.disposition.value,
         "disposition_counts": counts,
         "execution_class": value.execution_class.value,
@@ -1417,7 +1594,9 @@ def run_autonomous_host_command(
             ) from error
         existing_summary = store.final_summary(authority.session_arm.session_id)
         plan = _validate_plan(plan_factory(authority))
-        reconciler = HostReconciliationAdapter(plan.reconciliation_backend)
+        reconciler = HostReconciliationAdapter(
+            plan.reconciliation_backend, execution_class=plan.execution_class
+        )
         ports = AutonomousSessionPorts(
             reconciler=reconciler,
             collector=HostDueWindowCollectorAdapter(plan.collector_backend),
@@ -1510,6 +1689,7 @@ def run_autonomous_host_command(
             reconciliation_phase=reconciliation_phase,
             reconciliation_broker_truth_sha256=reconciliation_broker_truth_sha256,
             terminal_flat_proven=terminal_flat_proven,
+            execution_class=plan.execution_class,
         )
 
 
@@ -1528,9 +1708,14 @@ def run_autonomous_host_invocation(
 __all__ = [
     "AUTONOMOUS_HOST_CLAIMS",
     "AUTONOMOUS_HOST_CLAIM_BASIS",
+    "AUTONOMOUS_HOST_PAPER_MCP_CLAIMS",
+    "AUTONOMOUS_HOST_PAPER_MCP_CLAIM_BASIS",
+    "AUTONOMOUS_HOST_PAPER_MCP_DATA_CLASS",
     "AUTONOMOUS_HOST_RECEIPT_SCHEMA",
     "AUTONOMOUS_HOST_RECEIPT_SCHEMA_VERSION",
     "AUTONOMOUS_HOST_STATE_FILENAME",
+    "PAPER_MCP_BROKER_TRUTH_SCHEMA",
+    "PAPER_MCP_BROKER_TRUTH_SCHEMA_VERSION",
     "SYNTHETIC_BROKER_TRUTH_SCHEMA",
     "SYNTHETIC_BROKER_TRUTH_SCHEMA_VERSION",
     "AutonomousHostAuthorityInput",
@@ -1558,8 +1743,12 @@ __all__ = [
     "HostReconciliationBackend",
     "HostReconciliationObservation",
     "HostReconciliationStatus",
+    "PaperMcpBrokerTruth",
     "SyntheticBrokerTruth",
     "ValidatedAutonomousHostAuthority",
+    "broker_truth_record_sha256",
+    "paper_mcp_broker_truth_bytes",
+    "paper_mcp_broker_truth_sha256",
     "run_autonomous_host_command",
     "run_autonomous_host_invocation",
     "synthetic_broker_truth_bytes",
