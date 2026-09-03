@@ -1,0 +1,75 @@
+{
+  "provenance": {
+    "claim": "NOT_BROKER_CONNECTIVITY_EVIDENCE",
+    "class": "SYNTHETIC_BROKER_SHAPED",
+    "mapping_sha256": "e6b5926eaf803df3d2504c9074b524c51c058b3e6250d49727397f7323864de7",
+    "note": "Invented records in the exact shape the pinned alpaca-mcp-server 2.3.1 get_account_activities tool returns. No real account was queried; no credential was used.",
+    "source_id": "alpaca.account_activities.v2"
+  },
+  "schema": "esscher.synthetic_broker_shaped_activities_fixture",
+  "schema_version": 1,
+  "window": {
+    "page_size": 2,
+    "window_end": "2026-09-19T00:00:00.000000Z",
+    "window_start": "2026-09-18T00:00:00.000000Z"
+  },
+  "pages": [
+    [
+      {
+        "activity_type": "FILL",
+        "id": "20260918100000000::fill0001::1",
+        "order_id": "9a8b7c6d-0001-4000-8000-000000000001",
+        "price": "1.95",
+        "qty": "1",
+        "side": "buy",
+        "symbol": "AAPL260918C00061000",
+        "transaction_time": "2026-09-18T10:00:00Z",
+        "type": "fill"
+      },
+      {
+        "activity_type": "OPASN",
+        "date": "2026-09-18",
+        "description": "AAPL260918C00061000 ASSIGNED",
+        "id": "20260918110000000::opasn001::1",
+        "qty": "1",
+        "symbol": "AAPL260918C00061000",
+        "transaction_time": "2026-09-18T11:00:00Z",
+        "type": "assignment"
+      }
+    ],
+    [
+      {
+        "activity_type": "OPEXC",
+        "date": "2026-09-18",
+        "description": "AAPL260918P00060000 EXERCISED",
+        "id": "20260918120000000::opexc001::1",
+        "qty": "2",
+        "symbol": "AAPL260918P00060000",
+        "transaction_time": "2026-09-18T12:00:00Z",
+        "type": "exercise"
+      },
+      {
+        "activity_type": "OPCA",
+        "date": "2026-09-18",
+        "description": "AAPL260918C00061000 ADJUSTED",
+        "id": "20260918130000000::opca0001::1",
+        "qty": "1",
+        "symbol": "AAPL260918C00061000",
+        "transaction_time": "2026-09-18T13:00:00Z",
+        "type": "adjustment"
+      }
+    ],
+    [
+      {
+        "activity_type": "OPEXP",
+        "date": "2026-09-18",
+        "description": "AAPL260918C00061000 EXPIRED",
+        "id": "20260918140000000::opexp001::1",
+        "qty": "1",
+        "symbol": "AAPL260918C00061000",
+        "transaction_time": "2026-09-18T14:00:00Z",
+        "type": "expiration"
+      }
+    ]
+  ]
+}
