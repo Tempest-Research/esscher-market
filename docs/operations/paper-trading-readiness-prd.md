@@ -103,7 +103,15 @@ Required sequence:
 
 - One open integration PR targets `main`; superseded stack PRs are linked but not silently discarded.
 - Commit authorship remains attributable.
-- `git diff --check`, formatting/lint/type gates, full pytest, and package build pass on the exact head.
+- `git diff --check`, formatting/lint, full pytest, and package build pass on the exact head.
+- Because the bound `main` baseline has no configured type checker and does not pass an unsuppressed whole-repository type check, the RC uses this approved no-new-regressions type policy:
+  - pin Pyright `1.1.411` and run it with the same environment over the exact base SHA and exact RC SHA;
+  - every added or modified Python file under `src/`, `tests/`, or `scripts/` must have zero Pyright `error` diagnostics on the RC;
+  - for unchanged Python files, normalized RC error diagnostics must be a subset of the base diagnostics, and the RC total error count must not exceed the base total;
+  - normalize unchanged-file diagnostics by repository-relative file, rule, severity, and message so line movement alone cannot manufacture a regression or a pass;
+  - do not add ignores, suppressions, generated waiver baselines, or relaxed Pyright configuration merely to pass this gate;
+  - record the exact tool version, commands, base/RC identities, JSON reports, changed-file set, normalization method, counts, and comparison result in the integration evidence.
+- Historical typing debt remains separately tracked and cannot be represented as corrected by this RC.
 - Version impact is declared **minor** and package/changelog report `0.4.0` consistently.
 - Ben reviews the diff and public PR wording before the draft is marked ready.
 
