@@ -1,0 +1,317 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "verify-bundle-diff",
+			"type": "shell",
+			"command": "C:/Python312/python.exe",
+			"args": [
+				"-m",
+				"pytest",
+				"tests/test_bundle_diff.py",
+				"-q"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "full-repo-verify",
+			"type": "shell",
+			"command": "C:/Python312/python.exe",
+			"args": [
+				"-m",
+				"pytest",
+				"-q"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "git-status",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"--no-pager",
+				"status",
+				"-sb"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "misc"
+		},
+		{
+			"label": "git-branch-check",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"--no-pager",
+				"branch",
+				"--show-current"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "misc"
+		},
+		{
+			"label": "git-remote-check",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"--no-pager",
+				"remote",
+				"-v"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "misc"
+		},
+		{
+			"label": "gh-auth-check",
+			"type": "shell",
+			"command": "gh",
+			"args": [
+				"auth",
+				"status"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "misc"
+		},
+		{
+			"label": "git-commit-fix",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"add",
+				"src/ringdown_market/audit/bundle_diff.py",
+				"tests/test_bundle_diff.py"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "misc"
+		},
+		{
+			"label": "git-commit-message",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"commit",
+				"-m",
+				"Fix canonical hashing for set-like artifact fields"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "misc"
+		},
+		{
+			"label": "git-push-attempt",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"push",
+				"--set-upstream",
+				"origin",
+				"feat/66-option-event-reconciliation"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "misc"
+		},
+		{
+			"label": "git-fetch-sync",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"fetch",
+				"origin"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "misc"
+		},
+		{
+			"label": "git-branch-status",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"--no-pager",
+				"log",
+				"--oneline",
+				"--decorate",
+				"--graph",
+				"--max-count",
+				"20",
+				"--all"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "misc"
+		},
+		{
+			"label": "git-push-force",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"push",
+				"--force-with-lease",
+				"origin",
+				"feat/66-option-event-reconciliation"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "misc"
+		},
+		{
+			"label": "git-log-branch",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"--no-pager",
+				"log",
+				"--oneline",
+				"feat/66-option-event-reconciliation",
+				"-10"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "misc"
+		},
+		{
+			"label": "full-bundle-diff-test",
+			"type": "shell",
+			"command": "C:/Python312/python.exe",
+			"args": [
+				"-m",
+				"pytest",
+				"tests/test_bundle_diff.py",
+				"-v",
+				"--tb=short"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "git-show-commit",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"--no-pager",
+				"show",
+				"--stat",
+				"HEAD"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "misc"
+		},
+		{
+			"label": "git-diff-check",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"--no-pager",
+				"diff",
+				"--name-only",
+				"origin/feat/66-option-event-reconciliation...HEAD"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "misc"
+		},
+		{
+			"label": "gh-pr-create",
+			"type": "shell",
+			"command": "gh",
+			"args": [
+				"pr",
+				"create",
+				"--title",
+				"Fix canonical hashing for set-like artifact fields",
+				"--body-file",
+				"DRAFT_PR_CANONICAL_HASHING.md",
+				"--base",
+				"feat/strategy-release",
+				"--head",
+				"feat/66-option-event-reconciliation"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "misc"
+		},
+		{
+			"label": "gh-auth-status-check",
+			"type": "shell",
+			"command": "gh",
+			"args": [
+				"auth",
+				"status"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "misc"
+		},
+		{
+			"label": "gh-auth-login",
+			"type": "shell",
+			"command": "gh",
+			"args": [
+				"auth",
+				"login",
+				"--web"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "misc"
+		},
+		{
+			"label": "gh-pr-create-final",
+			"type": "shell",
+			"command": "gh",
+			"args": [
+				"pr",
+				"create",
+				"--title",
+				"Fix canonical hashing for set-like artifact fields",
+				"--body-file",
+				"DRAFT_PR_CANONICAL_HASHING.md",
+				"--base",
+				"feat/strategy-release",
+				"--head",
+				"feat/66-option-event-reconciliation"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "misc"
+		},
+		{
+			"label": "gh-pr-view",
+			"type": "shell",
+			"command": "gh",
+			"args": [
+				"pr",
+				"view",
+				"87",
+				"--web"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "misc"
+		},
+		{
+			"label": "gh-pr-view-cli",
+			"type": "shell",
+			"command": "gh",
+			"args": [
+				"pr",
+				"view",
+				"87"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "misc"
+		}
+	]
+}
