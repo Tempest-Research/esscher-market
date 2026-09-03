@@ -23,6 +23,8 @@
 
 - Sealed `LifecycleMcpPaperBroker` construction and lifecycle state inside the preflighted host-MCP capability path, so raw or independently guarded sessions, copies, and state retargeting cannot reach a tool call.
 - Reworked the Windows capture-output pin to retain replacement-race protection without holding incompatible directory `DELETE` access, restoring atomic publication and repeat capture on Windows.
+- Rebound the guarded Alpaca MCP protocol to the published `alpaca-mcp-server` 2.3.1 wheel, source archive, upstream commit, FastMCP runtime, tool inventory, and exact six-schema allowlist instead of relying on repeated in-code constants.
+- Canonical artifact hashes now normalize set-like list fields recursively, so order-only changes remain semantically and cryptographically equivalent while raw-byte hashes still expose representation changes.
 
 ### Safety
 
@@ -31,6 +33,7 @@
 - No provider completion, token, measured p95, or successful-inference claim is made. The currently stored host key is an external HTTP 401 `invalid_authentication_error` blocker, and V1 compatibility remains closed even if that credential is replaced.
 - The autonomous coordinator and release records are not armed by this change; tests use fakes and no provider, account, broker, or PAPER mutation is performed.
 - Option-event receipts consume only synthetic or explicitly host-normalized inputs and permanently disclaim broker-connectivity and alpha evidence; this slice adds no account-activity client, order, cancel, exercise, or PAPER mutation capability.
+- Release-candidate verification is automated and synthetic; it does not prove broker readiness, fills, account flatness, executable P&L, or predictive alpha.
 
 ## [0.3.0] - Unreleased
 
