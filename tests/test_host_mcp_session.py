@@ -10,7 +10,12 @@ from typing import Any
 import pytest
 
 import ringdown_market.execution.host_mcp as host_mcp
-from ringdown_market.contracts.execution_policy import ALPACA_MCP_V2_PROTOCOL_SHA256
+from ringdown_market.contracts.execution_policy import (
+    ALPACA_MCP_HOST_OPERATIONS_PROTOCOL_SHA256,
+    ALPACA_MCP_READONLY_EXTENSION_COUNT,
+    ALPACA_MCP_READONLY_EXTENSION_SCHEMA_SHA256,
+    ALPACA_MCP_V2_PROTOCOL_SHA256,
+)
 from ringdown_market.execution.host_mcp import (
     HostMcpAccountError,
     HostMcpConfigurationError,
@@ -41,7 +46,12 @@ REQUIRED_TOOLS = {
     ORDER_BY_ID_TOOL,
     CANCEL_TOOL,
     POSITIONS_TOOL,
+    # Issue #90 read-only operational extension over the identical pinned artifact.
+    "get_account_activities",
+    "get_orders",
 }
+READONLY_EXTENSION_TOOLS = {"get_account_activities", "get_orders"}
+MUTATING_TOOLS = {OPEN_TOOL, CANCEL_TOOL}
 
 
 _DEFAULT_ACCOUNT = object()
@@ -129,6 +139,10 @@ def test_session_identity_is_fixed_to_the_pinned_official_adapter() -> None:
         "selected_schema_sha256",
         "tool_names",
         "execution_protocol_sha256",
+        "readonly_extension_count",
+        "readonly_extension_schema_sha256",
+        "readonly_extension_tool_names",
+        "host_operations_protocol_sha256",
     }
 
 
@@ -327,6 +341,10 @@ def test_prepared_session_rejects_raw_or_different_guarded_session_with_copied_o
         ("selected_schema_sha256", "0" * 64),
         ("tool_names", ()),
         ("execution_protocol_sha256", "0" * 64),
+        ("readonly_extension_count", 0),
+        ("readonly_extension_schema_sha256", "0" * 64),
+        ("readonly_extension_tool_names", ()),
+        ("host_operations_protocol_sha256", "0" * 64),
         ("observed_at", NOW.replace(tzinfo=None)),
     ),
 )
@@ -476,3 +494,53 @@ def test_runtime_result_is_forwarded_without_copying_sensitive_account_data() ->
     )
 
     assert response == {"ok": True}
+
+
+def test_extension_identity_binds_the_hashed_readonly_selection() -> None:
+    identity = paper_identity()
+
+    assert identity.readonly_extension_count == ALPACA_MCP_READONLY_EXTENSION_COUNT == 2
+    assert identity.readonly_extension_schema_sha256 == ALPACA_MCP_READONLY_EXTENSION_SCHEMA_SHA256
+    assert identity.readonly_extension_tool_names == tuple(sorted(READONLY_EXTENSION_TOOLS))
+    assert identity.host_operations_protocol_sha256 == ALPACA_MCP_HOST_OPERATIONS_PROTOCOL_SHA256
+    assert not (set(identity.readonly_extension_tool_names) & set(identity.tool_names))
+    assert not (set(identity.readonly_extension_tool_names) & MUTATING_TOOLS)
+
+
+def test_missing_readonly_extension_tool_fails_preflight_closed() -> None:
+    host = FakeHostSession(tools=tuple(sorted(REQUIRED_TOOLS - {"get_orders"})))
+
+    with pytest.raises(HostMcpConfigurationError, match="missing required tools: get_orders"):
+        connect(host)
+
+    assert host.calls == []
+
+
+def test_readonly_door_admits_extension_reads_and_rejects_every_mutating_tool() -> None:
+    host = FakeHostSession()
+    prepared = connect(host)
+    host.calls.clear()
+
+    orders: Any = asyncio.run(prepared.readonly_call("get_orders", {"status": "open"}))
+    activities: Any = asyncio.run(prepared.readonly_call("get_account_activities", {}))
+
+    assert orders == {"ok": True}
+    assert activities == {"ok": True}
+    assert [name for name, _ in host.calls] == ["get_orders", "get_account_activities"]
+
+    for tool in (*sorted(MUTATING_TOOLS), "close_all_positions", "unknown_tool", ""):
+        with pytest.raises(HostMcpConfigurationError, match="read-only door"):
+            asyncio.run(prepared.readonly_call(tool, {}))
+
+    assert [name for name, _ in host.calls] == ["get_orders", "get_account_activities"]
+
+
+def test_readonly_door_keeps_the_secret_boundary() -> None:
+    host = FakeHostSession()
+    prepared = connect(host)
+    host.calls.clear()
+
+    with pytest.raises(HostMcpSecretBoundaryError, match="secret-like"):
+        asyncio.run(prepared.readonly_call("get_orders", {"api_key": "do-not-emit"}))
+
+    assert host.calls == []

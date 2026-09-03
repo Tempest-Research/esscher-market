@@ -14,6 +14,10 @@ from weakref import WeakKeyDictionary
 
 from ringdown_market.contracts.execution_policy import (
     ACCOUNT_TOOL,
+    ACTIVITIES_TOOL,
+    ALPACA_MCP_HOST_OPERATIONS_PROTOCOL_SHA256,
+    ALPACA_MCP_READONLY_EXTENSION_COUNT,
+    ALPACA_MCP_READONLY_EXTENSION_SCHEMA_SHA256,
     ALPACA_MCP_V2_DISCOVERED_TOOL_COUNT,
     ALPACA_MCP_V2_DISTRIBUTION_TYPE,
     ALPACA_MCP_V2_FASTMCP_SPEC,
@@ -29,6 +33,7 @@ from ringdown_market.contracts.execution_policy import (
     ALPACA_MCP_V2_VERSION,
     ALPACA_MCP_V2_WHEEL_FILENAME,
     ALPACA_MCP_V2_WHEEL_SHA256,
+    ORDERS_TOOL,
 )
 
 from .mcp import (
@@ -51,8 +56,13 @@ _REQUIRED_TOOLS = frozenset(
         POSITIONS_TOOL,
     }
 )
-_RUNTIME_TOOLS = _REQUIRED_TOOLS
+# Issue #90: the frozen six-tool mutation selection plus exactly two read-only
+# operational tools from the identical pinned 2.3.1 artifact.  The extension
+# never widens mutation capability; the mutating set is unchanged.
+_READONLY_EXTENSION_TOOLS = frozenset({ORDERS_TOOL, ACTIVITIES_TOOL})
+_RUNTIME_TOOLS = _REQUIRED_TOOLS | _READONLY_EXTENSION_TOOLS
 _MUTATING_TOOLS = frozenset({OPEN_TOOL, CANCEL_TOOL})
+_READONLY_RUNTIME_TOOLS = _RUNTIME_TOOLS - _MUTATING_TOOLS
 _SECRET_KEYS = frozenset(
     {
         "alpaca_api_key",
@@ -126,6 +136,16 @@ class HostMcpSessionIdentity:
     selected_schema_sha256: str = field(default=ALPACA_MCP_V2_SELECTED_SCHEMA_SHA256, init=False)
     tool_names: tuple[str, ...] = field(default=tuple(sorted(_REQUIRED_TOOLS)), init=False)
     execution_protocol_sha256: str = field(default=ALPACA_MCP_V2_PROTOCOL_SHA256, init=False)
+    readonly_extension_count: int = field(default=ALPACA_MCP_READONLY_EXTENSION_COUNT, init=False)
+    readonly_extension_schema_sha256: str = field(
+        default=ALPACA_MCP_READONLY_EXTENSION_SCHEMA_SHA256, init=False
+    )
+    readonly_extension_tool_names: tuple[str, ...] = field(
+        default=tuple(sorted(_READONLY_EXTENSION_TOOLS)), init=False
+    )
+    host_operations_protocol_sha256: str = field(
+        default=ALPACA_MCP_HOST_OPERATIONS_PROTOCOL_SHA256, init=False
+    )
 
     def __post_init__(self) -> None:
         if not isinstance(self.environment, HostMcpEnvironment):
@@ -162,6 +182,10 @@ class HostMcpCapabilityObservation:
     selected_schema_sha256: str = ALPACA_MCP_V2_SELECTED_SCHEMA_SHA256
     tool_names: tuple[str, ...] = tuple(sorted(_REQUIRED_TOOLS))
     execution_protocol_sha256: str = ALPACA_MCP_V2_PROTOCOL_SHA256
+    readonly_extension_count: int = ALPACA_MCP_READONLY_EXTENSION_COUNT
+    readonly_extension_schema_sha256: str = ALPACA_MCP_READONLY_EXTENSION_SCHEMA_SHA256
+    readonly_extension_tool_names: tuple[str, ...] = tuple(sorted(_READONLY_EXTENSION_TOOLS))
+    host_operations_protocol_sha256: str = ALPACA_MCP_HOST_OPERATIONS_PROTOCOL_SHA256
 
 
 class HostManagedMcpSession(Protocol):
@@ -219,6 +243,36 @@ class PreparedHostMcpSession:
             {"order_id": order_id},
         )
 
+    async def readonly_call(self, name: str, arguments: Mapping[str, object]) -> object:
+        """Call one read-only host-operations tool; mutating tools are rejected.
+
+        This door exists for preflight, account-activity acquisition, and
+        broker reconciliation reads (#90).  It is read-only by construction:
+        the frozen mutating selection can never cross it, so a preflight or
+        recovery path holding only this door cannot mutate the broker.
+        """
+
+        if not isinstance(name, str) or name not in _READONLY_RUNTIME_TOOLS:
+            raise HostMcpConfigurationError("host MCP read-only door does not admit this tool")
+        return await self._validated_state().session.call_tool(name, arguments)
+
+    async def risk_reducing_cancel(self, order_id: str) -> object:
+        """Cancel exactly one working order under the arm's flatten authority.
+
+        Issue #90: this is the sole non-lifecycle mutation door.  It exists
+        only for reconciliation/recovery to resolve orphaned working orders
+        risk-reducing; it can never place, replace, or close-by-order, and a
+        timeout remains an ambiguous mutation that must be read back and never
+        retried.
+        """
+
+        if not isinstance(order_id, str) or not order_id:
+            raise HostMcpConfigurationError("host MCP cancel requires a non-empty order ID")
+        return await self._validated_state().session.call_tool(
+            CANCEL_TOOL,
+            {"order_id": order_id},
+        )
+
 
 def _tool_names(response: object) -> frozenset[str]:
     if isinstance(response, (str, bytes, Mapping)) or not isinstance(response, Sequence):
@@ -253,6 +307,12 @@ def _contains_secret_like(value: object) -> bool:
 
 
 def _capability_sha256(identity: HostMcpSessionIdentity) -> str:
+    # Frozen V2 mutation-capability digest.  The issue-#90 read-only extension
+    # fields are deliberately not folded into this payload: it is pinned by
+    # existing synthetic contract fixtures and demo receipts, which must not
+    # move.  The extension is instead bound field-by-field in validated_state
+    # and as a whole by the self-hashed host-operations protocol digest that
+    # the #90 preflight receipt records.
     payload = {
         "adapter": identity.adapter,
         "adapter_version": identity.adapter_version,
@@ -327,7 +387,7 @@ class HostMcpPaperSessionFactory:
         except Exception:
             raise HostMcpUnavailable("host MCP capability listing failed") from None
 
-        missing = sorted(_REQUIRED_TOOLS - available)
+        missing = sorted(_RUNTIME_TOOLS - available)
         if missing:
             raise HostMcpConfigurationError(
                 "host MCP is missing required tools: " + ", ".join(missing)
@@ -360,7 +420,7 @@ class HostMcpPaperSessionFactory:
             raise HostMcpConfigurationError("host MCP observation clock must be timezone-aware")
         return HostMcpCapabilityObservation(
             capability_sha256=_capability_sha256(self._identity),
-            required_tool_count=len(_REQUIRED_TOOLS),
+            required_tool_count=len(_RUNTIME_TOOLS),
             account_status=status.upper(),
             trading_blocked=trading_blocked,
             account_blocked=account_blocked,
@@ -382,6 +442,10 @@ class HostMcpPaperSessionFactory:
             selected_schema_sha256=self._identity.selected_schema_sha256,
             tool_names=self._identity.tool_names,
             execution_protocol_sha256=self._identity.execution_protocol_sha256,
+            readonly_extension_count=self._identity.readonly_extension_count,
+            readonly_extension_schema_sha256=self._identity.readonly_extension_schema_sha256,
+            readonly_extension_tool_names=self._identity.readonly_extension_tool_names,
+            host_operations_protocol_sha256=self._identity.host_operations_protocol_sha256,
             # The host's attestation is the registered discovery receipt.  The
             # fake/normalized list is only checked for the required lifecycle
             # names and must not silently redefine that receipt.
@@ -424,7 +488,7 @@ def _wire_prepared_host_mcp_capability() -> None:
             not isinstance(observation, HostMcpCapabilityObservation)
             or observation.capability_sha256 != _capability_sha256(expected_identity)
             or type(observation.required_tool_count) is not int
-            or observation.required_tool_count != len(_REQUIRED_TOOLS)
+            or observation.required_tool_count != len(_RUNTIME_TOOLS)
             or observation.account_status != "ACTIVE"
             or type(observation.trading_blocked) is not bool
             or observation.trading_blocked
@@ -448,6 +512,20 @@ def _wire_prepared_host_mcp_capability() -> None:
             or observation.selected_schema_sha256 != expected_identity.selected_schema_sha256
             or observation.tool_names != expected_identity.tool_names
             or observation.execution_protocol_sha256 != expected_identity.execution_protocol_sha256
+            or type(observation.readonly_extension_count) is not int
+            or observation.readonly_extension_count != expected_identity.readonly_extension_count
+            or (
+                observation.readonly_extension_schema_sha256
+                != expected_identity.readonly_extension_schema_sha256
+            )
+            or (
+                observation.readonly_extension_tool_names
+                != expected_identity.readonly_extension_tool_names
+            )
+            or (
+                observation.host_operations_protocol_sha256
+                != expected_identity.host_operations_protocol_sha256
+            )
             or not isinstance(observation.observed_at, datetime)
             or observation.observed_at.tzinfo is None
             or observation.observed_at.utcoffset() is None

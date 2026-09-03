@@ -317,34 +317,49 @@ checkpoint or broker-reconciliation path.
    rehydrates a `RehydratedActiveBundle` in a fresh process, rebuilds the close-critical
    binding, and closes through `PaperStrategyApplication.close` (restart scenario S3 in
    `tests/test_autonomous_host_composition.py`).
-6. **OPEN (#68) — claim recovery still stops instead of reconstructing mutation truth.** A
+6. **OPEN for the synthetic scaffold; PRODUCTIONIZED (#90) — claim recovery still stops instead
+   of reconstructing mutation truth.** A
    persisted `CLAIMED` opportunity still becomes `CLAIM_RECOVERY_UNKNOWN`
    (`runtime/autonomous.py`, deliberately unmodified). The sidecar narrows the crash window —
    an opening that completed but was never journaled still leaves broker state that only the
    reconciliation cancel path (working orders) or manual intervention (filled orphans) can
-   resolve. A production runner needs broker-side reconstruction of unjournaled mutations.
+   resolve. The production `PAPER_MCP` composition (`runtime/paper_mcp_composition.py`) now
+   performs broker-truth-first recovery: candidate mutation is refused until a STARTUP
+   reconciliation has observed account/orders/positions through the read-only MCP door, and
+   orphaned working orders are resolved through the risk-reducing cancel door before truth is
+   attested.
 7. **RESOLVED — a concrete final reconciler exists for the synthetic boundary.**
    `CompositionReconciliationBackend` produces canonical account/order/position digests, open
    counts, and flatness from the synthetic broker's state and attests them through
    `SyntheticBrokerTruth.for_request`, proving session/account/phase attribution and flatness at
-   CHECKPOINT and FINAL. This remains synthetic truth: no MCP reconciler observes a real
-   broker, which stays scoped to #68.
-8. **OPEN (#68) — dynamic host authority is not release-bound.** The `module:function`
+   CHECKPOINT and FINAL. This remains synthetic truth. The production MCP reconciler
+   (`PaperMcpReconciliationBackend`, `esscher.paper_mcp_broker_truth`) observes the real broker
+   shape through the guarded read-only door under #90; broker-confirmed session flatness
+   remains scoped to #68.
+8. **OPEN for the synthetic scaffold; PRODUCTIONIZED (#90) — dynamic host authority is not
+   release-bound.** The `module:function`
    selector is unchanged (`cli.py`): trusted, unsandboxed host Python whose bytes are not bound
-   to the selected release build. A production-capable host needs an authenticated,
-   release-bound composition instead of an arbitrary import.
-9. **OPEN (#68) — the timeline is replay input, not a production scheduler.** The caller still
+   to the selected release build. The production path replaces this model: `paper-run` binds the
+   package-owned `PaperMcpPlanFactory` over one content-addressed production binding
+   (arm/release/build/capability/route/fingerprint), and the host selector supplies only the
+   narrow doors, cross-checked byte-for-byte against the CLI authority paths.
+9. **OPEN for the synthetic scaffold; PRODUCTIONIZED (#90) — the timeline is replay input, not a
+   production scheduler.** The caller still
    supplies the complete observation timeline up front; the runner validates ordering and arm
    containment but never reads a trusted current clock, waits for due windows, or drives expiry
    and hard-flat transitions after restarts. All composition clocks are injected
-   fixture-derived rehearsal clocks by design.
+   fixture-derived rehearsal clocks by design. The production scheduler
+   (`runtime/paper_scheduler.py`) derives the timeline from the armed session, waits each
+   instant with one injected sleep per point (no busy loop), re-runs the unchanged host runner
+   per timeline prefix, and stops deterministically at manual or terminal receipts.
 
 With blockers 1–5 and 7 resolved for the synthetic execution class, the acceptance path for
 issue #82 runs end-to-end without hand-constructed decisions, opportunity authority, permits,
 active lifecycles, close results, or flat results — while every artifact remains labelled
-`SYNTHETIC_FAKE` / `NOT_ALPHA_EVIDENCE`. Blockers 6, 8, and 9 keep the runner honestly named a
-synthetic rehearsal: productionizing claim recovery, release-bound host authority, and an owned
-clock/scheduler loop belongs to #68.
+`SYNTHETIC_FAKE` / `NOT_ALPHA_EVIDENCE`. Blockers 6, 8, and 9 keep this runner honestly named a
+synthetic rehearsal; their production counterparts (broker-truth-first recovery, release-bound
+composition authority, and the wall-clock scheduler) now exist for the `PAPER_MCP` execution
+class under #90 — see `docs/PAPER_MCP_HOST.md`. Armed-session authorization remains #91/#68.
 
 ## Stacked dependency
 

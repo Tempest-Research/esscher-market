@@ -13,6 +13,7 @@ from collections.abc import Callable, Mapping, Sequence
 from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import asdict
 from datetime import UTC, datetime
+from decimal import Decimal, InvalidOperation
 from importlib.metadata import version
 from pathlib import Path
 from typing import Any
@@ -55,6 +56,10 @@ def _canonical_json(value: object) -> bytes:
 
 def _sha256(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest()
+
+
+def _canonical_cli_json(payload: Mapping[str, Any]) -> str:
+    return json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
 def _autonomous_rejection_bytes(
@@ -348,6 +353,46 @@ def _build_parser() -> argparse.ArgumentParser:
         required=True,
         help="host-owned module:function returning an AutonomousHostInvocation",
     )
+    preflight = subparsers.add_parser(
+        "paper-preflight",
+        help="run the read-only PAPER broker preflight and emit a NO_BROKER_MUTATION receipt",
+    )
+    preflight.add_argument(
+        "--host-session",
+        required=True,
+        help="host-owned module:function returning the raw MCP client session",
+    )
+    preflight.add_argument("--receipt-id", required=True)
+    preflight.add_argument("--expected-account-id", required=True)
+    preflight.add_argument("--expected-account-fingerprint", required=True)
+    preflight.add_argument("--starting-equity", required=True)
+    preflight.add_argument("--account-capability-id", required=True)
+    preflight.add_argument("--runtime-code-revision", required=True)
+    preflight.add_argument("--runtime-build-sha256", required=True)
+    preflight.add_argument("--route-config-sha256", default=None)
+    preflight.add_argument("--latency-profile-sha256", default=None)
+    preflight.add_argument(
+        "--output",
+        type=Path,
+        default=None,
+        help=(
+            "receipt path (default: artifacts/paper-preflight/<receipt-id>/preflight-receipt.json)"
+        ),
+    )
+    paper_run = subparsers.add_parser(
+        "paper-run",
+        help="run one armed production PAPER_MCP session under the wall-clock scheduler",
+    )
+    paper_run.add_argument("--release", type=Path, required=True)
+    paper_run.add_argument("--arm", type=Path, required=True)
+    paper_run.add_argument("--state-dir", type=Path, required=True)
+    paper_run.add_argument("--ledger", type=Path, required=True)
+    paper_run.add_argument("--output-dir", type=Path, required=True)
+    paper_run.add_argument(
+        "--host-invocation",
+        required=True,
+        help="host-owned module:function returning a PaperSessionInvocation",
+    )
     trace = subparsers.add_parser(
         "render-judge-trace",
         help="render the packaged offline read-only evidence-to-receipt walkthrough",
@@ -527,6 +572,201 @@ def main(
         if receipt.disposition is AutonomousHostDisposition.TERMINAL:
             return 0
         if receipt.disposition is AutonomousHostDisposition.MANUAL_RECONCILIATION_REQUIRED:
+            return 3
+        return 4
+    if args.command == "paper-preflight":
+        runtime_clock = (lambda: datetime.now(UTC)) if clock is None else clock
+        from .runtime.paper_preflight import (
+            BrokerPreflightExpectations,
+            PaperPreflightRejected,
+            run_broker_preflight,
+        )
+
+        try:
+            expectations = BrokerPreflightExpectations(
+                account_id=args.expected_account_id,
+                account_fingerprint_sha256=args.expected_account_fingerprint,
+                starting_equity_contract=Decimal(args.starting_equity),
+                account_capability_id=args.account_capability_id,
+                runtime_code_revision=args.runtime_code_revision,
+                runtime_build_artifact_sha256=args.runtime_build_sha256,
+                route_config_sha256=args.route_config_sha256,
+                latency_profile_sha256=args.latency_profile_sha256,
+            )
+        except (PaperPreflightRejected, InvalidOperation, ValueError):
+            print(
+                _canonical_cli_json(
+                    {
+                        "schema": "esscher.paper_preflight_cli_rejection",
+                        "schema_version": 1,
+                        "error_code": "EXPECTATIONS_INVALID",
+                        "claims": ["NO_BROKER_MUTATION"],
+                    }
+                )
+            )
+            return 2
+
+        preflight_error_code: str | None = None
+        preflight_receipt = None
+        with (
+            open(os.devnull, "w", encoding="utf-8") as suppressed_output,
+            redirect_stdout(suppressed_output),
+            redirect_stderr(suppressed_output),
+        ):
+            try:
+                from .contracts.broker_preflight import (
+                    PreflightVerdict,
+                    broker_preflight_receipt_bytes,
+                )
+                from .execution.host_mcp import (
+                    HostMcpEnvironment,
+                    HostMcpPaperSessionFactory,
+                    HostMcpSessionIdentity,
+                )
+
+                session_selector = _load_autonomous_invocation_factory(args.host_session)
+                host_session = session_selector()
+                prepared = asyncio.run(
+                    HostMcpPaperSessionFactory(
+                        HostMcpSessionIdentity(environment=HostMcpEnvironment.PAPER),
+                        clock=runtime_clock,
+                    ).connect(host_session)
+                )
+                preflight_receipt = asyncio.run(
+                    run_broker_preflight(
+                        prepared,
+                        expectations=expectations,
+                        receipt_id=args.receipt_id,
+                        clock=runtime_clock,
+                    )
+                )
+            except Exception:
+                preflight_error_code = "PREFLIGHT_HOST_REJECTED"
+
+        if preflight_error_code is not None or preflight_receipt is None:
+            print(
+                _canonical_cli_json(
+                    {
+                        "schema": "esscher.paper_preflight_cli_rejection",
+                        "schema_version": 1,
+                        "error_code": preflight_error_code or "PREFLIGHT_HOST_REJECTED",
+                        "claims": ["NO_BROKER_MUTATION"],
+                    }
+                )
+            )
+            return 3
+
+        from .contracts.broker_preflight import (
+            PreflightVerdict,
+            broker_preflight_receipt_bytes,
+        )
+        from .runtime.paper_preflight import preflight_receipt_artifact_path
+
+        output_path = (
+            args.output
+            if args.output is not None
+            else preflight_receipt_artifact_path(
+                Path("artifacts") / "paper-preflight", args.receipt_id
+            )
+        )
+        receipt_bytes = broker_preflight_receipt_bytes(preflight_receipt)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_bytes(receipt_bytes)
+        print(receipt_bytes.decode("utf-8"))
+        return 0 if preflight_receipt.verdict is PreflightVerdict.PASSED else 2
+    if args.command == "paper-run":
+        release_bytes = None
+        arm_record_bytes = None
+        try:
+            from .contracts.strategy_release import parse_arm_record, parse_strategy_release
+
+            release_bytes = args.release.read_bytes()
+            arm_record_bytes = args.arm.read_bytes()
+            parse_strategy_release(release_bytes)
+            parse_arm_record(arm_record_bytes)
+        except (OSError, TypeError, ValueError):
+            return _print_autonomous_rejection(
+                error_code="AUTHORITY_INPUT_REJECTED",
+                release_bytes=release_bytes,
+                arm_record_bytes=arm_record_bytes,
+                pre_host_failure=True,
+            )
+
+        run_error_code: str | None = None
+        run_receipt = None
+        run_receipt_bytes: bytes | None = None
+        with (
+            open(os.devnull, "w", encoding="utf-8") as suppressed_output,
+            redirect_stdout(suppressed_output),
+            redirect_stderr(suppressed_output),
+        ):
+            try:
+                import time as time_module
+
+                from .runtime.autonomous_host import (
+                    AutonomousHostBusy,
+                    AutonomousHostDisposition,
+                    validate_autonomous_host_authority,
+                )
+                from .runtime.paper_mcp_composition import paper_mcp_plan_factory
+                from .runtime.paper_scheduler import (
+                    PaperSessionInvocation,
+                    run_paper_session,
+                    session_observation_timeline,
+                )
+
+                invocation_factory = _load_autonomous_invocation_factory(args.host_invocation)
+                invocation = invocation_factory(
+                    release_bytes=release_bytes,
+                    arm_record_bytes=arm_record_bytes,
+                    state_dir=args.state_dir,
+                    ledger_path=args.ledger,
+                    output_dir=args.output_dir,
+                )
+                if not isinstance(invocation, PaperSessionInvocation):
+                    raise ValueError("paper-run selector did not return a PaperSessionInvocation")
+                if (
+                    invocation.authority_input.release_bytes != release_bytes
+                    or invocation.authority_input.arm_record_bytes != arm_record_bytes
+                    or _normalized_cli_path(invocation.authority_input.state_dir)
+                    != _normalized_cli_path(args.state_dir)
+                    or _normalized_cli_path(invocation.ledger_path)
+                    != _normalized_cli_path(args.ledger)
+                ):
+                    raise ValueError("paper-run invocation substituted CLI authority")
+                authority = validate_autonomous_host_authority(invocation.authority_input)
+                timeline = session_observation_timeline(authority.session_arm)
+                scheduler_clock = invocation.scheduler_clock or (lambda: datetime.now(UTC))
+                scheduler_sleep = invocation.scheduler_sleep or time_module.sleep
+                run_receipt = run_paper_session(
+                    authority_input=invocation.authority_input,
+                    plan_factory=paper_mcp_plan_factory(invocation.doors),
+                    timeline=timeline,
+                    clock=scheduler_clock,
+                    sleep=scheduler_sleep,
+                )
+                run_receipt_bytes = run_receipt.to_json_bytes()
+                args.output_dir.mkdir(parents=True, exist_ok=True)
+                (args.output_dir / "paper-run-receipt.json").write_bytes(run_receipt_bytes)
+            except AutonomousHostBusy:
+                run_error_code = "AUTONOMOUS_HOST_BUSY"
+            except Exception:
+                run_error_code = "PAPER_RUN_REJECTED"
+
+        if run_error_code is not None or run_receipt is None or run_receipt_bytes is None:
+            return _print_autonomous_rejection(
+                error_code=run_error_code or "PAPER_RUN_REJECTED",
+                release_bytes=release_bytes,
+                arm_record_bytes=arm_record_bytes,
+                pre_host_failure=False,
+            )
+
+        from .runtime.autonomous_host import AutonomousHostDisposition
+
+        print(run_receipt_bytes.decode("utf-8"))
+        if run_receipt.disposition is AutonomousHostDisposition.TERMINAL:
+            return 0
+        if run_receipt.disposition is AutonomousHostDisposition.MANUAL_RECONCILIATION_REQUIRED:
             return 3
         return 4
     if args.command == "run-scheduled-event":
