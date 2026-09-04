@@ -538,7 +538,7 @@ def test_stage_budgets_derivation_and_window_validation(tmp_path: Path) -> None:
     profile = load_latency_profile()
     budgets = derive_stage_budgets(profile=profile, arm=rig.arm)
 
-    assert budgets.reasoner_ms == profile.p95_latency_ms == 30000
+    assert budgets.reasoner_ms == profile.p95_latency_ms == 500
     assert budgets.market_data_ms == profile.p95_latency_ms
     assert budgets.broker_ms == profile.p95_latency_ms
     assert budgets.shutdown_reserve_ms == profile.p95_latency_ms
@@ -723,13 +723,16 @@ def test_deadline_exhaustion_fails_closed_but_close_authority_retained(tmp_path:
 
 def test_budget_violation_stops_before_mutation(tmp_path: Path) -> None:
     rig = _rig(tmp_path)
+    # Stage budgets derive from the promoted HOST_MEASURED profile (p95 500 ms),
+    # so the healthy pre-decision stages stay inside 500 ms while the scripted
+    # DECISION stage runs 39,600 ms and must fail closed before any mutation.
     clock = _ScriptedClock(
         (
             STAGE_CLOCK,
-            STAGE_CLOCK + timedelta(seconds=1),
-            STAGE_CLOCK + timedelta(seconds=2),
-            STAGE_CLOCK + timedelta(seconds=3),
-            STAGE_CLOCK + timedelta(seconds=4),
+            STAGE_CLOCK + timedelta(milliseconds=100),
+            STAGE_CLOCK + timedelta(milliseconds=200),
+            STAGE_CLOCK + timedelta(milliseconds=300),
+            STAGE_CLOCK + timedelta(milliseconds=400),
             STAGE_CLOCK + timedelta(seconds=40),
         )
     )
@@ -745,7 +748,7 @@ def test_budget_violation_stops_before_mutation(tmp_path: Path) -> None:
         assert stopped.stage_receipt.budget_ms == rig.budgets.reasoner_ms
         assert stopped.health_receipt.budget_violations == (STAGE_DECISION,)
         assert stopped.health_receipt.circuit_state is CircuitState.NOMINAL
-        assert stopped.health_receipt.stage_latencies[STAGE_DECISION] == 36000
+        assert stopped.health_receipt.stage_latencies[STAGE_DECISION] == 39600
 
         chain = stopped.stage_chain
         index = STAGE_ORDER.index(STAGE_DECISION)
