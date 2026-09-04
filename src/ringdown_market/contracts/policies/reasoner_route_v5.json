@@ -1,0 +1,77 @@
+{
+  "adapter_kind": "OPENAI_COMPATIBLE_CHAT_V1",
+  "application_arguments": {},
+  "authority": {
+    "account": false,
+    "broker": false,
+    "secret_arguments": false
+  },
+  "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+  "call_policy": {
+    "hard_timeout_seconds": 8,
+    "max_calls": 1,
+    "retry_count": 0
+  },
+  "candidate_ids": [
+    "EARNINGS_RESIDUAL_CONTINUATION_V2",
+    "MARKET_ANCHOR_INTRADAY_CONTINUATION_V1",
+    "LIQUID_STOCK_CATALYST_CONTINUATION_V1"
+  ],
+  "claim_labels": [
+    "NO_BROKER_AUTHORITY",
+    "NO_ACCOUNT_AUTHORITY",
+    "NO_SECRET_ARGUMENTS",
+    "PAPER_ONLY"
+  ],
+  "cost_ceiling": {
+    "entitlement_note": "Host-owned Alibaba DashScope entitlement is configured outside this repository (QWEN_DASHSCOPE_API_KEY); calls are metered against the host account under its own plan; no provider purchase is authorized by this artifact.",
+    "max_output_tokens_per_call": 1024,
+    "paid_provider_purchase": false,
+    "probe_budget_calls": 0
+  },
+  "decoding": {
+    "max_output_tokens": 512,
+    "seed": null,
+    "temperature": "0",
+    "top_p": "1"
+  },
+  "model": "qwen3.8-max-0902",
+  "model_revision": null,
+  "policy_sha256": "a9785b25feca845d22bc78b248315141cf9a9f0da4bf449e5dc93caa104dc293",
+  "provider": "dashscope_qwen",
+  "provider_request_policy": {
+    "effective_decoding": {
+      "temperature": "0",
+      "top_p": "1"
+    },
+    "max_completion_tokens": 1024,
+    "omitted_request_fields": [
+      "frequency_penalty",
+      "logit_bias",
+      "logprobs",
+      "max_completion_tokens",
+      "n",
+      "presence_penalty",
+      "reasoning_effort",
+      "response_format",
+      "seed",
+      "stream",
+      "thinking",
+      "tool_choice",
+      "tools"
+    ],
+    "reasoning_effort": "none",
+    "response_format": {
+      "json_schema": {
+        "name": "esscher_reasoner_decision_v1",
+        "schema_sha256": "c8275548471afc1def1e0e80dde68d40fde7ad32b4605afc74e1cc7bd360f409",
+        "strict": false
+      },
+      "type": "prompt_directed_json"
+    },
+    "tool_choice": "none"
+  },
+  "route_id": "ESSCHER_BOUNDED_REASONER_ROUTE_V5",
+  "schema": "esscher.reasoner_route",
+  "schema_version": 5
+}

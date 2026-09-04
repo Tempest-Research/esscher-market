@@ -538,7 +538,7 @@ def test_stage_budgets_derivation_and_window_validation(tmp_path: Path) -> None:
     profile = load_latency_profile()
     budgets = derive_stage_budgets(profile=profile, arm=rig.arm)
 
-    assert budgets.reasoner_ms == profile.p95_latency_ms == 500
+    assert budgets.reasoner_ms == profile.p95_latency_ms == 5578
     assert budgets.market_data_ms == profile.p95_latency_ms
     assert budgets.broker_ms == profile.p95_latency_ms
     assert budgets.shutdown_reserve_ms == profile.p95_latency_ms

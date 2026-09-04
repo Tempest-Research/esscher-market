@@ -205,6 +205,79 @@ APPROVAL_CLAUSES_V4 = (
     "The route accepts only the exact packaged V4 descriptor and approval bytes.",
 )
 
+# V5 is the owner-approved pivot to qwen3.8-max-0902 (dated snapshot) served by
+# the official Alibaba DashScope OpenAI-compatible endpoint (2026-09-04, owner
+# MS-Mesh).  Gate measurement: 30/30 warm observations strict-schema-valid,
+# nearest-rank p95 5062 ms, max 5735 ms against the frozen 8s one-call budget,
+# zero reasoning leakage (enable_thinking=false), decision style UNCERTAIN on
+# the ambiguous fixture (evidence-disciplined).  Motivation: the free furry.vg
+# gateway (V4) enforces evening concurrency caps (429 "at concurrency limit")
+# that would abstain live decisions; DashScope is official metered
+# infrastructure without free-gateway congestion.  Wire truths frozen here:
+# NO response_format on the wire - DashScope json_object mode demands a literal
+# "json" token in the messages and the frozen prompt (immutable) does not
+# contain one - so the strict schema is enforced by the frozen prompt plus the
+# client-side six-field validator and any drift fails closed as a typed
+# abstention; enable_thinking=false pinned; temperature 0 and top_p 1.0
+# accepted; tool_choice omitted (no tools are ever offered); the dated snapshot
+# id is pinned because the moving alias qwen3.8-max drifted on 4/24 probes.
+ROUTE_V5_SCHEMA_VERSION = 5
+ROUTE_ID_V5 = "ESSCHER_BOUNDED_REASONER_ROUTE_V5"
+QWEN_DASHSCOPE_PROVIDER = "dashscope_qwen"
+QWEN_DASHSCOPE_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+QWEN_DASHSCOPE_MODEL = "qwen3.8-max-0902"
+QWEN_DASHSCOPE_REASONING_EFFORT = "none"
+QWEN_DASHSCOPE_MAX_COMPLETION_TOKENS = 1024
+QWEN_DASHSCOPE_TOOL_CHOICE = "none"
+QWEN_DASHSCOPE_RESPONSE_FORMAT_TYPE = "prompt_directed_json"
+QWEN_DASHSCOPE_RESPONSE_SCHEMA_NAME = "esscher_reasoner_decision_v1"
+QWEN_DASHSCOPE_EFFECTIVE_TEMPERATURE = "0"
+QWEN_DASHSCOPE_EFFECTIVE_TOP_P = "1"
+QWEN_DASHSCOPE_OMITTED_REQUEST_FIELDS = (
+    "frequency_penalty",
+    "logit_bias",
+    "logprobs",
+    "max_completion_tokens",
+    "n",
+    "presence_penalty",
+    "reasoning_effort",
+    "response_format",
+    "seed",
+    "stream",
+    "thinking",
+    "tool_choice",
+    "tools",
+)
+QWEN_DASHSCOPE_MODEL_CONFIG_SCHEMA = "esscher.direct_qwen_dashscope_reasoner_model_config"
+APPROVAL_ID_V5 = "ESSCHER_ROUTE_APPROVAL_V5"
+APPROVAL_SCOPE_V5 = APPROVAL_SCOPE_V2
+APPROVAL_CLAUSES_V5 = (
+    "The owner selected this exact qwen3.8-max-0902 dated snapshot served by "
+    "the official Alibaba DashScope OpenAI-compatible endpoint for prospective "
+    "strategy evaluation after gate measurement: 30/30 warm observations "
+    "strict-schema-valid, nearest-rank p95 5062 ms and max 5735 ms against the "
+    "frozen 8-second one-call budget, with zero reasoning leakage. Earlier "
+    "candidates were excluded by measurement: MiniMax-M3 (latency), "
+    "Kimi-K2.6-free (frozen-validator failures on every probe), kimi-k3 "
+    "(top_p wire incompatibility and >16 s latency), the moving qwen3.8-max "
+    "alias (schema drift on 4/24 probes - the dated snapshot is pinned to "
+    "prevent silent rerouting), and DashScope third-party products (not "
+    "activated on the host account). The V4 deepseek-v4-flash-0731-free "
+    "furry.vg package remains a dormant alternate. The route has no broker, "
+    "account, order, sizing, or secret authority.",
+    "The owner accepts the disclosed wire truths: DashScope json_object mode "
+    "requires a literal 'json' token in the messages and the immutable frozen "
+    "prompt does not contain one, so no wire response_format is sent; the "
+    "strict six-field schema is enforced by the frozen prompt and the "
+    "client-side validator, and any drift fails closed as a typed abstention. "
+    "enable_thinking=false is pinned (reasoning_content verified empty), "
+    "temperature 0 and top_p 1.0 are accepted, and tool_choice is omitted "
+    "because no tools are ever offered.",
+    "Each paid or live reasoner probe or measurement run receives separate "
+    "current owner approval before execution.",
+    "The route accepts only the exact packaged V5 descriptor and approval bytes.",
+)
+
 _SECRET_KEYS = frozenset(
     {
         "api_key",
@@ -444,6 +517,32 @@ _V4_ROUTE_SPEC = _RouteSpec(
     expected_effective_top_p=FURRY_GATEWAY_EFFECTIVE_TOP_P,
     expected_omitted_request_fields=FURRY_GATEWAY_OMITTED_REQUEST_FIELDS,
     model_config_schema=FURRY_GATEWAY_MODEL_CONFIG_SCHEMA,
+)
+_V5_ROUTE_SPEC = _RouteSpec(
+    schema_version=ROUTE_V5_SCHEMA_VERSION,
+    route_id=ROUTE_ID_V5,
+    approval_id=APPROVAL_ID_V5,
+    approval_scope=APPROVAL_SCOPE_V5,
+    approval_clauses=APPROVAL_CLAUSES_V5,
+    policy_loader=load_strategy_policy_v2,
+    policy_sha256_loader=strategy_policy_v2_sha256,
+    output_schema_name=QWEN_DASHSCOPE_RESPONSE_SCHEMA_NAME,
+    output_schema_sha256_loader=reasoner_output_schema_sha256,
+    caller_temperature=Decimal(QWEN_DASHSCOPE_EFFECTIVE_TEMPERATURE),
+    caller_top_p=Decimal(QWEN_DASHSCOPE_EFFECTIVE_TOP_P),
+    caller_seed=None,
+    provider=QWEN_DASHSCOPE_PROVIDER,
+    base_url=QWEN_DASHSCOPE_BASE_URL,
+    model=QWEN_DASHSCOPE_MODEL,
+    expected_reasoning_effort=QWEN_DASHSCOPE_REASONING_EFFORT,
+    expected_max_completion_tokens=QWEN_DASHSCOPE_MAX_COMPLETION_TOKENS,
+    expected_response_format_type=QWEN_DASHSCOPE_RESPONSE_FORMAT_TYPE,
+    expected_strict_json_schema=False,
+    expected_tool_choice=QWEN_DASHSCOPE_TOOL_CHOICE,
+    expected_effective_temperature=QWEN_DASHSCOPE_EFFECTIVE_TEMPERATURE,
+    expected_effective_top_p=QWEN_DASHSCOPE_EFFECTIVE_TOP_P,
+    expected_omitted_request_fields=QWEN_DASHSCOPE_OMITTED_REQUEST_FIELDS,
+    model_config_schema=QWEN_DASHSCOPE_MODEL_CONFIG_SCHEMA,
 )
 
 
@@ -715,6 +814,34 @@ def direct_furry_gateway_model_config_sha256(
 
     return _direct_route_model_config_sha256(
         config_schema=FURRY_GATEWAY_MODEL_CONFIG_SCHEMA,
+        provider=provider,
+        model=model,
+        model_revision=model_revision,
+        base_url=base_url,
+        caller_decoding=caller_decoding,
+        provider_request_policy=provider_request_policy,
+        schema_version=schema_version,
+    )
+
+
+def direct_qwen_dashscope_model_config_sha256(
+    *,
+    provider: str,
+    model: str,
+    model_revision: str | None,
+    base_url: str,
+    caller_decoding: DecodingParameters,
+    provider_request_policy: ProviderRequestPolicy,
+    schema_version: int = ROUTE_V5_SCHEMA_VERSION,
+) -> str:
+    """Hash the DashScope qwen identity plus its probe-verified request semantics.
+
+    Its own hash domain again: DashScope-served qwen digests can never collide
+    with or substitute furry-gateway, Moonshot, or MiniMax identities.
+    """
+
+    return _direct_route_model_config_sha256(
+        config_schema=QWEN_DASHSCOPE_MODEL_CONFIG_SCHEMA,
         provider=provider,
         model=model,
         model_revision=model_revision,
@@ -1446,18 +1573,78 @@ def load_approved_reasoner_route_v4() -> ValidatedRoute:
     return _validate_reasoner_route(descriptor_bytes, receipt_bytes, spec=_V4_ROUTE_SPEC)
 
 
+def packaged_route_descriptor_v5_bytes() -> bytes:
+    """Return the exact packaged V5 DashScope-qwen descriptor bytes."""
+
+    return (
+        resources.files("ringdown_market.contracts")
+        .joinpath("policies/reasoner_route_v5.json")
+        .read_bytes()
+    )
+
+
+def packaged_route_approval_v5_bytes() -> bytes:
+    """Return the exact packaged V5 DashScope-qwen approval receipt bytes."""
+
+    return (
+        resources.files("ringdown_market.contracts")
+        .joinpath("policies/reasoner_route_approval_v5.json")
+        .read_bytes()
+    )
+
+
+def _require_exact_v5_package(descriptor_bytes: bytes, receipt_bytes: bytes) -> None:
+    """Reject semantic lookalikes: V5 eligibility belongs only to shipped bytes."""
+
+    if type(descriptor_bytes) is not bytes or type(receipt_bytes) is not bytes:
+        _reject(
+            RouteContractReason.INVALID_DOCUMENT,
+            "route_descriptor",
+            "V5 descriptor and approval inputs must be immutable bytes",
+        )
+    if descriptor_bytes != packaged_route_descriptor_v5_bytes():
+        _reject(
+            RouteContractReason.HASH_MISMATCH,
+            "route_descriptor",
+            "V5 evaluation eligibility requires the exact packaged descriptor bytes",
+        )
+    if receipt_bytes != packaged_route_approval_v5_bytes():
+        _reject(
+            RouteContractReason.HASH_MISMATCH,
+            "approval_receipt",
+            "V5 evaluation eligibility requires the exact packaged approval bytes",
+        )
+
+
+def validate_reasoner_route_v5(descriptor_bytes: bytes, receipt_bytes: bytes) -> ValidatedRoute:
+    """Strictly load only the immutable V5 DashScope-qwen route package."""
+
+    _require_exact_v5_package(descriptor_bytes, receipt_bytes)
+    return load_approved_reasoner_route_v5()
+
+
+@lru_cache(maxsize=1)
+def load_approved_reasoner_route_v5() -> ValidatedRoute:
+    """Validate the exact packaged V5 route and retain its unforgeable object identity."""
+
+    descriptor_bytes = packaged_route_descriptor_v5_bytes()
+    receipt_bytes = packaged_route_approval_v5_bytes()
+    return _validate_reasoner_route(descriptor_bytes, receipt_bytes, spec=_V5_ROUTE_SPEC)
+
+
 def load_current_approved_reasoner_route() -> ValidatedRoute:
     """Return the currently owner-approved route for prospective evaluation.
 
-    Issue #91 governance (2026-09-04, owner MS-Mesh): the current approved
-    route is the deepseek-v4-flash-0731-free V4 gateway package.  MiniMax-M3 (V3) measured
-    p50 ~10-14 s against the frozen 8 s one-call budget and becomes a dormant
-    packaged alternate beside the direct Kimi V1/V2 packages; switching the
-    current route is an owner-gate action that requires a new packaged
-    descriptor + approval, never a runtime choice.
+    Issue #91/#68 governance (2026-09-04, owner MS-Mesh): the current approved
+    route is the qwen3.8-max-0902 V5 DashScope package (official metered
+    infrastructure; 30/30 gate measurement).  The V4 deepseek furry.vg gateway
+    package remains approved-but-dormant (free-gateway evening concurrency caps
+    motivated the pivot), beside the dormant MiniMax-M3 V3 and direct Kimi
+    V1/V2 packages; switching the current route is an owner-gate action that
+    requires a new packaged descriptor + approval, never a runtime choice.
     """
 
-    return load_approved_reasoner_route_v4()
+    return load_approved_reasoner_route_v5()
 
 
 __all__ = [
@@ -1466,15 +1653,18 @@ __all__ = [
     "APPROVAL_CLAUSES_V2",
     "APPROVAL_CLAUSES_V3",
     "APPROVAL_CLAUSES_V4",
+    "APPROVAL_CLAUSES_V5",
     "APPROVAL_ID",
     "APPROVAL_ID_V2",
     "APPROVAL_ID_V3",
     "APPROVAL_ID_V4",
+    "APPROVAL_ID_V5",
     "APPROVAL_SCHEMA",
     "APPROVAL_SCOPE",
     "APPROVAL_SCOPE_V2",
     "APPROVAL_SCOPE_V3",
     "APPROVAL_SCOPE_V4",
+    "APPROVAL_SCOPE_V5",
     "CLAIM_LABELS",
     "DIRECT_BASE_URL",
     "DIRECT_MODEL",
@@ -1512,14 +1702,28 @@ __all__ = [
     "MINIMAX_RESPONSE_FORMAT_TYPE",
     "MINIMAX_RESPONSE_SCHEMA_NAME",
     "MINIMAX_TOOL_CHOICE",
+    "QWEN_DASHSCOPE_BASE_URL",
+    "QWEN_DASHSCOPE_EFFECTIVE_TEMPERATURE",
+    "QWEN_DASHSCOPE_EFFECTIVE_TOP_P",
+    "QWEN_DASHSCOPE_MAX_COMPLETION_TOKENS",
+    "QWEN_DASHSCOPE_MODEL",
+    "QWEN_DASHSCOPE_MODEL_CONFIG_SCHEMA",
+    "QWEN_DASHSCOPE_OMITTED_REQUEST_FIELDS",
+    "QWEN_DASHSCOPE_PROVIDER",
+    "QWEN_DASHSCOPE_REASONING_EFFORT",
+    "QWEN_DASHSCOPE_RESPONSE_FORMAT_TYPE",
+    "QWEN_DASHSCOPE_RESPONSE_SCHEMA_NAME",
+    "QWEN_DASHSCOPE_TOOL_CHOICE",
     "ROUTE_ID",
     "ROUTE_ID_V2",
     "ROUTE_ID_V3",
     "ROUTE_ID_V4",
+    "ROUTE_ID_V5",
     "ROUTE_SCHEMA",
     "ROUTE_V2_SCHEMA_VERSION",
     "ROUTE_V3_SCHEMA_VERSION",
     "ROUTE_V4_SCHEMA_VERSION",
+    "ROUTE_V5_SCHEMA_VERSION",
     "ApprovalState",
     "ProviderRequestPolicy",
     "RouteCompatibilityReason",
@@ -1530,22 +1734,27 @@ __all__ = [
     "direct_furry_gateway_model_config_sha256",
     "direct_kimi_model_config_sha256",
     "direct_minimax_model_config_sha256",
+    "direct_qwen_dashscope_model_config_sha256",
     "load_approved_reasoner_route",
     "load_approved_reasoner_route_v2",
     "load_approved_reasoner_route_v3",
     "load_approved_reasoner_route_v4",
+    "load_approved_reasoner_route_v5",
     "load_current_approved_reasoner_route",
     "packaged_route_approval_bytes",
     "packaged_route_approval_v2_bytes",
     "packaged_route_approval_v3_bytes",
     "packaged_route_approval_v4_bytes",
+    "packaged_route_approval_v5_bytes",
     "packaged_route_descriptor_bytes",
     "packaged_route_descriptor_v2_bytes",
     "packaged_route_descriptor_v3_bytes",
     "packaged_route_descriptor_v4_bytes",
+    "packaged_route_descriptor_v5_bytes",
     "route_descriptor_bytes",
     "validate_reasoner_route",
     "validate_reasoner_route_v2",
     "validate_reasoner_route_v3",
     "validate_reasoner_route_v4",
+    "validate_reasoner_route_v5",
 ]

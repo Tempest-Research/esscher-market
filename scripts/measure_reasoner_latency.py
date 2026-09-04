@@ -40,12 +40,15 @@ from ringdown_market.strategy.contracts import parse_reasoner_decision  # noqa: 
 from ringdown_market.strategy.host_route import (  # noqa: E402
     ENV_FURRY_API_KEY,
     ENV_MINIMAX_API_KEY,
+    ENV_QWEN_DASHSCOPE_API_KEY,
     FurryGatewayReasonerRoute,
     MinimaxM3ReasonerRoute,
+    QwenDashScopeReasonerRoute,
 )
 from ringdown_market.strategy.reasoner import ReasonerRouteRequest, RouteIdentity  # noqa: E402
 
 _DIRECT_ADAPTERS = {
+    "dashscope_qwen": (QwenDashScopeReasonerRoute, ENV_QWEN_DASHSCOPE_API_KEY),
     "furry_vg_gateway": (FurryGatewayReasonerRoute, ENV_FURRY_API_KEY),
     "minimax_direct": (MinimaxM3ReasonerRoute, ENV_MINIMAX_API_KEY),
 }

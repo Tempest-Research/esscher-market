@@ -56,6 +56,17 @@ from ringdown_market.contracts.reasoner_route import (
     MINIMAX_RESPONSE_FORMAT_TYPE,
     MINIMAX_RESPONSE_SCHEMA_NAME,
     MINIMAX_TOOL_CHOICE,
+    QWEN_DASHSCOPE_BASE_URL,
+    QWEN_DASHSCOPE_EFFECTIVE_TEMPERATURE,
+    QWEN_DASHSCOPE_EFFECTIVE_TOP_P,
+    QWEN_DASHSCOPE_MAX_COMPLETION_TOKENS,
+    QWEN_DASHSCOPE_MODEL,
+    QWEN_DASHSCOPE_OMITTED_REQUEST_FIELDS,
+    QWEN_DASHSCOPE_PROVIDER,
+    QWEN_DASHSCOPE_REASONING_EFFORT,
+    QWEN_DASHSCOPE_RESPONSE_FORMAT_TYPE,
+    QWEN_DASHSCOPE_RESPONSE_SCHEMA_NAME,
+    QWEN_DASHSCOPE_TOOL_CHOICE,
     ProviderRequestPolicy,
     RouteCompatibilityState,
     ValidatedRoute,
@@ -63,6 +74,7 @@ from ringdown_market.contracts.reasoner_route import (
     load_approved_reasoner_route_v2,
     load_approved_reasoner_route_v3,
     load_approved_reasoner_route_v4,
+    load_approved_reasoner_route_v5,
 )
 
 from .contracts import (
@@ -1231,12 +1243,146 @@ def invoke_furry_gateway_transport(
 
 
 class FurryGatewayReasonerRoute(DirectEnvelopeReasonerRoute):
-    """Owner-approved deepseek-v4-flash-0731-free gateway adapter (V4, current route)."""
+    """Owner-approved deepseek gateway adapter (V4; dormant alternate since V5)."""
 
     lane_name = "direct furry gateway"
     producer_build_sha256 = FURRY_GATEWAY_PRODUCER_BUILD_SHA256
     _lane_policy = staticmethod(_validate_direct_furry_gateway_route)
     _lane_request = staticmethod(build_furry_gateway_request)
+
+
+# ---------------------------------------------------------------------------
+# qwen3.8-max-0902 via the official Alibaba DashScope endpoint (V5, CURRENT).
+# ---------------------------------------------------------------------------
+
+ENV_QWEN_DASHSCOPE_API_KEY = "QWEN_DASHSCOPE_API_KEY"
+PRODUCER_QWEN_DASHSCOPE = "esscher.strategy.direct_qwen_dashscope_host_route"
+QWEN_DASHSCOPE_PRODUCER_BUILD_SHA256 = sha256_bytes(
+    canonical_json_bytes(
+        {
+            "contract": "esscher.reasoner_exchange",
+            "producer": PRODUCER_QWEN_DASHSCOPE,
+            "version": 1,
+        }
+    )
+)
+
+
+def load_qwen_dashscope_route_environment() -> Mapping[str, str]:
+    """Read only the DashScope credential; all route values come from bytes."""
+
+    value = os.environ.get(ENV_QWEN_DASHSCOPE_API_KEY)
+    if not value or not value.strip():
+        raise HostRouteConfigurationError(f"missing host environment {ENV_QWEN_DASHSCOPE_API_KEY}")
+    return {ENV_QWEN_DASHSCOPE_API_KEY: value.strip()}
+
+
+def _validate_direct_qwen_dashscope_route(route: ValidatedRoute) -> ProviderRequestPolicy:
+    """Defend the DashScope builder from a hand-forged or drifted packaged route."""
+
+    expected_route = load_approved_reasoner_route_v5()
+    # Cached package-object identity is the capability proving this value came
+    # from the exact shipped V5 byte pair; field equality alone is forgeable.
+    if route is not expected_route:
+        raise HostRouteConfigurationError(
+            "route is not the exact packaged V5 descriptor and approval validation result"
+        )
+    if (
+        route.provider != QWEN_DASHSCOPE_PROVIDER
+        or route.model != QWEN_DASHSCOPE_MODEL
+        or route.model_revision is not None
+        or route.base_url != QWEN_DASHSCOPE_BASE_URL
+    ):
+        raise HostRouteConfigurationError("route identity is not the frozen DashScope qwen route")
+    policy = route.provider_request_policy
+    if (
+        policy.reasoning_effort != QWEN_DASHSCOPE_REASONING_EFFORT
+        or policy.max_completion_tokens != QWEN_DASHSCOPE_MAX_COMPLETION_TOKENS
+        or policy.response_format_type != QWEN_DASHSCOPE_RESPONSE_FORMAT_TYPE
+        or policy.output_schema_name != QWEN_DASHSCOPE_RESPONSE_SCHEMA_NAME
+        or policy.output_schema_sha256 != reasoner_output_schema_sha256()
+        or policy.strict_json_schema is not False
+        or policy.tool_choice != QWEN_DASHSCOPE_TOOL_CHOICE
+        or policy.effective_temperature != QWEN_DASHSCOPE_EFFECTIVE_TEMPERATURE
+        or policy.effective_top_p != QWEN_DASHSCOPE_EFFECTIVE_TOP_P
+        or tuple(policy.omitted_request_fields) != QWEN_DASHSCOPE_OMITTED_REQUEST_FIELDS
+    ):
+        raise HostRouteConfigurationError(
+            "route does not bind the current DashScope qwen schema policy"
+        )
+    return policy
+
+
+def build_qwen_dashscope_request(
+    route: ValidatedRoute, request: ReasonerRouteRequest
+) -> DirectProviderRequest:
+    """Build the exact canonical DashScope payload without a credential or network call.
+
+    The wire shape is the owner-probe-verified V5 parameter set: frozen system
+    prompt, canonical strategy user payload, ``temperature=0``, ``top_p=1.0``,
+    ``max_tokens=1024``, ``enable_thinking=false`` (reasoning off; verified
+    empty reasoning_content), and NO ``response_format``/``tool_choice``:
+    DashScope's json_object mode demands a literal "json" token the immutable
+    frozen prompt does not contain, so the strict schema is enforced by the
+    prompt plus the client-side six-field validator and drift abstains.
+    """
+
+    provider_request_policy = _validate_direct_qwen_dashscope_route(route)
+    user_payload, identities, prompt_bytes, prompt_sha256, output_schema_sha256 = (
+        _direct_lane_content(request)
+    )
+    payload = {
+        "enable_thinking": False,
+        "max_tokens": provider_request_policy.max_completion_tokens,
+        "messages": [
+            {"content": prompt_bytes.decode("utf-8"), "role": "system"},
+            {"content": canonical_json_bytes(user_payload).decode("utf-8"), "role": "user"},
+        ],
+        "model": route.model,
+        "temperature": 0,
+        "top_p": 1.0,
+    }
+    if any(field in payload for field in provider_request_policy.omitted_request_fields):
+        raise HostRouteConfigurationError(
+            "direct DashScope qwen payload includes a frozen omitted field"
+        )
+    payload_bytes = canonical_json_bytes(payload)
+    request_sha256 = _direct_request_identity_sha256(
+        schema="esscher.direct_qwen_dashscope_request_identity",
+        payload=payload,
+        route=route,
+        prompt_sha256=prompt_sha256,
+        output_schema_sha256=output_schema_sha256,
+        identities=identities,
+        ablate_text=request.ablate_text,
+    )
+    return DirectProviderRequest(
+        endpoint=f"{route.base_url}/chat/completions",
+        payload_bytes=payload_bytes,
+        request_sha256=request_sha256,
+        route_sha256=route.route_sha256,
+        model_config_sha256=route.model_config_sha256,
+        prompt_sha256=prompt_sha256,
+        output_schema_sha256=output_schema_sha256,
+    )
+
+
+def invoke_qwen_dashscope_transport(
+    request: DirectProviderRequest,
+    transport: Callable[[str, dict[str, object]], bytes],
+) -> KimiTransportResult:
+    """Invoke exactly once with no retry and no provider exception text escape."""
+
+    return _invoke_direct_transport_once(request.endpoint, request.payload, transport)
+
+
+class QwenDashScopeReasonerRoute(DirectEnvelopeReasonerRoute):
+    """Owner-approved qwen3.8-max-0902 DashScope adapter (V5, current route)."""
+
+    lane_name = "direct qwen dashscope"
+    producer_build_sha256 = QWEN_DASHSCOPE_PRODUCER_BUILD_SHA256
+    _lane_policy = staticmethod(_validate_direct_qwen_dashscope_route)
+    _lane_request = staticmethod(build_qwen_dashscope_request)
 
 
 class OpenAiCompatibleReasonerRoute:
@@ -1355,10 +1501,13 @@ __all__ = [
     "ENV_API_KEY",
     "ENV_FURRY_API_KEY",
     "ENV_MINIMAX_API_KEY",
+    "ENV_QWEN_DASHSCOPE_API_KEY",
     "FURRY_GATEWAY_PRODUCER_BUILD_SHA256",
     "MINIMAX_PRODUCER_BUILD_SHA256",
     "PRODUCER_FURRY_GATEWAY",
     "PRODUCER_MINIMAX",
+    "PRODUCER_QWEN_DASHSCOPE",
+    "QWEN_DASHSCOPE_PRODUCER_BUILD_SHA256",
     "DirectEnvelopeReasonerRoute",
     "DirectProviderRequest",
     "FurryGatewayReasonerRoute",
@@ -1373,15 +1522,19 @@ __all__ = [
     "MinimaxM3ReasonerRoute",
     "MinimaxM3Request",
     "OpenAiCompatibleReasonerRoute",
+    "QwenDashScopeReasonerRoute",
     "build_furry_gateway_request",
     "build_kimi_k3_request",
     "build_kimi_k3_v2_request",
     "build_minimax_m3_request",
+    "build_qwen_dashscope_request",
     "invoke_furry_gateway_transport",
     "invoke_kimi_k3_transport",
     "invoke_minimax_m3_transport",
+    "invoke_qwen_dashscope_transport",
     "load_furry_route_environment",
     "load_minimax_route_environment",
+    "load_qwen_dashscope_route_environment",
     "load_route_environment",
     "unwrap_minimax_response",
     "unwrap_openai_chat_envelope",

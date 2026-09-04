@@ -1,0 +1,28 @@
+{
+  "adapter_kind": "OPENAI_COMPATIBLE_CHAT_V1",
+  "approval_id": "ESSCHER_ROUTE_APPROVAL_V5",
+  "approval_state": "APPROVED",
+  "approved_at": "2026-09-04T20:50:24Z",
+  "approver": "MS-Mesh",
+  "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+  "clauses": [
+    "The owner selected this exact qwen3.8-max-0902 dated snapshot served by the official Alibaba DashScope OpenAI-compatible endpoint for prospective strategy evaluation after gate measurement: 30/30 warm observations strict-schema-valid, nearest-rank p95 5062 ms and max 5735 ms against the frozen 8-second one-call budget, with zero reasoning leakage. Earlier candidates were excluded by measurement: MiniMax-M3 (latency), Kimi-K2.6-free (frozen-validator failures on every probe), kimi-k3 (top_p wire incompatibility and >16 s latency), the moving qwen3.8-max alias (schema drift on 4/24 probes - the dated snapshot is pinned to prevent silent rerouting), and DashScope third-party products (not activated on the host account). The V4 deepseek-v4-flash-0731-free furry.vg package remains a dormant alternate. The route has no broker, account, order, sizing, or secret authority.",
+    "The owner accepts the disclosed wire truths: DashScope json_object mode requires a literal 'json' token in the messages and the immutable frozen prompt does not contain one, so no wire response_format is sent; the strict six-field schema is enforced by the frozen prompt and the client-side validator, and any drift fails closed as a typed abstention. enable_thinking=false is pinned (reasoning_content verified empty), temperature 0 and top_p 1.0 are accepted, and tool_choice is omitted because no tools are ever offered.",
+    "Each paid or live reasoner probe or measurement run receives separate current owner approval before execution.",
+    "The route accepts only the exact packaged V5 descriptor and approval bytes."
+  ],
+  "cost_ceiling": {
+    "entitlement_note": "Host-owned Alibaba DashScope entitlement is configured outside this repository (QWEN_DASHSCOPE_API_KEY); calls are metered against the host account under its own plan; no provider purchase is authorized by this artifact.",
+    "max_output_tokens_per_call": 1024,
+    "paid_provider_purchase": false,
+    "probe_budget_calls": 0
+  },
+  "model": "qwen3.8-max-0902",
+  "model_config_sha256": "bf511e3bc2ef8a3d3a5acbbfaedc861a567a28e424e1dba3954b67a9d3d9b5f7",
+  "model_revision": null,
+  "provider": "dashscope_qwen",
+  "route_sha256": "58878f4ec21308e767bcd8f53855a1c24d854cfa49e66adb799fc5dc5a9e50fb",
+  "schema": "esscher.reasoner_route_approval",
+  "schema_version": 5,
+  "scope": "ESSCHER_V2_STRATEGY_EVALUATION"
+}

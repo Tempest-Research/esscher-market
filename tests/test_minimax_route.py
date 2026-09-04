@@ -28,7 +28,7 @@ from ringdown_market.contracts.reasoner_route import (
     RouteContractRejected,
     load_approved_reasoner_route_v2,
     load_approved_reasoner_route_v3,
-    load_approved_reasoner_route_v4,
+    load_approved_reasoner_route_v5,
     load_current_approved_reasoner_route,
     packaged_route_descriptor_v3_bytes,
     validate_reasoner_route_v3,
@@ -117,10 +117,10 @@ def test_v3_package_is_approved_compatible_and_eligible() -> None:
 
 
 def test_v3_minimax_package_is_a_dormant_alternate() -> None:
-    # The current route pivoted to V4 (deepseek-v4-flash-0731-free via the furry.vg gateway)
-    # after MiniMax-M3 measured above the frozen 8s one-call budget; V3 remains
-    # packaged, loadable, and unchanged as a dormant alternate.
-    assert load_current_approved_reasoner_route() is load_approved_reasoner_route_v4()
+    # The current route pivoted to V5 (qwen3.8-max-0902 via official DashScope)
+    # after the V4 free-gateway route hit disclosed evening concurrency caps;
+    # V3 remains packaged, loadable, and unchanged as a dormant alternate.
+    assert load_current_approved_reasoner_route() is load_approved_reasoner_route_v5()
     v3 = load_approved_reasoner_route_v3()
     assert v3 is not load_current_approved_reasoner_route()
     assert v3.provider == "minimax_direct"

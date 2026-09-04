@@ -1,29 +1,34 @@
 # Reasoner route and p95 latency gate
 
-**Status: CURRENT — the owner-approved V4 direct route (deepseek-v4-flash-0731-free
-via the furry.vg gateway) is live-measured and preflight-verified; the packaged
-p95 profile is `HOST_MEASURED`.** The V1 history below is retained verbatim as
-the record of the original direct-Kimi boundary and its fail-closed
+**Status: CURRENT — the owner-approved V5 direct route (qwen3.8-max-0902 via
+the official Alibaba DashScope endpoint) is live-measured and gate-verified;
+the packaged p95 profile is `HOST_MEASURED`.** The V1 history below is retained
+verbatim as the record of the original direct-Kimi boundary and its fail-closed
 incompatibility.
 
 ## Route generation history (2026-09-04, owner MS-Mesh)
 
 | Gen | Provider / model | State | Why |
 | --- | --- | --- | --- |
-| V1/V2 | `moonshot_direct` / `kimi-k3` | dormant, V1 INCOMPATIBLE | K3 entitlement withdrawn; V1 frozen-decoding incompatibility below |
+| V1/V2 | `moonshot_direct` / `kimi-k3` | dormant, V1 INCOMPATIBLE | K3 entitlement withdrawn; V1 frozen-decoding incompatibility below; DashScope-hosted kimi-k3 later re-measured: `top_p` wire-incompatible and >16 s |
 | V3 | `minimax_direct` / `MiniMax-M3` | dormant alternate | live measurement: 22/22 TIMEOUT against the frozen 8s one-call budget |
 | V4 (initial candidate) | `furry_vg_gateway` / `Kimi-K2.6-free` | rejected by measurement | 23/23 probes failed the frozen six-field validator (contradictions emitted as `evidence_id_1`/`evidence_id_2`); gateway hangs on `json_schema` |
-| **V4 (current)** | `furry_vg_gateway` / `deepseek-v4-flash-0731-free` | **current, APPROVED/COMPATIBLE/eligible** | probe-verified schema-valid (`json_object` required, empty `reasoning_content`), 28/28 warm live samples valid, nearest-rank p95 500 ms |
+| V4 | `furry_vg_gateway` / `deepseek-v4-flash-0731-free` | dormant alternate | 28/28 warm valid, p95 500 ms in session hours; free gateway enforces evening concurrency caps (429 "at concurrency limit") that would abstain live decisions |
+| **V5 (current)** | `dashscope_qwen` / `qwen3.8-max-0902` | **current, APPROVED/COMPATIBLE/eligible** | official Alibaba DashScope metered infrastructure; adapter-level gate measurement 30/30 COMPLETED, 28/30 strict-schema-valid (2 summary-normalization drifts = typed abstentions), nearest-rank p95 5578 ms; date-pinned snapshot (the moving `qwen3.8-max` alias drifted 4/24) |
 
-V4 artifacts: `contracts/policies/reasoner_route_v4.json` (route_sha256
-`8fff4fa134eea77a5b503ac8c628651bca818ee9148694a5830ec6bbecb62549`) and
-`reasoner_route_approval_v4.json` (approver MS-Mesh; model_config_sha256
-`88a23f0e5bfbc1d2e60d139e851b560e4e9cfa07d5806cdb798a206eab31cca5`). The
-engine lane is `FurryGatewayReasonerRoute` over the shared
-`DirectEnvelopeReasonerRoute` one-call/no-retry boundary; the host credential is
-`FURRY_API_KEY` (env-only, discarded at construction). Free-gateway capacity
-facts (intermittent 429/dropped-connection/stall) are disclosed in the approval
-clauses and fail closed as typed abstentions.
+V5 artifacts: `contracts/policies/reasoner_route_v5.json` (route_sha256
+`58878f4ec21308e767bcd8f53855a1c24d854cfa49e66adb799fc5dc5a9e50fb`) and
+`reasoner_route_approval_v5.json` (approver MS-Mesh; model_config_sha256
+`bf511e3bc2ef8a3d3a5acbbfaedc861a567a28e424e1dba3954b67a9d3d9b5f7`). Wire
+truths: NO `response_format` (DashScope json_object demands a literal "json"
+token the immutable frozen prompt never contains; the schema is prompt-directed
+and client-validated, drift abstains), `enable_thinking=false` (empty
+reasoning_content verified), temperature 0, top_p 1.0, no `tool_choice`,
+1024-token cap, 8s one-call/no-retry. The engine lane is
+`QwenDashScopeReasonerRoute` over the shared `DirectEnvelopeReasonerRoute`
+boundary; the host credential is `QWEN_DASHSCOPE_API_KEY` (env-only, discarded
+at construction). Metered-endpoint throttling would fail closed as typed
+abstentions.
 
 ## Historical V1 record (direct Kimi K3)
 
@@ -147,18 +152,20 @@ The current official direct-K3 references are:
 - <https://platform.kimi.ai/docs/guide/kimi-k3-quickstart>
 - <https://platform.kimi.ai/docs/api/chat>
 
-## p95 latency profile (promoted 2026-09-04)
+## p95 latency profile (promoted 2026-09-04, re-frozen for V5)
 
-The packaged p95 profile is now `HOST_MEASURED`: nearest-rank p95 **500 ms**
-over **28** valid warm host observations (2 cold-start excluded) of the frozen
-fixture decision prompt through the V4 route on 2026-09-04, zero retries, no
-fallback routes; content_sha256
-`2a471fb4670887449f17d5937985ea236de8a622dd4d20f2f80c9cbf4cb74812`. It
-supersedes the owner-preregistered conservative 30,000 ms bound; the redacted
-measurement report is retained host-side
-(`artifacts/measure/furry_gateway_latency_report.json`) and the profile
-provenance note discloses the repeated-prompt caching caveat. The historical
-preregistered profile remains recoverable from git history.
+The packaged p95 profile is `HOST_MEASURED`: nearest-rank p95 **5578 ms** over
+**30** warm host observations (2 cold-start excluded) of the frozen fixture
+decision prompt through the packaged V5 route adapter on 2026-09-04; 30/30
+COMPLETED, 28/30 strict-schema-valid (2 summary-normalization drifts became
+typed abstentions - disclosed); zero retries, no fallback routes;
+content_sha256
+`44ca36dd9981554b13f93c15e94ef031e8a10286d66c00b85d3dcde4f68153e4`. It
+supersedes the V4 furry-gateway deepseek measurement (p95 500 ms) and the
+original owner-preregistered 30,000 ms bound; the redacted measurement report
+is retained host-side (`artifacts/measure/qwen_dashscope_latency_report.json`)
+and the profile provenance note discloses the repeated-prompt caching caveat.
+Earlier profiles remain recoverable from git history.
 
 ## Fail-closed behavior
 
