@@ -14,6 +14,7 @@ from ringdown_market.panel.manifest import (
     validate_panel_manifest,
     validate_panel_selection_rule,
 )
+from ringdown_market.strategy.policy import strategy_policy_sha256
 
 FIXTURES = Path(__file__).parent / "fixtures"
 SYNTHETIC_RULE = FIXTURES / "synthetic_qfast_panel_selection_rule.json"
@@ -311,6 +312,15 @@ def test_zero_profile_cannot_carry_measurement() -> None:
     )
 
     assert caught.path.endswith("latency_profiles.zero.measurement")
+
+
+def test_registered_strategy_policy_is_the_frozen_v1_contract() -> None:
+    # Issue #26 is closed completed: the registry pins exactly the frozen V1
+    # strategy-policy digest; the #27 snapshot protocol has no canonical
+    # artifact digest yet, so its registry stays deliberately empty and REAL
+    # manifests remain fail-closed on that field.
+    assert frozenset({strategy_policy_sha256()}) == panel_manifest.KNOWN_STRATEGY_POLICY_SHA256
+    assert frozenset() == panel_manifest.KNOWN_SNAPSHOT_PROTOCOL_SHA256
 
 
 def test_real_panel_fails_closed_until_strategy_policy_merges() -> None:

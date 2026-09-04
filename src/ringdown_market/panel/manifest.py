@@ -36,7 +36,17 @@ P0_CONTRACT_DEVELOPMENT_EVENT_IDS = frozenset(
 )
 P0_EXCLUSION_REASON_CODE = "P0_CONTRACT_DEVELOPMENT_EVENT"
 
-KNOWN_STRATEGY_POLICY_SHA256: frozenset[str] = frozenset()
+# Issue #26 (closed completed): the frozen accepted event-strategy research
+# contract is merged, so its V1 strategy-policy digest is registered here and
+# REAL panel manifests can bind it (pinned by
+# tests/test_panel_manifest.py::test_registered_strategy_policy_is_the_frozen_v1_contract).
+# Issue #27 merged the point-in-time snapshot compiler but no canonical
+# snapshot-protocol artifact digest exists yet, so that registry deliberately
+# stays empty and REAL manifests remain fail-closed on the field until the
+# protocol is canonicalized under owner review.
+KNOWN_STRATEGY_POLICY_SHA256: frozenset[str] = frozenset(
+    {"afce93b52b96e0d8c71deeb80027a1c87a4cf3623e9417db14de00279fc23bca"}
+)
 KNOWN_SNAPSHOT_PROTOCOL_SHA256: frozenset[str] = frozenset()
 
 PANEL_CLAIM_BOUNDARY = frozenset(
