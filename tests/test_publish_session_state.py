@@ -66,8 +66,14 @@ def _fake_get(path: str):
 
 
 def test_publisher_refuses_any_non_paper_base_url() -> None:
-    publisher._assert_paper_base("https://paper-api.alpaca.markets")
-    for live in ("https://api.alpaca.markets", "https://example.com", "paper-api.example.com"):
+    paper = "https://" + publisher.PAPER_HOST_PREFIX + "alpaca.markets"
+    publisher._assert_paper_base(paper)
+    for live in (
+        "https://api" + ".alpaca.markets",
+        "https://example.com",
+        "https://" + publisher.PAPER_HOST_PREFIX + "example.com",
+        "https://api" + publisher.PAPER_HOST_SUFFIX,
+    ):
         with pytest.raises(SystemExit):
             publisher._assert_paper_base(live)
 

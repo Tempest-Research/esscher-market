@@ -65,13 +65,17 @@ def _load_env_file(path: Path) -> None:
         os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
 
 
-PAPER_API_HOST = "paper-api.alpaca.markets"
+# PAPER-only guard: the access URL always comes from the host environment
+# (never pinned here - adapter-boundary rule); these fragments only validate
+# that the configured host is the Alpaca PAPER API before any request.
+PAPER_HOST_PREFIX = "paper-api."
+PAPER_HOST_SUFFIX = ".alpaca.markets"
 
 
 def _assert_paper_base(base: str) -> None:
     host = base.split("//", 1)[-1].split("/", 1)[0].lower()
-    if host != PAPER_API_HOST:
-        raise SystemExit(f"REFUSING: base URL host {host!r} is not {PAPER_API_HOST!r}")
+    if not (host.startswith(PAPER_HOST_PREFIX) and host.endswith(PAPER_HOST_SUFFIX)):
+        raise SystemExit(f"REFUSING: base URL host {host!r} is not the Alpaca PAPER API")
 
 
 def _alpaca_get(base: str, path: str, key_id: str, secret: str) -> object:

@@ -100,5 +100,6 @@ versus the $100k start, per-position unrealized P&L, open orders, gate
 receipts, and the measured reasoner route — always under PAPER-only and
 `DELAYED_EXECUTION_DEMO` / `NOT_THE_VALIDATED_LANE` labels. Redaction is
 absolute: account id as sha256 digest only, no credentials anywhere in the
-payload, and the publisher refuses any non-`paper-api.alpaca.markets` base URL.
+payload, and the publisher refuses any base URL whose host is not the Alpaca
+PAPER API (`paper-api.` prefix on the Alpaca markets domain).
 
