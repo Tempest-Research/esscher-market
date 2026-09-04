@@ -14,6 +14,7 @@ from decimal import Decimal
 
 from ringdown_market.execution.expression.observations import (
     EXECUTABLE_DATA,
+    INDICATIVE_DATA,
     BorrowLocateEvidence,
     ExpressionMarketSnapshot,
     FeedIdentity,
@@ -27,7 +28,10 @@ from ringdown_market.execution.expression.reasons import (
 )
 
 # Pinned read-only feed identities. Unknown feeds fail closed; a feed identity
-# is never inferred.
+# is never inferred.  The ALPACA_* identities are the honest live-door feeds
+# (owner-approved demo lane, #68/#101): pinning an identity does not relax the
+# data-class gate - Basic-plan feeds must still arrive labeled INDICATIVE_DATA
+# and pass only under a promoted policy that explicitly allows indicative data.
 PINNED_FEEDS = frozenset(
     {
         ("SYNTHETIC_SIP_EQUITY_FEED", "read_only_equity_quote", "equity_quote.v1", "1"),
@@ -40,6 +44,25 @@ PINNED_FEEDS = frozenset(
         (
             "SYNTHETIC_PACKAGE_FEED",
             "read_only_package_quote",
+            "package_quote.v1",
+            "1",
+        ),
+        ("ALPACA_IEX_EQUITY_QUOTES", "read_only_equity_quote", "equity_quote.v1", "1"),
+        (
+            "ALPACA_INDICATIVE_OPTION_SNAPSHOTS",
+            "read_only_option_chain",
+            "option_chain_snapshot.v1",
+            "1",
+        ),
+        (
+            "ALPACA_OPRA_OPTION_SNAPSHOTS",
+            "read_only_option_chain",
+            "option_chain_snapshot.v1",
+            "1",
+        ),
+        (
+            "HOST_DERIVED_VERTICAL_PACKAGES",
+            "derived_package_quote",
             "package_quote.v1",
             "1",
         ),
@@ -62,15 +85,25 @@ def validate_feed(feed: FeedIdentity, path: str) -> None:
         )
 
 
-def validate_executable_data(data_class: str, path: str) -> None:
-    """Reject indicative observations before they can become fill evidence."""
+def validate_executable_data(
+    data_class: str, path: str, *, allows_indicative: bool = False
+) -> None:
+    """Reject indicative observations before they can become fill evidence.
 
-    if data_class != EXECUTABLE_DATA:
-        raise _reject(
-            ExpressionReason.INDICATIVE_ONLY,
-            path,
-            "indicative observations are never executable-fill evidence",
-        )
+    ``allows_indicative`` is threaded only from an explicitly flagged promoted
+    policy (the owner-approved delayed-demo lane); the default keeps the frozen
+    behaviour everywhere else.
+    """
+
+    if data_class == EXECUTABLE_DATA:
+        return
+    if allows_indicative and data_class == INDICATIVE_DATA:
+        return
+    raise _reject(
+        ExpressionReason.INDICATIVE_ONLY,
+        path,
+        "indicative observations are never executable-fill evidence",
+    )
 
 
 def _observation_age(
@@ -153,7 +186,11 @@ def validate_package(
     """Require a fresh, pinned, executable atomic-package market."""
 
     validate_feed(package.feed, f"{path}.feed")
-    validate_executable_data(package.data_class, f"{path}.data_class")
+    validate_executable_data(
+        package.data_class,
+        f"{path}.data_class",
+        allows_indicative=policy.allows_indicative_data,
+    )
     age = _observation_age(package.observed_at, snapshot=snapshot, path=path)
     if age > timedelta(milliseconds=policy.quote_max_age_ms):
         raise _reject(

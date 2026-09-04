@@ -77,7 +77,24 @@ _REASONER_POLICY_HASH_REGISTRY = (
             "08dd5302e8e03e01a7012acb59048329516e6a801f8b24827066f43430c04fa4",
         ),
     ),
+    # V3 delayed-capture demo candidate (owner-approved 2026-09-04, #68/#101):
+    # identical authority/evidence/features/hypothesis text as V1 earnings, so
+    # only the embedded policy_sha256 differs (route + prompt hashes); the
+    # output-schema hash is by construction identical.
+    (
+        "EARNINGS_RESIDUAL_CONTINUATION_V3",
+        (
+            "2600eaf239126ee476a0e3eca2c77a0d3c691679945b64f37f7b3e5647f67ed7",
+            "596f2ba3eb604d238b55cfabed92470ea220700747b9ac259f9e7cf1abf6c696",
+            "08dd5302e8e03e01a7012acb59048329516e6a801f8b24827066f43430c04fa4",
+        ),
+    ),
 )
+
+# The V3 delayed-capture demo candidate id (owner-approved 2026-09-04): the
+# only candidate served by the V3 policy generation; every other candidate
+# resolves against the untouched V1 package.
+V3_DELAYED_EARNINGS_CANDIDATE = "EARNINGS_RESIDUAL_CONTINUATION_V3"
 
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$")
@@ -218,9 +235,14 @@ def reasoner_system_prompt_payload(candidate_id: str) -> dict[str, object]:
     user message carries only typed snapshot and feature-receipt data.
     """
 
-    from .policy import strategy_policy_bytes
+    from .policy import strategy_policy_bytes, strategy_policy_v3_bytes
 
-    policy = json.loads(strategy_policy_bytes())
+    raw_policy = (
+        strategy_policy_v3_bytes()
+        if candidate_id == V3_DELAYED_EARNINGS_CANDIDATE
+        else strategy_policy_bytes()
+    )
+    policy = json.loads(raw_policy)
     candidates = policy["candidates"]
     candidate = next(
         (item for item in candidates if item["candidate_id"] == candidate_id),
@@ -1480,9 +1502,17 @@ def build_strategy_input(
     except ValueError as error:
         _reject(StrategyContractReason.IDENTITY_MISMATCH, "strategy_input", str(error))
     try:
-        from ringdown_market.strategy.policy import load_strategy_policy
+        from ringdown_market.strategy.policy import (
+            load_strategy_policy,
+            load_strategy_policy_v3,
+            strategy_policy_v3_sha256,
+        )
 
-        policy = load_strategy_policy()
+        policy = (
+            load_strategy_policy_v3()
+            if snapshot.policy_sha256 == strategy_policy_v3_sha256()
+            else load_strategy_policy()
+        )
     except (ImportError, OSError, TypeError, ValueError) as error:
         _reject(StrategyContractReason.POLICY_MISMATCH, "policy", str(error))
     _validate_input_against_policy(value, policy)
@@ -2132,9 +2162,13 @@ def _reasoner_policy_hashes(
 def reasoner_policy_hashes(candidate_id: str) -> tuple[str, str, str]:
     """Return the frozen route, prompt-contract, and output-schema hashes."""
 
-    from ringdown_market.strategy.policy import load_strategy_policy
+    from ringdown_market.strategy.policy import load_strategy_policy, load_strategy_policy_v3
 
-    policy = load_strategy_policy()
+    policy = (
+        load_strategy_policy_v3()
+        if candidate_id == V3_DELAYED_EARNINGS_CANDIDATE
+        else load_strategy_policy()
+    )
     if candidate_id not in policy.candidate_ids:
         raise KeyError(candidate_id)
     actual = _reasoner_policy_hashes(policy, candidate_id)
@@ -2483,7 +2517,10 @@ def _reaction_relation(
     confirmation = _numeric_feature(value, feature_id)
     if confirmation is None:
         return ReactionRelation.NONE
-    if candidate_id == "EARNINGS_RESIDUAL_CONTINUATION_V1":
+    if candidate_id in (
+        "EARNINGS_RESIDUAL_CONTINUATION_V1",
+        V3_DELAYED_EARNINGS_CANDIDATE,
+    ):
         minimum = _policy_threshold(policy, candidate_id, "opening_residual_epsilon")
         if abs(confirmation) < minimum:
             return ReactionRelation.NONE
@@ -2614,9 +2651,17 @@ def validate_strategy_decision(
     snapshot = strategy_input.snapshot
     exchange = reasoner_exchange
     try:
-        from ringdown_market.strategy.policy import load_strategy_policy
+        from ringdown_market.strategy.policy import (
+            load_strategy_policy,
+            load_strategy_policy_v3,
+            strategy_policy_v3_sha256,
+        )
 
-        policy = load_strategy_policy()
+        policy = (
+            load_strategy_policy_v3()
+            if snapshot.policy_sha256 == strategy_policy_v3_sha256()
+            else load_strategy_policy()
+        )
     except (ImportError, OSError, TypeError, ValueError) as error:
         _reject(StrategyContractReason.POLICY_MISMATCH, "policy", str(error))
     _validate_input_against_policy(strategy_input, policy)

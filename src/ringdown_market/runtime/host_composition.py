@@ -171,8 +171,11 @@ MARKET_ANCHOR_LANE_V2 = "MARKET_ANCHOR_INTRADAY_CONTINUATION_V1"
 CATALYST_LANE_V2 = "LIQUID_STOCK_CATALYST_CONTINUATION_V1"
 
 _EARNINGS_SOURCE_CANDIDATE_V1 = "EARNINGS_RESIDUAL_CONTINUATION_V1"
+# The V3 delayed-capture demo candidate (owner-approved 2026-09-04, #68/#101)
+# rides the same autonomous earnings lane as the V1 source candidate.
+_EARNINGS_SOURCE_CANDIDATE_V3 = "EARNINGS_RESIDUAL_CONTINUATION_V3"
 _SOURCE_CANDIDATE_BY_AUTONOMOUS_LANE = {
-    EARNINGS_LANE_V2: _EARNINGS_SOURCE_CANDIDATE_V1,
+    EARNINGS_LANE_V2: (_EARNINGS_SOURCE_CANDIDATE_V1, _EARNINGS_SOURCE_CANDIDATE_V3),
 }
 
 MARKET_FIXTURE_KEYS = ("daily_bars", "prior_window_trades", "reaction_quotes", "reaction_trades")
@@ -231,6 +234,25 @@ def synthetic_promoted_expression_policy() -> PromotedExpressionPolicy:
     )
 
 
+def demo_delayed_promoted_expression_policy() -> PromotedExpressionPolicy:
+    """The owner-approved delayed-capture DEMO lane expression policy (#68/#101).
+
+    Identical bounds to the synthetic promoted policy, but it explicitly allows
+    INDICATIVE_DATA observations (Basic-plan IEX equity quotes and indicative
+    option snapshots) and carries a distinct policy identity so every receipt
+    names the demo lane.  The validated lane never uses this policy; a session
+    armed with it must disclose INDICATIVE_OPTION_PRICING in its runbook and
+    receipts.
+    """
+
+    return replace(
+        synthetic_promoted_expression_policy(),
+        policy_id="DELAYED_DEMO_PROMOTED_EXPRESSION_V1",
+        version="v1-demo-indicative",
+        allows_indicative_data=True,
+    )
+
+
 def rehearsal_direction(strategy_input: StrategyInput) -> Direction:
     """Return the deterministic confirmation-sign direction for one input."""
 
@@ -253,6 +275,7 @@ def rehearsal_direction(strategy_input: StrategyInput) -> Direction:
 def _confirmation_feature_id(candidate_id: str) -> str:
     feature_ids = {
         "EARNINGS_RESIDUAL_CONTINUATION_V1": "market.opening_residual_log_return.v1",
+        "EARNINGS_RESIDUAL_CONTINUATION_V3": "market.opening_residual_log_return.v1",
         "MACRO_SPY_CONTINUATION_CHALLENGER_V1": "market.spy_event_zscore_60.v1",
     }
     feature_id = feature_ids.get(candidate_id)
@@ -804,7 +827,7 @@ class CompositionCandidateBackend:
         try:
             probe = compile_strategy_snapshot(capture, evidence, market)
             joined = compiled_strategy_input(probe)
-            if joined.snapshot.candidate_id != expected_source_candidate:
+            if joined.snapshot.candidate_id not in expected_source_candidate:
                 raise CompositionRejected("source candidate does not match the autonomous lane")
             timeline = rehearsal_timeline(joined)
         except (CollectorRejected, CompositionRejected, ValueError, TypeError):
@@ -1153,6 +1176,7 @@ __all__ = [
     "SyntheticRehearsalMutationGate",
     "SyntheticRehearsalRoute",
     "composition_plan_factory",
+    "demo_delayed_promoted_expression_policy",
     "rehearsal_direction",
     "rehearsal_expression_snapshot",
     "rehearsal_lifecycle_clocks",

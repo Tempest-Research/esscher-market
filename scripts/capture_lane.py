@@ -64,7 +64,10 @@ from ringdown_market.strategy.contracts import (  # noqa: E402
     parse_candidate_manifest,
     sha256_bytes,
 )
-from ringdown_market.strategy.policy import strategy_policy_sha256  # noqa: E402
+from ringdown_market.strategy.policy import (  # noqa: E402
+    strategy_policy_sha256,
+    strategy_policy_v3_sha256,
+)
 
 ET = ZoneInfo("America/New_York")
 EDGAR_FTS_HOST = "https://efts.sec.gov"
@@ -72,7 +75,14 @@ EDGAR_DATA_HOST = "https://data.sec.gov"
 EDGAR_WWW_HOST = "https://www.sec.gov"
 EDGAR_UA = {"User-Agent": "esscher-capture-lane research@tempest.local"}
 CANDIDATE_ID = "EARNINGS_RESIDUAL_CONTINUATION_V1"
+CANDIDATE_ID_V3 = "EARNINGS_RESIDUAL_CONTINUATION_V3"
 SELECTION_RULE_ID = "live-earnings-universe-v1"
+SELECTION_RULE_ID_V3 = "live-earnings-universe-v1-delayed-demo"
+# The V3 delayed-demo evidence cutoff: window end (09:35:00 ET) + 16 minutes.
+# The Basic data plan serves SIP data only once it is older than fifteen
+# minutes, so the delayed lane captures the identical 09:30:00-09:35:00 signal
+# window at 09:50:05-09:51:00 ET as legal historical data.
+DELAYED_EVIDENCE_DEADLINE = timedelta(minutes=16)
 LIVE_INPUTS_SCHEMA = "esscher.live_snapshot_inputs"
 PRODUCER_BUILD_SHA256 = sha256_bytes(
     canonical_json_bytes({"schema": "esscher.capture_lane_producer", "version": 1})
@@ -825,16 +835,29 @@ def cmd_freeze_manifest(args: argparse.Namespace) -> int:
             "EMPTY_UNIVERSE", "no discovered events survived to manifest records"
         )
     records.sort(key=lambda item: str(item["event_id"]))
+    policy_version = int(getattr(args, "policy_version", 1) or 1)
+    if policy_version == 3:
+        policy_sha = strategy_policy_v3_sha256()
+        candidate_id = CANDIDATE_ID_V3
+        selection_rule_id = SELECTION_RULE_ID_V3
+        manifest_id = f"live-earnings-candidates-delayed-demo-{session_date.isoformat()}"
+    elif policy_version == 1:
+        policy_sha = strategy_policy_sha256()
+        candidate_id = CANDIDATE_ID
+        selection_rule_id = SELECTION_RULE_ID
+        manifest_id = f"live-earnings-candidates-{session_date.isoformat()}"
+    else:
+        raise CaptureLaneRejected("UNSUPPORTED_POLICY_VERSION", f"{policy_version}")
     manifest = {
-        "candidate_id": CANDIDATE_ID,
+        "candidate_id": candidate_id,
         "frozen_at": _iso(frozen_at),
-        "manifest_id": f"live-earnings-candidates-{session_date.isoformat()}",
-        "policy_sha256": strategy_policy_sha256(),
+        "manifest_id": manifest_id,
+        "policy_sha256": policy_sha,
         "producer_build_sha256": PRODUCER_BUILD_SHA256,
         "records": records,
         "schema": "esscher.candidate_manifest",
         "schema_version": 1,
-        "selection_rule_id": SELECTION_RULE_ID,
+        "selection_rule_id": selection_rule_id,
     }
     raw = canonical_json_bytes(manifest)
     parse_candidate_manifest(raw)  # fail closed unless the frozen contract accepts it
@@ -1621,12 +1644,17 @@ def cmd_entitlement_receipt(args: argparse.Namespace) -> int:
 
 def cmd_capture_window(args: argparse.Namespace) -> int:
     rehearsal = bool(getattr(args, "rehearsal_historical", False))
+    delayed = bool(getattr(args, "delayed_demo", False))
+    if rehearsal and delayed:
+        raise CaptureLaneRejected(
+            "UNSUPPORTED_INPUT", "rehearsal-historical and delayed-demo are exclusive modes"
+        )
     receipt = (
         json.loads(Path(args.entitlement_receipt).read_bytes())
         if args.entitlement_receipt
         else None
     )
-    if not rehearsal and (receipt is None or receipt.get("verdict") != "PASSED"):
+    if not rehearsal and not delayed and (receipt is None or receipt.get("verdict") != "PASSED"):
         raise CaptureLaneRejected(
             "ENTITLEMENT_UNVERIFIED", "refusing window capture without a PASSED receipt"
         )
@@ -1641,7 +1669,23 @@ def cmd_capture_window(args: argparse.Namespace) -> int:
     end = start + timedelta(minutes=5)
     session_id = f"XNYS-{session_date.isoformat()}"
     captured_at = datetime.now(UTC)
-    if not rehearsal:
+    if delayed:
+        # The V3 delayed-demo lane captures the identical signal window as
+        # fifteen-minute-old HISTORICAL data (legal on the Basic plan); the
+        # frozen V3 evidence cutoff is window end + 16 minutes (09:51:00 ET).
+        deadline = end.astimezone(UTC) + DELAYED_EVIDENCE_DEADLINE
+        if captured_at < end.astimezone(UTC) + timedelta(minutes=15, seconds=5):
+            raise CaptureLaneRejected(
+                "DELAYED_CAPTURE_TOO_EARLY",
+                "delayed capture must start after the data plan's 15-minute recency "
+                "boundary clears the window end",
+            )
+        if captured_at > deadline:
+            raise CaptureLaneRejected(
+                "EVIDENCE_CUTOFF_MISSED",
+                f"capture {_iso(captured_at)} past the V3 delayed cutoff {_iso(deadline)}",
+            )
+    elif not rehearsal:
         deadline = end.astimezone(UTC) + timedelta(seconds=15)
         if captured_at > deadline:
             raise CaptureLaneRejected(
@@ -1695,7 +1739,13 @@ def cmd_capture_window(args: argparse.Namespace) -> int:
         # labelled so downstream artifacts can never launder the distinction.
         "rehearsal_historical": rehearsal,
         "claims": (
-            ["REHEARSAL_HISTORICAL_NOT_LIVE_SESSION"] if rehearsal else ["LIVE_SESSION_CAPTURE"]
+            ["REHEARSAL_HISTORICAL_NOT_LIVE_SESSION"]
+            if rehearsal
+            else (
+                ["DELAYED_EXECUTION_DEMO", "LIVE_SESSION_CAPTURE"]
+                if delayed
+                else ["LIVE_SESSION_CAPTURE"]
+            )
         ),
     }
     digest = _write_json(Path(args.out), payload)
@@ -1715,7 +1765,9 @@ def cmd_serialize(args: argparse.Namespace) -> int:
     window = json.loads(Path(args.window).read_bytes())
     manifest = json.loads(Path(args.manifest).read_bytes())
     rehearsal = bool(window.get("rehearsal_historical"))
-    if not rehearsal:
+    window_claims = [str(c) for c in (window.get("claims") or [])]
+    delayed = "DELAYED_EXECUTION_DEMO" in window_claims
+    if not rehearsal and not delayed:
         entitlement = json.loads(Path(args.entitlement_receipt).read_bytes())
         if entitlement.get("verdict") != "PASSED":
             raise CaptureLaneRejected(
@@ -1813,7 +1865,11 @@ def cmd_serialize(args: argparse.Namespace) -> int:
     blob = {
         "candidate_manifest": manifest,
         "capture_at": str(window["captured_at"]),
-        "claim_labels": ["NO_BROKER_EXECUTION"],
+        "claim_labels": (
+            ["DELAYED_EXECUTION_DEMO", "NO_BROKER_EXECUTION", "NOT_THE_VALIDATED_LANE"]
+            if delayed
+            else ["NO_BROKER_EXECUTION"]
+        ),
         "corporate_actions": [],
         "daily_bars": {s: prefetch["daily_bars"][s] for s in symbols},
         "data_class": "POINT_IN_TIME_LIVE_CAPTURE",
@@ -1858,7 +1914,9 @@ def cmd_serialize(args: argparse.Namespace) -> int:
         "market_entitlement": blob["market_entitlement"],
         "market_redistribution": blob["market_redistribution"],
         "claims": (
-            ["REHEARSAL_HISTORICAL_NOT_LIVE_SESSION"] if rehearsal else ["LIVE_SESSION_CAPTURE"]
+            ["REHEARSAL_HISTORICAL_NOT_LIVE_SESSION"]
+            if rehearsal
+            else (window_claims or ["LIVE_SESSION_CAPTURE"])
         ),
     }
     identity_digest = _write_json(out_dir / "capture_identity.json", identity)
@@ -1961,6 +2019,13 @@ def build_parser() -> argparse.ArgumentParser:
     f.add_argument("--discovery", required=True)
     f.add_argument("--screening", required=True)
     f.add_argument("--frozen-at")
+    f.add_argument(
+        "--policy-version",
+        type=int,
+        choices=(1, 3),
+        default=1,
+        help="3 = the owner-approved delayed-capture demo generation (#68/#101)",
+    )
     f.add_argument("--out", required=True)
 
     p = sub.add_parser("prefetch")
@@ -1990,6 +2055,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--rehearsal-historical",
         action="store_true",
         help="post-hoc pipeline validation over past data; never a live-session capture",
+    )
+    w.add_argument(
+        "--delayed-demo",
+        action="store_true",
+        help=(
+            "V3 delayed-capture demo lane: capture the identical 09:30-09:35 signal "
+            "window at 09:50:05-09:51:00 ET as legal historical Basic-plan data"
+        ),
     )
     w.add_argument("--out", required=True)
 

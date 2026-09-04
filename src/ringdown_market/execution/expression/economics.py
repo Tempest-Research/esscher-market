@@ -14,6 +14,7 @@ from typing import Final
 
 from ringdown_market.execution.expression.observations import (
     EXECUTABLE_DATA,
+    INDICATIVE_DATA,
     ExpressionMarketSnapshot,
     OptionContractObservation,
     PackageObservation,
@@ -44,6 +45,15 @@ class ExpressionEconomics:
     @property
     def compared(self) -> bool:
         return self.outcome == _COMPARED
+
+
+def _data_class_admitted(data_class: str, policy: PromotedExpressionPolicy) -> bool:
+    """Executable data is always admitted; indicative only under an explicitly
+    flagged promoted policy (owner-approved delayed-demo lane, #68/#101)."""
+
+    return data_class == EXECUTABLE_DATA or (
+        policy.allows_indicative_data and data_class == INDICATIVE_DATA
+    )
 
 
 def _rejected(
@@ -107,7 +117,7 @@ def shares_economics(
 
     kind = ExpressionKind.SHARES
     share = snapshot.share
-    if share.data_class != EXECUTABLE_DATA:
+    if not _data_class_admitted(share.data_class, policy):
         return _rejected(event_id, kind, ExpressionReason.INDICATIVE_ONLY)
     reason = _check_quote_quality(
         share.quote.bid,
@@ -143,7 +153,7 @@ def option_economics(
     """One long option economics: premium-at-risk priced at the ask."""
 
     kind = ExpressionKind.ONE_LONG_OPTION
-    if contract.data_class != EXECUTABLE_DATA:
+    if not _data_class_admitted(contract.data_class, policy):
         return _rejected(event_id, kind, ExpressionReason.INDICATIVE_ONLY)
     reason = _check_quote_quality(
         contract.quote.bid,
@@ -177,7 +187,7 @@ def debit_vertical_economics(
     """Debit-vertical economics from one atomic package quote."""
 
     kind = ExpressionKind.DEBIT_VERTICAL
-    if package.data_class != EXECUTABLE_DATA:
+    if not _data_class_admitted(package.data_class, policy):
         return _rejected(event_id, kind, ExpressionReason.INDICATIVE_ONLY)
     if package.net_bid <= 0 or package.net_ask <= 0:
         return _rejected(event_id, kind, ExpressionReason.PACKAGE_UNAVAILABLE)

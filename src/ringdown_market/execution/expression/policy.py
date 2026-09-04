@@ -101,8 +101,16 @@ class PromotedExpressionPolicy:
     width_min: Decimal
     width_max: Decimal
     liquidity_min_open_interest: int
+    # Owner-approved additive demo-lane flag (2026-09-04, #68/#101): when - and
+    # only when - a promoted policy explicitly carries this flag, Gate D accepts
+    # INDICATIVE_DATA observations (Basic-plan IEX equity quotes / indicative
+    # option snapshots).  Default False keeps every existing policy's canonical
+    # bytes and digest byte-identical, and the validated lane never sets it.
+    allows_indicative_data: bool = False
 
     def __post_init__(self) -> None:
+        if type(self.allows_indicative_data) is not bool:
+            raise ValueError("allows_indicative_data must be a boolean")
         if not self.policy_id or not self.version:
             raise ValueError("policy_id and version must be non-empty text")
         if len(self.gate_d_report_sha256) != 64:
@@ -138,9 +146,13 @@ class PromotedExpressionPolicy:
 
 
 def promoted_expression_policy_payload(value: PromotedExpressionPolicy) -> dict[str, object]:
-    """Return the single versioned serialization for one policy."""
+    """Return the single versioned serialization for one policy.
 
-    return {
+    ``allows_indicative_data`` is serialized only when true so every policy
+    without the flag keeps its historical canonical bytes and digest.
+    """
+
+    payload = {
         "schema": PROMOTED_EXPRESSION_POLICY_SCHEMA,
         "schema_version": PROMOTED_EXPRESSION_POLICY_SCHEMA_VERSION,
         "policy_id": value.policy_id,
@@ -163,6 +175,9 @@ def promoted_expression_policy_payload(value: PromotedExpressionPolicy) -> dict[
         "width_max": str(value.width_max),
         "liquidity_min_open_interest": value.liquidity_min_open_interest,
     }
+    if value.allows_indicative_data:
+        payload["allows_indicative_data"] = True
+    return payload
 
 
 def promoted_expression_policy_bytes(value: PromotedExpressionPolicy) -> bytes:
@@ -221,13 +236,20 @@ def parse_promoted_expression_policy(raw: bytes) -> PromotedExpressionPolicy:
             "policy root must be an object",
         )
     actual = frozenset(payload)
+    optional = frozenset({"allows_indicative_data"})
     missing = sorted(_POLICY_FIELDS - actual)
-    unknown = sorted(actual - _POLICY_FIELDS)
+    unknown = sorted(actual - _POLICY_FIELDS - optional)
     if missing or unknown:
         raise _reject(
             ExpressionReason.UNSUPPORTED_INPUT,
             "promoted_expression_policy",
             f"field mismatch; missing={missing} unknown={unknown}",
+        )
+    if "allows_indicative_data" in payload and type(payload["allows_indicative_data"]) is not bool:
+        raise _reject(
+            ExpressionReason.UNSUPPORTED_INPUT,
+            "promoted_expression_policy.allows_indicative_data",
+            "must be a boolean",
         )
     if payload["schema"] != PROMOTED_EXPRESSION_POLICY_SCHEMA:
         raise _reject(
@@ -276,6 +298,7 @@ def parse_promoted_expression_policy(raw: bytes) -> PromotedExpressionPolicy:
         width_min=_decimal(payload["width_min"], path="promoted_expression_policy.width_min"),
         width_max=_decimal(payload["width_max"], path="promoted_expression_policy.width_max"),
         liquidity_min_open_interest=int(payload["liquidity_min_open_interest"]),  # type: ignore[arg-type]
+        allows_indicative_data=bool(payload.get("allows_indicative_data", False)),
     )
     if promoted_expression_policy_bytes(result) != raw:
         raise _reject(

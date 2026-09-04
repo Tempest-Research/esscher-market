@@ -37,13 +37,19 @@ SYNTHETIC_CONFIRMATION_OPPOSED = "SYNTHETIC_CONFIRMATION_OPPOSED"
 SYNTHETIC_CONFIRMATION_NEUTRAL = "SYNTHETIC_CONFIRMATION_NEUTRAL"
 
 _EARNINGS_CANDIDATE = "EARNINGS_RESIDUAL_CONTINUATION_V1"
+# The V3 delayed-capture demo candidate (owner-approved 2026-09-04, #68/#101)
+# reuses the identical confirmation feature and epsilon threshold ids; only its
+# policy generation (and therefore the threshold lookup source) differs.
+_EARNINGS_CANDIDATE_V3 = "EARNINGS_RESIDUAL_CONTINUATION_V3"
 _MACRO_CANDIDATE = "MACRO_SPY_CONTINUATION_CHALLENGER_V1"
 _CONFIRMATION_FEATURE_IDS = {
     _EARNINGS_CANDIDATE: "market.opening_residual_log_return.v1",
+    _EARNINGS_CANDIDATE_V3: "market.opening_residual_log_return.v1",
     _MACRO_CANDIDATE: "market.spy_event_zscore_60.v1",
 }
 _CONFIRMATION_EPSILON_THRESHOLD_IDS = {
     _EARNINGS_CANDIDATE: "opening_residual_epsilon",
+    _EARNINGS_CANDIDATE_V3: "opening_residual_epsilon",
     _MACRO_CANDIDATE: "event_zscore_min_abs",
 }
 
@@ -87,12 +93,18 @@ class SyntheticConfirmation:
 
 
 def confirmation_epsilon_map() -> dict[str, str]:
-    """Return the frozen per-candidate confirmation epsilons as canonical text."""
+    """Return the frozen per-candidate confirmation epsilons as canonical text.
+
+    The map (and its content-addressed rule sha) stays bound to the V1 policy
+    generation: candidates from other generations are skipped so historical
+    rule digests remain byte-stable.
+    """
 
     policy = load_strategy_policy()
     return {
         candidate_id: str(policy.threshold(candidate_id, threshold_id))
         for candidate_id, threshold_id in sorted(_CONFIRMATION_EPSILON_THRESHOLD_IDS.items())
+        if candidate_id in policy.candidate_ids
     }
 
 
@@ -120,7 +132,14 @@ def confirmation_epsilon(candidate_id: str) -> Decimal:
         raise SyntheticConfirmationRejected(
             f"candidate {candidate_id} has no registered synthetic confirmation epsilon"
         )
-    raw = load_strategy_policy().threshold(candidate_id, threshold_id)
+    from ringdown_market.strategy.policy import load_strategy_policy_v3
+
+    policy = (
+        load_strategy_policy_v3()
+        if candidate_id == _EARNINGS_CANDIDATE_V3
+        else load_strategy_policy()
+    )
+    raw = policy.threshold(candidate_id, threshold_id)
     try:
         epsilon = Decimal(str(raw))
     except (ArithmeticError, ValueError) as error:
