@@ -1,9 +1,15 @@
-"""Direct Moonshot Kimi K3 host boundary with a pure fake-transport path.
+"""Direct-provider host boundaries with pure fake-transport paths.
 
-The strategy package never opens a socket.  A host may inject a transport later,
-but this V1 route is deliberately not constructible until a successor event
-policy can represent K3's provider-fixed sampling honestly.  The pure builder
-and dispatcher remain available for deterministic request-contract tests.
+The strategy package never opens a socket.  A host injects the transport; the
+credential is validated once and discarded at adapter construction.  Two lanes
+live here:
+
+- the direct Moonshot Kimi K3 lane (V1 inert; V2 approved but its request seam
+  awaits the V2 engine assembly), preserved unchanged;
+- the direct MiniMax-M3 lane (V3, owner-approved 2026-09-04 after the Kimi
+  entitlement was withdrawn): the first adapter wired for the assembled engine,
+  carrying policy-registry exchange identities and probe-verified wire pins
+  (thinking disabled, temperature 0, top_p 1.0, json_object response format).
 """
 
 from __future__ import annotations
@@ -28,11 +34,23 @@ from ringdown_market.contracts.reasoner_route import (
     KIMI_RESPONSE_SCHEMA_NAME,
     KIMI_RESPONSE_SCHEMA_NAME_V2,
     KIMI_TOOL_CHOICE,
+    MINIMAX_DIRECT_BASE_URL,
+    MINIMAX_DIRECT_MODEL,
+    MINIMAX_DIRECT_PROVIDER,
+    MINIMAX_EFFECTIVE_TEMPERATURE,
+    MINIMAX_EFFECTIVE_TOP_P,
+    MINIMAX_MAX_COMPLETION_TOKENS,
+    MINIMAX_OMITTED_REQUEST_FIELDS,
+    MINIMAX_REASONING_EFFORT,
+    MINIMAX_RESPONSE_FORMAT_TYPE,
+    MINIMAX_RESPONSE_SCHEMA_NAME,
+    MINIMAX_TOOL_CHOICE,
     ProviderRequestPolicy,
     RouteCompatibilityState,
     ValidatedRoute,
     load_approved_reasoner_route,
     load_approved_reasoner_route_v2,
+    load_approved_reasoner_route_v3,
 )
 
 from .contracts import (
@@ -44,6 +62,7 @@ from .contracts import (
     reasoner_output_schema_sha256,
     reasoner_output_schema_v2_payload,
     reasoner_output_schema_v2_sha256,
+    reasoner_policy_hashes,
     reasoner_system_prompt_bytes,
     reasoner_system_prompt_sha256,
     reasoner_system_prompt_v2_bytes,
@@ -54,7 +73,7 @@ from .contracts import (
     validate_strategy_v2_context,
 )
 from .models import ExchangeStatus, ReasonerExchange
-from .reasoner import ReasonerRouteRequest, ReasonerRouteResult, deadline_for
+from .reasoner import ReasonerRouteRequest, ReasonerRouteResult, RouteIdentity, deadline_for
 
 ENV_API_KEY = "KIMI_API_KEY"
 PRODUCER = "esscher.strategy.direct_kimi_host_route"
@@ -603,8 +622,18 @@ def invoke_kimi_k3_transport(
 ) -> KimiTransportResult:
     """Invoke exactly once with no retry and no provider exception text escape."""
 
+    return _invoke_direct_transport_once(request.endpoint, request.payload, transport)
+
+
+def _invoke_direct_transport_once(
+    endpoint: str,
+    payload: dict[str, object],
+    transport: Callable[[str, dict[str, object]], bytes],
+) -> KimiTransportResult:
+    """One non-retrying direct-provider call with typed, non-secret failures."""
+
     try:
-        raw_response = transport(request.endpoint, request.payload)
+        raw_response = transport(endpoint, payload)
     except TimeoutError:
         return KimiTransportResult(
             status=ExchangeStatus.TIMEOUT,
@@ -628,6 +657,349 @@ def invoke_kimi_k3_transport(
         error_code=None,
         raw_response_bytes=raw_response,
     )
+
+
+# ---------------------------------------------------------------------------
+# Direct MiniMax-M3 lane (issue #91 governance pivot, owner: MS-Mesh).
+#
+# This is the first direct-provider adapter wired for the assembled engine:
+# its exchange identities come from the frozen policy registry (route, prompt,
+# and output-schema hashes) and the configured RouteIdentity (model config),
+# exactly as BoundedDecisionEngine expects, while the request identity binds
+# the real V3 route artifact and the exact provider payload.  The credential
+# is host-owned, validated once, and discarded; it never enters a payload,
+# receipt, or error string.
+# ---------------------------------------------------------------------------
+
+ENV_MINIMAX_API_KEY = "MINIMAX_API_KEY"
+PRODUCER_MINIMAX = "esscher.strategy.direct_minimax_host_route"
+MINIMAX_PRODUCER_BUILD_SHA256 = sha256_bytes(
+    canonical_json_bytes(
+        {"contract": "esscher.reasoner_exchange", "producer": PRODUCER_MINIMAX, "version": 1}
+    )
+)
+
+
+def load_minimax_route_environment() -> Mapping[str, str]:
+    """Read only the direct MiniMax credential; all route values come from bytes."""
+
+    value = os.environ.get(ENV_MINIMAX_API_KEY)
+    if not value or not value.strip():
+        raise HostRouteConfigurationError(f"missing host environment {ENV_MINIMAX_API_KEY}")
+    return {ENV_MINIMAX_API_KEY: value.strip()}
+
+
+@dataclass(frozen=True, slots=True)
+class MinimaxM3Request:
+    """Exact canonical MiniMax payload and its immutable request identity."""
+
+    endpoint: str
+    payload_bytes: bytes
+    request_sha256: str
+    route_sha256: str
+    model_config_sha256: str
+    prompt_sha256: str
+    output_schema_sha256: str
+
+    @property
+    def payload(self) -> dict[str, object]:
+        """Return a fresh decoded payload for a fake or host-owned transport."""
+
+        payload = json.loads(self.payload_bytes)
+        if not isinstance(payload, dict):  # Defensive: bytes are built canonically below.
+            raise HostRouteInputIntegrityError("direct MiniMax payload is not an object")
+        return payload
+
+
+def _validate_direct_minimax_route(route: ValidatedRoute) -> ProviderRequestPolicy:
+    """Defend the MiniMax builder from a hand-forged or drifted packaged route."""
+
+    expected_route = load_approved_reasoner_route_v3()
+    # Cached package-object identity is the capability proving this value came
+    # from the exact shipped V3 byte pair; field equality alone is forgeable.
+    if route is not expected_route:
+        raise HostRouteConfigurationError(
+            "route is not the exact packaged V3 descriptor and approval validation result"
+        )
+    if (
+        route.provider != MINIMAX_DIRECT_PROVIDER
+        or route.model != MINIMAX_DIRECT_MODEL
+        or route.model_revision is not None
+        or route.base_url != MINIMAX_DIRECT_BASE_URL
+    ):
+        raise HostRouteConfigurationError(
+            "route identity is not the frozen direct MiniMax-M3 route"
+        )
+    policy = route.provider_request_policy
+    if (
+        policy.reasoning_effort != MINIMAX_REASONING_EFFORT
+        or policy.max_completion_tokens != MINIMAX_MAX_COMPLETION_TOKENS
+        or policy.response_format_type != MINIMAX_RESPONSE_FORMAT_TYPE
+        or policy.output_schema_name != MINIMAX_RESPONSE_SCHEMA_NAME
+        or policy.output_schema_sha256 != reasoner_output_schema_sha256()
+        or policy.strict_json_schema is not False
+        or policy.tool_choice != MINIMAX_TOOL_CHOICE
+        or policy.effective_temperature != MINIMAX_EFFECTIVE_TEMPERATURE
+        or policy.effective_top_p != MINIMAX_EFFECTIVE_TOP_P
+        or tuple(policy.omitted_request_fields) != MINIMAX_OMITTED_REQUEST_FIELDS
+    ):
+        raise HostRouteConfigurationError(
+            "route does not bind the current direct MiniMax schema policy"
+        )
+    return policy
+
+
+def build_minimax_m3_request(
+    route: ValidatedRoute, request: ReasonerRouteRequest
+) -> MinimaxM3Request:
+    """Build the exact canonical direct-MiniMax payload without a credential or network call.
+
+    The wire shape is the owner-probe-verified V3 parameter set: frozen system
+    prompt, canonical strategy user payload, ``temperature=0``, ``top_p=1.0``,
+    ``max_tokens`` from the frozen policy, ``thinking`` disabled, ``tool_choice``
+    none, and ``response_format=json_object`` (the provider markdown-fences
+    ``json_schema`` output, so strictness is enforced client-side by the frozen
+    six-field validator).
+    """
+
+    provider_request_policy = _validate_direct_minimax_route(route)
+    if request.ablate_text:
+        # Ablation arms belong to the offline fake route; silently ignoring the
+        # flag on a live provider call would misreport the exchange identity.
+        raise HostRouteConfigurationError(
+            "text ablation is not implemented for the direct MiniMax lane"
+        )
+    snapshot_payload, feature_payload, identities = _canonical_strategy_payload(
+        request.strategy_input
+    )
+    candidate_id = identities["candidate_id"]
+    prompt_bytes = reasoner_system_prompt_bytes(candidate_id)
+    prompt_sha256 = reasoner_system_prompt_sha256(candidate_id)
+    output_schema_sha256 = reasoner_output_schema_sha256()
+    user_payload = {
+        "feature_receipt": feature_payload,
+        "identities": identities,
+        "strategy_snapshot": snapshot_payload,
+    }
+    payload = {
+        "max_tokens": provider_request_policy.max_completion_tokens,
+        "messages": [
+            {"content": prompt_bytes.decode("utf-8"), "role": "system"},
+            {"content": canonical_json_bytes(user_payload).decode("utf-8"), "role": "user"},
+        ],
+        "model": route.model,
+        "response_format": {"type": provider_request_policy.response_format_type},
+        "temperature": 0,
+        "thinking": {"type": "disabled"},
+        "tool_choice": provider_request_policy.tool_choice,
+        "top_p": 1.0,
+    }
+    if any(field in payload for field in provider_request_policy.omitted_request_fields):
+        raise HostRouteConfigurationError("direct MiniMax payload includes a frozen omitted field")
+    payload_bytes = canonical_json_bytes(payload)
+    request_sha256 = sha256_bytes(
+        canonical_json_bytes(
+            {
+                "ablate_text": request.ablate_text,
+                "provider_payload": payload,
+                "route_identity": {
+                    "base_url": route.base_url,
+                    "model": route.model,
+                    "model_config_sha256": route.model_config_sha256,
+                    "output_schema_sha256": output_schema_sha256,
+                    "prompt_sha256": prompt_sha256,
+                    "provider": route.provider,
+                    "route_sha256": route.route_sha256,
+                },
+                "schema": "esscher.direct_minimax_request_identity",
+                "schema_version": 1,
+                "strategy_identities": identities,
+            }
+        )
+    )
+    return MinimaxM3Request(
+        endpoint=f"{route.base_url}/chat/completions",
+        payload_bytes=payload_bytes,
+        request_sha256=request_sha256,
+        route_sha256=route.route_sha256,
+        model_config_sha256=route.model_config_sha256,
+        prompt_sha256=prompt_sha256,
+        output_schema_sha256=output_schema_sha256,
+    )
+
+
+def invoke_minimax_m3_transport(
+    request: MinimaxM3Request,
+    transport: Callable[[str, dict[str, object]], bytes],
+) -> KimiTransportResult:
+    """Invoke exactly once with no retry and no provider exception text escape."""
+
+    return _invoke_direct_transport_once(request.endpoint, request.payload, transport)
+
+
+def unwrap_minimax_response(raw_response_bytes: bytes) -> bytes | None:
+    """Extract the decision JSON text from one provider envelope, or None.
+
+    Envelope contract (owner-probe-verified): ``base_resp.status_code == 0``
+    when present, and ``choices[0].message.content`` holding the strict
+    six-field decision JSON as text.  Anything else - overload (529 surfaces
+    through the transport as an exception), fenced output, missing choices -
+    is a typed provider error, never a guess and never a retry.
+    """
+
+    try:
+        envelope = json.loads(raw_response_bytes.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    if not isinstance(envelope, dict):
+        return None
+    base_resp = envelope.get("base_resp")
+    if base_resp is not None and (
+        not isinstance(base_resp, dict) or base_resp.get("status_code") != 0
+    ):
+        return None
+    choices = envelope.get("choices")
+    if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
+        return None
+    message = choices[0].get("message")
+    if not isinstance(message, dict):
+        return None
+    content = message.get("content")
+    if not isinstance(content, str) or not content.strip():
+        return None
+    if message.get("reasoning_content"):
+        # Thinking output leaked despite the disabled pin: refuse rather than
+        # forward ambiguous bytes to the frozen decision validator.
+        return None
+    return content.encode("utf-8")
+
+
+class MinimaxM3ReasonerRoute:
+    """Owner-approved direct MiniMax-M3 adapter for the assembled engine lane.
+
+    The exchange carries the frozen policy-registry identities (route, prompt,
+    output schema) and the configured RouteIdentity model-config hash that
+    BoundedDecisionEngine validates, while raw_response_bytes are the unwrapped
+    strict decision JSON text.  One call, no retries, no fallback: any failure
+    is a typed TIMEOUT/PROVIDER_ERROR exchange and the engine abstains.
+    """
+
+    def __init__(
+        self,
+        *,
+        route: ValidatedRoute,
+        api_key: str,
+        identity: RouteIdentity,
+        transport: Callable[[str, dict[str, object]], bytes] | None = None,
+    ) -> None:
+        if (
+            not route.evaluation_eligible
+            or route.compatibility_state is not RouteCompatibilityState.COMPATIBLE
+        ):
+            reason = route.compatibility_reason_code or "ROUTE_NOT_EVALUATION_ELIGIBLE"
+            raise HostRouteNotApproved(f"direct MiniMax route is inert: {reason}")
+        if not isinstance(api_key, str) or not api_key.strip():
+            raise HostRouteSecretBoundaryError("route requires a host-owned credential")
+        # Validate and deliberately discard the key: authentication belongs to
+        # the host transport process; payloads, arguments, and receipts never
+        # carry it.
+        _validate_direct_minimax_route(route)
+        if (
+            type(identity) is not RouteIdentity
+            or identity.provider != route.provider
+            or identity.model != route.model
+            or identity.model_revision != route.model_revision
+        ):
+            raise HostRouteConfigurationError(
+                "route identity must exactly match the frozen direct MiniMax route"
+            )
+        self._route = route
+        self._identity = identity
+        self._transport = transport
+
+    @property
+    def validated_route(self) -> ValidatedRoute:
+        """The frozen validated V3 route this adapter is bound to (credential-free)."""
+
+        return self._route
+
+    @property
+    def identity(self) -> RouteIdentity:
+        """The configured provider/model identity bound into every exchange."""
+
+        return self._identity
+
+    def __call__(self, request: ReasonerRouteRequest) -> ReasonerRouteResult:
+        if self._transport is None:
+            raise HostRouteConfigurationError(
+                "no transport supplied; a host-owned transport is required outside the "
+                "strategy package"
+            )
+        provider_request = build_minimax_m3_request(self._route, request)
+        snapshot = request.strategy_input.snapshot
+        route_sha256, prompt_sha256, output_schema_sha256 = reasoner_policy_hashes(
+            snapshot.candidate_id
+        )
+        started_at = request.started_at
+        deadline_at = deadline_for(request.strategy_input, started_at)
+        transport_started = time.monotonic()
+        transport_result = invoke_minimax_m3_transport(provider_request, self._transport)
+        responded_at = started_at + timedelta(seconds=time.monotonic() - transport_started)
+        common = {
+            "event_id": snapshot.event_id,
+            "candidate_id": snapshot.candidate_id,
+            "policy_sha256": snapshot.policy_sha256,
+            "strategy_snapshot_sha256": request.strategy_input.snapshot_sha256,
+            "feature_receipt_sha256": request.strategy_input.feature_receipt_sha256,
+            "evidence_packet_sha256": snapshot.evidence_packet_sha256,
+            "route_sha256": route_sha256,
+            "prompt_sha256": prompt_sha256,
+            "output_schema_sha256": output_schema_sha256,
+            "model_config_sha256": self._identity.model_config_sha256(),
+            "request_sha256": provider_request.request_sha256,
+            "provider": self._identity.provider,
+            "model": self._identity.model,
+            "model_revision": self._identity.model_revision,
+            "decoding": self._identity.decoding(),
+            "started_at": started_at,
+            "deadline_at": deadline_at,
+            "producer_build_sha256": MINIMAX_PRODUCER_BUILD_SHA256,
+            "created_at": deadline_at,
+        }
+        content: bytes | None = None
+        if (
+            transport_result.status is ExchangeStatus.COMPLETED
+            and responded_at <= deadline_at
+            and transport_result.raw_response_bytes is not None
+        ):
+            content = unwrap_minimax_response(transport_result.raw_response_bytes)
+        if content is not None:
+            return ReasonerRouteResult(
+                exchange=ReasonerExchange(
+                    **common,
+                    raw_response_sha256=sha256_bytes(content),
+                    responded_at=responded_at,
+                    status=ExchangeStatus.COMPLETED,
+                    error_code=None,
+                ),
+                raw_response_bytes=content,
+            )
+        if transport_result.status is ExchangeStatus.TIMEOUT or responded_at > deadline_at:
+            status = ExchangeStatus.TIMEOUT
+            error_code = "REASONER_TIMEOUT"
+        else:
+            status = ExchangeStatus.PROVIDER_ERROR
+            error_code = "REASONER_PROVIDER_ERROR"
+        return ReasonerRouteResult(
+            exchange=ReasonerExchange(
+                **common,
+                raw_response_sha256=None,
+                responded_at=None,
+                status=status,
+                error_code=error_code,
+            ),
+            raw_response_bytes=None,
+        )
 
 
 class OpenAiCompatibleReasonerRoute:
@@ -744,6 +1116,9 @@ class OpenAiCompatibleReasonerRoute:
 
 __all__ = [
     "ENV_API_KEY",
+    "ENV_MINIMAX_API_KEY",
+    "MINIMAX_PRODUCER_BUILD_SHA256",
+    "PRODUCER_MINIMAX",
     "HostRouteConfigurationError",
     "HostRouteError",
     "HostRouteInputIntegrityError",
@@ -752,9 +1127,15 @@ __all__ = [
     "KimiK3Request",
     "KimiTransportResult",
     "KimiTransportStatus",
+    "MinimaxM3ReasonerRoute",
+    "MinimaxM3Request",
     "OpenAiCompatibleReasonerRoute",
     "build_kimi_k3_request",
     "build_kimi_k3_v2_request",
+    "build_minimax_m3_request",
     "invoke_kimi_k3_transport",
+    "invoke_minimax_m3_transport",
+    "load_minimax_route_environment",
     "load_route_environment",
+    "unwrap_minimax_response",
 ]

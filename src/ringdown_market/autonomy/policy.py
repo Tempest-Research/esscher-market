@@ -10,8 +10,13 @@ from importlib import resources
 from typing import Final
 
 POLICY_RESOURCE_NAME: Final = "policies/hackathon_autonomous_v1.json"
+# Owner-approved refreeze 2026-09-04 (MS-Mesh, issue #91 governance): the
+# reasoner block pivots from the withdrawn Kimi K3 entitlement to the direct
+# MiniMax-M3 route and policy_version advances to 1.1.0.  Every other owner
+# boundary (PAPER-only, no broker authority, risk caps, memory mode) is
+# byte-identical to the 1.0.0 policy.
 ACCEPTED_AUTONOMOUS_POLICY_V1_SHA256: Final = (
-    "3b7f64759060803b9f8aac84e9adca9876d427ac684b9deb28bb4d1d8d5627c7"
+    "eabb0ade10b19b3e651572f5a3f995f4e5f406f379b63b516db08534411b5055"
 )
 _TOP_LEVEL_FIELDS: Final = frozenset(
     {

@@ -66,6 +66,14 @@ SECRET_PATTERNS = {
     "GitHub token": re.compile(r"\bgh[opurs]_[A-Za-z0-9]{20,}\b"),
     "private key": re.compile(r"-----BEGIN (?:EC |OPENSSH |RSA )?PRIVATE KEY-----"),
     "provider secret": re.compile(r"\bsk-[A-Za-z0-9_-]{20,}\b"),
+    # Issue #91 host-credential guards: Alpaca key identifiers and any
+    # committed credential-env assignment with a value (keys belong only in
+    # host environment files outside the repository).
+    "Alpaca API key id": re.compile(r"\b(?:AK|PK)[A-Z0-9]{15,}\b"),
+    "credential env assignment": re.compile(
+        r"(?:APCA_API_SECRET_KEY|APCA_API_KEY_ID|MINIMAX_API_KEY|KIMI_API_KEY)"
+        r"[\"']?\s*[=:]\s*[\"']?[A-Za-z0-9]{8,}"
+    ),
 }
 SYNTHETIC_LIMITATIONS = {
     "NO_BROKER_EXECUTION",

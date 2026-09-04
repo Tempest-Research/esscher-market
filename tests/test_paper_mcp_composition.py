@@ -19,7 +19,9 @@ from pathlib import Path
 import pytest
 
 import test_autonomous_host_composition as synth
-from ringdown_market.contracts.reasoner_route import load_approved_reasoner_route_v2
+from ringdown_market.contracts.reasoner_route import (
+    load_approved_reasoner_route_v3,
+)
 from ringdown_market.execution.host_mcp import (
     HostMcpEnvironment,
     HostMcpPaperSessionFactory,
@@ -65,8 +67,14 @@ from ringdown_market.sourcedata.fakes import (
     build_candidate_manifest,
 )
 from ringdown_market.strategy.contracts import canonical_json_bytes, sha256_bytes
-from ringdown_market.strategy.host_route import OpenAiCompatibleReasonerRoute
-from ringdown_market.strategy.reasoner import SYNTHETIC_ROUTE_IDENTITY, _cited_evidence_ids
+from ringdown_market.strategy.host_route import (
+    MinimaxM3ReasonerRoute,
+)
+from ringdown_market.strategy.reasoner import (
+    SYNTHETIC_ROUTE_IDENTITY,
+    RouteIdentity,
+    _cited_evidence_ids,
+)
 
 ACCOUNT_PAYLOAD: dict[str, object] = {
     "id": "PA5XSNL1XT43",
@@ -95,6 +103,7 @@ ALL_TOOLS = (
     "place_option_order",
 )
 TEST_ROUTE_KEY = "host-owned-test-key-not-a-real-credential"
+MINIMAX_ROUTE_IDENTITY = RouteIdentity(provider="minimax_direct", model="MiniMax-M3")
 
 
 class PhaseClock:
@@ -374,14 +383,38 @@ def _prepared(host: FakeMcpHost, clock: PhaseClock):
 
 
 def _approved_route():
-    response = _decision_response_bytes()
+    """The real owner-approved MiniMax adapter with a fake envelope transport.
+
+    The transport returns the provider envelope shape verified by the owner
+    probes (base_resp status 0 + choices[0].message.content holding the strict
+    six-field decision JSON); the adapter unwraps, binds, and hands the frozen
+    validator exactly what the assembled engine expects.
+    """
+
+    decision_text = _decision_response_bytes().decode("utf-8")
+    envelope = json.dumps(
+        {
+            "base_resp": {"status_code": 0, "status_msg": "success"},
+            "choices": [
+                {
+                    "finish_reason": "stop",
+                    "message": {"content": decision_text, "role": "assistant"},
+                }
+            ],
+            "model": "MiniMax-M3",
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
 
     def transport(endpoint: str, payload: dict[str, object]) -> bytes:
-        return response
+        assert endpoint == "https://api.minimax.chat/v1/chat/completions"
+        return envelope
 
-    return OpenAiCompatibleReasonerRoute(
-        route=load_approved_reasoner_route_v2(),
+    return MinimaxM3ReasonerRoute(
+        route=load_approved_reasoner_route_v3(),
         api_key=TEST_ROUTE_KEY,
+        identity=MINIMAX_ROUTE_IDENTITY,
         transport=transport,
     )
 
@@ -396,15 +429,19 @@ def _doors(
     approved_route: object | None = None,
 ) -> PaperMcpHostDoors:
     prepared = _prepared(host, clock)
+    route_adapter = approved_route if approved_route is not None else _approved_route()
     return PaperMcpHostDoors(
         prepared_session=prepared,
-        approved_route=(approved_route if approved_route is not None else _approved_route()),  # type: ignore[arg-type]
-        # The engine reasoner door for this fake-response probe is the
-        # deterministic offline double; the owner-approved direct-Kimi binding
-        # above is enforced against the armed session independently, and an
-        # armed #68 session wires the approved adapter itself.
-        reasoner=SyntheticRehearsalRoute(),
-        reasoner_identity=SYNTHETIC_ROUTE_IDENTITY,
+        approved_route=route_adapter,  # type: ignore[arg-type]
+        # The engine reasoner door is the identical approved adapter object -
+        # the composition factory enforces `reasoner is approved_route`, so no
+        # synthetic or drifted double can front the production composition.
+        reasoner=route_adapter,
+        reasoner_identity=(
+            route_adapter.identity
+            if isinstance(route_adapter, MinimaxM3ReasonerRoute)
+            else SYNTHETIC_ROUTE_IDENTITY
+        ),
         feed=PaperMcpFeed(events=(_feed_event(),)),
         capture_sources=FixtureCaptureDoors(),
         expression_snapshots=RehearsalExpressionDoor(),

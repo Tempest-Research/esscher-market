@@ -378,12 +378,12 @@ def current_semantic_ids() -> dict[str, str]:
     from ringdown_market.autonomy.policy import load_autonomous_policy
     from ringdown_market.contracts.execution_policy import PAPER_PERMIT_POLICY_VERSION
     from ringdown_market.contracts.latency_profile import load_latency_profile
-    from ringdown_market.contracts.reasoner_route import load_approved_reasoner_route_v2
+    from ringdown_market.contracts.reasoner_route import load_current_approved_reasoner_route
     from ringdown_market.contracts.source_matrix import load_source_matrix
     from ringdown_market.risk.policy import load_risk_policy_v2
     from ringdown_market.strategy.policy import load_strategy_policy_v2
 
-    route = load_approved_reasoner_route_v2()
+    route = load_current_approved_reasoner_route()
     return {
         "autonomy_policy_id": load_autonomous_policy().policy_id,
         "strategy_policy_id": load_strategy_policy_v2().policy_id,
@@ -416,10 +416,10 @@ def evaluate_release(value: StrategyRelease) -> PromotionDecision:
     from ringdown_market.contracts.latency_profile import load_latency_profile
     from ringdown_market.contracts.reasoner_route import (
         ApprovalState,
-        load_approved_reasoner_route_v2,
+        load_current_approved_reasoner_route,
     )
 
-    route = load_approved_reasoner_route_v2()
+    route = load_current_approved_reasoner_route()
     if route.approval_state is not ApprovalState.APPROVED or not route.evaluation_eligible:
         return PromotionDecision(
             release_sha256, PromotionStatus.REJECTED, PromotionReason.REASONER_ROUTE_INELIGIBLE

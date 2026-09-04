@@ -94,6 +94,51 @@ APPROVAL_CLAUSES_V2 = (
     "The route accepts only the exact packaged V2 descriptor and approval bytes.",
 )
 
+# V3 is the owner-approved pivot to direct MiniMax-M3 after the Kimi K3
+# entitlement was withdrawn (issue #91 governance comment, 2026-09-04).  The
+# frozen six-field decision contract, the V2 strategy policy binding, and the
+# one-call/no-retry policy are unchanged; MiniMax accepts explicit sampling, so
+# V3 truthfully pins deterministic decoding (temperature 0, top_p 1) and the
+# probe-verified request shape: thinking disabled, response_format json_object
+# (json_schema mode was probed and rejected because the provider markdown-fences
+# its output), tool_choice none, max_tokens from the frozen policy.  The Kimi
+# V1/V2 artifacts remain packaged, loadable, and dormant as alternates.
+ROUTE_V3_SCHEMA_VERSION = 3
+ROUTE_ID_V3 = "ESSCHER_BOUNDED_REASONER_ROUTE_V3"
+MINIMAX_DIRECT_PROVIDER = "minimax_direct"
+MINIMAX_DIRECT_BASE_URL = "https://api.minimax.chat/v1"
+MINIMAX_DIRECT_MODEL = "MiniMax-M3"
+MINIMAX_REASONING_EFFORT = "disabled"
+MINIMAX_MAX_COMPLETION_TOKENS = 512
+MINIMAX_TOOL_CHOICE = "none"
+MINIMAX_RESPONSE_FORMAT_TYPE = "json_object"
+MINIMAX_RESPONSE_SCHEMA_NAME = "esscher_reasoner_decision_v1"
+MINIMAX_EFFECTIVE_TEMPERATURE = "0"
+MINIMAX_EFFECTIVE_TOP_P = "1"
+MINIMAX_OMITTED_REQUEST_FIELDS = (
+    "frequency_penalty",
+    "logit_bias",
+    "logprobs",
+    "max_completion_tokens",
+    "n",
+    "presence_penalty",
+    "reasoning_effort",
+    "seed",
+    "stream",
+    "tools",
+)
+MINIMAX_MODEL_CONFIG_SCHEMA = "esscher.direct_minimax_reasoner_model_config"
+APPROVAL_ID_V3 = "ESSCHER_ROUTE_APPROVAL_V3"
+APPROVAL_SCOPE_V3 = APPROVAL_SCOPE_V2
+APPROVAL_CLAUSES_V3 = (
+    "The owner selected this exact direct MiniMax-M3 V3 route for prospective "
+    "strategy evaluation after the Kimi K3 entitlement was withdrawn; the route "
+    "has no broker, account, order, sizing, or secret authority.",
+    "Each paid or live reasoner probe or measurement run receives separate "
+    "current owner approval before execution.",
+    "The route accepts only the exact packaged V3 descriptor and approval bytes.",
+)
+
 _SECRET_KEYS = frozenset(
     {
         "api_key",
@@ -221,7 +266,12 @@ class ValidatedRoute:
 
 @dataclass(frozen=True, slots=True)
 class _RouteSpec:
-    """Closed, version-specific descriptor and approval expectations."""
+    """Closed, version-specific descriptor and approval expectations.
+
+    The provider-identity and provider-request-policy expectations default to
+    the frozen direct-Kimi contract so the V1/V2 specs (and every existing
+    hash) remain byte-identical; V3 overrides them for direct MiniMax-M3.
+    """
 
     schema_version: int
     route_id: str
@@ -235,6 +285,18 @@ class _RouteSpec:
     caller_temperature: Decimal | None
     caller_top_p: Decimal
     caller_seed: int | None
+    provider: str = DIRECT_PROVIDER
+    base_url: str = DIRECT_BASE_URL
+    model: str = DIRECT_MODEL
+    expected_reasoning_effort: str = KIMI_REASONING_EFFORT
+    expected_max_completion_tokens: int = KIMI_MAX_COMPLETION_TOKENS
+    expected_response_format_type: str = KIMI_RESPONSE_FORMAT_TYPE
+    expected_strict_json_schema: bool = True
+    expected_tool_choice: str = KIMI_TOOL_CHOICE
+    expected_effective_temperature: str = KIMI_EFFECTIVE_TEMPERATURE
+    expected_effective_top_p: str = KIMI_EFFECTIVE_TOP_P
+    expected_omitted_request_fields: tuple[str, ...] = KIMI_OMITTED_REQUEST_FIELDS
+    model_config_schema: str = "esscher.direct_kimi_reasoner_model_config"
 
 
 _V1_ROUTE_SPEC = _RouteSpec(
@@ -264,6 +326,32 @@ _V2_ROUTE_SPEC = _RouteSpec(
     caller_temperature=Decimal(KIMI_EFFECTIVE_TEMPERATURE),
     caller_top_p=Decimal(KIMI_EFFECTIVE_TOP_P),
     caller_seed=None,
+)
+_V3_ROUTE_SPEC = _RouteSpec(
+    schema_version=ROUTE_V3_SCHEMA_VERSION,
+    route_id=ROUTE_ID_V3,
+    approval_id=APPROVAL_ID_V3,
+    approval_scope=APPROVAL_SCOPE_V3,
+    approval_clauses=APPROVAL_CLAUSES_V3,
+    policy_loader=load_strategy_policy_v2,
+    policy_sha256_loader=strategy_policy_v2_sha256,
+    output_schema_name=MINIMAX_RESPONSE_SCHEMA_NAME,
+    output_schema_sha256_loader=reasoner_output_schema_sha256,
+    caller_temperature=Decimal(MINIMAX_EFFECTIVE_TEMPERATURE),
+    caller_top_p=Decimal(MINIMAX_EFFECTIVE_TOP_P),
+    caller_seed=None,
+    provider=MINIMAX_DIRECT_PROVIDER,
+    base_url=MINIMAX_DIRECT_BASE_URL,
+    model=MINIMAX_DIRECT_MODEL,
+    expected_reasoning_effort=MINIMAX_REASONING_EFFORT,
+    expected_max_completion_tokens=MINIMAX_MAX_COMPLETION_TOKENS,
+    expected_response_format_type=MINIMAX_RESPONSE_FORMAT_TYPE,
+    expected_strict_json_schema=False,
+    expected_tool_choice=MINIMAX_TOOL_CHOICE,
+    expected_effective_temperature=MINIMAX_EFFECTIVE_TEMPERATURE,
+    expected_effective_top_p=MINIMAX_EFFECTIVE_TOP_P,
+    expected_omitted_request_fields=MINIMAX_OMITTED_REQUEST_FIELDS,
+    model_config_schema=MINIMAX_MODEL_CONFIG_SCHEMA,
 )
 
 
@@ -431,6 +519,35 @@ def _caller_decoding_payload(value: DecodingParameters) -> dict[str, object]:
     }
 
 
+def _direct_route_model_config_sha256(
+    *,
+    config_schema: str,
+    provider: str,
+    model: str,
+    model_revision: str | None,
+    base_url: str,
+    caller_decoding: DecodingParameters,
+    provider_request_policy: ProviderRequestPolicy,
+    schema_version: int,
+) -> str:
+    """Hash one direct-provider identity plus its effective request semantics."""
+
+    return sha256_bytes(
+        canonical_json_bytes(
+            {
+                "base_url": base_url,
+                "caller_decoding": _caller_decoding_payload(caller_decoding),
+                "model": model,
+                "model_revision": model_revision,
+                "provider": provider,
+                "provider_request_policy": provider_request_policy.payload(),
+                "schema": config_schema,
+                "schema_version": schema_version,
+            }
+        )
+    )
+
+
 def direct_kimi_model_config_sha256(
     *,
     provider: str,
@@ -448,19 +565,43 @@ def direct_kimi_model_config_sha256(
     choice, omitted fields, and provider-fixed effective temperature/top-p.
     """
 
-    return sha256_bytes(
-        canonical_json_bytes(
-            {
-                "base_url": base_url,
-                "caller_decoding": _caller_decoding_payload(caller_decoding),
-                "model": model,
-                "model_revision": model_revision,
-                "provider": provider,
-                "provider_request_policy": provider_request_policy.payload(),
-                "schema": "esscher.direct_kimi_reasoner_model_config",
-                "schema_version": schema_version,
-            }
-        )
+    return _direct_route_model_config_sha256(
+        config_schema="esscher.direct_kimi_reasoner_model_config",
+        provider=provider,
+        model=model,
+        model_revision=model_revision,
+        base_url=base_url,
+        caller_decoding=caller_decoding,
+        provider_request_policy=provider_request_policy,
+        schema_version=schema_version,
+    )
+
+
+def direct_minimax_model_config_sha256(
+    *,
+    provider: str,
+    model: str,
+    model_revision: str | None,
+    base_url: str,
+    caller_decoding: DecodingParameters,
+    provider_request_policy: ProviderRequestPolicy,
+    schema_version: int = ROUTE_V3_SCHEMA_VERSION,
+) -> str:
+    """Hash direct MiniMax identity plus its probe-verified request semantics.
+
+    Separate hash domain from Kimi on purpose: a MiniMax model-config digest can
+    never collide with or be substituted for a Kimi one.
+    """
+
+    return _direct_route_model_config_sha256(
+        config_schema=MINIMAX_MODEL_CONFIG_SCHEMA,
+        provider=provider,
+        model=model,
+        model_revision=model_revision,
+        base_url=base_url,
+        caller_decoding=caller_decoding,
+        provider_request_policy=provider_request_policy,
+        schema_version=schema_version,
     )
 
 
@@ -583,16 +724,16 @@ def _provider_request_policy_from(
     omitted_request_fields = tuple(omitted)
 
     expected = {
-        "reasoning_effort": KIMI_REASONING_EFFORT,
-        "max_completion_tokens": KIMI_MAX_COMPLETION_TOKENS,
-        "response_format_type": KIMI_RESPONSE_FORMAT_TYPE,
+        "reasoning_effort": spec.expected_reasoning_effort,
+        "max_completion_tokens": spec.expected_max_completion_tokens,
+        "response_format_type": spec.expected_response_format_type,
         "output_schema_name": spec.output_schema_name,
         "output_schema_sha256": spec.output_schema_sha256_loader(),
-        "strict": True,
-        "tool_choice": KIMI_TOOL_CHOICE,
-        "effective_temperature": KIMI_EFFECTIVE_TEMPERATURE,
-        "effective_top_p": KIMI_EFFECTIVE_TOP_P,
-        "omitted_request_fields": KIMI_OMITTED_REQUEST_FIELDS,
+        "strict": spec.expected_strict_json_schema,
+        "tool_choice": spec.expected_tool_choice,
+        "effective_temperature": spec.expected_effective_temperature,
+        "effective_top_p": spec.expected_effective_top_p,
+        "omitted_request_fields": spec.expected_omitted_request_fields,
     }
     actual = {
         "reasoning_effort": reasoning_effort,
@@ -611,7 +752,7 @@ def _provider_request_policy_from(
             _reject(
                 RouteContractReason.POLICY_MISMATCH,
                 f"{path}.{field}",
-                "provider request policy differs from the frozen direct Kimi contract",
+                "provider request policy differs from the frozen direct route contract",
             )
     return ProviderRequestPolicy(
         reasoning_effort=reasoning_effort,
@@ -691,15 +832,15 @@ def _validate_reasoner_route(
     )
     base_url = _text(descriptor["base_url"], path="route_descriptor.base_url")
     if (
-        provider != DIRECT_PROVIDER
-        or model != DIRECT_MODEL
+        provider != spec.provider
+        or model != spec.model
         or model_revision is not None
-        or base_url != DIRECT_BASE_URL
+        or base_url != spec.base_url
     ):
         _reject(
             RouteContractReason.IDENTITY_MISMATCH,
             "route_descriptor",
-            "provider, model, revision, or base URL differs from the frozen direct Kimi identity",
+            "provider, model, revision, or base URL differs from the frozen direct route identity",
         )
     if _sha256(descriptor["policy_sha256"], path="route_descriptor.policy_sha256") != (
         spec.policy_sha256_loader()
@@ -716,7 +857,7 @@ def _validate_reasoner_route(
     expected_timeout = int(call_policy_raw["hard_timeout_seconds"])
     token_field = (
         "max_completion_tokens"
-        if spec.schema_version == ROUTE_V2_SCHEMA_VERSION
+        if spec.schema_version >= ROUTE_V2_SCHEMA_VERSION
         else "max_output_tokens"
     )
     expected_tokens = int(call_policy_raw[token_field])
@@ -827,7 +968,7 @@ def _validate_reasoner_route(
         _reject(
             RouteContractReason.POLICY_MISMATCH,
             "route_descriptor.cost_ceiling.max_output_tokens_per_call",
-            "cost ceiling must match the frozen direct Kimi completion limit",
+            "cost ceiling must match the frozen direct route completion limit",
         )
     if (
         _integer(
@@ -853,7 +994,8 @@ def _validate_reasoner_route(
             "claim labels differ from the frozen boundary",
         )
 
-    expected_model_config = direct_kimi_model_config_sha256(
+    expected_model_config = _direct_route_model_config_sha256(
+        config_schema=spec.model_config_schema,
         provider=provider,
         model=model,
         model_revision=model_revision,
@@ -1066,15 +1208,90 @@ def load_approved_reasoner_route_v2() -> ValidatedRoute:
     return _validate_reasoner_route(descriptor_bytes, receipt_bytes, spec=_V2_ROUTE_SPEC)
 
 
+def packaged_route_descriptor_v3_bytes() -> bytes:
+    """Return the exact packaged V3 MiniMax descriptor bytes."""
+
+    return (
+        resources.files("ringdown_market.contracts")
+        .joinpath("policies/reasoner_route_v3.json")
+        .read_bytes()
+    )
+
+
+def packaged_route_approval_v3_bytes() -> bytes:
+    """Return the exact packaged V3 MiniMax approval receipt bytes."""
+
+    return (
+        resources.files("ringdown_market.contracts")
+        .joinpath("policies/reasoner_route_approval_v3.json")
+        .read_bytes()
+    )
+
+
+def _require_exact_v3_package(descriptor_bytes: bytes, receipt_bytes: bytes) -> None:
+    """Reject semantic lookalikes: V3 eligibility belongs only to shipped bytes."""
+
+    if type(descriptor_bytes) is not bytes or type(receipt_bytes) is not bytes:
+        _reject(
+            RouteContractReason.INVALID_DOCUMENT,
+            "route_descriptor",
+            "V3 descriptor and approval inputs must be immutable bytes",
+        )
+    if descriptor_bytes != packaged_route_descriptor_v3_bytes():
+        _reject(
+            RouteContractReason.HASH_MISMATCH,
+            "route_descriptor",
+            "V3 evaluation eligibility requires the exact packaged descriptor bytes",
+        )
+    if receipt_bytes != packaged_route_approval_v3_bytes():
+        _reject(
+            RouteContractReason.HASH_MISMATCH,
+            "approval_receipt",
+            "V3 evaluation eligibility requires the exact packaged approval bytes",
+        )
+
+
+def validate_reasoner_route_v3(descriptor_bytes: bytes, receipt_bytes: bytes) -> ValidatedRoute:
+    """Strictly load only the immutable V3 MiniMax route package."""
+
+    _require_exact_v3_package(descriptor_bytes, receipt_bytes)
+    return load_approved_reasoner_route_v3()
+
+
+@lru_cache(maxsize=1)
+def load_approved_reasoner_route_v3() -> ValidatedRoute:
+    """Validate the exact packaged V3 route and retain its unforgeable object identity."""
+
+    descriptor_bytes = packaged_route_descriptor_v3_bytes()
+    receipt_bytes = packaged_route_approval_v3_bytes()
+    return _validate_reasoner_route(descriptor_bytes, receipt_bytes, spec=_V3_ROUTE_SPEC)
+
+
+def load_current_approved_reasoner_route() -> ValidatedRoute:
+    """Return the currently owner-approved route for prospective evaluation.
+
+    Issue #91 governance (2026-09-04): the current approved route is the direct
+    MiniMax-M3 V3 package approved by the repository owner after the Kimi K3
+    entitlement was withdrawn.  The Kimi V1/V2 packages remain loadable as
+    dormant alternates; switching the current route is an owner-gate action that
+    requires a new packaged descriptor + approval, never a runtime choice.
+    """
+
+    return load_approved_reasoner_route_v3()
+
+
 __all__ = [
     "ADAPTER_KIND",
     "APPROVAL_CLAUSES",
     "APPROVAL_CLAUSES_V2",
+    "APPROVAL_CLAUSES_V3",
     "APPROVAL_ID",
     "APPROVAL_ID_V2",
+    "APPROVAL_ID_V3",
     "APPROVAL_SCHEMA",
     "APPROVAL_SCOPE",
     "APPROVAL_SCOPE_V2",
+    "APPROVAL_SCOPE_V3",
     "CLAIM_LABELS",
     "DIRECT_BASE_URL",
     "DIRECT_MODEL",
@@ -1088,10 +1305,24 @@ __all__ = [
     "KIMI_RESPONSE_SCHEMA_NAME",
     "KIMI_RESPONSE_SCHEMA_NAME_V2",
     "KIMI_TOOL_CHOICE",
+    "MINIMAX_DIRECT_BASE_URL",
+    "MINIMAX_DIRECT_MODEL",
+    "MINIMAX_DIRECT_PROVIDER",
+    "MINIMAX_EFFECTIVE_TEMPERATURE",
+    "MINIMAX_EFFECTIVE_TOP_P",
+    "MINIMAX_MAX_COMPLETION_TOKENS",
+    "MINIMAX_MODEL_CONFIG_SCHEMA",
+    "MINIMAX_OMITTED_REQUEST_FIELDS",
+    "MINIMAX_REASONING_EFFORT",
+    "MINIMAX_RESPONSE_FORMAT_TYPE",
+    "MINIMAX_RESPONSE_SCHEMA_NAME",
+    "MINIMAX_TOOL_CHOICE",
     "ROUTE_ID",
     "ROUTE_ID_V2",
+    "ROUTE_ID_V3",
     "ROUTE_SCHEMA",
     "ROUTE_V2_SCHEMA_VERSION",
+    "ROUTE_V3_SCHEMA_VERSION",
     "ApprovalState",
     "ProviderRequestPolicy",
     "RouteCompatibilityReason",
@@ -1100,13 +1331,19 @@ __all__ = [
     "RouteContractRejected",
     "ValidatedRoute",
     "direct_kimi_model_config_sha256",
+    "direct_minimax_model_config_sha256",
     "load_approved_reasoner_route",
     "load_approved_reasoner_route_v2",
+    "load_approved_reasoner_route_v3",
+    "load_current_approved_reasoner_route",
     "packaged_route_approval_bytes",
     "packaged_route_approval_v2_bytes",
+    "packaged_route_approval_v3_bytes",
     "packaged_route_descriptor_bytes",
     "packaged_route_descriptor_v2_bytes",
+    "packaged_route_descriptor_v3_bytes",
     "route_descriptor_bytes",
     "validate_reasoner_route",
     "validate_reasoner_route_v2",
+    "validate_reasoner_route_v3",
 ]

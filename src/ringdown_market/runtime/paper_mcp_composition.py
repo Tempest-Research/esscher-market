@@ -73,7 +73,7 @@ from ringdown_market.contracts.latency_profile import (
     LatencyProfileRejected,
     load_latency_profile,
 )
-from ringdown_market.contracts.reasoner_route import load_approved_reasoner_route_v2
+from ringdown_market.contracts.reasoner_route import load_current_approved_reasoner_route
 from ringdown_market.execution.expression import ExpressionMarketSnapshot, PromotedExpressionPolicy
 from ringdown_market.execution.host_mcp import (
     HostMcpEnvironment,
@@ -143,7 +143,7 @@ from ringdown_market.sourcedata.alpaca_option_events import (
 from ringdown_market.sourcedata.interfaces import EvidenceSource, MarketDataSource
 from ringdown_market.sourcedata.reasons import CollectorRejected
 from ringdown_market.strategy.contracts import canonical_json_bytes, sha256_bytes
-from ringdown_market.strategy.host_route import HostRouteError, OpenAiCompatibleReasonerRoute
+from ringdown_market.strategy.host_route import HostRouteError, MinimaxM3ReasonerRoute
 from ringdown_market.strategy.reasoner import ReasonerRoute, RouteIdentity
 
 PAPER_MCP_COMPOSITION_CLAIMS = (
@@ -372,21 +372,20 @@ class PaperMcpMutationGate:
 class PaperMcpHostDoors:
     """The narrow host-owned doors the production composition consumes.
 
-    The host supplies: one factory-prepared MCP session capability, the exact
-    owner-approved direct-Kimi route binding (``approved_route``), the engine
-    reasoner callable and its exchange identity (``reasoner`` /
-    ``reasoner_identity``; an armed #68 session wires the approved adapter
-    itself once the V2 engine assembly consumes it, and a no-mutation rehearsal
-    or fake-response probe may wire an operator-attested deterministic double
-    under the identical approval binding), captured feed/source/expression
-    doors, the promoted expression policy, an exit-plan clock factory, a wall
-    clock, a risk ledger, the close economics from the armed risk envelope, and
-    the mutation authorization.  Nothing else about the composition is
-    host-controlled, and no door can weaken the approved-route binding checks.
+    The host supplies: one factory-prepared MCP session capability; the exact
+    owner-approved direct-MiniMax-M3 route adapter (``approved_route``), which
+    must also be the identical object wired as the engine reasoner door
+    (``reasoner is approved_route`` - no synthetic or drifted double can front
+    the production composition) with its exact ``reasoner_identity``; captured
+    feed/source/expression doors; the promoted expression policy; an exit-plan
+    clock factory; a wall clock; a risk ledger; the close economics from the
+    armed risk envelope; and the mutation authorization.  Nothing else about
+    the composition is host-controlled, and no door can weaken the
+    approved-route binding checks.
     """
 
     prepared_session: PreparedHostMcpSession
-    approved_route: OpenAiCompatibleReasonerRoute
+    approved_route: MinimaxM3ReasonerRoute
     reasoner: ReasonerRoute
     reasoner_identity: RouteIdentity
     feed: PaperMcpFeed
@@ -1462,15 +1461,28 @@ class PaperMcpPlanFactory:
                 PaperMcpCompositionReason.SESSION_NOT_PREPARED,
                 "production composition requires a factory-prepared host MCP session",
             )
-        if type(doors.approved_route) is not OpenAiCompatibleReasonerRoute:
+        if type(doors.approved_route) is not MinimaxM3ReasonerRoute:
             raise PaperMcpCompositionRejected(
                 PaperMcpCompositionReason.ROUTE_NOT_APPROVED,
-                "production composition requires the direct-Kimi host route adapter",
+                "production composition requires the owner-approved direct-MiniMax "
+                "host route adapter",
             )
-        if not callable(doors.reasoner) or type(doors.reasoner_identity) is not RouteIdentity:
+        if doors.reasoner is not doors.approved_route:
+            # No seam between the approved binding and the engine door: the
+            # reasoner the engine calls must be the exact approved adapter
+            # object, so a synthetic or drifted double can never front the
+            # production composition.
+            raise PaperMcpCompositionRejected(
+                PaperMcpCompositionReason.ROUTE_NOT_APPROVED,
+                "engine reasoner door must be the identical approved route adapter",
+            )
+        if (
+            type(doors.reasoner_identity) is not RouteIdentity
+            or doors.reasoner_identity != doors.approved_route.identity
+        ):
             raise PaperMcpCompositionRejected(
                 PaperMcpCompositionReason.DOOR_INVALID,
-                "engine reasoner door must be callable and carry an exact RouteIdentity",
+                "reasoner identity must exactly match the approved adapter identity",
             )
         if type(doors.feed) is not PaperMcpFeed:
             raise PaperMcpCompositionRejected(
@@ -1523,7 +1535,7 @@ class PaperMcpPlanFactory:
 
     def __call__(self, authority: ValidatedAutonomousHostAuthority) -> AutonomousHostPlan:
         doors = self._doors
-        approved = load_approved_reasoner_route_v2()
+        approved = load_current_approved_reasoner_route()
         route = doors.approved_route.validated_route
         if (
             route.route_sha256 != approved.route_sha256
