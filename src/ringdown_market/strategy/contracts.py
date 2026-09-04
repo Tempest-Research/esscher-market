@@ -490,6 +490,7 @@ def _string_list(
     path: str,
     reason_codes: bool = False,
     nonempty: bool = False,
+    canonicalize_order: bool = False,
 ) -> tuple[str, ...]:
     if not isinstance(value, list) or (nonempty and not value):
         _reject(StrategyContractReason.INVALID_DOCUMENT, path, "must be a list")
@@ -501,6 +502,17 @@ def _string_list(
         )
         for index, item in enumerate(value)
     )
+    if canonicalize_order:
+        # Owner-approved contract clarification (#91, 2026-09-05, MS-Mesh): the
+        # frozen prompt and output schema communicate uniqueness and cardinality
+        # to the reasoner but never an ordering requirement - ordering is
+        # Esscher's internal canonical form.  No real provider can be expected
+        # to satisfy an uncommunicated rule, so provider-output arrays are
+        # canonicalized by sorting.  Duplicates remain a hard rejection, and
+        # durable internal artifacts still must arrive pre-sorted.
+        if len(set(result)) != len(result):
+            _reject(StrategyContractReason.INVALID_DOCUMENT, path, "must be unique")
+        return tuple(sorted(result))
     if result != tuple(sorted(set(result))):
         _reject(StrategyContractReason.INVALID_DOCUMENT, path, "must be sorted and unique")
     return result
@@ -1493,7 +1505,12 @@ _REASONER_DECISION_FIELDS = frozenset(
 
 def _parse_contradiction(value: object, *, path: str) -> Contradiction:
     payload = _strict_object(value, path=path, fields=_CONTRADICTION_FIELDS)
-    evidence_ids = _string_list(payload["evidence_ids"], path=f"{path}.evidence_ids", nonempty=True)
+    evidence_ids = _string_list(
+        payload["evidence_ids"],
+        path=f"{path}.evidence_ids",
+        nonempty=True,
+        canonicalize_order=True,
+    )
     if len(evidence_ids) != 2:
         _reject(
             StrategyContractReason.REASONER_OUTPUT_INVALID,
@@ -1557,6 +1574,13 @@ def parse_reasoner_decision(raw_response: bytes) -> ReasonerDecision:
     Unlike durable internal artifacts, provider bytes are not required to already
     use Esscher's canonical whitespace/key order.  Their exact raw hash belongs in
     :class:`ReasonerExchange`; this parser supplies the separate semantic hash.
+
+    Owner-approved clarification (#91, 2026-09-05, MS-Mesh): identifier arrays
+    in provider output (``evidence_ids``, ``unknowns``, contradiction evidence
+    ids) are canonicalized by sorting, because the frozen prompt and output
+    schema communicate uniqueness and cardinality but never ordering.
+    Duplicates, wrong field names, cardinality breaches, and malformed JSON all
+    still fail closed; durable internal artifacts still must arrive pre-sorted.
     """
 
     payload = _strict_object(
@@ -1575,7 +1599,9 @@ def parse_reasoner_decision(raw_response: bytes) -> ReasonerDecision:
         return ReasonerDecision(
             decision=_enum(Direction, payload["decision"], path="reasoner_response.decision"),
             evidence_ids=_string_list(
-                payload["evidence_ids"], path="reasoner_response.evidence_ids"
+                payload["evidence_ids"],
+                path="reasoner_response.evidence_ids",
+                canonicalize_order=True,
             ),
             contradictions=tuple(
                 _parse_contradiction(
@@ -1588,6 +1614,7 @@ def parse_reasoner_decision(raw_response: bytes) -> ReasonerDecision:
                 payload["unknowns"],
                 path="reasoner_response.unknowns",
                 reason_codes=True,
+                canonicalize_order=True,
             ),
             strongest_falsifier=_parse_falsifier(
                 payload["strongest_falsifier"],

@@ -370,6 +370,16 @@ def _host_measured_profile_bytes() -> bytes:
     return json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
 
+def _preregistered_profile_bytes() -> bytes:
+    # The packaged profile is HOST_MEASURED since the #91 promotion; this
+    # variant restores the preregistered state for the negative promotion test.
+    payload = json.loads(packaged_latency_profile_bytes().decode("utf-8"))
+    payload["kind"] = "PREREGISTERED"
+    payload["observed_samples"] = 0
+    payload["content_sha256"] = latency_profile_content_sha256(payload)
+    return json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+
 def _release_bytes() -> bytes:
     release = StrategyRelease(
         release_id="ESSCHER-QFAST-PANEL-EVIDENCE-TEST",
@@ -1015,16 +1025,28 @@ def test_fake_execution_pnl_links_service_fills_and_costs(accepted_report) -> No
     assert report.payload["conservatism"]["option_assignment_exercise"] == link.option_case_status
 
 
-def test_promotion_is_rejected_for_synthetic_decisions_and_preregistered_profile(
+def test_promotion_is_rejected_for_synthetic_decisions_with_measured_profile(
     accepted_report,
 ) -> None:
     promotion = accepted_report.promotion
     assert promotion.recommendation is PanelPromotionRecommendation.REJECTED
     assert promotion.release_sha256 is None
     assert "synthetic_receipts_not_candidate_evidence" in promotion.reasons
-    assert "latency_profile_not_measured" in promotion.reasons
+    # The packaged profile is HOST_MEASURED, so the profile blocker is absent;
+    # synthetic receipts alone keep the promotion rejected.
+    assert "latency_profile_not_measured" not in promotion.reasons
     assert accepted_report.payload["promotion"]["release_sha256"] is None
     assert accepted_report.payload["promotion"]["recommendation"] == "REJECTED"
+
+
+def test_promotion_is_rejected_for_preregistered_profile() -> None:
+    report = _run_panel(latency_profile_bytes=_preregistered_profile_bytes())
+    promotion = report.promotion
+
+    assert promotion.recommendation is PanelPromotionRecommendation.REJECTED
+    assert promotion.release_sha256 is None
+    assert "synthetic_receipts_not_candidate_evidence" in promotion.reasons
+    assert "latency_profile_not_measured" in promotion.reasons
 
 
 def test_promotion_binds_exactly_one_release_sha_for_candidate_evidence() -> None:

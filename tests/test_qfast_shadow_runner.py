@@ -46,6 +46,7 @@ from ringdown_market.alpha.shadow_runner import (
 )
 from ringdown_market.contracts.execution_policy import RESEARCH_DECISION_PROTOCOL_SHA256
 from ringdown_market.contracts.latency_profile import (
+    latency_profile_content_sha256,
     packaged_latency_profile_bytes,
     validate_latency_profile,
 )
@@ -155,6 +156,7 @@ def _manifest_bytes(rule_sha: str, *, limitations: list[str] | None = None) -> b
 def _profile_bytes(*, p95_ms: int = 30000) -> bytes:
     payload = json.loads(packaged_latency_profile_bytes().decode("utf-8"))
     payload["p95_latency_ms"] = p95_ms
+    payload["content_sha256"] = latency_profile_content_sha256(payload)
     return (json.dumps(payload, sort_keys=True, indent=2) + "\n").encode("utf-8")
 
 
@@ -315,7 +317,10 @@ def test_synthetic_configuration_validates_and_runs(config: dict[str, bytes]) ->
     assert result.validation.source_status == "NOT_SUPPLIED"
     assert result.validation.rights_status == "RIGHTS_DECLARED"
     assert result.promotion_recommendation is PromotionRecommendation.REJECT_PROMOTION
-    assert "latency_profile_not_measured" in result.promotion_reasons
+    # The packaged profile is now HOST_MEASURED (adapted here to the fixture's
+    # synthetic 30000 ms manifest scale), so the measured-profile blocker is
+    # gone; synthetic receipts alone still reject promotion.
+    assert "latency_profile_not_measured" not in result.promotion_reasons
     assert "synthetic_receipts_not_candidate_evidence" in result.promotion_reasons
     assert result.gate is not None
     assert set(result.reports) == {"zero", "p95"}
@@ -593,14 +598,14 @@ def test_validator_reports_statuses_without_universe(config: dict[str, bytes]) -
     assert report.accepted is True
     assert report.source_status == "NOT_SUPPLIED"
     assert report.clock_status == "NOT_SUPPLIED"
-    assert report.latency_profile_kind == "PREREGISTERED"
+    assert report.latency_profile_kind == "HOST_MEASURED"
 
 
 def test_latency_profile_validation_still_standalone(config: dict[str, bytes]) -> None:
     profile = validate_latency_profile(config["profile"])
 
     assert profile.p95_latency_ms == 30000
-    assert profile.kind.value == "PREREGISTERED"
+    assert profile.kind.value == "HOST_MEASURED"
 
 
 OPPOSITE_DIRECTIONS = (Direction.DOWN, Direction.UP, Direction.UNCERTAIN, Direction.UP)

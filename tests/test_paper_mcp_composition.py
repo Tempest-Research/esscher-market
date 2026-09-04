@@ -20,7 +20,10 @@ import pytest
 
 import test_autonomous_host_composition as synth
 from ringdown_market.contracts.reasoner_route import (
-    load_approved_reasoner_route_v3,
+    FURRY_GATEWAY_BASE_URL,
+    FURRY_GATEWAY_MODEL,
+    FURRY_GATEWAY_PROVIDER,
+    load_approved_reasoner_route_v4,
 )
 from ringdown_market.execution.host_mcp import (
     HostMcpEnvironment,
@@ -68,6 +71,7 @@ from ringdown_market.sourcedata.fakes import (
 )
 from ringdown_market.strategy.contracts import canonical_json_bytes, sha256_bytes
 from ringdown_market.strategy.host_route import (
+    FurryGatewayReasonerRoute,
     MinimaxM3ReasonerRoute,
 )
 from ringdown_market.strategy.reasoner import (
@@ -103,7 +107,9 @@ ALL_TOOLS = (
     "place_option_order",
 )
 TEST_ROUTE_KEY = "host-owned-test-key-not-a-real-credential"
-MINIMAX_ROUTE_IDENTITY = RouteIdentity(provider="minimax_direct", model="MiniMax-M3")
+FURRY_GATEWAY_ROUTE_IDENTITY = RouteIdentity(
+    provider=FURRY_GATEWAY_PROVIDER, model=FURRY_GATEWAY_MODEL
+)
 
 
 class PhaseClock:
@@ -401,20 +407,20 @@ def _approved_route():
                     "message": {"content": decision_text, "role": "assistant"},
                 }
             ],
-            "model": "MiniMax-M3",
+            "model": FURRY_GATEWAY_MODEL,
         },
         sort_keys=True,
         separators=(",", ":"),
     ).encode("utf-8")
 
     def transport(endpoint: str, payload: dict[str, object]) -> bytes:
-        assert endpoint == "https://api.minimax.chat/v1/chat/completions"
+        assert endpoint == f"{FURRY_GATEWAY_BASE_URL}/chat/completions"
         return envelope
 
-    return MinimaxM3ReasonerRoute(
-        route=load_approved_reasoner_route_v3(),
+    return FurryGatewayReasonerRoute(
+        route=load_approved_reasoner_route_v4(),
         api_key=TEST_ROUTE_KEY,
-        identity=MINIMAX_ROUTE_IDENTITY,
+        identity=FURRY_GATEWAY_ROUTE_IDENTITY,
         transport=transport,
     )
 
@@ -439,7 +445,7 @@ def _doors(
         reasoner=route_adapter,
         reasoner_identity=(
             route_adapter.identity
-            if isinstance(route_adapter, MinimaxM3ReasonerRoute)
+            if isinstance(route_adapter, (FurryGatewayReasonerRoute, MinimaxM3ReasonerRoute))
             else SYNTHETIC_ROUTE_IDENTITY
         ),
         feed=PaperMcpFeed(events=(_feed_event(),)),

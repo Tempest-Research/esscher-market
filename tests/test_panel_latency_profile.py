@@ -23,16 +23,22 @@ def _profile_bytes() -> bytes:
 
 
 def test_panel_report_binds_supplied_latency_profile() -> None:
+    # The synthetic fixture manifest requests the synthetic-scale 30000 ms p95;
+    # adapt the packaged host-measured profile to the fixture scale to exercise
+    # the binding mechanics (the assembler requires profile p95 == manifest p95).
+    payload = json.loads(_profile_bytes())
+    payload["p95_latency_ms"] = 30000
+    payload["content_sha256"] = latency_profile_content_sha256(payload)
     report = json.loads(
         assemble_panel_report(
             SYNTHETIC_MANIFEST.read_bytes(),
             SYNTHETIC_RULE.read_bytes(),
             SYNTHETIC_BUNDLE.read_bytes(),
-            latency_profile_bytes=_profile_bytes(),
+            latency_profile_bytes=(json.dumps(payload, indent=2, sort_keys=True) + "\n").encode(),
         )
     )
 
-    assert report["latency_profile"]["kind"] == "PREREGISTERED"
+    assert report["latency_profile"]["kind"] == "HOST_MEASURED"
     assert report["latency_profile"]["p95_latency_ms"] == 30000
     assert report["latency_profile"]["promotion_eligible"] is True
 

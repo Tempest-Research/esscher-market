@@ -17,11 +17,20 @@ POLICY_RESOURCE_NAME: Final = "policies/hackathon_autonomous_v1.json"
 # policy_version 1.2.0 reorders max_loss_tiers so the FIRST (operative) tier is
 # 0.10 - the account-relative allocator then sizes one position up to 10% of
 # current equity ($10,000 at the $100k starting equity).  The tier VALUE set is
-# unchanged (0.05/0.10/0.20), and every other owner boundary (PAPER-only, no
-# broker authority, 20% per-underlying cap, 50% aggregate cap, 50% drawdown
-# freeze, memory mode) is byte-identical.
+# unchanged (0.05/0.10/0.20).
+# Owner-approved refreeze 2026-09-04 (MS-Mesh, issue #91 measurement findings):
+# policy_version 1.3.0 pivots the reasoner block to the furry.vg gateway after
+# MiniMax-M3 measured above the frozen 8s one-call budget.
+# Owner-approved refreeze 2026-09-04 (MS-Mesh, issue #91 measurement findings):
+# policy_version 1.4.0 finalizes the reasoner model as deepseek-v4-flash-0731-free
+# on that gateway after the initial Kimi-K2.6-free candidate failed the frozen
+# six-field decision validator on every probe (contradictions shape drift); the
+# gateway provider (FURRY_VG_GATEWAY), base_url, and credential_env are
+# unchanged.  Every other owner boundary (PAPER-only, no broker authority, 20%
+# per-underlying cap, 50% aggregate cap, 50% drawdown freeze, memory mode) is
+# byte-identical.
 ACCEPTED_AUTONOMOUS_POLICY_V1_SHA256: Final = (
-    "168aedb712f11a7e93f0a53b11ed31dfef3ec00bf7f1c4f8bad1313253b582e9"
+    "19c4669ad9fefce6ec7f03cec94ec6ce175fd8f969f7c883f0c045cbc6357b20"
 )
 _TOP_LEVEL_FIELDS: Final = frozenset(
     {

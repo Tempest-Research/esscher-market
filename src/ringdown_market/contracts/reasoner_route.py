@@ -139,6 +139,72 @@ APPROVAL_CLAUSES_V3 = (
     "The route accepts only the exact packaged V3 descriptor and approval bytes.",
 )
 
+# V4 is the owner-approved pivot to deepseek-v4-flash-0731-free served through
+# the furry.vg OpenAI-compatible gateway (issue #91, 2026-09-04).  MiniMax-M3
+# (V3) measures p50 ~10-14 s against the frozen 8 s one-call budget -
+# structurally unable to complete live decisions - so V3 becomes a dormant
+# packaged alternate and V4 becomes current.  An earlier V4 candidate on this
+# gateway (Kimi-K2.6-free) was rejected by measurement: it emitted a
+# contradictions shape (evidence_id_1/evidence_id_2) that fails the frozen
+# six-field decision validator on 23/23 probes, and the gateway hangs on
+# json_schema so the wire cannot enforce the shape.  deepseek-v4-flash-0731-free
+# is probe-verified schema-valid on the identical frozen prompt.  Wire truths
+# frozen here: json_object only (json_schema requests hang the gateway; without
+# response_format the model returns non-JSON), a 1024-token wire completion cap
+# (the compact valid decision fits well inside it; the cost ceiling honestly
+# discloses the 1024 wire cap while the caller decode identity stays at the
+# frozen 512 policy budget), temperature 0 and top_p 1 accepted, tool_choice
+# none accepted, no reasoning leakage (non-thinking model: reasoning_content is
+# empty, so the frozen unwrapper accepts content directly), accepted-call
+# latency ~0.5-2.9 s warm.  Free-gateway capacity facts are disclosed in the
+# approval clauses: intermittent 429, dropped-connection, and stall outcomes map
+# to typed PROVIDER_ERROR/TIMEOUT abstentions under the frozen one-call/no-retry
+# policy.
+ROUTE_V4_SCHEMA_VERSION = 4
+ROUTE_ID_V4 = "ESSCHER_BOUNDED_REASONER_ROUTE_V4"
+FURRY_GATEWAY_PROVIDER = "furry_vg_gateway"
+FURRY_GATEWAY_BASE_URL = "https://ai.furry.vg/v1"
+FURRY_GATEWAY_MODEL = "deepseek-v4-flash-0731-free"
+FURRY_GATEWAY_REASONING_EFFORT = "none"
+FURRY_GATEWAY_MAX_COMPLETION_TOKENS = 1024
+FURRY_GATEWAY_TOOL_CHOICE = "none"
+FURRY_GATEWAY_RESPONSE_FORMAT_TYPE = "json_object"
+FURRY_GATEWAY_RESPONSE_SCHEMA_NAME = "esscher_reasoner_decision_v1"
+FURRY_GATEWAY_EFFECTIVE_TEMPERATURE = "0"
+FURRY_GATEWAY_EFFECTIVE_TOP_P = "1"
+FURRY_GATEWAY_OMITTED_REQUEST_FIELDS = (
+    "frequency_penalty",
+    "logit_bias",
+    "logprobs",
+    "max_completion_tokens",
+    "n",
+    "presence_penalty",
+    "reasoning_effort",
+    "seed",
+    "stream",
+    "thinking",
+    "tools",
+)
+FURRY_GATEWAY_MODEL_CONFIG_SCHEMA = "esscher.direct_furry_gateway_reasoner_model_config"
+APPROVAL_ID_V4 = "ESSCHER_ROUTE_APPROVAL_V4"
+APPROVAL_SCOPE_V4 = APPROVAL_SCOPE_V2
+APPROVAL_CLAUSES_V4 = (
+    "The owner selected this exact deepseek-v4-flash-0731-free route through the "
+    "furry.vg gateway for prospective strategy evaluation after MiniMax-M3 "
+    "(latency above the frozen 8-second one-call budget) and Kimi-K2.6-free "
+    "(contradictions shape failed the frozen six-field decision validator on "
+    "every probe) were both excluded by measurement; this model is "
+    "probe-verified schema-valid on the identical frozen prompt, and the route "
+    "has no broker, account, order, sizing, or secret authority.",
+    "The owner accepts the disclosed free-gateway capacity profile: "
+    "intermittent 429, dropped-connection, and stall outcomes are typed provider "
+    "failures that abstain under the frozen one-call/no-retry policy, never "
+    "retried.",
+    "Each paid or live reasoner probe or measurement run receives separate "
+    "current owner approval before execution.",
+    "The route accepts only the exact packaged V4 descriptor and approval bytes.",
+)
+
 _SECRET_KEYS = frozenset(
     {
         "api_key",
@@ -352,6 +418,32 @@ _V3_ROUTE_SPEC = _RouteSpec(
     expected_effective_top_p=MINIMAX_EFFECTIVE_TOP_P,
     expected_omitted_request_fields=MINIMAX_OMITTED_REQUEST_FIELDS,
     model_config_schema=MINIMAX_MODEL_CONFIG_SCHEMA,
+)
+_V4_ROUTE_SPEC = _RouteSpec(
+    schema_version=ROUTE_V4_SCHEMA_VERSION,
+    route_id=ROUTE_ID_V4,
+    approval_id=APPROVAL_ID_V4,
+    approval_scope=APPROVAL_SCOPE_V4,
+    approval_clauses=APPROVAL_CLAUSES_V4,
+    policy_loader=load_strategy_policy_v2,
+    policy_sha256_loader=strategy_policy_v2_sha256,
+    output_schema_name=FURRY_GATEWAY_RESPONSE_SCHEMA_NAME,
+    output_schema_sha256_loader=reasoner_output_schema_sha256,
+    caller_temperature=Decimal(FURRY_GATEWAY_EFFECTIVE_TEMPERATURE),
+    caller_top_p=Decimal(FURRY_GATEWAY_EFFECTIVE_TOP_P),
+    caller_seed=None,
+    provider=FURRY_GATEWAY_PROVIDER,
+    base_url=FURRY_GATEWAY_BASE_URL,
+    model=FURRY_GATEWAY_MODEL,
+    expected_reasoning_effort=FURRY_GATEWAY_REASONING_EFFORT,
+    expected_max_completion_tokens=FURRY_GATEWAY_MAX_COMPLETION_TOKENS,
+    expected_response_format_type=FURRY_GATEWAY_RESPONSE_FORMAT_TYPE,
+    expected_strict_json_schema=False,
+    expected_tool_choice=FURRY_GATEWAY_TOOL_CHOICE,
+    expected_effective_temperature=FURRY_GATEWAY_EFFECTIVE_TEMPERATURE,
+    expected_effective_top_p=FURRY_GATEWAY_EFFECTIVE_TOP_P,
+    expected_omitted_request_fields=FURRY_GATEWAY_OMITTED_REQUEST_FIELDS,
+    model_config_schema=FURRY_GATEWAY_MODEL_CONFIG_SCHEMA,
 )
 
 
@@ -595,6 +687,34 @@ def direct_minimax_model_config_sha256(
 
     return _direct_route_model_config_sha256(
         config_schema=MINIMAX_MODEL_CONFIG_SCHEMA,
+        provider=provider,
+        model=model,
+        model_revision=model_revision,
+        base_url=base_url,
+        caller_decoding=caller_decoding,
+        provider_request_policy=provider_request_policy,
+        schema_version=schema_version,
+    )
+
+
+def direct_furry_gateway_model_config_sha256(
+    *,
+    provider: str,
+    model: str,
+    model_revision: str | None,
+    base_url: str,
+    caller_decoding: DecodingParameters,
+    provider_request_policy: ProviderRequestPolicy,
+    schema_version: int = ROUTE_V4_SCHEMA_VERSION,
+) -> str:
+    """Hash the furry.vg gateway identity plus its probe-verified request semantics.
+
+    Its own hash domain again: gateway-served deepseek digests can never
+    collide with or substitute direct-Moonshot or MiniMax identities.
+    """
+
+    return _direct_route_model_config_sha256(
+        config_schema=FURRY_GATEWAY_MODEL_CONFIG_SCHEMA,
         provider=provider,
         model=model,
         model_revision=model_revision,
@@ -1267,17 +1387,77 @@ def load_approved_reasoner_route_v3() -> ValidatedRoute:
     return _validate_reasoner_route(descriptor_bytes, receipt_bytes, spec=_V3_ROUTE_SPEC)
 
 
+def packaged_route_descriptor_v4_bytes() -> bytes:
+    """Return the exact packaged V4 furry-gateway descriptor bytes."""
+
+    return (
+        resources.files("ringdown_market.contracts")
+        .joinpath("policies/reasoner_route_v4.json")
+        .read_bytes()
+    )
+
+
+def packaged_route_approval_v4_bytes() -> bytes:
+    """Return the exact packaged V4 furry-gateway approval receipt bytes."""
+
+    return (
+        resources.files("ringdown_market.contracts")
+        .joinpath("policies/reasoner_route_approval_v4.json")
+        .read_bytes()
+    )
+
+
+def _require_exact_v4_package(descriptor_bytes: bytes, receipt_bytes: bytes) -> None:
+    """Reject semantic lookalikes: V4 eligibility belongs only to shipped bytes."""
+
+    if type(descriptor_bytes) is not bytes or type(receipt_bytes) is not bytes:
+        _reject(
+            RouteContractReason.INVALID_DOCUMENT,
+            "route_descriptor",
+            "V4 descriptor and approval inputs must be immutable bytes",
+        )
+    if descriptor_bytes != packaged_route_descriptor_v4_bytes():
+        _reject(
+            RouteContractReason.HASH_MISMATCH,
+            "route_descriptor",
+            "V4 evaluation eligibility requires the exact packaged descriptor bytes",
+        )
+    if receipt_bytes != packaged_route_approval_v4_bytes():
+        _reject(
+            RouteContractReason.HASH_MISMATCH,
+            "approval_receipt",
+            "V4 evaluation eligibility requires the exact packaged approval bytes",
+        )
+
+
+def validate_reasoner_route_v4(descriptor_bytes: bytes, receipt_bytes: bytes) -> ValidatedRoute:
+    """Strictly load only the immutable V4 furry-gateway route package."""
+
+    _require_exact_v4_package(descriptor_bytes, receipt_bytes)
+    return load_approved_reasoner_route_v4()
+
+
+@lru_cache(maxsize=1)
+def load_approved_reasoner_route_v4() -> ValidatedRoute:
+    """Validate the exact packaged V4 route and retain its unforgeable object identity."""
+
+    descriptor_bytes = packaged_route_descriptor_v4_bytes()
+    receipt_bytes = packaged_route_approval_v4_bytes()
+    return _validate_reasoner_route(descriptor_bytes, receipt_bytes, spec=_V4_ROUTE_SPEC)
+
+
 def load_current_approved_reasoner_route() -> ValidatedRoute:
     """Return the currently owner-approved route for prospective evaluation.
 
-    Issue #91 governance (2026-09-04): the current approved route is the direct
-    MiniMax-M3 V3 package approved by the repository owner after the Kimi K3
-    entitlement was withdrawn.  The Kimi V1/V2 packages remain loadable as
-    dormant alternates; switching the current route is an owner-gate action that
-    requires a new packaged descriptor + approval, never a runtime choice.
+    Issue #91 governance (2026-09-04, owner MS-Mesh): the current approved
+    route is the deepseek-v4-flash-0731-free V4 gateway package.  MiniMax-M3 (V3) measured
+    p50 ~10-14 s against the frozen 8 s one-call budget and becomes a dormant
+    packaged alternate beside the direct Kimi V1/V2 packages; switching the
+    current route is an owner-gate action that requires a new packaged
+    descriptor + approval, never a runtime choice.
     """
 
-    return load_approved_reasoner_route_v3()
+    return load_approved_reasoner_route_v4()
 
 
 __all__ = [
@@ -1285,17 +1465,32 @@ __all__ = [
     "APPROVAL_CLAUSES",
     "APPROVAL_CLAUSES_V2",
     "APPROVAL_CLAUSES_V3",
+    "APPROVAL_CLAUSES_V4",
     "APPROVAL_ID",
     "APPROVAL_ID_V2",
     "APPROVAL_ID_V3",
+    "APPROVAL_ID_V4",
     "APPROVAL_SCHEMA",
     "APPROVAL_SCOPE",
     "APPROVAL_SCOPE_V2",
     "APPROVAL_SCOPE_V3",
+    "APPROVAL_SCOPE_V4",
     "CLAIM_LABELS",
     "DIRECT_BASE_URL",
     "DIRECT_MODEL",
     "DIRECT_PROVIDER",
+    "FURRY_GATEWAY_BASE_URL",
+    "FURRY_GATEWAY_EFFECTIVE_TEMPERATURE",
+    "FURRY_GATEWAY_EFFECTIVE_TOP_P",
+    "FURRY_GATEWAY_MAX_COMPLETION_TOKENS",
+    "FURRY_GATEWAY_MODEL",
+    "FURRY_GATEWAY_MODEL_CONFIG_SCHEMA",
+    "FURRY_GATEWAY_OMITTED_REQUEST_FIELDS",
+    "FURRY_GATEWAY_PROVIDER",
+    "FURRY_GATEWAY_REASONING_EFFORT",
+    "FURRY_GATEWAY_RESPONSE_FORMAT_TYPE",
+    "FURRY_GATEWAY_RESPONSE_SCHEMA_NAME",
+    "FURRY_GATEWAY_TOOL_CHOICE",
     "KIMI_EFFECTIVE_TEMPERATURE",
     "KIMI_EFFECTIVE_TOP_P",
     "KIMI_MAX_COMPLETION_TOKENS",
@@ -1320,9 +1515,11 @@ __all__ = [
     "ROUTE_ID",
     "ROUTE_ID_V2",
     "ROUTE_ID_V3",
+    "ROUTE_ID_V4",
     "ROUTE_SCHEMA",
     "ROUTE_V2_SCHEMA_VERSION",
     "ROUTE_V3_SCHEMA_VERSION",
+    "ROUTE_V4_SCHEMA_VERSION",
     "ApprovalState",
     "ProviderRequestPolicy",
     "RouteCompatibilityReason",
@@ -1330,20 +1527,25 @@ __all__ = [
     "RouteContractReason",
     "RouteContractRejected",
     "ValidatedRoute",
+    "direct_furry_gateway_model_config_sha256",
     "direct_kimi_model_config_sha256",
     "direct_minimax_model_config_sha256",
     "load_approved_reasoner_route",
     "load_approved_reasoner_route_v2",
     "load_approved_reasoner_route_v3",
+    "load_approved_reasoner_route_v4",
     "load_current_approved_reasoner_route",
     "packaged_route_approval_bytes",
     "packaged_route_approval_v2_bytes",
     "packaged_route_approval_v3_bytes",
+    "packaged_route_approval_v4_bytes",
     "packaged_route_descriptor_bytes",
     "packaged_route_descriptor_v2_bytes",
     "packaged_route_descriptor_v3_bytes",
+    "packaged_route_descriptor_v4_bytes",
     "route_descriptor_bytes",
     "validate_reasoner_route",
     "validate_reasoner_route_v2",
     "validate_reasoner_route_v3",
+    "validate_reasoner_route_v4",
 ]

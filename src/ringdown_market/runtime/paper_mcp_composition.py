@@ -9,9 +9,9 @@ the synthetic rehearsal composition, with these hard boundaries:
   module never imports the synthetic broker, synthetic clocks, or the sourcedata
   fixture loaders; a plan can never mix the two classes (the host runner
   rejects any mixed or unbound backend set);
-- the reasoner is only the exact packaged, owner-approved direct-Kimi V2 route
-  bound into the armed session; there is no provider, model, or synthetic-route
-  fallback of any kind;
+- the reasoner is only the exact packaged, owner-approved direct-provider route
+  (current: the V4 furry.vg gateway lane) bound into the armed session; there is
+  no provider, model, or synthetic-route fallback of any kind;
 - every broker interaction travels the guarded session: mutations only through
   the factory-issued lifecycle broker (claim-first, readback-first on
   ambiguity, never retried), reads through the read-only door;
@@ -143,7 +143,11 @@ from ringdown_market.sourcedata.alpaca_option_events import (
 from ringdown_market.sourcedata.interfaces import EvidenceSource, MarketDataSource
 from ringdown_market.sourcedata.reasons import CollectorRejected
 from ringdown_market.strategy.contracts import canonical_json_bytes, sha256_bytes
-from ringdown_market.strategy.host_route import HostRouteError, MinimaxM3ReasonerRoute
+from ringdown_market.strategy.host_route import (
+    FurryGatewayReasonerRoute,
+    HostRouteError,
+    MinimaxM3ReasonerRoute,
+)
 from ringdown_market.strategy.reasoner import ReasonerRoute, RouteIdentity
 
 PAPER_MCP_COMPOSITION_CLAIMS = (
@@ -373,8 +377,10 @@ class PaperMcpHostDoors:
     """The narrow host-owned doors the production composition consumes.
 
     The host supplies: one factory-prepared MCP session capability; the exact
-    owner-approved direct-MiniMax-M3 route adapter (``approved_route``), which
-    must also be the identical object wired as the engine reasoner door
+    owner-approved direct-provider route adapter (``approved_route`` - current:
+    the deepseek-v4-flash-0731-free V4 gateway lane; the MiniMax-M3 V3 adapter remains
+    accepted while its package is a dormant alternate), which must also be the
+    identical object wired as the engine reasoner door
     (``reasoner is approved_route`` - no synthetic or drifted double can front
     the production composition) with its exact ``reasoner_identity``; captured
     feed/source/expression doors; the promoted expression policy; an exit-plan
@@ -385,7 +391,7 @@ class PaperMcpHostDoors:
     """
 
     prepared_session: PreparedHostMcpSession
-    approved_route: MinimaxM3ReasonerRoute
+    approved_route: FurryGatewayReasonerRoute | MinimaxM3ReasonerRoute
     reasoner: ReasonerRoute
     reasoner_identity: RouteIdentity
     feed: PaperMcpFeed
@@ -1461,10 +1467,13 @@ class PaperMcpPlanFactory:
                 PaperMcpCompositionReason.SESSION_NOT_PREPARED,
                 "production composition requires a factory-prepared host MCP session",
             )
-        if type(doors.approved_route) is not MinimaxM3ReasonerRoute:
+        if type(doors.approved_route) not in (
+            FurryGatewayReasonerRoute,
+            MinimaxM3ReasonerRoute,
+        ):
             raise PaperMcpCompositionRejected(
                 PaperMcpCompositionReason.ROUTE_NOT_APPROVED,
-                "production composition requires the owner-approved direct-MiniMax "
+                "production composition requires an owner-approved direct-provider "
                 "host route adapter",
             )
         if doors.reasoner is not doors.approved_route:

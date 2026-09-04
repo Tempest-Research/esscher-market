@@ -23,13 +23,19 @@ def _bytes(payload: dict) -> bytes:
     return (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode("utf-8")
 
 
-def test_packaged_preregistered_profile_validates() -> None:
+def test_packaged_host_measured_profile_validates() -> None:
     profile = load_latency_profile()
 
-    assert profile.kind is LatencyProfileKind.PREREGISTERED
-    assert profile.p95_latency_ms == 30000
+    assert profile.kind is LatencyProfileKind.HOST_MEASURED
+    assert profile.p95_latency_ms == 500
+    assert profile.observed_samples == 28
+    assert profile.observed_samples >= profile_minimum_observations()
     assert profile.evaluation_eligible is True
     assert profile.promotion_eligible is True
+
+
+def profile_minimum_observations() -> int:
+    return json.loads(packaged_latency_profile_bytes())["minimum_sample_observations"]
 
 
 def test_profile_missing_field_fails_closed() -> None:
