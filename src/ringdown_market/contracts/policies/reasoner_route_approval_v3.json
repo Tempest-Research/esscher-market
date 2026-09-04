@@ -1,0 +1,27 @@
+{
+  "adapter_kind": "OPENAI_COMPATIBLE_CHAT_V1",
+  "approval_id": "ESSCHER_ROUTE_APPROVAL_V3",
+  "approval_state": "APPROVED",
+  "approved_at": "2026-09-03T23:22:43Z",
+  "approver": "MS-Mesh",
+  "base_url": "https://api.minimax.chat/v1",
+  "clauses": [
+    "The owner selected this exact direct MiniMax-M3 V3 route for prospective strategy evaluation after the Kimi K3 entitlement was withdrawn; the route has no broker, account, order, sizing, or secret authority.",
+    "Each paid or live reasoner probe or measurement run receives separate current owner approval before execution.",
+    "The route accepts only the exact packaged V3 descriptor and approval bytes."
+  ],
+  "cost_ceiling": {
+    "entitlement_note": "Host-owned direct MiniMax entitlement is configured outside this repository (MINIMAX_API_KEY); no provider purchase is authorized by this artifact, and each live probe or measurement run receives separate current owner approval.",
+    "max_output_tokens_per_call": 512,
+    "paid_provider_purchase": false,
+    "probe_budget_calls": 0
+  },
+  "model": "MiniMax-M3",
+  "model_config_sha256": "4170a6a900f75f5d83e21b8bc9814565559571b181e9d442d8605258d8241c8e",
+  "model_revision": null,
+  "provider": "minimax_direct",
+  "route_sha256": "b6518da979e63203b669a281b58cb0f22849976456448061e2a568ca9010cfcc",
+  "schema": "esscher.reasoner_route_approval",
+  "schema_version": 3,
+  "scope": "ESSCHER_V2_STRATEGY_EVALUATION"
+}

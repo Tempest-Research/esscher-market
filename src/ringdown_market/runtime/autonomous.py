@@ -24,7 +24,7 @@ from zoneinfo import ZoneInfo
 
 from ringdown_market.autonomy import autonomous_policy_sha256, load_autonomous_policy
 from ringdown_market.contracts.execution_policy import ALPACA_MCP_CURRENT_PROTOCOL_SHA256
-from ringdown_market.contracts.reasoner_route import load_approved_reasoner_route_v2
+from ringdown_market.contracts.reasoner_route import load_current_approved_reasoner_route
 from ringdown_market.risk import risk_policy_v2_sha256
 from ringdown_market.strategy import load_strategy_policy_v2, strategy_policy_v2_sha256
 
@@ -146,7 +146,7 @@ def _current_contract_hashes() -> tuple[str, str, str, str, str, str]:
         strategy_sha = strategy_policy_v2_sha256()
         risk_sha = risk_policy_v2_sha256()
         execution_sha = ALPACA_MCP_CURRENT_PROTOCOL_SHA256
-        route = load_approved_reasoner_route_v2()
+        route = load_current_approved_reasoner_route()
         if not route.evaluation_eligible:
             _reject("the packaged K3 V2 route is not evaluation eligible")
         return (

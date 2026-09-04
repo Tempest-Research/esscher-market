@@ -21,8 +21,9 @@ source
     |
     v
 decision
-  BoundedDecisionEngine over the operator-wired reasoner door, under the
-  independently enforced owner-approved direct-Kimi V2 route binding
+  BoundedDecisionEngine over the owner-approved direct route adapter
+  (current: MiniMax-M3 V3; the direct-Kimi V2 package remains dormant),
+  under the independently enforced approval binding
   (approved_route.validated_route hashes == armed session arm hashes ==
   packaged approval) -> deterministic confirmation bridge
     |
@@ -115,8 +116,8 @@ then verifies, exclusively through the read-only door:
   the activities probe paginating to completion inside a bounded page budget;
 - a flat starting state (zero open orders and zero non-zero positions),
   otherwise `NON_FLAT_START`;
-- the approved direct-Kimi route configuration hash and the packaged
-  preregistered latency-profile hash (mismatches: `ROUTE_MISMATCH`,
+- the approved direct route configuration hash (current: MiniMax-M3 V3) and
+  the packaged preregistered latency-profile hash (mismatches: `ROUTE_MISMATCH`,
   `LATENCY_PROFILE_MISMATCH`).
 
 The outcome is one canonical `esscher.broker_preflight_receipt/v1` artifact:
@@ -164,14 +165,20 @@ opens only for an explicitly armed session under Ben's #91/#68 approvals.
   the synthetic broker; the production backends drive the same underlying real
   services (`PaperStrategyApplication`, `MonitoredPaperLifecycle`, `RiskKernel`,
   episode ledger, sidecar) directly. Integrating the stage-receipt chain with
-  the `PAPER_MCP` class is a follow-up under Ben's review.
-- The packaged approved route is the V2 direct-Kimi route; the assembled V1
-  engine lane consumes reasoner doors under that binding, and the armed #68
-  session wires the approved adapter itself once the V2 engine assembly
-  consumes `build_kimi_k3_v2_request`. The composition enforces the approval
-  binding (route/model-config hashes against the arm and packaged approval)
-  and fails closed with `ROUTE_NOT_APPROVED`; no provider, model, or synthetic
-  fallback exists.
+  the `PAPER_MCP` class is a follow-up under owner review.
+- Route pivot (#91 governance, 2026-09-04, owner MS-Mesh): the current
+  approved route is the direct MiniMax-M3 V3 package
+  (`minimax_direct` @ `https://api.minimax.chat/v1`, thinking disabled,
+  temperature 0, top_p 1.0, `json_object` response format, 8s one-call/no-retry
+  policy). Its adapter (`MinimaxM3ReasonerRoute`) is wired for the assembled
+  engine: exchanges carry the frozen policy-registry identities and the
+  configured `RouteIdentity` model-config hash, and the composition factory
+  enforces `reasoner is approved_route` so no double can front it. The direct
+  Kimi V2 package remains approved-but-dormant (its V1 request seam stays
+  closed pending the V2 engine assembly) and can be re-activated by a future
+  owner gate. The composition fails closed with `ROUTE_NOT_APPROVED` on any
+  unapproved or drifting route; no provider, model, or synthetic fallback
+  exists.
 - Activity/position/order fixtures in tests are synthetic broker-shaped records
   labelled `SYNTHETIC_BROKER_SHAPED`; no real account was queried. Host
   normalization proves structure and correlation, never that Alpaca supplied

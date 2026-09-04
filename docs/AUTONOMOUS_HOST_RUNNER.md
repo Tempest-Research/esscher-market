@@ -15,7 +15,7 @@ bridge, the V2 risk kernel (`authorize_entry_v2`), `PaperStrategyApplication.pre
 Everything remains permanently `SYNTHETIC_FAKE` / `NOT_ALPHA_EVIDENCE` with zero
 network/provider/broker/account calls. The composition is evidence that the accepted
 source-to-flat path runs end-to-end under the coordinator with no hand-constructed decision,
-permit, lifecycle, or flat result. It is not evidence that Kimi, an Alpaca account, an MCP
+permit, lifecycle, or flat result. It is not evidence that Kimi or MiniMax, an Alpaca account, an MCP
 server, a real option fill, or a production deployment has been exercised; the guarded MCP
 broker capability (`LifecycleMcpPaperBroker`) in particular is still not part of this path —
 the composition drives the `lifecycle.broker.PaperBroker` protocol directly through the

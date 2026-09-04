@@ -36,7 +36,7 @@ from ringdown_market.contracts.execution_policy import (
     POSITIONS_TOOL,
 )
 from ringdown_market.contracts.latency_profile import load_latency_profile
-from ringdown_market.contracts.reasoner_route import load_approved_reasoner_route_v2
+from ringdown_market.contracts.reasoner_route import load_current_approved_reasoner_route
 from ringdown_market.execution.host_mcp import HostMcpError, PreparedHostMcpSession
 from ringdown_market.lifecycle.broker import PAPER_ACCOUNT_CLASS
 from ringdown_market.runtime.paper_mcp_composition import (
@@ -327,7 +327,7 @@ async def run_broker_preflight(
     if not is_flat:
         reasons.append("NON_FLAT_START")
 
-    approved_route = load_approved_reasoner_route_v2()
+    approved_route = load_current_approved_reasoner_route()
     route_config_sha256 = expectations.route_config_sha256 or approved_route.route_sha256
     if route_config_sha256 != approved_route.route_sha256:
         reasons.append("ROUTE_MISMATCH")

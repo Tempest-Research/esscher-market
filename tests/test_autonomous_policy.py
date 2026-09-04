@@ -40,10 +40,10 @@ def test_packaged_policy_expresses_owner_approved_autonomous_agent() -> None:
     assert policy.abstention_allowed is True
     assert policy.hard_flat_time_et == "15:30:00"
 
-    assert policy.reasoner_provider == "MOONSHOT_DIRECT"
-    assert policy.reasoner_base_url == "https://api.moonshot.ai/v1"
-    assert policy.reasoner_model == "kimi-k3"
-    assert policy.reasoner_credential_env == "KIMI_API_KEY"
+    assert policy.reasoner_provider == "MINIMAX_DIRECT"
+    assert policy.reasoner_base_url == "https://api.minimax.chat/v1"
+    assert policy.reasoner_model == "MiniMax-M3"
+    assert policy.reasoner_credential_env == "MINIMAX_API_KEY"
     assert policy.reasoner_broker_authority is False
 
     assert policy.max_loss_tiers == (
@@ -103,7 +103,7 @@ def test_parser_rejects_unknown_top_level_fields() -> None:
 
 
 def test_packaged_policy_is_bound_to_the_owner_approved_bytes() -> None:
-    expected = "3b7f64759060803b9f8aac84e9adca9876d427ac684b9deb28bb4d1d8d5627c7"
+    expected = "eabb0ade10b19b3e651572f5a3f995f4e5f406f379b63b516db08534411b5055"
 
     assert expected == ACCEPTED_AUTONOMOUS_POLICY_V1_SHA256
     assert autonomous_policy_sha256() == expected
