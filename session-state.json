@@ -1,0 +1,80 @@
+{
+  "account": {
+    "account_class": "",
+    "account_id_sha256": "674554ed5304b30d7ce53bbb3eb4290e129f43cf6f9673210ad776bd7f09f0fd",
+    "buying_power": "400000",
+    "cash": "100000",
+    "equity": "100000",
+    "equity_pct_vs_start": 0.0,
+    "equity_vs_start": 0.0,
+    "observed_at": "2026-09-04T23:43:36Z",
+    "open_order_count": 0,
+    "positions": [],
+    "positions_unrealized_pl": 0.0,
+    "status": "ACTIVE"
+  },
+  "claims": [
+    "PAPER_ONLY",
+    "NO_CREDENTIALS",
+    "NO_RAW_ACCOUNT_ID",
+    "SOURCE_GROUNDED"
+  ],
+  "gate": {
+    "preflight": {
+      "environment": "PAPER",
+      "is_flat": true,
+      "observed_at": "2026-09-04T21:20:27.650426Z",
+      "receipt_id": "preflight-v5-qwen-rc2-20260904a",
+      "receipt_sha256": "46d71f15e111416f",
+      "starting_balance_satisfied": true,
+      "verdict": "PASSED"
+    },
+    "reasoner": {
+      "budget_seconds": 8,
+      "last_live_decision": {
+        "artifact_sha256": "5c85b808462c9ae3",
+        "direction": "UNCERTAIN",
+        "produced_at": "2026-09-04T21:16:54.504665Z",
+        "status": "COMPLETED"
+      },
+      "p50_ms": 4453,
+      "p95_ms": 5578,
+      "route": "dashscope_qwen / qwen3.8-max-0902",
+      "route_sha256": "58878f4ec21308e7",
+      "warm_completed": 30,
+      "warm_schema_valid": 28
+    },
+    "rehearsals": [
+      {
+        "disposition": "TERMINAL",
+        "mode": "live",
+        "mutating_tool_calls": [],
+        "receipt_sha256": "c916a521a346c91e",
+        "session_id": "ESSCHER-REHEARSAL-RC2A-20260911",
+        "terminal_flat_proven": true
+      },
+      {
+        "disposition": "TERMINAL",
+        "mode": "fixture",
+        "mutating_tool_calls": [],
+        "receipt_sha256": "c267052a80dc14c3",
+        "session_id": "ESSCHER-REHEARSAL-RC2B-20260911",
+        "terminal_flat_proven": true
+      }
+    ],
+    "release": {
+      "build_sha256": "f8dcdca28a535570",
+      "code_revision": "a2c86c27fb6e",
+      "release_id": "ESSCHER-V040-PAPER-RC2",
+      "release_sha256": "facbc15bbf4ef0e1"
+    }
+  },
+  "generated_at": "2026-09-04T23:43:35Z",
+  "lane": {
+    "kind": "PRE_SESSION",
+    "labels": []
+  },
+  "schema": "esscher.public_session_state",
+  "schema_version": 1,
+  "session_status": "PRE_SESSION"
+}
