@@ -1,14 +1,16 @@
 """Host measurement harness for the #91 latency gate (owner-run, live provider).
 
-Drives the packaged MiniMaxM3ReasonerRoute adapter against the frozen fixture
-decision prompt and records per-call wall latency, adapter status, and strict
-schema validity.  Writes one redacted JSON report: no credential, no account
-data, and no response text - only latencies, statuses, decisions, and hashes.
+Drives the packaged direct-provider adapter for the CURRENT approved reasoner
+route (V4: KimiGatewayReasonerRoute via the furry.vg gateway; V3 MiniMax-M3
+remains supported as a dormant alternate) against the frozen fixture decision
+prompt and records per-call wall latency, adapter status, and strict schema
+validity.  Writes one redacted JSON report: no credential, no account data,
+and no response text - only latencies, statuses, decisions, and hashes.
 
 Usage (host environment, key outside the repository):
-    uv run python scripts/measure_minimax_latency.py \
-        --env-file "<path>/minimax.env" --samples 22 --cold 2 \
-        --out artifacts/measure/minimax_latency_report.json
+    uv run python scripts/measure_reasoner_latency.py \
+        --env-file "<path>/furry.env" --samples 22 --cold 2 \
+        --out artifacts/measure/kimi_gateway_latency_report.json
 
 The first --cold observations are cold-start samples: excluded from the p95
 statistic and reported separately, per the frozen profile warm/cold policy.
@@ -31,13 +33,22 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 sys.path.insert(0, str(REPO_ROOT / "tests"))
 
-from ringdown_market.contracts.reasoner_route import load_approved_reasoner_route_v3  # noqa: E402
+from ringdown_market.contracts.reasoner_route import (  # noqa: E402
+    load_current_approved_reasoner_route,
+)
 from ringdown_market.strategy.contracts import parse_reasoner_decision  # noqa: E402
 from ringdown_market.strategy.host_route import (  # noqa: E402
+    ENV_FURRY_API_KEY,
     ENV_MINIMAX_API_KEY,
+    KimiGatewayReasonerRoute,
     MinimaxM3ReasonerRoute,
 )
 from ringdown_market.strategy.reasoner import ReasonerRouteRequest, RouteIdentity  # noqa: E402
+
+_DIRECT_ADAPTERS = {
+    "furry_vg_gateway": (KimiGatewayReasonerRoute, ENV_FURRY_API_KEY),
+    "minimax_direct": (MinimaxM3ReasonerRoute, ENV_MINIMAX_API_KEY),
+}
 
 
 def _load_env_file(path: Path) -> None:
@@ -98,9 +109,18 @@ def main() -> int:
         return 2
 
     _load_env_file(args.env_file)
-    api_key = os.environ.get(ENV_MINIMAX_API_KEY, "").strip()
+    route = load_current_approved_reasoner_route()
+    try:
+        adapter_class, env_name = _DIRECT_ADAPTERS[route.provider]
+    except KeyError:
+        print(
+            f"current route provider {route.provider!r} has no direct measurement adapter",
+            file=sys.stderr,
+        )
+        return 2
+    api_key = os.environ.get(env_name, "").strip()
     if not api_key:
-        print(f"missing {ENV_MINIMAX_API_KEY} in the host environment file", file=sys.stderr)
+        print(f"missing {env_name} in the host environment file", file=sys.stderr)
         return 2
 
     # Fixture-driven strategy input: the identical frozen decision prompt the
@@ -114,9 +134,8 @@ def main() -> int:
     # gives the provider its full hard-timeout window.
     started_at = rehearsal_timeline(joined).started_at
 
-    route = load_approved_reasoner_route_v3()
     timeout_seconds = args.transport_timeout
-    adapter = MinimaxM3ReasonerRoute(
+    adapter = adapter_class(
         route=route,
         api_key=api_key,
         identity=RouteIdentity(provider=route.provider, model=route.model),

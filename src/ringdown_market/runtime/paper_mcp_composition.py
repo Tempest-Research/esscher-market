@@ -143,7 +143,11 @@ from ringdown_market.sourcedata.alpaca_option_events import (
 from ringdown_market.sourcedata.interfaces import EvidenceSource, MarketDataSource
 from ringdown_market.sourcedata.reasons import CollectorRejected
 from ringdown_market.strategy.contracts import canonical_json_bytes, sha256_bytes
-from ringdown_market.strategy.host_route import HostRouteError, MinimaxM3ReasonerRoute
+from ringdown_market.strategy.host_route import (
+    HostRouteError,
+    KimiGatewayReasonerRoute,
+    MinimaxM3ReasonerRoute,
+)
 from ringdown_market.strategy.reasoner import ReasonerRoute, RouteIdentity
 
 PAPER_MCP_COMPOSITION_CLAIMS = (
@@ -373,8 +377,10 @@ class PaperMcpHostDoors:
     """The narrow host-owned doors the production composition consumes.
 
     The host supplies: one factory-prepared MCP session capability; the exact
-    owner-approved direct-MiniMax-M3 route adapter (``approved_route``), which
-    must also be the identical object wired as the engine reasoner door
+    owner-approved direct-provider route adapter (``approved_route`` - current:
+    the Kimi-K2.6-free V4 gateway lane; the MiniMax-M3 V3 adapter remains
+    accepted while its package is a dormant alternate), which must also be the
+    identical object wired as the engine reasoner door
     (``reasoner is approved_route`` - no synthetic or drifted double can front
     the production composition) with its exact ``reasoner_identity``; captured
     feed/source/expression doors; the promoted expression policy; an exit-plan
@@ -385,7 +391,7 @@ class PaperMcpHostDoors:
     """
 
     prepared_session: PreparedHostMcpSession
-    approved_route: MinimaxM3ReasonerRoute
+    approved_route: KimiGatewayReasonerRoute | MinimaxM3ReasonerRoute
     reasoner: ReasonerRoute
     reasoner_identity: RouteIdentity
     feed: PaperMcpFeed
@@ -1461,10 +1467,13 @@ class PaperMcpPlanFactory:
                 PaperMcpCompositionReason.SESSION_NOT_PREPARED,
                 "production composition requires a factory-prepared host MCP session",
             )
-        if type(doors.approved_route) is not MinimaxM3ReasonerRoute:
+        if type(doors.approved_route) not in (
+            KimiGatewayReasonerRoute,
+            MinimaxM3ReasonerRoute,
+        ):
             raise PaperMcpCompositionRejected(
                 PaperMcpCompositionReason.ROUTE_NOT_APPROVED,
-                "production composition requires the owner-approved direct-MiniMax "
+                "production composition requires an owner-approved direct-provider "
                 "host route adapter",
             )
         if doors.reasoner is not doors.approved_route:

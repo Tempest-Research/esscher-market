@@ -1,0 +1,28 @@
+{
+  "adapter_kind": "OPENAI_COMPATIBLE_CHAT_V1",
+  "approval_id": "ESSCHER_ROUTE_APPROVAL_V4",
+  "approval_state": "APPROVED",
+  "approved_at": "2026-09-04T07:51:03Z",
+  "approver": "MS-Mesh",
+  "base_url": "https://ai.furry.vg/v1",
+  "clauses": [
+    "The owner selected this exact Kimi-K2.6-free route through the furry.vg gateway for prospective strategy evaluation after MiniMax-M3 measured above the frozen 8-second one-call budget; the route has no broker, account, order, sizing, or secret authority.",
+    "The owner accepts the disclosed free-gateway capacity profile: intermittent 429 and stall outcomes are typed provider failures that abstain under the frozen one-call/no-retry policy, never retried.",
+    "Each paid or live reasoner probe or measurement run receives separate current owner approval before execution.",
+    "The route accepts only the exact packaged V4 descriptor and approval bytes."
+  ],
+  "cost_ceiling": {
+    "entitlement_note": "Host-owned furry.vg gateway entitlement is configured outside this repository (FURRY_API_KEY); the free-gateway capacity profile (intermittent 429/stall outcomes abstaining under the frozen one-call policy) is disclosed and owner-accepted; no provider purchase is authorized by this artifact.",
+    "max_output_tokens_per_call": 1024,
+    "paid_provider_purchase": false,
+    "probe_budget_calls": 0
+  },
+  "model": "Kimi-K2.6-free",
+  "model_config_sha256": "d582bf5a5aa3bdfbf3c73117dc45416f1091d4aef5d60376d17200c8e9f5a381",
+  "model_revision": null,
+  "provider": "furry_vg_gateway",
+  "route_sha256": "549f5a5952dc9482b8addba2425bddb6783bf795bc9aa11c202bece4701d0dc7",
+  "schema": "esscher.reasoner_route_approval",
+  "schema_version": 4,
+  "scope": "ESSCHER_V2_STRATEGY_EVALUATION"
+}

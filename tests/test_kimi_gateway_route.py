@@ -1,37 +1,37 @@
-"""Issue #91: the owner-approved direct MiniMax-M3 route (V3).
+"""Issue #91: the owner-approved Kimi-K2.6-free gateway route (V4, current).
 
-Covers the contract, builder, adapter, and the assembled-engine lane.
+Covers the contract, builder, adapter, and the assembled-engine lane for the
+furry.vg OpenAI-compatible gateway pivot (MiniMax-M3 measured above the frozen
+8s one-call budget; the gateway measured 1.0-1.8s accepted latency).
 
 Every test is offline: the transport is a fake returning the owner-probe-verified
-provider envelope shape. The credential is a labelled fake and is asserted to be
+gateway envelope shape. The credential is a labelled fake and is asserted to be
 discarded at construction. The headliner is the engine integration: the real
 adapter drives the assembled BoundedDecisionEngine to an ACCEPTED decision with
-policy-registry exchange identities - the first direct-provider lane wired for
-the assembled engine in this repository.
+policy-registry exchange identities.
 """
 
 from __future__ import annotations
 
 import dataclasses
 import json
-from datetime import timedelta
 
 import pytest
 
 from ringdown_market.contracts.reasoner_route import (
-    MINIMAX_DIRECT_BASE_URL,
-    MINIMAX_DIRECT_MODEL,
-    MINIMAX_DIRECT_PROVIDER,
+    KIMI_GATEWAY_BASE_URL,
+    KIMI_GATEWAY_MAX_COMPLETION_TOKENS,
+    KIMI_GATEWAY_MODEL,
+    KIMI_GATEWAY_PROVIDER,
     ApprovalState,
     RouteCompatibilityState,
     RouteContractReason,
     RouteContractRejected,
-    load_approved_reasoner_route_v2,
     load_approved_reasoner_route_v3,
     load_approved_reasoner_route_v4,
     load_current_approved_reasoner_route,
-    packaged_route_descriptor_v3_bytes,
-    validate_reasoner_route_v3,
+    packaged_route_descriptor_v4_bytes,
+    validate_reasoner_route_v4,
 )
 from ringdown_market.runtime.host_composition import rehearsal_direction, rehearsal_timeline
 from ringdown_market.strategy.contracts import (
@@ -41,13 +41,14 @@ from ringdown_market.strategy.contracts import (
 )
 from ringdown_market.strategy.engine import BoundedDecisionEngine
 from ringdown_market.strategy.host_route import (
-    ENV_MINIMAX_API_KEY,
+    ENV_FURRY_API_KEY,
     HostRouteConfigurationError,
     HostRouteSecretBoundaryError,
-    MinimaxM3ReasonerRoute,
-    build_minimax_m3_request,
-    load_minimax_route_environment,
-    unwrap_minimax_response,
+    KimiGatewayReasonerRoute,
+    build_kimi_gateway_request,
+    invoke_kimi_gateway_transport,
+    load_furry_route_environment,
+    unwrap_openai_chat_envelope,
 )
 from ringdown_market.strategy.models import ExchangeStatus
 from ringdown_market.strategy.reasoner import (
@@ -58,7 +59,7 @@ from ringdown_market.strategy.reasoner import (
 from test_paper_mcp_composition import _decision_response_bytes, _joined_input
 
 FAKE_KEY = "host-owned-test-key-not-a-real-credential"
-MINIMAX_IDENTITY = RouteIdentity(provider=MINIMAX_DIRECT_PROVIDER, model=MINIMAX_DIRECT_MODEL)
+GATEWAY_IDENTITY = RouteIdentity(provider=KIMI_GATEWAY_PROVIDER, model=KIMI_GATEWAY_MODEL)
 CANDIDATE = "EARNINGS_RESIDUAL_CONTINUATION_V1"
 
 
@@ -66,22 +67,20 @@ def _envelope(content: bytes, *, status_code: int = 0, reasoning: str | None = N
     message: dict[str, object] = {"content": content.decode("utf-8"), "role": "assistant"}
     if reasoning is not None:
         message["reasoning_content"] = reasoning
-    return json.dumps(
-        {
-            "base_resp": {"status_code": status_code, "status_msg": "success"},
-            "choices": [{"finish_reason": "stop", "message": message}],
-            "model": MINIMAX_DIRECT_MODEL,
-        },
-        sort_keys=True,
-        separators=(",", ":"),
-    ).encode("utf-8")
+    envelope: dict[str, object] = {
+        "choices": [{"finish_reason": "stop", "message": message}],
+        "model": KIMI_GATEWAY_MODEL,
+    }
+    if status_code != 0:
+        envelope["base_resp"] = {"status_code": status_code, "status_msg": "error"}
+    return json.dumps(envelope, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
 
 def _adapter(
-    transport=None, *, identity: RouteIdentity = MINIMAX_IDENTITY
-) -> MinimaxM3ReasonerRoute:
-    return MinimaxM3ReasonerRoute(
-        route=load_approved_reasoner_route_v3(),
+    transport=None, *, identity: RouteIdentity = GATEWAY_IDENTITY
+) -> KimiGatewayReasonerRoute:
+    return KimiGatewayReasonerRoute(
+        route=load_approved_reasoner_route_v4(),
         api_key=FAKE_KEY,
         identity=identity,
         transport=transport,
@@ -99,63 +98,61 @@ def _request(ablate: bool = False) -> ReasonerRouteRequest:
 # --- contract layer ---------------------------------------------------------
 
 
-def test_v3_package_is_approved_compatible_and_eligible() -> None:
-    route = load_approved_reasoner_route_v3()
+def test_v4_package_is_approved_compatible_and_eligible() -> None:
+    route = load_approved_reasoner_route_v4()
 
-    assert route.route_id == "ESSCHER_BOUNDED_REASONER_ROUTE_V3"
-    assert route.provider == MINIMAX_DIRECT_PROVIDER
-    assert route.model == MINIMAX_DIRECT_MODEL
-    assert route.base_url == MINIMAX_DIRECT_BASE_URL
+    assert route.route_id == "ESSCHER_BOUNDED_REASONER_ROUTE_V4"
+    assert route.provider == KIMI_GATEWAY_PROVIDER
+    assert route.model == KIMI_GATEWAY_MODEL
+    assert route.model_revision is None
+    assert route.base_url == KIMI_GATEWAY_BASE_URL
     assert route.approval_state is ApprovalState.APPROVED
     assert route.approver == "MS-Mesh"
     assert route.approved_at is not None
     assert route.compatibility_state is RouteCompatibilityState.COMPATIBLE
     assert route.evaluation_eligible is True
     assert route.provider_request_policy.response_format_type == "json_object"
-    assert route.provider_request_policy.reasoning_effort == "disabled"
+    assert route.provider_request_policy.reasoning_effort == "none"
+    assert route.provider_request_policy.max_completion_tokens == 1024
+    assert route.provider_request_policy.strict_json_schema is False
     assert route.provider_request_policy.output_schema_sha256 == reasoner_output_schema_sha256()
 
 
-def test_v3_minimax_package_is_a_dormant_alternate() -> None:
-    # The current route pivoted to V4 (Kimi-K2.6-free via the furry.vg gateway)
-    # after MiniMax-M3 measured above the frozen 8s one-call budget; V3 remains
-    # packaged, loadable, and unchanged as a dormant alternate.
+def test_current_approved_route_is_the_v4_kimi_gateway_package() -> None:
     assert load_current_approved_reasoner_route() is load_approved_reasoner_route_v4()
-    v3 = load_approved_reasoner_route_v3()
-    assert v3 is not load_current_approved_reasoner_route()
-    assert v3.provider == "minimax_direct"
-    kimi = load_approved_reasoner_route_v2()
-    assert kimi.provider == "moonshot_direct"
-    assert kimi is not load_current_approved_reasoner_route()
+    # V3 MiniMax remains packaged and loadable as a dormant alternate.
+    assert load_approved_reasoner_route_v3() is not load_current_approved_reasoner_route()
 
 
-def test_v3_validation_rejects_lookalike_bytes() -> None:
-    descriptor = packaged_route_descriptor_v3_bytes()
-    tampered = descriptor.replace(b"MiniMax-M3", b"MiniMax-M2")
+def test_v4_validation_rejects_lookalike_bytes() -> None:
+    descriptor = packaged_route_descriptor_v4_bytes()
+    tampered = descriptor.replace(b"Kimi-K2.6-free", b"Kimi-K2.5-free")
 
     with pytest.raises(RouteContractRejected) as drift:
-        validate_reasoner_route_v3(tampered, tampered)
+        validate_reasoner_route_v4(tampered, tampered)
     assert drift.value.reason is RouteContractReason.HASH_MISMATCH
 
     with pytest.raises(RouteContractRejected):
-        validate_reasoner_route_v3(descriptor, descriptor)
+        validate_reasoner_route_v4(descriptor, descriptor)
 
 
 # --- builder ----------------------------------------------------------------
 
 
 def test_builder_pins_the_probe_verified_wire_shape() -> None:
-    provider_request = build_minimax_m3_request(load_approved_reasoner_route_v3(), _request())
+    provider_request = build_kimi_gateway_request(load_approved_reasoner_route_v4(), _request())
 
-    assert provider_request.endpoint == "https://api.minimax.chat/v1/chat/completions"
+    assert provider_request.endpoint == f"{KIMI_GATEWAY_BASE_URL}/chat/completions"
     payload = provider_request.payload
-    assert payload["model"] == MINIMAX_DIRECT_MODEL
-    assert payload["max_tokens"] == 512
+    assert payload["model"] == KIMI_GATEWAY_MODEL
+    assert payload["max_tokens"] == KIMI_GATEWAY_MAX_COMPLETION_TOKENS == 1024
     assert payload["temperature"] == 0
     assert payload["top_p"] == 1.0
-    assert payload["thinking"] == {"type": "disabled"}
     assert payload["tool_choice"] == "none"
     assert payload["response_format"] == {"type": "json_object"}
+    # The gateway omits thinking controls entirely (json_schema hangs it;
+    # thinking is not a pinned field on this wire).
+    assert "thinking" not in payload
     messages = payload["messages"]
     assert isinstance(messages, list)
     assert messages[0]["role"] == "system"
@@ -176,10 +173,11 @@ def test_builder_pins_the_probe_verified_wire_shape() -> None:
         "logprobs",
         "logit_bias",
         "stream",
+        "thinking",
     ):
         assert omitted not in payload
     # Deterministic request identity; no secret material anywhere.
-    again = build_minimax_m3_request(load_approved_reasoner_route_v3(), _request())
+    again = build_kimi_gateway_request(load_approved_reasoner_route_v4(), _request())
     assert again.request_sha256 == provider_request.request_sha256
     assert again.payload_bytes == provider_request.payload_bytes
     serialized = json.dumps(payload, sort_keys=True)
@@ -188,14 +186,14 @@ def test_builder_pins_the_probe_verified_wire_shape() -> None:
 
 
 def test_builder_rejects_forged_and_ablation_requests() -> None:
-    real = load_approved_reasoner_route_v3()
+    real = load_approved_reasoner_route_v4()
     forged = dataclasses.replace(real)
 
-    with pytest.raises(HostRouteConfigurationError, match="exact packaged V3"):
-        build_minimax_m3_request(forged, _request())
+    with pytest.raises(HostRouteConfigurationError, match="exact packaged V4"):
+        build_kimi_gateway_request(forged, _request())
 
     with pytest.raises(HostRouteConfigurationError, match="ablation"):
-        build_minimax_m3_request(real, _request(ablate=True))
+        build_kimi_gateway_request(real, _request(ablate=True))
 
 
 # --- adapter ----------------------------------------------------------------
@@ -220,9 +218,9 @@ def test_adapter_completes_with_policy_registry_exchange_identities() -> None:
     assert exchange.route_sha256 == route_sha
     assert exchange.prompt_sha256 == prompt_sha
     assert exchange.output_schema_sha256 == schema_sha
-    assert exchange.model_config_sha256 == MINIMAX_IDENTITY.model_config_sha256()
-    assert exchange.provider == MINIMAX_DIRECT_PROVIDER
-    assert exchange.model == MINIMAX_DIRECT_MODEL
+    assert exchange.model_config_sha256 == GATEWAY_IDENTITY.model_config_sha256()
+    assert exchange.provider == KIMI_GATEWAY_PROVIDER
+    assert exchange.model == KIMI_GATEWAY_MODEL
     assert exchange.responded_at is not None
     assert exchange.responded_at <= exchange.deadline_at
     assert len(calls) == 1
@@ -234,7 +232,7 @@ def test_adapter_maps_failures_to_typed_exchanges_without_retry() -> None:
 
     def timeout_transport(endpoint: str, payload: dict[str, object]) -> bytes:
         attempts.append(1)
-        raise TimeoutError("provider transport detail must never leak")
+        raise TimeoutError("gateway transport detail must never leak")
 
     result = _adapter(timeout_transport)(_request())
     assert result.exchange.status is ExchangeStatus.TIMEOUT
@@ -242,11 +240,13 @@ def test_adapter_maps_failures_to_typed_exchanges_without_retry() -> None:
     assert result.raw_response_bytes is None
     assert len(attempts) == 1
 
-    def overload_transport(endpoint: str, payload: dict[str, object]) -> bytes:
+    def capacity_transport(endpoint: str, payload: dict[str, object]) -> bytes:
+        # The free gateway is capacity-limited: 429/30s stalls must fail closed
+        # as a typed PROVIDER_ERROR abstention, never a retry and never a guess.
         attempts.append(1)
-        raise RuntimeError("529 overloaded")
+        raise RuntimeError("429 rate limited")
 
-    result = _adapter(overload_transport)(_request())
+    result = _adapter(capacity_transport)(_request())
     assert result.exchange.status is ExchangeStatus.PROVIDER_ERROR
     assert result.exchange.error_code == "REASONER_PROVIDER_ERROR"
     assert len(attempts) == 2  # exactly one call per invocation, never a retry
@@ -264,24 +264,44 @@ def test_adapter_maps_failures_to_typed_exchanges_without_retry() -> None:
 
 def test_unwrapper_honors_the_probe_verified_envelope_contract() -> None:
     content = b'{"decision":"UP"}'
-    assert unwrap_minimax_response(_envelope(content)) == content
-    assert unwrap_minimax_response(_envelope(content, reasoning="think")) is None
-    assert unwrap_minimax_response(_envelope(content, status_code=1004)) is None
-    assert unwrap_minimax_response(b"{}") is None
+    assert unwrap_openai_chat_envelope(_envelope(content)) == content
+    assert unwrap_openai_chat_envelope(_envelope(content, reasoning="think")) is None
+    assert unwrap_openai_chat_envelope(_envelope(content, status_code=1004)) is None
+    assert unwrap_openai_chat_envelope(b"{}") is None
+
+
+def test_transport_invokes_once_and_never_leaks_exception_text() -> None:
+    provider_request = build_kimi_gateway_request(load_approved_reasoner_route_v4(), _request())
+    calls: list[str] = []
+
+    def transport(endpoint: str, payload: dict[str, object]) -> bytes:
+        calls.append(endpoint)
+        return _envelope(b"{}")
+
+    result = invoke_kimi_gateway_transport(provider_request, transport)
+    assert result.status is ExchangeStatus.COMPLETED
+    assert calls == [f"{KIMI_GATEWAY_BASE_URL}/chat/completions"]
+
+    def failing(endpoint: str, payload: dict[str, object]) -> bytes:
+        raise RuntimeError("secret provider detail")
+
+    result = invoke_kimi_gateway_transport(provider_request, failing)
+    assert result.status is ExchangeStatus.PROVIDER_ERROR
+    assert result.raw_response_bytes is None
 
 
 def test_adapter_discards_the_credential_and_enforces_identity() -> None:
     adapter = _adapter(lambda endpoint, payload: b"")
     for value in vars(adapter).values():
         assert not (isinstance(value, str) and FAKE_KEY in value)
-    assert adapter.identity == MINIMAX_IDENTITY
-    assert adapter.validated_route is load_approved_reasoner_route_v3()
+    assert adapter.identity == GATEWAY_IDENTITY
+    assert adapter.validated_route is load_approved_reasoner_route_v4()
 
     with pytest.raises(HostRouteSecretBoundaryError):
-        MinimaxM3ReasonerRoute(
-            route=load_approved_reasoner_route_v3(),
+        KimiGatewayReasonerRoute(
+            route=load_approved_reasoner_route_v4(),
             api_key="  ",
-            identity=MINIMAX_IDENTITY,
+            identity=GATEWAY_IDENTITY,
         )
     with pytest.raises(HostRouteConfigurationError, match="identity"):
         _adapter(lambda endpoint, payload: b"", identity=SYNTHETIC_ROUTE_IDENTITY)
@@ -289,21 +309,21 @@ def test_adapter_discards_the_credential_and_enforces_identity() -> None:
         _adapter(None)(_request())
 
 
-def test_environment_loader_reads_only_the_minimax_key(
+def test_environment_loader_reads_only_the_gateway_key(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv(ENV_MINIMAX_API_KEY, raising=False)
-    with pytest.raises(HostRouteConfigurationError, match=ENV_MINIMAX_API_KEY):
-        load_minimax_route_environment()
+    monkeypatch.delenv(ENV_FURRY_API_KEY, raising=False)
+    with pytest.raises(HostRouteConfigurationError, match=ENV_FURRY_API_KEY):
+        load_furry_route_environment()
 
-    monkeypatch.setenv(ENV_MINIMAX_API_KEY, f"  {FAKE_KEY}  ")
-    assert load_minimax_route_environment() == {ENV_MINIMAX_API_KEY: FAKE_KEY}
+    monkeypatch.setenv(ENV_FURRY_API_KEY, f"  {FAKE_KEY}  ")
+    assert load_furry_route_environment() == {ENV_FURRY_API_KEY: FAKE_KEY}
 
 
 # --- assembled engine integration (the headliner) ---------------------------
 
 
-def test_assembled_engine_accepts_the_real_minimax_adapter() -> None:
+def test_assembled_engine_accepts_the_real_gateway_adapter() -> None:
     joined = _joined_input()
     timeline = rehearsal_timeline(joined)
     direction = rehearsal_direction(joined)
@@ -311,7 +331,7 @@ def test_assembled_engine_accepts_the_real_minimax_adapter() -> None:
 
     content = _decision_response_bytes()
     engine = BoundedDecisionEngine(
-        _adapter(lambda endpoint, payload: _envelope(content)), identity=MINIMAX_IDENTITY
+        _adapter(lambda endpoint, payload: _envelope(content)), identity=GATEWAY_IDENTITY
     )
 
     outcome = engine.decide(joined, started_at=timeline.started_at)
@@ -320,9 +340,4 @@ def test_assembled_engine_accepts_the_real_minimax_adapter() -> None:
     assert decision.direction is direction
     assert decision.reasoner_exchange_sha256 is not None
     assert outcome.exchange.status is ExchangeStatus.COMPLETED
-    assert outcome.exchange.model_config_sha256 == MINIMAX_IDENTITY.model_config_sha256()
-
-    # The bounded engine keeps its duplicate-call fence with the real adapter.
-    replay = engine.decide(joined, started_at=timeline.started_at + timedelta(seconds=1))
-    assert replay.exchange.status is ExchangeStatus.CANCELED
-    assert replay.exchange.error_code == "DUPLICATE_REASONER_CALL"
+    assert outcome.exchange.model_config_sha256 == GATEWAY_IDENTITY.model_config_sha256()

@@ -139,6 +139,61 @@ APPROVAL_CLAUSES_V3 = (
     "The route accepts only the exact packaged V3 descriptor and approval bytes.",
 )
 
+# V4 is the owner-approved pivot to Kimi-K2.6-free served through the furry.vg
+# OpenAI-compatible gateway (issue #91, 2026-09-04).  MiniMax-M3 (V3) measures
+# p50 ~10-14 s against the frozen 8 s one-call budget - structurally unable to
+# complete live decisions - so V3 becomes a dormant packaged alternate and V4
+# becomes current.  Probe-verified wire truths frozen here: json_object only
+# (json_schema requests hang the gateway; MiniMax markdown-fences schema mode),
+# a 1024-token wire completion cap (Kimi pretty-prints past the 512 policy
+# decode budget; the cost ceiling honestly discloses the 1024 wire cap while
+# the caller decode identity stays at the frozen policy budget), temperature 0
+# and top_p 1 accepted, tool_choice none accepted, no reasoning leakage
+# (non-thinking model), accepted-call latency 1.0-1.8 s.  Free-gateway
+# capacity facts are disclosed in the approval clauses: intermittent 429 and
+# stall outcomes map to typed PROVIDER_ERROR/TIMEOUT abstentions under the
+# frozen one-call/no-retry policy.
+ROUTE_V4_SCHEMA_VERSION = 4
+ROUTE_ID_V4 = "ESSCHER_BOUNDED_REASONER_ROUTE_V4"
+KIMI_GATEWAY_PROVIDER = "furry_vg_gateway"
+KIMI_GATEWAY_BASE_URL = "https://ai.furry.vg/v1"
+KIMI_GATEWAY_MODEL = "Kimi-K2.6-free"
+KIMI_GATEWAY_REASONING_EFFORT = "none"
+KIMI_GATEWAY_MAX_COMPLETION_TOKENS = 1024
+KIMI_GATEWAY_TOOL_CHOICE = "none"
+KIMI_GATEWAY_RESPONSE_FORMAT_TYPE = "json_object"
+KIMI_GATEWAY_RESPONSE_SCHEMA_NAME = "esscher_reasoner_decision_v1"
+KIMI_GATEWAY_EFFECTIVE_TEMPERATURE = "0"
+KIMI_GATEWAY_EFFECTIVE_TOP_P = "1"
+KIMI_GATEWAY_OMITTED_REQUEST_FIELDS = (
+    "frequency_penalty",
+    "logit_bias",
+    "logprobs",
+    "max_completion_tokens",
+    "n",
+    "presence_penalty",
+    "reasoning_effort",
+    "seed",
+    "stream",
+    "thinking",
+    "tools",
+)
+KIMI_GATEWAY_MODEL_CONFIG_SCHEMA = "esscher.direct_kimi_gateway_reasoner_model_config"
+APPROVAL_ID_V4 = "ESSCHER_ROUTE_APPROVAL_V4"
+APPROVAL_SCOPE_V4 = APPROVAL_SCOPE_V2
+APPROVAL_CLAUSES_V4 = (
+    "The owner selected this exact Kimi-K2.6-free route through the furry.vg "
+    "gateway for prospective strategy evaluation after MiniMax-M3 measured "
+    "above the frozen 8-second one-call budget; the route has no broker, "
+    "account, order, sizing, or secret authority.",
+    "The owner accepts the disclosed free-gateway capacity profile: "
+    "intermittent 429 and stall outcomes are typed provider failures that "
+    "abstain under the frozen one-call/no-retry policy, never retried.",
+    "Each paid or live reasoner probe or measurement run receives separate "
+    "current owner approval before execution.",
+    "The route accepts only the exact packaged V4 descriptor and approval bytes.",
+)
+
 _SECRET_KEYS = frozenset(
     {
         "api_key",
@@ -352,6 +407,32 @@ _V3_ROUTE_SPEC = _RouteSpec(
     expected_effective_top_p=MINIMAX_EFFECTIVE_TOP_P,
     expected_omitted_request_fields=MINIMAX_OMITTED_REQUEST_FIELDS,
     model_config_schema=MINIMAX_MODEL_CONFIG_SCHEMA,
+)
+_V4_ROUTE_SPEC = _RouteSpec(
+    schema_version=ROUTE_V4_SCHEMA_VERSION,
+    route_id=ROUTE_ID_V4,
+    approval_id=APPROVAL_ID_V4,
+    approval_scope=APPROVAL_SCOPE_V4,
+    approval_clauses=APPROVAL_CLAUSES_V4,
+    policy_loader=load_strategy_policy_v2,
+    policy_sha256_loader=strategy_policy_v2_sha256,
+    output_schema_name=KIMI_GATEWAY_RESPONSE_SCHEMA_NAME,
+    output_schema_sha256_loader=reasoner_output_schema_sha256,
+    caller_temperature=Decimal(KIMI_GATEWAY_EFFECTIVE_TEMPERATURE),
+    caller_top_p=Decimal(KIMI_GATEWAY_EFFECTIVE_TOP_P),
+    caller_seed=None,
+    provider=KIMI_GATEWAY_PROVIDER,
+    base_url=KIMI_GATEWAY_BASE_URL,
+    model=KIMI_GATEWAY_MODEL,
+    expected_reasoning_effort=KIMI_GATEWAY_REASONING_EFFORT,
+    expected_max_completion_tokens=KIMI_GATEWAY_MAX_COMPLETION_TOKENS,
+    expected_response_format_type=KIMI_GATEWAY_RESPONSE_FORMAT_TYPE,
+    expected_strict_json_schema=False,
+    expected_tool_choice=KIMI_GATEWAY_TOOL_CHOICE,
+    expected_effective_temperature=KIMI_GATEWAY_EFFECTIVE_TEMPERATURE,
+    expected_effective_top_p=KIMI_GATEWAY_EFFECTIVE_TOP_P,
+    expected_omitted_request_fields=KIMI_GATEWAY_OMITTED_REQUEST_FIELDS,
+    model_config_schema=KIMI_GATEWAY_MODEL_CONFIG_SCHEMA,
 )
 
 
@@ -595,6 +676,34 @@ def direct_minimax_model_config_sha256(
 
     return _direct_route_model_config_sha256(
         config_schema=MINIMAX_MODEL_CONFIG_SCHEMA,
+        provider=provider,
+        model=model,
+        model_revision=model_revision,
+        base_url=base_url,
+        caller_decoding=caller_decoding,
+        provider_request_policy=provider_request_policy,
+        schema_version=schema_version,
+    )
+
+
+def direct_kimi_gateway_model_config_sha256(
+    *,
+    provider: str,
+    model: str,
+    model_revision: str | None,
+    base_url: str,
+    caller_decoding: DecodingParameters,
+    provider_request_policy: ProviderRequestPolicy,
+    schema_version: int = ROUTE_V4_SCHEMA_VERSION,
+) -> str:
+    """Hash the Kimi gateway identity plus its probe-verified request semantics.
+
+    Its own hash domain again: gateway-served Kimi K2.6 digests can never
+    collide with or substitute direct-Moonshot or MiniMax identities.
+    """
+
+    return _direct_route_model_config_sha256(
+        config_schema=KIMI_GATEWAY_MODEL_CONFIG_SCHEMA,
         provider=provider,
         model=model,
         model_revision=model_revision,
@@ -1267,17 +1376,77 @@ def load_approved_reasoner_route_v3() -> ValidatedRoute:
     return _validate_reasoner_route(descriptor_bytes, receipt_bytes, spec=_V3_ROUTE_SPEC)
 
 
+def packaged_route_descriptor_v4_bytes() -> bytes:
+    """Return the exact packaged V4 Kimi-gateway descriptor bytes."""
+
+    return (
+        resources.files("ringdown_market.contracts")
+        .joinpath("policies/reasoner_route_v4.json")
+        .read_bytes()
+    )
+
+
+def packaged_route_approval_v4_bytes() -> bytes:
+    """Return the exact packaged V4 Kimi-gateway approval receipt bytes."""
+
+    return (
+        resources.files("ringdown_market.contracts")
+        .joinpath("policies/reasoner_route_approval_v4.json")
+        .read_bytes()
+    )
+
+
+def _require_exact_v4_package(descriptor_bytes: bytes, receipt_bytes: bytes) -> None:
+    """Reject semantic lookalikes: V4 eligibility belongs only to shipped bytes."""
+
+    if type(descriptor_bytes) is not bytes or type(receipt_bytes) is not bytes:
+        _reject(
+            RouteContractReason.INVALID_DOCUMENT,
+            "route_descriptor",
+            "V4 descriptor and approval inputs must be immutable bytes",
+        )
+    if descriptor_bytes != packaged_route_descriptor_v4_bytes():
+        _reject(
+            RouteContractReason.HASH_MISMATCH,
+            "route_descriptor",
+            "V4 evaluation eligibility requires the exact packaged descriptor bytes",
+        )
+    if receipt_bytes != packaged_route_approval_v4_bytes():
+        _reject(
+            RouteContractReason.HASH_MISMATCH,
+            "approval_receipt",
+            "V4 evaluation eligibility requires the exact packaged approval bytes",
+        )
+
+
+def validate_reasoner_route_v4(descriptor_bytes: bytes, receipt_bytes: bytes) -> ValidatedRoute:
+    """Strictly load only the immutable V4 Kimi-gateway route package."""
+
+    _require_exact_v4_package(descriptor_bytes, receipt_bytes)
+    return load_approved_reasoner_route_v4()
+
+
+@lru_cache(maxsize=1)
+def load_approved_reasoner_route_v4() -> ValidatedRoute:
+    """Validate the exact packaged V4 route and retain its unforgeable object identity."""
+
+    descriptor_bytes = packaged_route_descriptor_v4_bytes()
+    receipt_bytes = packaged_route_approval_v4_bytes()
+    return _validate_reasoner_route(descriptor_bytes, receipt_bytes, spec=_V4_ROUTE_SPEC)
+
+
 def load_current_approved_reasoner_route() -> ValidatedRoute:
     """Return the currently owner-approved route for prospective evaluation.
 
-    Issue #91 governance (2026-09-04): the current approved route is the direct
-    MiniMax-M3 V3 package approved by the repository owner after the Kimi K3
-    entitlement was withdrawn.  The Kimi V1/V2 packages remain loadable as
-    dormant alternates; switching the current route is an owner-gate action that
-    requires a new packaged descriptor + approval, never a runtime choice.
+    Issue #91 governance (2026-09-04, owner MS-Mesh): the current approved
+    route is the Kimi-K2.6-free V4 gateway package.  MiniMax-M3 (V3) measured
+    p50 ~10-14 s against the frozen 8 s one-call budget and becomes a dormant
+    packaged alternate beside the direct Kimi V1/V2 packages; switching the
+    current route is an owner-gate action that requires a new packaged
+    descriptor + approval, never a runtime choice.
     """
 
-    return load_approved_reasoner_route_v3()
+    return load_approved_reasoner_route_v4()
 
 
 __all__ = [
@@ -1285,19 +1454,34 @@ __all__ = [
     "APPROVAL_CLAUSES",
     "APPROVAL_CLAUSES_V2",
     "APPROVAL_CLAUSES_V3",
+    "APPROVAL_CLAUSES_V4",
     "APPROVAL_ID",
     "APPROVAL_ID_V2",
     "APPROVAL_ID_V3",
+    "APPROVAL_ID_V4",
     "APPROVAL_SCHEMA",
     "APPROVAL_SCOPE",
     "APPROVAL_SCOPE_V2",
     "APPROVAL_SCOPE_V3",
+    "APPROVAL_SCOPE_V4",
     "CLAIM_LABELS",
     "DIRECT_BASE_URL",
     "DIRECT_MODEL",
     "DIRECT_PROVIDER",
     "KIMI_EFFECTIVE_TEMPERATURE",
     "KIMI_EFFECTIVE_TOP_P",
+    "KIMI_GATEWAY_BASE_URL",
+    "KIMI_GATEWAY_EFFECTIVE_TEMPERATURE",
+    "KIMI_GATEWAY_EFFECTIVE_TOP_P",
+    "KIMI_GATEWAY_MAX_COMPLETION_TOKENS",
+    "KIMI_GATEWAY_MODEL",
+    "KIMI_GATEWAY_MODEL_CONFIG_SCHEMA",
+    "KIMI_GATEWAY_OMITTED_REQUEST_FIELDS",
+    "KIMI_GATEWAY_PROVIDER",
+    "KIMI_GATEWAY_REASONING_EFFORT",
+    "KIMI_GATEWAY_RESPONSE_FORMAT_TYPE",
+    "KIMI_GATEWAY_RESPONSE_SCHEMA_NAME",
+    "KIMI_GATEWAY_TOOL_CHOICE",
     "KIMI_MAX_COMPLETION_TOKENS",
     "KIMI_OMITTED_REQUEST_FIELDS",
     "KIMI_REASONING_EFFORT",
@@ -1320,9 +1504,11 @@ __all__ = [
     "ROUTE_ID",
     "ROUTE_ID_V2",
     "ROUTE_ID_V3",
+    "ROUTE_ID_V4",
     "ROUTE_SCHEMA",
     "ROUTE_V2_SCHEMA_VERSION",
     "ROUTE_V3_SCHEMA_VERSION",
+    "ROUTE_V4_SCHEMA_VERSION",
     "ApprovalState",
     "ProviderRequestPolicy",
     "RouteCompatibilityReason",
@@ -1330,20 +1516,25 @@ __all__ = [
     "RouteContractReason",
     "RouteContractRejected",
     "ValidatedRoute",
+    "direct_kimi_gateway_model_config_sha256",
     "direct_kimi_model_config_sha256",
     "direct_minimax_model_config_sha256",
     "load_approved_reasoner_route",
     "load_approved_reasoner_route_v2",
     "load_approved_reasoner_route_v3",
+    "load_approved_reasoner_route_v4",
     "load_current_approved_reasoner_route",
     "packaged_route_approval_bytes",
     "packaged_route_approval_v2_bytes",
     "packaged_route_approval_v3_bytes",
+    "packaged_route_approval_v4_bytes",
     "packaged_route_descriptor_bytes",
     "packaged_route_descriptor_v2_bytes",
     "packaged_route_descriptor_v3_bytes",
+    "packaged_route_descriptor_v4_bytes",
     "route_descriptor_bytes",
     "validate_reasoner_route",
     "validate_reasoner_route_v2",
     "validate_reasoner_route_v3",
+    "validate_reasoner_route_v4",
 ]
