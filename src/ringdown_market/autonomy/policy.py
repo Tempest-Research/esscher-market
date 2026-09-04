@@ -26,11 +26,17 @@ POLICY_RESOURCE_NAME: Final = "policies/hackathon_autonomous_v1.json"
 # on that gateway after the initial Kimi-K2.6-free candidate failed the frozen
 # six-field decision validator on every probe (contradictions shape drift); the
 # gateway provider (FURRY_VG_GATEWAY), base_url, and credential_env are
-# unchanged.  Every other owner boundary (PAPER-only, no broker authority, 20%
-# per-underlying cap, 50% aggregate cap, 50% drawdown freeze, memory mode) is
-# byte-identical.
+# unchanged.
+# Owner-approved refreeze 2026-09-04 (MS-Mesh, issue #68 session-readiness):
+# policy_version 1.5.0 pivots the reasoner block to the official Alibaba
+# DashScope endpoint with the date-pinned qwen3.8-max-0902 snapshot after gate
+# measurement (30/30 strict-schema-valid, nearest-rank p95 5062 ms against the
+# frozen 8 s one-call budget) and disclosed free-gateway evening concurrency
+# caps on the V4 route, which remains a dormant alternate.  Every other owner
+# boundary (PAPER-only, no broker authority, 20% per-underlying cap, 50%
+# aggregate cap, 50% drawdown freeze, memory mode) is byte-identical.
 ACCEPTED_AUTONOMOUS_POLICY_V1_SHA256: Final = (
-    "19c4669ad9fefce6ec7f03cec94ec6ce175fd8f969f7c883f0c045cbc6357b20"
+    "2d384954a2f9791f3d43c9870981f19c692fe9929c156ab961bb83ff472a4712"
 )
 _TOP_LEVEL_FIELDS: Final = frozenset(
     {

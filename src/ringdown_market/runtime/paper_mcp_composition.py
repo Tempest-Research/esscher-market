@@ -10,7 +10,7 @@ the synthetic rehearsal composition, with these hard boundaries:
   fixture loaders; a plan can never mix the two classes (the host runner
   rejects any mixed or unbound backend set);
 - the reasoner is only the exact packaged, owner-approved direct-provider route
-  (current: the V4 furry.vg gateway lane) bound into the armed session; there is
+  (current: the V5 DashScope qwen lane) bound into the armed session; there is
   no provider, model, or synthetic-route fallback of any kind;
 - every broker interaction travels the guarded session: mutations only through
   the factory-issued lifecycle broker (claim-first, readback-first on
@@ -147,6 +147,7 @@ from ringdown_market.strategy.host_route import (
     FurryGatewayReasonerRoute,
     HostRouteError,
     MinimaxM3ReasonerRoute,
+    QwenDashScopeReasonerRoute,
 )
 from ringdown_market.strategy.reasoner import ReasonerRoute, RouteIdentity
 
@@ -378,8 +379,9 @@ class PaperMcpHostDoors:
 
     The host supplies: one factory-prepared MCP session capability; the exact
     owner-approved direct-provider route adapter (``approved_route`` - current:
-    the deepseek-v4-flash-0731-free V4 gateway lane; the MiniMax-M3 V3 adapter remains
-    accepted while its package is a dormant alternate), which must also be the
+    the qwen3.8-max-0902 V5 DashScope lane; the deepseek V4 gateway and
+    MiniMax-M3 V3 adapters remain accepted while their packages are dormant
+    alternates), which must also be the
     identical object wired as the engine reasoner door
     (``reasoner is approved_route`` - no synthetic or drifted double can front
     the production composition) with its exact ``reasoner_identity``; captured
@@ -1468,6 +1470,7 @@ class PaperMcpPlanFactory:
                 "production composition requires a factory-prepared host MCP session",
             )
         if type(doors.approved_route) not in (
+            QwenDashScopeReasonerRoute,
             FurryGatewayReasonerRoute,
             MinimaxM3ReasonerRoute,
         ):

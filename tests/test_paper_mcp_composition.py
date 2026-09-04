@@ -20,10 +20,12 @@ import pytest
 
 import test_autonomous_host_composition as synth
 from ringdown_market.contracts.reasoner_route import (
-    FURRY_GATEWAY_BASE_URL,
     FURRY_GATEWAY_MODEL,
     FURRY_GATEWAY_PROVIDER,
-    load_approved_reasoner_route_v4,
+    QWEN_DASHSCOPE_BASE_URL,
+    QWEN_DASHSCOPE_MODEL,
+    QWEN_DASHSCOPE_PROVIDER,
+    load_approved_reasoner_route_v5,
 )
 from ringdown_market.execution.host_mcp import (
     HostMcpEnvironment,
@@ -73,6 +75,7 @@ from ringdown_market.strategy.contracts import canonical_json_bytes, sha256_byte
 from ringdown_market.strategy.host_route import (
     FurryGatewayReasonerRoute,
     MinimaxM3ReasonerRoute,
+    QwenDashScopeReasonerRoute,
 )
 from ringdown_market.strategy.reasoner import (
     SYNTHETIC_ROUTE_IDENTITY,
@@ -109,6 +112,9 @@ ALL_TOOLS = (
 TEST_ROUTE_KEY = "host-owned-test-key-not-a-real-credential"
 FURRY_GATEWAY_ROUTE_IDENTITY = RouteIdentity(
     provider=FURRY_GATEWAY_PROVIDER, model=FURRY_GATEWAY_MODEL
+)
+QWEN_DASHSCOPE_ROUTE_IDENTITY = RouteIdentity(
+    provider=QWEN_DASHSCOPE_PROVIDER, model=QWEN_DASHSCOPE_MODEL
 )
 
 
@@ -400,27 +406,26 @@ def _approved_route():
     decision_text = _decision_response_bytes().decode("utf-8")
     envelope = json.dumps(
         {
-            "base_resp": {"status_code": 0, "status_msg": "success"},
             "choices": [
                 {
                     "finish_reason": "stop",
                     "message": {"content": decision_text, "role": "assistant"},
                 }
             ],
-            "model": FURRY_GATEWAY_MODEL,
+            "model": QWEN_DASHSCOPE_MODEL,
         },
         sort_keys=True,
         separators=(",", ":"),
     ).encode("utf-8")
 
     def transport(endpoint: str, payload: dict[str, object]) -> bytes:
-        assert endpoint == f"{FURRY_GATEWAY_BASE_URL}/chat/completions"
+        assert endpoint == f"{QWEN_DASHSCOPE_BASE_URL}/chat/completions"
         return envelope
 
-    return FurryGatewayReasonerRoute(
-        route=load_approved_reasoner_route_v4(),
+    return QwenDashScopeReasonerRoute(
+        route=load_approved_reasoner_route_v5(),
         api_key=TEST_ROUTE_KEY,
-        identity=FURRY_GATEWAY_ROUTE_IDENTITY,
+        identity=QWEN_DASHSCOPE_ROUTE_IDENTITY,
         transport=transport,
     )
 
@@ -445,7 +450,14 @@ def _doors(
         reasoner=route_adapter,
         reasoner_identity=(
             route_adapter.identity
-            if isinstance(route_adapter, (FurryGatewayReasonerRoute, MinimaxM3ReasonerRoute))
+            if isinstance(
+                route_adapter,
+                (
+                    QwenDashScopeReasonerRoute,
+                    FurryGatewayReasonerRoute,
+                    MinimaxM3ReasonerRoute,
+                ),
+            )
             else SYNTHETIC_ROUTE_IDENTITY
         ),
         feed=PaperMcpFeed(events=(_feed_event(),)),

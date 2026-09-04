@@ -67,10 +67,10 @@ NOT_AVAILABLE: Final = "NOT_AVAILABLE"
 QFAST_UNTOUCHED_PANEL_ID: Final = "QFAST_UNTOUCHED_PANEL_SYNTHETIC_REHEARSAL_V1"
 PANEL_HOLD_SECONDS: Final = 3600
 # Requested p95 arm for built manifests; aligned with the promoted
-# HOST_MEASURED packaged latency profile (issue #91, measured 2026-09-04:
-# nearest-rank p95 500 ms over 28 warm observations on the V4 route).  The
-# evidence validator requires profile p95 == manifest requested p95.
-PANEL_P95_LATENCY_MS: Final = 500
+# HOST_MEASURED packaged latency profile (issue #68, measured 2026-09-04 on the
+# V5 route: nearest-rank p95 5578 ms over 30 warm observations).  The evidence
+# validator requires profile p95 == manifest requested p95.
+PANEL_P95_LATENCY_MS: Final = 5578
 P0_EXCLUSION_DETAIL: Final = (
     "Frozen P0 contract-development exclusion preserved from the untouched universe freeze."
 )

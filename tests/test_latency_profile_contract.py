@@ -27,8 +27,8 @@ def test_packaged_host_measured_profile_validates() -> None:
     profile = load_latency_profile()
 
     assert profile.kind is LatencyProfileKind.HOST_MEASURED
-    assert profile.p95_latency_ms == 500
-    assert profile.observed_samples == 28
+    assert profile.p95_latency_ms == 5578
+    assert profile.observed_samples == 30
     assert profile.observed_samples >= profile_minimum_observations()
     assert profile.evaluation_eligible is True
     assert profile.promotion_eligible is True

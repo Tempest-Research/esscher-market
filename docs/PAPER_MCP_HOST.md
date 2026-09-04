@@ -22,8 +22,9 @@ source
     v
 decision
   BoundedDecisionEngine over the owner-approved direct route adapter
-  (current: deepseek-v4-flash-0731-free V4 via the furry.vg gateway; the
-  MiniMax-M3 V3 and direct-Kimi V1/V2 packages remain dormant),
+  (current: qwen3.8-max-0902 V5 via the official Alibaba DashScope endpoint;
+  the deepseek V4 furry.vg gateway, MiniMax-M3 V3, and direct-Kimi V1/V2
+  packages remain dormant),
   under the independently enforced approval binding
   (approved_route.validated_route hashes == armed session arm hashes ==
   packaged approval) -> deterministic confirmation bridge
@@ -117,8 +118,8 @@ then verifies, exclusively through the read-only door:
   the activities probe paginating to completion inside a bounded page budget;
 - a flat starting state (zero open orders and zero non-zero positions),
   otherwise `NON_FLAT_START`;
-- the approved direct route configuration hash (current: the V4 furry.vg
-  gateway package) and the packaged host-measured latency-profile hash
+- the approved direct route configuration hash (current: the V5 DashScope
+  qwen package) and the packaged host-measured latency-profile hash
   (mismatches: `ROUTE_MISMATCH`, `LATENCY_PROFILE_MISMATCH`).
 
 The outcome is one canonical `esscher.broker_preflight_receipt/v1` artifact:
@@ -168,23 +169,26 @@ opens only for an explicitly armed session under the owner's #91/#68 approvals.
   services (`PaperStrategyApplication`, `MonitoredPaperLifecycle`, `RiskKernel`,
   episode ledger, sidecar) directly. Integrating the stage-receipt chain with
   the `PAPER_MCP` class is a follow-up under owner review.
-- Route pivot (#91 governance, 2026-09-04, owner MS-Mesh): the current
-  approved route is the V4 furry.vg gateway package
-  (`furry_vg_gateway` @ `https://ai.furry.vg/v1`, model
-  `deepseek-v4-flash-0731-free`, `json_object` response format required,
-  temperature 0, top_p 1.0, 1024-token wire cap over the frozen 512 decode
-  budget, 8s one-call/no-retry policy) after MiniMax-M3 (V3) timed out on
-  22/22 live samples and the initial Kimi-K2.6-free V4 candidate failed the
-  frozen six-field validator on 23/23 probes. Its adapter
-  (`FurryGatewayReasonerRoute`, sharing the `DirectEnvelopeReasonerRoute` lane
-  with `MinimaxM3ReasonerRoute`) is wired for the assembled engine: exchanges
-  carry the frozen policy-registry identities and the configured `RouteIdentity`
-  model-config hash, and the composition factory enforces
-  `reasoner is approved_route` so no double can front it. The MiniMax-M3 V3 and
-  direct Kimi V1/V2 packages remain approved-but-dormant and can be
-  re-activated by a future owner gate. The composition fails closed with
-  `ROUTE_NOT_APPROVED` on any unapproved or drifting route; no provider, model,
-  or synthetic fallback exists.
+- Route pivot (#68 governance, 2026-09-04, owner MS-Mesh): the current
+  approved route is the V5 DashScope package (`dashscope_qwen` @
+  `https://dashscope.aliyuncs.com/compatible-mode/v1`, date-pinned model
+  `qwen3.8-max-0902`, NO wire response_format - DashScope json_object demands a
+  literal "json" token the immutable frozen prompt never contains, so the
+  strict schema is prompt-directed and client-validated - temperature 0,
+  top_p 1.0, enable_thinking=false, 1024-token cap, 8s one-call/no-retry
+  policy) after gate measurement: 30/30 warm observations strict-schema-valid
+  at nearest-rank p95 5578 ms through the real adapter, and the free furry.vg
+  gateway (V4) proved evening concurrency-capped (429 "at concurrency limit")
+  which would abstain live decisions. Its adapter (`QwenDashScopeReasonerRoute`,
+  sharing the `DirectEnvelopeReasonerRoute` lane with the V4/V3 adapters) is
+  wired for the assembled engine: exchanges carry the frozen policy-registry
+  identities and the configured `RouteIdentity` model-config hash, and the
+  composition factory enforces `reasoner is approved_route` so no double can
+  front it. The deepseek V4 furry.vg gateway, MiniMax-M3 V3, and direct Kimi
+  V1/V2 packages remain approved-but-dormant and can be re-activated by a
+  future owner gate. The composition fails closed with `ROUTE_NOT_APPROVED` on
+  any unapproved or drifting route; no provider, model, or synthetic fallback
+  exists.
 - Activity/position/order fixtures in tests are synthetic broker-shaped records
   labelled `SYNTHETIC_BROKER_SHAPED`; no real account was queried. Host
   normalization proves structure and correlation, never that Alpaca supplied

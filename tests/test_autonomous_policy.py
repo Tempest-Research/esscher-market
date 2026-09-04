@@ -40,10 +40,10 @@ def test_packaged_policy_expresses_owner_approved_autonomous_agent() -> None:
     assert policy.abstention_allowed is True
     assert policy.hard_flat_time_et == "15:30:00"
 
-    assert policy.reasoner_provider == "FURRY_VG_GATEWAY"
-    assert policy.reasoner_base_url == "https://ai.furry.vg/v1"
-    assert policy.reasoner_model == "deepseek-v4-flash-0731-free"
-    assert policy.reasoner_credential_env == "FURRY_API_KEY"
+    assert policy.reasoner_provider == "DASHSCOPE_QWEN"
+    assert policy.reasoner_base_url == "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    assert policy.reasoner_model == "qwen3.8-max-0902"
+    assert policy.reasoner_credential_env == "QWEN_DASHSCOPE_API_KEY"
     assert policy.reasoner_broker_authority is False
 
     assert policy.max_loss_tiers == (
@@ -103,7 +103,7 @@ def test_parser_rejects_unknown_top_level_fields() -> None:
 
 
 def test_packaged_policy_is_bound_to_the_owner_approved_bytes() -> None:
-    expected = "19c4669ad9fefce6ec7f03cec94ec6ce175fd8f969f7c883f0c045cbc6357b20"
+    expected = "2d384954a2f9791f3d43c9870981f19c692fe9929c156ab961bb83ff472a4712"
 
     assert expected == ACCEPTED_AUTONOMOUS_POLICY_V1_SHA256
     assert autonomous_policy_sha256() == expected
