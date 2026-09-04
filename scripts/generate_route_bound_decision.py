@@ -57,11 +57,18 @@ from ringdown_market.strategy.contracts import (  # noqa: E402
 from ringdown_market.strategy.engine import BoundedDecisionEngine  # noqa: E402
 from ringdown_market.strategy.host_route import (  # noqa: E402
     ENV_FURRY_API_KEY,
+    ENV_QWEN_DASHSCOPE_API_KEY,
     FurryGatewayReasonerRoute,
+    QwenDashScopeReasonerRoute,
 )
 from ringdown_market.strategy.models import ExchangeStatus  # noqa: E402
 from ringdown_market.strategy.reasoner import RouteIdentity  # noqa: E402
 from test_paper_mcp_composition import _joined_input  # noqa: E402
+
+_DIRECT_ADAPTERS = {
+    "dashscope_qwen": (QwenDashScopeReasonerRoute, ENV_QWEN_DASHSCOPE_API_KEY),
+    "furry_vg_gateway": (FurryGatewayReasonerRoute, ENV_FURRY_API_KEY),
+}
 
 
 def _iso(value: datetime | None) -> str | None:
@@ -104,14 +111,22 @@ def main() -> int:
             continue
         key, _, value = line.partition("=")
         os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
-    api_key = os.environ.get(ENV_FURRY_API_KEY, "").strip()
+    route = load_current_approved_reasoner_route()
+    try:
+        adapter_class, env_name = _DIRECT_ADAPTERS[route.provider]
+    except KeyError:
+        print(
+            f"current route provider {route.provider!r} has no direct demonstration adapter",
+            file=sys.stderr,
+        )
+        return 2
+    api_key = os.environ.get(env_name, "").strip()
     if not api_key:
-        print(f"missing {ENV_FURRY_API_KEY} in the host environment file", file=sys.stderr)
+        print(f"missing {env_name} in the host environment file", file=sys.stderr)
         return 2
 
-    route = load_current_approved_reasoner_route()
     identity = RouteIdentity(provider=route.provider, model=route.model)
-    adapter = FurryGatewayReasonerRoute(
+    adapter = adapter_class(
         route=route,
         api_key=api_key,
         identity=identity,
