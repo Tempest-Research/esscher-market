@@ -1248,3 +1248,28 @@ def test_parser_rejects_unknown_risk_tier() -> None:
 
     with pytest.raises(UniverseContractRejected, match="UNKNOWN_STATE"):
         parse_defined_risk_opportunity(raw)
+
+
+def test_first_owner_tier_drives_ten_percent_operative_sizing() -> None:
+    """Owner sizing directive (2026-09-04, MS-Mesh, issue #68): the first
+    approved tier is the operative one, sizing one position up to a $10,000
+    max loss on a fresh $100k account while every frozen capacity cap still
+    binds (20% per underlying, 50% aggregate, unborrowed cash)."""
+
+    from ringdown_market.application.autonomous_bridge import derived_risk_tier
+    from ringdown_market.risk.policy import load_risk_policy_v2
+
+    policy = load_risk_policy_v2()
+    assert policy.risk_tiers[0] == Decimal("0.10")
+    operative = derived_risk_tier(policy)
+    assert operative is RiskTier.TEN_PERCENT
+
+    decision = allocate_defined_risk(_portfolio(), _opportunity(risk_tier=operative))
+
+    assert decision.status is AllocationStatus.ALLOCATED
+    assert decision.quantity == 40
+    assert decision.max_loss == Decimal("10000")
+    assert decision.remaining_tier == Decimal("0")
+    assert decision.remaining_underlying == Decimal("10000")
+    assert decision.remaining_aggregate == Decimal("40000")
+    assert decision.remaining_cash == Decimal("90000")

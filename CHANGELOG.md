@@ -29,6 +29,7 @@
 
 - The release train version advances from `0.3.1` to `0.4.0`.
 - Owner-approved refreeze of the autonomous release policy (`hackathon_autonomous_v1.json` 1.0.0 -> 1.1.0, MS-Mesh, issue #91 governance): the reasoner block pivots to `MINIMAX_DIRECT` / `MiniMax-M3` / `https://api.minimax.chat/v1` / `MINIMAX_API_KEY`; every other owner boundary (PAPER-only, no broker authority, risk caps, memory mode, session clocks) is byte-identical. The V2 risk policy's `owner_policy_sha256`/`constants_source_sha256` bindings were re-pointed at the new accepted policy digest in the same owner action.
+- Owner-approved aggressive sizing refreeze (`hackathon_autonomous_v1.json` 1.1.0 -> 1.2.0, MS-Mesh, issue #68 directive): `max_loss_tiers` reordered to `["0.10", "0.05", "0.20"]` so the first (operative) tier sizes one position up to 10% of current equity - a $10,000 max-loss position at the $100k starting equity - with the approved tier value set unchanged and every capacity cap still binding (20% per underlying, 50% aggregate open debit, unborrowed cash, 50% drawdown freeze). The V2 risk policy tiers and owner-sha bindings were re-pointed in the same action; `derived_risk_tier` now yields `TEN_PERCENT`.
 
 ### Fixed
 
