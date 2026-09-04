@@ -72,9 +72,33 @@ uv run python scripts/capture_lane.py serialize --event-id <EVENT> ...
 
 Then: fresh `ringdown paper-preflight` on the final build, session-arm mint for
 the date, owner review of the exact session manifest, the **second explicit
-owner authorization immediately before broker mutation**, and `ringdown
-paper-run` with the host selector configured for the demo lane
-(`ESSCHER_DEMO_LANE=1`: demo expression policy + delayed captures). Windows
+owner authorization immediately before broker mutation** (`ESSCHER_MUTATION_AUTHORIZED=yes`
+in the host selector environment — the mutation gate is closed without it), and
+`ringdown paper-run` with the host selector configured for the demo lane
+(`ESSCHER_DEMO_LANE=1`: demo expression policy + delayed captures; the selector
+refuses any mix of the flag and capture claims in either direction). Windows
 10:00–15:00 ET, hard flat 15:30 ET, broker-confirmed flatness, full receipt
-set — then the session artifacts are published to the website tracker with
-their demo labels intact.
+set.
+
+## Website live tracker (real profit/loss)
+
+Beside `paper-run`, the host runs the publisher in watch mode:
+
+```
+uv run python scripts/publish_session_state.py --repo . --env-file <ringdown-market>/.env \
+    --mint-dir <packet> --preflight <receipt.json> --rehearsal <dir> \
+    --measurement <report.json> --lane DELAYED_EXECUTION_DEMO --session-status RUNNING --watch
+```
+
+It polls the read-only Alpaca REST endpoints every 60s and republishes
+`session-state.json` to the `live-data` branch **whenever the account state
+changes** (new position, P&L move, order event; timestamp-insensitive change
+hash) plus a 15-minute heartbeat. The website panel (Live Desk page,
+Tempest-Research/website) fetches through the GitHub contents API with
+raw/jsdelivr fallbacks, auto-refreshes every 30s, and shows live equity, P&L
+versus the $100k start, per-position unrealized P&L, open orders, gate
+receipts, and the measured reasoner route — always under PAPER-only and
+`DELAYED_EXECUTION_DEMO` / `NOT_THE_VALIDATED_LANE` labels. Redaction is
+absolute: account id as sha256 digest only, no credentials anywhere in the
+payload, and the publisher refuses any non-`paper-api.alpaca.markets` base URL.
+
