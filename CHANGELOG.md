@@ -33,6 +33,7 @@
 
 ### Fixed
 
+- Latent provider-contract defect discovered by the first live direct-provider measurement run (#91): `parse_reasoner_decision` required identifier arrays to arrive sorted, but the frozen system prompt and output schema communicate only uniqueness and cardinality - an uncommunicated rule no real model can satisfy (MiniMax-M3 live samples were rejected for unsorted `evidence_ids` while fully compliant otherwise). Owner-approved clarification (MS-Mesh): provider-output arrays (`evidence_ids`, `unknowns`, contradiction evidence ids) are now canonicalized by sorting - hash-stable, duplicates still hard-rejected, wrong field names/malformed JSON still fail closed, and durable internal artifacts still must arrive pre-sorted (entire existing suite pins the strict paths).
 - Sealed `LifecycleMcpPaperBroker` construction and lifecycle state inside the preflighted host-MCP capability path, so raw or independently guarded sessions, copies, and state retargeting cannot reach a tool call.
 - Reworked the Windows capture-output pin to retain replacement-race protection without holding incompatible directory `DELETE` access, restoring atomic publication and repeat capture on Windows.
 - Rebound the guarded Alpaca MCP protocol to the published `alpaca-mcp-server` 2.3.1 wheel, source archive, upstream commit, FastMCP runtime, tool inventory, and exact six-schema allowlist instead of relying on repeated in-code constants.

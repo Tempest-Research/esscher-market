@@ -31,3 +31,6 @@ CLAUDE.md
 .DS_Store
 Thumbs.db
 out/
+
+# host-run measurement/preflight artifacts (never committed)
+artifacts/
