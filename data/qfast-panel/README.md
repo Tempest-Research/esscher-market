@@ -51,18 +51,32 @@ the repository carries metadata and SHA-256 bindings only
 
 ## What remains blocked
 
-Panel assembly and Q-FAST evaluation stay fail-closed until:
+Status update 2026-09-04 (issue #67/#91, owner MS-Mesh):
 
-1. issue #26 merges and its strategy-policy hash is registered in
-   `KNOWN_STRATEGY_POLICY_SHA256`;
-2. issue #27 merges and its snapshot-protocol hash is registered in
-   `KNOWN_SNAPSHOT_PROTOCOL_SHA256`;
-3. issue #28 produces validated residual decisions through the merged
-   research-decision protocol;
-4. the host supplies a measured p95 execution-latency profile.
+1. issue #26 is closed completed and the frozen V1 strategy-policy digest
+   `afce93b5...` is now registered in `KNOWN_STRATEGY_POLICY_SHA256`;
+2. issue #27 merged the point-in-time snapshot compiler, but no canonical
+   snapshot-protocol artifact digest exists yet: `KNOWN_SNAPSHOT_PROTOCOL_SHA256`
+   deliberately stays empty and real manifests remain fail-closed on that field
+   until the protocol is canonicalized under owner review;
+3. issue #28 is closed completed: the merged research-decision protocol is
+   enforced (`decision_protocol_sha256` must equal
+   `RESEARCH_DECISION_PROTOCOL_SHA256`). Validated residual decisions over the
+   23 events additionally require the host-side raw evidence bytes and 82-bar
+   price paths (`METADATA_AND_HASH_ONLY`), which are unavailable on the current
+   host; route-bound receipt generation over the 23 events stays blocked on
+   that data, and the live-route bridge is demonstrated separately on the
+   excluded contract-development fixture event
+   (`scripts/generate_route_bound_decision.py`);
+4. the host has supplied a measured p95 execution-latency profile: the packaged
+   profile is `HOST_MEASURED` (nearest-rank p95 500 ms over 28 valid warm
+   observations on the V4 route, issue #91, 2026-09-04).
 
-Until then `ringdown assemble-panel` rejects real manifests with
-`UPSTREAM_CONTRACT_MISSING` / `LATENCY_PROFILE_NOT_MEASURED`.
+Until item 2 (and the item-3 data availability) resolve, `ringdown
+assemble-panel` still rejects real manifests with `UPSTREAM_CONTRACT_MISSING`.
+The synthetic-rehearsal lane (`scripts/run_qfast_panel_evidence.py`) runs the
+complete evidence machinery over the frozen universe and permanently claims
+`NOT_ALPHA_EVIDENCE`.
 
 See [docs/research/qfast-point-in-time-panel.md](../../docs/research/qfast-point-in-time-panel.md)
 for the full pipeline contract, reason codes, and resume checklist.

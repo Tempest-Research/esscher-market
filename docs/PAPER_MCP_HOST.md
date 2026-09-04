@@ -22,7 +22,8 @@ source
     v
 decision
   BoundedDecisionEngine over the owner-approved direct route adapter
-  (current: MiniMax-M3 V3; the direct-Kimi V2 package remains dormant),
+  (current: deepseek-v4-flash-0731-free V4 via the furry.vg gateway; the
+  MiniMax-M3 V3 and direct-Kimi V1/V2 packages remain dormant),
   under the independently enforced approval binding
   (approved_route.validated_route hashes == armed session arm hashes ==
   packaged approval) -> deterministic confirmation bridge
@@ -116,9 +117,9 @@ then verifies, exclusively through the read-only door:
   the activities probe paginating to completion inside a bounded page budget;
 - a flat starting state (zero open orders and zero non-zero positions),
   otherwise `NON_FLAT_START`;
-- the approved direct route configuration hash (current: MiniMax-M3 V3) and
-  the packaged preregistered latency-profile hash (mismatches: `ROUTE_MISMATCH`,
-  `LATENCY_PROFILE_MISMATCH`).
+- the approved direct route configuration hash (current: the V4 furry.vg
+  gateway package) and the packaged host-measured latency-profile hash
+  (mismatches: `ROUTE_MISMATCH`, `LATENCY_PROFILE_MISMATCH`).
 
 The outcome is one canonical `esscher.broker_preflight_receipt/v1` artifact:
 content-addressed, redacted (no credentials, no raw account identifier),
@@ -127,7 +128,8 @@ claiming `NO_BROKER_MUTATION`, and either `PASSED` with no reason codes or
 expectations, 3 host/structural failure. A mutation attempt through the
 preflight path is impossible by construction (the read-only door rejects the
 mutating selection) and is asserted by tests. Owner review of the receipt, the
-host-measured route profile, and the GO/NO-GO decision remain #91 (Ben).
+host-measured route profile, and the GO/NO-GO decision remain #91 (owner
+MS-Mesh).
 
 ## paper-run and scheduling
 
@@ -157,7 +159,7 @@ production path with `PaperMcpMutationGate` closed: capture, decision,
 confirmation, risk, and permit compilation all execute, the would-be permit is
 recorded through a `MUTATION_GATE_CLOSED` rejected-before-mutation outcome, and
 no order tool is ever called. This is the rehearsal surface #91 uses; the gate
-opens only for an explicitly armed session under Ben's #91/#68 approvals.
+opens only for an explicitly armed session under the owner's #91/#68 approvals.
 
 ## Delegated seams (honest boundaries)
 
@@ -167,18 +169,22 @@ opens only for an explicitly armed session under Ben's #91/#68 approvals.
   episode ledger, sidecar) directly. Integrating the stage-receipt chain with
   the `PAPER_MCP` class is a follow-up under owner review.
 - Route pivot (#91 governance, 2026-09-04, owner MS-Mesh): the current
-  approved route is the direct MiniMax-M3 V3 package
-  (`minimax_direct` @ `https://api.minimax.chat/v1`, thinking disabled,
-  temperature 0, top_p 1.0, `json_object` response format, 8s one-call/no-retry
-  policy). Its adapter (`MinimaxM3ReasonerRoute`) is wired for the assembled
-  engine: exchanges carry the frozen policy-registry identities and the
-  configured `RouteIdentity` model-config hash, and the composition factory
-  enforces `reasoner is approved_route` so no double can front it. The direct
-  Kimi V2 package remains approved-but-dormant (its V1 request seam stays
-  closed pending the V2 engine assembly) and can be re-activated by a future
-  owner gate. The composition fails closed with `ROUTE_NOT_APPROVED` on any
-  unapproved or drifting route; no provider, model, or synthetic fallback
-  exists.
+  approved route is the V4 furry.vg gateway package
+  (`furry_vg_gateway` @ `https://ai.furry.vg/v1`, model
+  `deepseek-v4-flash-0731-free`, `json_object` response format required,
+  temperature 0, top_p 1.0, 1024-token wire cap over the frozen 512 decode
+  budget, 8s one-call/no-retry policy) after MiniMax-M3 (V3) timed out on
+  22/22 live samples and the initial Kimi-K2.6-free V4 candidate failed the
+  frozen six-field validator on 23/23 probes. Its adapter
+  (`FurryGatewayReasonerRoute`, sharing the `DirectEnvelopeReasonerRoute` lane
+  with `MinimaxM3ReasonerRoute`) is wired for the assembled engine: exchanges
+  carry the frozen policy-registry identities and the configured `RouteIdentity`
+  model-config hash, and the composition factory enforces
+  `reasoner is approved_route` so no double can front it. The MiniMax-M3 V3 and
+  direct Kimi V1/V2 packages remain approved-but-dormant and can be
+  re-activated by a future owner gate. The composition fails closed with
+  `ROUTE_NOT_APPROVED` on any unapproved or drifting route; no provider, model,
+  or synthetic fallback exists.
 - Activity/position/order fixtures in tests are synthetic broker-shaped records
   labelled `SYNTHETIC_BROKER_SHAPED`; no real account was queried. Host
   normalization proves structure and correlation, never that Alpaca supplied

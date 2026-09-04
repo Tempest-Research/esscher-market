@@ -1,7 +1,34 @@
 # Reasoner route and p95 latency gate
 
-**Status: DRAFT — the owner-approved direct Kimi K3 descriptor validates, but
-V1 evaluation remains fail-closed.** This note records the exact direct provider
+**Status: CURRENT — the owner-approved V4 direct route (deepseek-v4-flash-0731-free
+via the furry.vg gateway) is live-measured and preflight-verified; the packaged
+p95 profile is `HOST_MEASURED`.** The V1 history below is retained verbatim as
+the record of the original direct-Kimi boundary and its fail-closed
+incompatibility.
+
+## Route generation history (2026-09-04, owner MS-Mesh)
+
+| Gen | Provider / model | State | Why |
+| --- | --- | --- | --- |
+| V1/V2 | `moonshot_direct` / `kimi-k3` | dormant, V1 INCOMPATIBLE | K3 entitlement withdrawn; V1 frozen-decoding incompatibility below |
+| V3 | `minimax_direct` / `MiniMax-M3` | dormant alternate | live measurement: 22/22 TIMEOUT against the frozen 8s one-call budget |
+| V4 (initial candidate) | `furry_vg_gateway` / `Kimi-K2.6-free` | rejected by measurement | 23/23 probes failed the frozen six-field validator (contradictions emitted as `evidence_id_1`/`evidence_id_2`); gateway hangs on `json_schema` |
+| **V4 (current)** | `furry_vg_gateway` / `deepseek-v4-flash-0731-free` | **current, APPROVED/COMPATIBLE/eligible** | probe-verified schema-valid (`json_object` required, empty `reasoning_content`), 28/28 warm live samples valid, nearest-rank p95 500 ms |
+
+V4 artifacts: `contracts/policies/reasoner_route_v4.json` (route_sha256
+`8fff4fa134eea77a5b503ac8c628651bca818ee9148694a5830ec6bbecb62549`) and
+`reasoner_route_approval_v4.json` (approver MS-Mesh; model_config_sha256
+`88a23f0e5bfbc1d2e60d139e851b560e4e9cfa07d5806cdb798a206eab31cca5`). The
+engine lane is `FurryGatewayReasonerRoute` over the shared
+`DirectEnvelopeReasonerRoute` one-call/no-retry boundary; the host credential is
+`FURRY_API_KEY` (env-only, discarded at construction). Free-gateway capacity
+facts (intermittent 429/dropped-connection/stall) are disclosed in the approval
+clauses and fail closed as typed abstentions.
+
+## Historical V1 record (direct Kimi K3)
+
+**The owner-approved direct Kimi K3 descriptor validates, but V1 evaluation
+remains fail-closed.** This note records the exact direct provider
 boundary and the separate frozen p95 execution-latency profile. It does not
 claim an operational Kimi route, a provider completion, token usage, measured
 latency, an account, a broker call, a PAPER order, or live execution.
@@ -120,12 +147,18 @@ The current official direct-K3 references are:
 - <https://platform.kimi.ai/docs/guide/kimi-k3-quickstart>
 - <https://platform.kimi.ai/docs/api/chat>
 
-## p95 latency profile (unchanged)
+## p95 latency profile (promoted 2026-09-04)
 
-The frozen p95 profile remains `PREREGISTERED` at 30,000 ms, nearest-rank p95,
-with a host monotonic clock and UTC anchor. The existing 30,000 ms synthetic
-fixture is contract test data, not a measured profile. A `HOST_MEASURED` profile
-must supersede it before any promotion claim.
+The packaged p95 profile is now `HOST_MEASURED`: nearest-rank p95 **500 ms**
+over **28** valid warm host observations (2 cold-start excluded) of the frozen
+fixture decision prompt through the V4 route on 2026-09-04, zero retries, no
+fallback routes; content_sha256
+`2a471fb4670887449f17d5937985ea236de8a622dd4d20f2f80c9cbf4cb74812`. It
+supersedes the owner-preregistered conservative 30,000 ms bound; the redacted
+measurement report is retained host-side
+(`artifacts/measure/furry_gateway_latency_report.json`) and the profile
+provenance note discloses the repeated-prompt caching caveat. The historical
+preregistered profile remains recoverable from git history.
 
 ## Fail-closed behavior
 
