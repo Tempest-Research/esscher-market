@@ -1,4 +1,4 @@
-"""Issue #91: the owner-approved Kimi-K2.6-free gateway route (V4, current).
+"""Issue #91: the owner-approved deepseek-v4-flash-0731-free gateway route (V4, current).
 
 Covers the contract, builder, adapter, and the assembled-engine lane for the
 furry.vg OpenAI-compatible gateway pivot (MiniMax-M3 measured above the frozen
@@ -19,10 +19,10 @@ import json
 import pytest
 
 from ringdown_market.contracts.reasoner_route import (
-    KIMI_GATEWAY_BASE_URL,
-    KIMI_GATEWAY_MAX_COMPLETION_TOKENS,
-    KIMI_GATEWAY_MODEL,
-    KIMI_GATEWAY_PROVIDER,
+    FURRY_GATEWAY_BASE_URL,
+    FURRY_GATEWAY_MAX_COMPLETION_TOKENS,
+    FURRY_GATEWAY_MODEL,
+    FURRY_GATEWAY_PROVIDER,
     ApprovalState,
     RouteCompatibilityState,
     RouteContractReason,
@@ -42,11 +42,11 @@ from ringdown_market.strategy.contracts import (
 from ringdown_market.strategy.engine import BoundedDecisionEngine
 from ringdown_market.strategy.host_route import (
     ENV_FURRY_API_KEY,
+    FurryGatewayReasonerRoute,
     HostRouteConfigurationError,
     HostRouteSecretBoundaryError,
-    KimiGatewayReasonerRoute,
-    build_kimi_gateway_request,
-    invoke_kimi_gateway_transport,
+    build_furry_gateway_request,
+    invoke_furry_gateway_transport,
     load_furry_route_environment,
     unwrap_openai_chat_envelope,
 )
@@ -59,7 +59,7 @@ from ringdown_market.strategy.reasoner import (
 from test_paper_mcp_composition import _decision_response_bytes, _joined_input
 
 FAKE_KEY = "host-owned-test-key-not-a-real-credential"
-GATEWAY_IDENTITY = RouteIdentity(provider=KIMI_GATEWAY_PROVIDER, model=KIMI_GATEWAY_MODEL)
+GATEWAY_IDENTITY = RouteIdentity(provider=FURRY_GATEWAY_PROVIDER, model=FURRY_GATEWAY_MODEL)
 CANDIDATE = "EARNINGS_RESIDUAL_CONTINUATION_V1"
 
 
@@ -69,7 +69,7 @@ def _envelope(content: bytes, *, status_code: int = 0, reasoning: str | None = N
         message["reasoning_content"] = reasoning
     envelope: dict[str, object] = {
         "choices": [{"finish_reason": "stop", "message": message}],
-        "model": KIMI_GATEWAY_MODEL,
+        "model": FURRY_GATEWAY_MODEL,
     }
     if status_code != 0:
         envelope["base_resp"] = {"status_code": status_code, "status_msg": "error"}
@@ -78,8 +78,8 @@ def _envelope(content: bytes, *, status_code: int = 0, reasoning: str | None = N
 
 def _adapter(
     transport=None, *, identity: RouteIdentity = GATEWAY_IDENTITY
-) -> KimiGatewayReasonerRoute:
-    return KimiGatewayReasonerRoute(
+) -> FurryGatewayReasonerRoute:
+    return FurryGatewayReasonerRoute(
         route=load_approved_reasoner_route_v4(),
         api_key=FAKE_KEY,
         identity=identity,
@@ -102,10 +102,10 @@ def test_v4_package_is_approved_compatible_and_eligible() -> None:
     route = load_approved_reasoner_route_v4()
 
     assert route.route_id == "ESSCHER_BOUNDED_REASONER_ROUTE_V4"
-    assert route.provider == KIMI_GATEWAY_PROVIDER
-    assert route.model == KIMI_GATEWAY_MODEL
+    assert route.provider == FURRY_GATEWAY_PROVIDER
+    assert route.model == FURRY_GATEWAY_MODEL
     assert route.model_revision is None
-    assert route.base_url == KIMI_GATEWAY_BASE_URL
+    assert route.base_url == FURRY_GATEWAY_BASE_URL
     assert route.approval_state is ApprovalState.APPROVED
     assert route.approver == "MS-Mesh"
     assert route.approved_at is not None
@@ -118,7 +118,7 @@ def test_v4_package_is_approved_compatible_and_eligible() -> None:
     assert route.provider_request_policy.output_schema_sha256 == reasoner_output_schema_sha256()
 
 
-def test_current_approved_route_is_the_v4_kimi_gateway_package() -> None:
+def test_current_approved_route_is_the_v4_furry_gateway_package() -> None:
     assert load_current_approved_reasoner_route() is load_approved_reasoner_route_v4()
     # V3 MiniMax remains packaged and loadable as a dormant alternate.
     assert load_approved_reasoner_route_v3() is not load_current_approved_reasoner_route()
@@ -126,7 +126,7 @@ def test_current_approved_route_is_the_v4_kimi_gateway_package() -> None:
 
 def test_v4_validation_rejects_lookalike_bytes() -> None:
     descriptor = packaged_route_descriptor_v4_bytes()
-    tampered = descriptor.replace(b"Kimi-K2.6-free", b"Kimi-K2.5-free")
+    tampered = descriptor.replace(b"deepseek-v4-flash-0731-free", b"deepseek-v4-flash-0730-free")
 
     with pytest.raises(RouteContractRejected) as drift:
         validate_reasoner_route_v4(tampered, tampered)
@@ -140,12 +140,12 @@ def test_v4_validation_rejects_lookalike_bytes() -> None:
 
 
 def test_builder_pins_the_probe_verified_wire_shape() -> None:
-    provider_request = build_kimi_gateway_request(load_approved_reasoner_route_v4(), _request())
+    provider_request = build_furry_gateway_request(load_approved_reasoner_route_v4(), _request())
 
-    assert provider_request.endpoint == f"{KIMI_GATEWAY_BASE_URL}/chat/completions"
+    assert provider_request.endpoint == f"{FURRY_GATEWAY_BASE_URL}/chat/completions"
     payload = provider_request.payload
-    assert payload["model"] == KIMI_GATEWAY_MODEL
-    assert payload["max_tokens"] == KIMI_GATEWAY_MAX_COMPLETION_TOKENS == 1024
+    assert payload["model"] == FURRY_GATEWAY_MODEL
+    assert payload["max_tokens"] == FURRY_GATEWAY_MAX_COMPLETION_TOKENS == 1024
     assert payload["temperature"] == 0
     assert payload["top_p"] == 1.0
     assert payload["tool_choice"] == "none"
@@ -177,7 +177,7 @@ def test_builder_pins_the_probe_verified_wire_shape() -> None:
     ):
         assert omitted not in payload
     # Deterministic request identity; no secret material anywhere.
-    again = build_kimi_gateway_request(load_approved_reasoner_route_v4(), _request())
+    again = build_furry_gateway_request(load_approved_reasoner_route_v4(), _request())
     assert again.request_sha256 == provider_request.request_sha256
     assert again.payload_bytes == provider_request.payload_bytes
     serialized = json.dumps(payload, sort_keys=True)
@@ -190,10 +190,10 @@ def test_builder_rejects_forged_and_ablation_requests() -> None:
     forged = dataclasses.replace(real)
 
     with pytest.raises(HostRouteConfigurationError, match="exact packaged V4"):
-        build_kimi_gateway_request(forged, _request())
+        build_furry_gateway_request(forged, _request())
 
     with pytest.raises(HostRouteConfigurationError, match="ablation"):
-        build_kimi_gateway_request(real, _request(ablate=True))
+        build_furry_gateway_request(real, _request(ablate=True))
 
 
 # --- adapter ----------------------------------------------------------------
@@ -219,8 +219,8 @@ def test_adapter_completes_with_policy_registry_exchange_identities() -> None:
     assert exchange.prompt_sha256 == prompt_sha
     assert exchange.output_schema_sha256 == schema_sha
     assert exchange.model_config_sha256 == GATEWAY_IDENTITY.model_config_sha256()
-    assert exchange.provider == KIMI_GATEWAY_PROVIDER
-    assert exchange.model == KIMI_GATEWAY_MODEL
+    assert exchange.provider == FURRY_GATEWAY_PROVIDER
+    assert exchange.model == FURRY_GATEWAY_MODEL
     assert exchange.responded_at is not None
     assert exchange.responded_at <= exchange.deadline_at
     assert len(calls) == 1
@@ -271,21 +271,21 @@ def test_unwrapper_honors_the_probe_verified_envelope_contract() -> None:
 
 
 def test_transport_invokes_once_and_never_leaks_exception_text() -> None:
-    provider_request = build_kimi_gateway_request(load_approved_reasoner_route_v4(), _request())
+    provider_request = build_furry_gateway_request(load_approved_reasoner_route_v4(), _request())
     calls: list[str] = []
 
     def transport(endpoint: str, payload: dict[str, object]) -> bytes:
         calls.append(endpoint)
         return _envelope(b"{}")
 
-    result = invoke_kimi_gateway_transport(provider_request, transport)
+    result = invoke_furry_gateway_transport(provider_request, transport)
     assert result.status is ExchangeStatus.COMPLETED
-    assert calls == [f"{KIMI_GATEWAY_BASE_URL}/chat/completions"]
+    assert calls == [f"{FURRY_GATEWAY_BASE_URL}/chat/completions"]
 
     def failing(endpoint: str, payload: dict[str, object]) -> bytes:
         raise RuntimeError("secret provider detail")
 
-    result = invoke_kimi_gateway_transport(provider_request, failing)
+    result = invoke_furry_gateway_transport(provider_request, failing)
     assert result.status is ExchangeStatus.PROVIDER_ERROR
     assert result.raw_response_bytes is None
 
@@ -298,7 +298,7 @@ def test_adapter_discards_the_credential_and_enforces_identity() -> None:
     assert adapter.validated_route is load_approved_reasoner_route_v4()
 
     with pytest.raises(HostRouteSecretBoundaryError):
-        KimiGatewayReasonerRoute(
+        FurryGatewayReasonerRoute(
             route=load_approved_reasoner_route_v4(),
             api_key="  ",
             identity=GATEWAY_IDENTITY,

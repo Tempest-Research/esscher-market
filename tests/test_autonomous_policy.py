@@ -42,7 +42,7 @@ def test_packaged_policy_expresses_owner_approved_autonomous_agent() -> None:
 
     assert policy.reasoner_provider == "FURRY_VG_GATEWAY"
     assert policy.reasoner_base_url == "https://ai.furry.vg/v1"
-    assert policy.reasoner_model == "Kimi-K2.6-free"
+    assert policy.reasoner_model == "deepseek-v4-flash-0731-free"
     assert policy.reasoner_credential_env == "FURRY_API_KEY"
     assert policy.reasoner_broker_authority is False
 
@@ -103,7 +103,7 @@ def test_parser_rejects_unknown_top_level_fields() -> None:
 
 
 def test_packaged_policy_is_bound_to_the_owner_approved_bytes() -> None:
-    expected = "2ec93323cd3d0c50cadc6ff9c226fce4eba7ba4381bdeaa80a8c762b40fd83a0"
+    expected = "19c4669ad9fefce6ec7f03cec94ec6ce175fd8f969f7c883f0c045cbc6357b20"
 
     assert expected == ACCEPTED_AUTONOMOUS_POLICY_V1_SHA256
     assert autonomous_policy_sha256() == expected

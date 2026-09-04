@@ -1,7 +1,7 @@
 """Host measurement harness for the #91 latency gate (owner-run, live provider).
 
 Drives the packaged direct-provider adapter for the CURRENT approved reasoner
-route (V4: KimiGatewayReasonerRoute via the furry.vg gateway; V3 MiniMax-M3
+route (V4: FurryGatewayReasonerRoute via the furry.vg gateway; V3 MiniMax-M3
 remains supported as a dormant alternate) against the frozen fixture decision
 prompt and records per-call wall latency, adapter status, and strict schema
 validity.  Writes one redacted JSON report: no credential, no account data,
@@ -10,7 +10,7 @@ and no response text - only latencies, statuses, decisions, and hashes.
 Usage (host environment, key outside the repository):
     uv run python scripts/measure_reasoner_latency.py \
         --env-file "<path>/furry.env" --samples 22 --cold 2 \
-        --out artifacts/measure/kimi_gateway_latency_report.json
+        --out artifacts/measure/furry_gateway_latency_report.json
 
 The first --cold observations are cold-start samples: excluded from the p95
 statistic and reported separately, per the frozen profile warm/cold policy.
@@ -40,13 +40,13 @@ from ringdown_market.strategy.contracts import parse_reasoner_decision  # noqa: 
 from ringdown_market.strategy.host_route import (  # noqa: E402
     ENV_FURRY_API_KEY,
     ENV_MINIMAX_API_KEY,
-    KimiGatewayReasonerRoute,
+    FurryGatewayReasonerRoute,
     MinimaxM3ReasonerRoute,
 )
 from ringdown_market.strategy.reasoner import ReasonerRouteRequest, RouteIdentity  # noqa: E402
 
 _DIRECT_ADAPTERS = {
-    "furry_vg_gateway": (KimiGatewayReasonerRoute, ENV_FURRY_API_KEY),
+    "furry_vg_gateway": (FurryGatewayReasonerRoute, ENV_FURRY_API_KEY),
     "minimax_direct": (MinimaxM3ReasonerRoute, ENV_MINIMAX_API_KEY),
 }
 

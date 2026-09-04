@@ -139,33 +139,40 @@ APPROVAL_CLAUSES_V3 = (
     "The route accepts only the exact packaged V3 descriptor and approval bytes.",
 )
 
-# V4 is the owner-approved pivot to Kimi-K2.6-free served through the furry.vg
-# OpenAI-compatible gateway (issue #91, 2026-09-04).  MiniMax-M3 (V3) measures
-# p50 ~10-14 s against the frozen 8 s one-call budget - structurally unable to
-# complete live decisions - so V3 becomes a dormant packaged alternate and V4
-# becomes current.  Probe-verified wire truths frozen here: json_object only
-# (json_schema requests hang the gateway; MiniMax markdown-fences schema mode),
-# a 1024-token wire completion cap (Kimi pretty-prints past the 512 policy
-# decode budget; the cost ceiling honestly discloses the 1024 wire cap while
-# the caller decode identity stays at the frozen policy budget), temperature 0
-# and top_p 1 accepted, tool_choice none accepted, no reasoning leakage
-# (non-thinking model), accepted-call latency 1.0-1.8 s.  Free-gateway
-# capacity facts are disclosed in the approval clauses: intermittent 429 and
-# stall outcomes map to typed PROVIDER_ERROR/TIMEOUT abstentions under the
-# frozen one-call/no-retry policy.
+# V4 is the owner-approved pivot to deepseek-v4-flash-0731-free served through
+# the furry.vg OpenAI-compatible gateway (issue #91, 2026-09-04).  MiniMax-M3
+# (V3) measures p50 ~10-14 s against the frozen 8 s one-call budget -
+# structurally unable to complete live decisions - so V3 becomes a dormant
+# packaged alternate and V4 becomes current.  An earlier V4 candidate on this
+# gateway (Kimi-K2.6-free) was rejected by measurement: it emitted a
+# contradictions shape (evidence_id_1/evidence_id_2) that fails the frozen
+# six-field decision validator on 23/23 probes, and the gateway hangs on
+# json_schema so the wire cannot enforce the shape.  deepseek-v4-flash-0731-free
+# is probe-verified schema-valid on the identical frozen prompt.  Wire truths
+# frozen here: json_object only (json_schema requests hang the gateway; without
+# response_format the model returns non-JSON), a 1024-token wire completion cap
+# (the compact valid decision fits well inside it; the cost ceiling honestly
+# discloses the 1024 wire cap while the caller decode identity stays at the
+# frozen 512 policy budget), temperature 0 and top_p 1 accepted, tool_choice
+# none accepted, no reasoning leakage (non-thinking model: reasoning_content is
+# empty, so the frozen unwrapper accepts content directly), accepted-call
+# latency ~0.5-2.9 s warm.  Free-gateway capacity facts are disclosed in the
+# approval clauses: intermittent 429, dropped-connection, and stall outcomes map
+# to typed PROVIDER_ERROR/TIMEOUT abstentions under the frozen one-call/no-retry
+# policy.
 ROUTE_V4_SCHEMA_VERSION = 4
 ROUTE_ID_V4 = "ESSCHER_BOUNDED_REASONER_ROUTE_V4"
-KIMI_GATEWAY_PROVIDER = "furry_vg_gateway"
-KIMI_GATEWAY_BASE_URL = "https://ai.furry.vg/v1"
-KIMI_GATEWAY_MODEL = "Kimi-K2.6-free"
-KIMI_GATEWAY_REASONING_EFFORT = "none"
-KIMI_GATEWAY_MAX_COMPLETION_TOKENS = 1024
-KIMI_GATEWAY_TOOL_CHOICE = "none"
-KIMI_GATEWAY_RESPONSE_FORMAT_TYPE = "json_object"
-KIMI_GATEWAY_RESPONSE_SCHEMA_NAME = "esscher_reasoner_decision_v1"
-KIMI_GATEWAY_EFFECTIVE_TEMPERATURE = "0"
-KIMI_GATEWAY_EFFECTIVE_TOP_P = "1"
-KIMI_GATEWAY_OMITTED_REQUEST_FIELDS = (
+FURRY_GATEWAY_PROVIDER = "furry_vg_gateway"
+FURRY_GATEWAY_BASE_URL = "https://ai.furry.vg/v1"
+FURRY_GATEWAY_MODEL = "deepseek-v4-flash-0731-free"
+FURRY_GATEWAY_REASONING_EFFORT = "none"
+FURRY_GATEWAY_MAX_COMPLETION_TOKENS = 1024
+FURRY_GATEWAY_TOOL_CHOICE = "none"
+FURRY_GATEWAY_RESPONSE_FORMAT_TYPE = "json_object"
+FURRY_GATEWAY_RESPONSE_SCHEMA_NAME = "esscher_reasoner_decision_v1"
+FURRY_GATEWAY_EFFECTIVE_TEMPERATURE = "0"
+FURRY_GATEWAY_EFFECTIVE_TOP_P = "1"
+FURRY_GATEWAY_OMITTED_REQUEST_FIELDS = (
     "frequency_penalty",
     "logit_bias",
     "logprobs",
@@ -178,17 +185,21 @@ KIMI_GATEWAY_OMITTED_REQUEST_FIELDS = (
     "thinking",
     "tools",
 )
-KIMI_GATEWAY_MODEL_CONFIG_SCHEMA = "esscher.direct_kimi_gateway_reasoner_model_config"
+FURRY_GATEWAY_MODEL_CONFIG_SCHEMA = "esscher.direct_furry_gateway_reasoner_model_config"
 APPROVAL_ID_V4 = "ESSCHER_ROUTE_APPROVAL_V4"
 APPROVAL_SCOPE_V4 = APPROVAL_SCOPE_V2
 APPROVAL_CLAUSES_V4 = (
-    "The owner selected this exact Kimi-K2.6-free route through the furry.vg "
-    "gateway for prospective strategy evaluation after MiniMax-M3 measured "
-    "above the frozen 8-second one-call budget; the route has no broker, "
-    "account, order, sizing, or secret authority.",
+    "The owner selected this exact deepseek-v4-flash-0731-free route through the "
+    "furry.vg gateway for prospective strategy evaluation after MiniMax-M3 "
+    "(latency above the frozen 8-second one-call budget) and Kimi-K2.6-free "
+    "(contradictions shape failed the frozen six-field decision validator on "
+    "every probe) were both excluded by measurement; this model is "
+    "probe-verified schema-valid on the identical frozen prompt, and the route "
+    "has no broker, account, order, sizing, or secret authority.",
     "The owner accepts the disclosed free-gateway capacity profile: "
-    "intermittent 429 and stall outcomes are typed provider failures that "
-    "abstain under the frozen one-call/no-retry policy, never retried.",
+    "intermittent 429, dropped-connection, and stall outcomes are typed provider "
+    "failures that abstain under the frozen one-call/no-retry policy, never "
+    "retried.",
     "Each paid or live reasoner probe or measurement run receives separate "
     "current owner approval before execution.",
     "The route accepts only the exact packaged V4 descriptor and approval bytes.",
@@ -416,23 +427,23 @@ _V4_ROUTE_SPEC = _RouteSpec(
     approval_clauses=APPROVAL_CLAUSES_V4,
     policy_loader=load_strategy_policy_v2,
     policy_sha256_loader=strategy_policy_v2_sha256,
-    output_schema_name=KIMI_GATEWAY_RESPONSE_SCHEMA_NAME,
+    output_schema_name=FURRY_GATEWAY_RESPONSE_SCHEMA_NAME,
     output_schema_sha256_loader=reasoner_output_schema_sha256,
-    caller_temperature=Decimal(KIMI_GATEWAY_EFFECTIVE_TEMPERATURE),
-    caller_top_p=Decimal(KIMI_GATEWAY_EFFECTIVE_TOP_P),
+    caller_temperature=Decimal(FURRY_GATEWAY_EFFECTIVE_TEMPERATURE),
+    caller_top_p=Decimal(FURRY_GATEWAY_EFFECTIVE_TOP_P),
     caller_seed=None,
-    provider=KIMI_GATEWAY_PROVIDER,
-    base_url=KIMI_GATEWAY_BASE_URL,
-    model=KIMI_GATEWAY_MODEL,
-    expected_reasoning_effort=KIMI_GATEWAY_REASONING_EFFORT,
-    expected_max_completion_tokens=KIMI_GATEWAY_MAX_COMPLETION_TOKENS,
-    expected_response_format_type=KIMI_GATEWAY_RESPONSE_FORMAT_TYPE,
+    provider=FURRY_GATEWAY_PROVIDER,
+    base_url=FURRY_GATEWAY_BASE_URL,
+    model=FURRY_GATEWAY_MODEL,
+    expected_reasoning_effort=FURRY_GATEWAY_REASONING_EFFORT,
+    expected_max_completion_tokens=FURRY_GATEWAY_MAX_COMPLETION_TOKENS,
+    expected_response_format_type=FURRY_GATEWAY_RESPONSE_FORMAT_TYPE,
     expected_strict_json_schema=False,
-    expected_tool_choice=KIMI_GATEWAY_TOOL_CHOICE,
-    expected_effective_temperature=KIMI_GATEWAY_EFFECTIVE_TEMPERATURE,
-    expected_effective_top_p=KIMI_GATEWAY_EFFECTIVE_TOP_P,
-    expected_omitted_request_fields=KIMI_GATEWAY_OMITTED_REQUEST_FIELDS,
-    model_config_schema=KIMI_GATEWAY_MODEL_CONFIG_SCHEMA,
+    expected_tool_choice=FURRY_GATEWAY_TOOL_CHOICE,
+    expected_effective_temperature=FURRY_GATEWAY_EFFECTIVE_TEMPERATURE,
+    expected_effective_top_p=FURRY_GATEWAY_EFFECTIVE_TOP_P,
+    expected_omitted_request_fields=FURRY_GATEWAY_OMITTED_REQUEST_FIELDS,
+    model_config_schema=FURRY_GATEWAY_MODEL_CONFIG_SCHEMA,
 )
 
 
@@ -686,7 +697,7 @@ def direct_minimax_model_config_sha256(
     )
 
 
-def direct_kimi_gateway_model_config_sha256(
+def direct_furry_gateway_model_config_sha256(
     *,
     provider: str,
     model: str,
@@ -696,14 +707,14 @@ def direct_kimi_gateway_model_config_sha256(
     provider_request_policy: ProviderRequestPolicy,
     schema_version: int = ROUTE_V4_SCHEMA_VERSION,
 ) -> str:
-    """Hash the Kimi gateway identity plus its probe-verified request semantics.
+    """Hash the furry.vg gateway identity plus its probe-verified request semantics.
 
-    Its own hash domain again: gateway-served Kimi K2.6 digests can never
+    Its own hash domain again: gateway-served deepseek digests can never
     collide with or substitute direct-Moonshot or MiniMax identities.
     """
 
     return _direct_route_model_config_sha256(
-        config_schema=KIMI_GATEWAY_MODEL_CONFIG_SCHEMA,
+        config_schema=FURRY_GATEWAY_MODEL_CONFIG_SCHEMA,
         provider=provider,
         model=model,
         model_revision=model_revision,
@@ -1377,7 +1388,7 @@ def load_approved_reasoner_route_v3() -> ValidatedRoute:
 
 
 def packaged_route_descriptor_v4_bytes() -> bytes:
-    """Return the exact packaged V4 Kimi-gateway descriptor bytes."""
+    """Return the exact packaged V4 furry-gateway descriptor bytes."""
 
     return (
         resources.files("ringdown_market.contracts")
@@ -1387,7 +1398,7 @@ def packaged_route_descriptor_v4_bytes() -> bytes:
 
 
 def packaged_route_approval_v4_bytes() -> bytes:
-    """Return the exact packaged V4 Kimi-gateway approval receipt bytes."""
+    """Return the exact packaged V4 furry-gateway approval receipt bytes."""
 
     return (
         resources.files("ringdown_market.contracts")
@@ -1420,7 +1431,7 @@ def _require_exact_v4_package(descriptor_bytes: bytes, receipt_bytes: bytes) -> 
 
 
 def validate_reasoner_route_v4(descriptor_bytes: bytes, receipt_bytes: bytes) -> ValidatedRoute:
-    """Strictly load only the immutable V4 Kimi-gateway route package."""
+    """Strictly load only the immutable V4 furry-gateway route package."""
 
     _require_exact_v4_package(descriptor_bytes, receipt_bytes)
     return load_approved_reasoner_route_v4()
@@ -1439,7 +1450,7 @@ def load_current_approved_reasoner_route() -> ValidatedRoute:
     """Return the currently owner-approved route for prospective evaluation.
 
     Issue #91 governance (2026-09-04, owner MS-Mesh): the current approved
-    route is the Kimi-K2.6-free V4 gateway package.  MiniMax-M3 (V3) measured
+    route is the deepseek-v4-flash-0731-free V4 gateway package.  MiniMax-M3 (V3) measured
     p50 ~10-14 s against the frozen 8 s one-call budget and becomes a dormant
     packaged alternate beside the direct Kimi V1/V2 packages; switching the
     current route is an owner-gate action that requires a new packaged
@@ -1468,20 +1479,20 @@ __all__ = [
     "DIRECT_BASE_URL",
     "DIRECT_MODEL",
     "DIRECT_PROVIDER",
+    "FURRY_GATEWAY_BASE_URL",
+    "FURRY_GATEWAY_EFFECTIVE_TEMPERATURE",
+    "FURRY_GATEWAY_EFFECTIVE_TOP_P",
+    "FURRY_GATEWAY_MAX_COMPLETION_TOKENS",
+    "FURRY_GATEWAY_MODEL",
+    "FURRY_GATEWAY_MODEL_CONFIG_SCHEMA",
+    "FURRY_GATEWAY_OMITTED_REQUEST_FIELDS",
+    "FURRY_GATEWAY_PROVIDER",
+    "FURRY_GATEWAY_REASONING_EFFORT",
+    "FURRY_GATEWAY_RESPONSE_FORMAT_TYPE",
+    "FURRY_GATEWAY_RESPONSE_SCHEMA_NAME",
+    "FURRY_GATEWAY_TOOL_CHOICE",
     "KIMI_EFFECTIVE_TEMPERATURE",
     "KIMI_EFFECTIVE_TOP_P",
-    "KIMI_GATEWAY_BASE_URL",
-    "KIMI_GATEWAY_EFFECTIVE_TEMPERATURE",
-    "KIMI_GATEWAY_EFFECTIVE_TOP_P",
-    "KIMI_GATEWAY_MAX_COMPLETION_TOKENS",
-    "KIMI_GATEWAY_MODEL",
-    "KIMI_GATEWAY_MODEL_CONFIG_SCHEMA",
-    "KIMI_GATEWAY_OMITTED_REQUEST_FIELDS",
-    "KIMI_GATEWAY_PROVIDER",
-    "KIMI_GATEWAY_REASONING_EFFORT",
-    "KIMI_GATEWAY_RESPONSE_FORMAT_TYPE",
-    "KIMI_GATEWAY_RESPONSE_SCHEMA_NAME",
-    "KIMI_GATEWAY_TOOL_CHOICE",
     "KIMI_MAX_COMPLETION_TOKENS",
     "KIMI_OMITTED_REQUEST_FIELDS",
     "KIMI_REASONING_EFFORT",
@@ -1516,7 +1527,7 @@ __all__ = [
     "RouteContractReason",
     "RouteContractRejected",
     "ValidatedRoute",
-    "direct_kimi_gateway_model_config_sha256",
+    "direct_furry_gateway_model_config_sha256",
     "direct_kimi_model_config_sha256",
     "direct_minimax_model_config_sha256",
     "load_approved_reasoner_route",

@@ -117,7 +117,7 @@ def test_v3_package_is_approved_compatible_and_eligible() -> None:
 
 
 def test_v3_minimax_package_is_a_dormant_alternate() -> None:
-    # The current route pivoted to V4 (Kimi-K2.6-free via the furry.vg gateway)
+    # The current route pivoted to V4 (deepseek-v4-flash-0731-free via the furry.vg gateway)
     # after MiniMax-M3 measured above the frozen 8s one-call budget; V3 remains
     # packaged, loadable, and unchanged as a dormant alternate.
     assert load_current_approved_reasoner_route() is load_approved_reasoner_route_v4()

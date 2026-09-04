@@ -35,7 +35,7 @@
     "temperature": "0",
     "top_p": "1"
   },
-  "model": "Kimi-K2.6-free",
+  "model": "deepseek-v4-flash-0731-free",
   "model_revision": null,
   "policy_sha256": "a9785b25feca845d22bc78b248315141cf9a9f0da4bf449e5dc93caa104dc293",
   "provider": "furry_vg_gateway",

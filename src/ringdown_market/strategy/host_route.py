@@ -25,19 +25,19 @@ from ringdown_market.contracts.reasoner_route import (
     DIRECT_BASE_URL,
     DIRECT_MODEL,
     DIRECT_PROVIDER,
+    FURRY_GATEWAY_BASE_URL,
+    FURRY_GATEWAY_EFFECTIVE_TEMPERATURE,
+    FURRY_GATEWAY_EFFECTIVE_TOP_P,
+    FURRY_GATEWAY_MAX_COMPLETION_TOKENS,
+    FURRY_GATEWAY_MODEL,
+    FURRY_GATEWAY_OMITTED_REQUEST_FIELDS,
+    FURRY_GATEWAY_PROVIDER,
+    FURRY_GATEWAY_REASONING_EFFORT,
+    FURRY_GATEWAY_RESPONSE_FORMAT_TYPE,
+    FURRY_GATEWAY_RESPONSE_SCHEMA_NAME,
+    FURRY_GATEWAY_TOOL_CHOICE,
     KIMI_EFFECTIVE_TEMPERATURE,
     KIMI_EFFECTIVE_TOP_P,
-    KIMI_GATEWAY_BASE_URL,
-    KIMI_GATEWAY_EFFECTIVE_TEMPERATURE,
-    KIMI_GATEWAY_EFFECTIVE_TOP_P,
-    KIMI_GATEWAY_MAX_COMPLETION_TOKENS,
-    KIMI_GATEWAY_MODEL,
-    KIMI_GATEWAY_OMITTED_REQUEST_FIELDS,
-    KIMI_GATEWAY_PROVIDER,
-    KIMI_GATEWAY_REASONING_EFFORT,
-    KIMI_GATEWAY_RESPONSE_FORMAT_TYPE,
-    KIMI_GATEWAY_RESPONSE_SCHEMA_NAME,
-    KIMI_GATEWAY_TOOL_CHOICE,
     KIMI_MAX_COMPLETION_TOKENS,
     KIMI_OMITTED_REQUEST_FIELDS,
     KIMI_REASONING_EFFORT,
@@ -679,9 +679,12 @@ def _invoke_direct_transport_once(
 # - MiniMax-M3 (V3, ``minimax_direct``): probe-verified thinking-disabled
 #   pins; dormant alternate since the V4 pivot (measured p50 ~10-14 s against
 #   the frozen 8 s one-call budget).
-# - Kimi-K2.6-free (V4, ``furry_vg_gateway``, CURRENT): probe-verified
-#   json_object@1024 wire (json_schema hangs the gateway), 1.0-1.8 s accepted
-#   latency; free-gateway 429/stall outcomes abstain as typed failures.
+# - deepseek-v4-flash-0731-free (V4, ``furry_vg_gateway``, CURRENT):
+#   probe-verified schema-valid json_object@1024 wire (json_schema hangs the
+#   gateway; the earlier Kimi-K2.6-free candidate failed the frozen validator
+#   on every probe), non-thinking (empty reasoning_content), ~0.5-2.9 s warm
+#   accepted latency; free-gateway 429/dropped-connection/stall outcomes
+#   abstain as typed failures.
 #
 # Exchange identities come from the frozen policy registry (route, prompt, and
 # output-schema hashes) and the configured RouteIdentity (model config),
@@ -1106,14 +1109,14 @@ class MinimaxM3ReasonerRoute(DirectEnvelopeReasonerRoute):
 
 
 # ---------------------------------------------------------------------------
-# Kimi-K2.6-free via the furry.vg OpenAI-compatible gateway (V4, CURRENT).
+# deepseek-v4-flash-0731-free via the furry.vg OpenAI-compatible gateway (V4, CURRENT).
 # ---------------------------------------------------------------------------
 
 ENV_FURRY_API_KEY = "FURRY_API_KEY"
-PRODUCER_KIMI_GATEWAY = "esscher.strategy.direct_kimi_gateway_host_route"
-KIMI_GATEWAY_PRODUCER_BUILD_SHA256 = sha256_bytes(
+PRODUCER_FURRY_GATEWAY = "esscher.strategy.direct_furry_gateway_host_route"
+FURRY_GATEWAY_PRODUCER_BUILD_SHA256 = sha256_bytes(
     canonical_json_bytes(
-        {"contract": "esscher.reasoner_exchange", "producer": PRODUCER_KIMI_GATEWAY, "version": 1}
+        {"contract": "esscher.reasoner_exchange", "producer": PRODUCER_FURRY_GATEWAY, "version": 1}
     )
 )
 
@@ -1127,7 +1130,7 @@ def load_furry_route_environment() -> Mapping[str, str]:
     return {ENV_FURRY_API_KEY: value.strip()}
 
 
-def _validate_direct_kimi_gateway_route(route: ValidatedRoute) -> ProviderRequestPolicy:
+def _validate_direct_furry_gateway_route(route: ValidatedRoute) -> ProviderRequestPolicy:
     """Defend the gateway builder from a hand-forged or drifted packaged route."""
 
     expected_route = load_approved_reasoner_route_v4()
@@ -1138,45 +1141,46 @@ def _validate_direct_kimi_gateway_route(route: ValidatedRoute) -> ProviderReques
             "route is not the exact packaged V4 descriptor and approval validation result"
         )
     if (
-        route.provider != KIMI_GATEWAY_PROVIDER
-        or route.model != KIMI_GATEWAY_MODEL
+        route.provider != FURRY_GATEWAY_PROVIDER
+        or route.model != FURRY_GATEWAY_MODEL
         or route.model_revision is not None
-        or route.base_url != KIMI_GATEWAY_BASE_URL
+        or route.base_url != FURRY_GATEWAY_BASE_URL
     ):
-        raise HostRouteConfigurationError("route identity is not the frozen Kimi gateway route")
+        raise HostRouteConfigurationError("route identity is not the frozen furry gateway route")
     policy = route.provider_request_policy
     if (
-        policy.reasoning_effort != KIMI_GATEWAY_REASONING_EFFORT
-        or policy.max_completion_tokens != KIMI_GATEWAY_MAX_COMPLETION_TOKENS
-        or policy.response_format_type != KIMI_GATEWAY_RESPONSE_FORMAT_TYPE
-        or policy.output_schema_name != KIMI_GATEWAY_RESPONSE_SCHEMA_NAME
+        policy.reasoning_effort != FURRY_GATEWAY_REASONING_EFFORT
+        or policy.max_completion_tokens != FURRY_GATEWAY_MAX_COMPLETION_TOKENS
+        or policy.response_format_type != FURRY_GATEWAY_RESPONSE_FORMAT_TYPE
+        or policy.output_schema_name != FURRY_GATEWAY_RESPONSE_SCHEMA_NAME
         or policy.output_schema_sha256 != reasoner_output_schema_sha256()
         or policy.strict_json_schema is not False
-        or policy.tool_choice != KIMI_GATEWAY_TOOL_CHOICE
-        or policy.effective_temperature != KIMI_GATEWAY_EFFECTIVE_TEMPERATURE
-        or policy.effective_top_p != KIMI_GATEWAY_EFFECTIVE_TOP_P
-        or tuple(policy.omitted_request_fields) != KIMI_GATEWAY_OMITTED_REQUEST_FIELDS
+        or policy.tool_choice != FURRY_GATEWAY_TOOL_CHOICE
+        or policy.effective_temperature != FURRY_GATEWAY_EFFECTIVE_TEMPERATURE
+        or policy.effective_top_p != FURRY_GATEWAY_EFFECTIVE_TOP_P
+        or tuple(policy.omitted_request_fields) != FURRY_GATEWAY_OMITTED_REQUEST_FIELDS
     ):
         raise HostRouteConfigurationError(
-            "route does not bind the current Kimi gateway schema policy"
+            "route does not bind the current furry gateway schema policy"
         )
     return policy
 
 
-def build_kimi_gateway_request(
+def build_furry_gateway_request(
     route: ValidatedRoute, request: ReasonerRouteRequest
 ) -> DirectProviderRequest:
-    """Build the exact canonical Kimi-gateway payload without a credential or network call.
+    """Build the exact canonical furry-gateway payload without a credential or network call.
 
     The wire shape is the owner-probe-verified V4 parameter set: frozen system
     prompt, canonical strategy user payload, ``temperature=0``, ``top_p=1.0``,
-    ``max_tokens=1024`` (the honestly disclosed wire completion cap - Kimi
-    pretty-prints past the 512 policy decode budget, and truncation would
-    break the strict validator), ``tool_choice=none``, and
-    ``response_format=json_object`` (json_schema requests hang this gateway).
+    ``max_tokens=1024`` (the honestly disclosed wire completion cap - the compact
+    schema-valid decision fits well inside it, while the caller decode identity
+    stays at the frozen 512 policy budget), ``tool_choice=none``, and
+    ``response_format=json_object`` (json_schema requests hang this gateway, and
+    without response_format the model returns non-JSON that fails the validator).
     """
 
-    provider_request_policy = _validate_direct_kimi_gateway_route(route)
+    provider_request_policy = _validate_direct_furry_gateway_route(route)
     user_payload, identities, prompt_bytes, prompt_sha256, output_schema_sha256 = (
         _direct_lane_content(request)
     )
@@ -1194,11 +1198,11 @@ def build_kimi_gateway_request(
     }
     if any(field in payload for field in provider_request_policy.omitted_request_fields):
         raise HostRouteConfigurationError(
-            "direct Kimi gateway payload includes a frozen omitted field"
+            "direct furry gateway payload includes a frozen omitted field"
         )
     payload_bytes = canonical_json_bytes(payload)
     request_sha256 = _direct_request_identity_sha256(
-        schema="esscher.direct_kimi_gateway_request_identity",
+        schema="esscher.direct_furry_gateway_request_identity",
         payload=payload,
         route=route,
         prompt_sha256=prompt_sha256,
@@ -1217,7 +1221,7 @@ def build_kimi_gateway_request(
     )
 
 
-def invoke_kimi_gateway_transport(
+def invoke_furry_gateway_transport(
     request: DirectProviderRequest,
     transport: Callable[[str, dict[str, object]], bytes],
 ) -> KimiTransportResult:
@@ -1226,13 +1230,13 @@ def invoke_kimi_gateway_transport(
     return _invoke_direct_transport_once(request.endpoint, request.payload, transport)
 
 
-class KimiGatewayReasonerRoute(DirectEnvelopeReasonerRoute):
-    """Owner-approved Kimi-K2.6-free gateway adapter (V4, current route)."""
+class FurryGatewayReasonerRoute(DirectEnvelopeReasonerRoute):
+    """Owner-approved deepseek-v4-flash-0731-free gateway adapter (V4, current route)."""
 
-    lane_name = "direct Kimi gateway"
-    producer_build_sha256 = KIMI_GATEWAY_PRODUCER_BUILD_SHA256
-    _lane_policy = staticmethod(_validate_direct_kimi_gateway_route)
-    _lane_request = staticmethod(build_kimi_gateway_request)
+    lane_name = "direct furry gateway"
+    producer_build_sha256 = FURRY_GATEWAY_PRODUCER_BUILD_SHA256
+    _lane_policy = staticmethod(_validate_direct_furry_gateway_route)
+    _lane_request = staticmethod(build_furry_gateway_request)
 
 
 class OpenAiCompatibleReasonerRoute:
@@ -1351,29 +1355,29 @@ __all__ = [
     "ENV_API_KEY",
     "ENV_FURRY_API_KEY",
     "ENV_MINIMAX_API_KEY",
-    "KIMI_GATEWAY_PRODUCER_BUILD_SHA256",
+    "FURRY_GATEWAY_PRODUCER_BUILD_SHA256",
     "MINIMAX_PRODUCER_BUILD_SHA256",
-    "PRODUCER_KIMI_GATEWAY",
+    "PRODUCER_FURRY_GATEWAY",
     "PRODUCER_MINIMAX",
     "DirectEnvelopeReasonerRoute",
     "DirectProviderRequest",
+    "FurryGatewayReasonerRoute",
     "HostRouteConfigurationError",
     "HostRouteError",
     "HostRouteInputIntegrityError",
     "HostRouteNotApproved",
     "HostRouteSecretBoundaryError",
-    "KimiGatewayReasonerRoute",
     "KimiK3Request",
     "KimiTransportResult",
     "KimiTransportStatus",
     "MinimaxM3ReasonerRoute",
     "MinimaxM3Request",
     "OpenAiCompatibleReasonerRoute",
-    "build_kimi_gateway_request",
+    "build_furry_gateway_request",
     "build_kimi_k3_request",
     "build_kimi_k3_v2_request",
     "build_minimax_m3_request",
-    "invoke_kimi_gateway_transport",
+    "invoke_furry_gateway_transport",
     "invoke_kimi_k3_transport",
     "invoke_minimax_m3_transport",
     "load_furry_route_environment",
