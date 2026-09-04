@@ -196,7 +196,9 @@ def _compile_shares(
     direction_is_up = decision.direction is Direction.UP
     share = snapshot.share
     validate_feed(share.feed, "share.feed")
-    validate_executable_data(share.data_class, "share.data_class")
+    validate_executable_data(
+        share.data_class, "share.data_class", allows_indicative=policy.allows_indicative_data
+    )
     validate_quote(share.quote, snapshot=snapshot, policy=policy, path="share.quote")
     if not direction_is_up:
         validate_borrow_locate(snapshot.borrow_locate, snapshot=snapshot, policy=policy)
@@ -249,7 +251,11 @@ def _compile_long_option(
         direction_is_up=direction_is_up,
     )
     validate_feed(contract.feed, f"option.{contract.symbol}.feed")
-    validate_executable_data(contract.data_class, f"option.{contract.symbol}.data_class")
+    validate_executable_data(
+        contract.data_class,
+        f"option.{contract.symbol}.data_class",
+        allows_indicative=policy.allows_indicative_data,
+    )
     validate_quote(
         contract.quote,
         snapshot=snapshot,
@@ -313,7 +319,11 @@ def _compile_debit_vertical(
     )
     for contract in (geometry.long_leg, geometry.short_leg):
         validate_feed(contract.feed, f"vertical.{contract.symbol}.feed")
-        validate_executable_data(contract.data_class, f"vertical.{contract.symbol}.data_class")
+        validate_executable_data(
+            contract.data_class,
+            f"vertical.{contract.symbol}.data_class",
+            allows_indicative=policy.allows_indicative_data,
+        )
         validate_quote(
             contract.quote,
             snapshot=snapshot,

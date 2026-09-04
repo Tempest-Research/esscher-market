@@ -14,6 +14,7 @@ from decimal import Decimal
 
 from ringdown_market.execution.expression.observations import (
     EXECUTABLE_DATA,
+    INDICATIVE_DATA,
     ExpressionMarketSnapshot,
     OptionContractObservation,
     PackageObservation,
@@ -32,14 +33,14 @@ def contract_dte(contract: OptionContractObservation, asof: date) -> int:
     return (contract.expiry - asof).days
 
 
-def _quote_is_tradable(contract: OptionContractObservation) -> bool:
+def _quote_is_tradable(
+    contract: OptionContractObservation, *, allows_indicative: bool = False
+) -> bool:
     quote = contract.quote
-    return (
-        contract.data_class == EXECUTABLE_DATA
-        and quote.bid > 0
-        and quote.ask > 0
-        and not quote.crossed
+    data_class_ok = contract.data_class == EXECUTABLE_DATA or (
+        allows_indicative and contract.data_class == INDICATIVE_DATA
     )
+    return data_class_ok and quote.bid > 0 and quote.ask > 0 and not quote.crossed
 
 
 def _contract_is_eligible(
@@ -51,7 +52,7 @@ def _contract_is_eligible(
 ) -> bool:
     if contract.option_type != option_type.value:
         return False
-    if not _quote_is_tradable(contract):
+    if not _quote_is_tradable(contract, allows_indicative=policy.allows_indicative_data):
         return False
     dte = contract_dte(contract, asof)
     if dte < policy.min_dte or dte > policy.max_dte:

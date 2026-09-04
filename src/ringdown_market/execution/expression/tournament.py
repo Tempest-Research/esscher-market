@@ -128,7 +128,11 @@ def _validate_option_observation(
     path: str,
 ) -> None:
     validate_feed(contract.feed, f"{path}.feed")
-    validate_executable_data(contract.data_class, f"{path}.data_class")
+    validate_executable_data(
+        contract.data_class,
+        f"{path}.data_class",
+        allows_indicative=policy.allows_indicative_data,
+    )
     validate_quote(contract.quote, snapshot=snapshot, policy=policy, path=f"{path}.quote")
 
 
@@ -139,7 +143,11 @@ def _strict_shares_economics(
     snapshot = event.snapshot
     try:
         validate_feed(snapshot.share.feed, "share.feed")
-        validate_executable_data(snapshot.share.data_class, "share.data_class")
+        validate_executable_data(
+            snapshot.share.data_class,
+            "share.data_class",
+            allows_indicative=policy.allows_indicative_data,
+        )
         validate_quote(snapshot.share.quote, snapshot=snapshot, policy=policy, path="share.quote")
         if event.decision_direction == "DOWN":
             validate_borrow_locate(snapshot.borrow_locate, snapshot=snapshot, policy=policy)

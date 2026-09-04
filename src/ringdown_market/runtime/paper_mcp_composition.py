@@ -170,8 +170,15 @@ PRODUCTION_OPEN_DELAY = timedelta(seconds=1)
 PRODUCTION_CLOSE_SEPARATION = timedelta(seconds=1)
 
 EARNINGS_LANE_V2 = "EARNINGS_RESIDUAL_CONTINUATION_V2"
+# Accepted source-candidate generations per autonomous lane.  The V3
+# delayed-capture demo candidate (owner-approved 2026-09-04, #68/#101) rides
+# the same autonomous lane: identical signal window and validation math, only
+# the capture/decision/entry clocks shift.
 _SOURCE_CANDIDATE_BY_AUTONOMOUS_LANE = {
-    EARNINGS_LANE_V2: "EARNINGS_RESIDUAL_CONTINUATION_V1",
+    EARNINGS_LANE_V2: (
+        "EARNINGS_RESIDUAL_CONTINUATION_V1",
+        "EARNINGS_RESIDUAL_CONTINUATION_V3",
+    ),
 }
 
 _OCC_ROOT = re.compile(r"^([A-Z]{1,6})\d")
@@ -1029,8 +1036,8 @@ class PaperMcpCandidateBackend:
             return HostCandidateOutcome.rejected_before_mutation(
                 request, reason_code="PORT_OUTPUT_INVALID"
             )
-        expected_source_candidate = _SOURCE_CANDIDATE_BY_AUTONOMOUS_LANE.get(event.candidate_id)
-        if expected_source_candidate is None:
+        expected_source_candidates = _SOURCE_CANDIDATE_BY_AUTONOMOUS_LANE.get(event.candidate_id)
+        if expected_source_candidates is None:
             return HostCandidateOutcome.rejected_before_mutation(
                 request, reason_code="PORT_OUTPUT_INVALID"
             )
@@ -1038,7 +1045,7 @@ class PaperMcpCandidateBackend:
             capture, evidence, market = doors.capture_sources.sources_for(event)
             probe = compile_strategy_snapshot(capture, evidence, market)
             joined = compiled_strategy_input(probe)
-            if joined.snapshot.candidate_id != expected_source_candidate:
+            if joined.snapshot.candidate_id not in expected_source_candidates:
                 raise PaperMcpCompositionRejected(
                     PaperMcpCompositionReason.DOOR_INVALID,
                     "source candidate does not match the autonomous lane",

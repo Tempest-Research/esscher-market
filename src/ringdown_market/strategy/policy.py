@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass
 from importlib import resources
 from types import MappingProxyType
@@ -175,8 +176,17 @@ def _validate_records(
     ]
 
 
-def _validate_policy_shape(value: Any) -> dict[str, Any]:
-    root = _expect_object(value, "$", _TOP_LEVEL_FIELDS)
+def _validate_policy_shape(
+    value: Any,
+    *,
+    top_level_fields: frozenset[str] = _TOP_LEVEL_FIELDS,
+    expected_candidates: tuple[str, ...] = _EXPECTED_CANDIDATES,
+    expected_cohorts: Mapping[str, tuple[str, ...]] = _EXPECTED_COHORTS,
+    expected_release_families: Mapping[str, tuple[Any, ...]] = _EXPECTED_RELEASE_FAMILIES,
+    expected_policy_version: int = 1,
+    expected_schema_version: int = 1,
+) -> dict[str, Any]:
+    root = _expect_object(value, "$", top_level_fields)
     amendment = _expect_object(
         root["amendment"],
         "$.amendment",
@@ -221,11 +231,16 @@ def _validate_policy_shape(value: Any) -> dict[str, Any]:
         _expect_string(item["candidate_id"], f"$.candidates[{index}].candidate_id")
         for index, item in enumerate(candidates)
     )
-    if candidate_ids != _EXPECTED_CANDIDATES:
+    if candidate_ids != expected_candidates:
         raise StrategyPolicyError("$.candidates does not contain the frozen ordered candidate set")
     for index, candidate in enumerate(candidates):
         path = f"$.candidates[{index}]"
-        _validate_candidate(candidate, path)
+        _validate_candidate(
+            candidate,
+            path,
+            expected_cohorts=expected_cohorts,
+            expected_release_families=expected_release_families,
+        )
 
     claims = _expect_object(
         root["claims"],
@@ -348,12 +363,21 @@ def _validate_policy_shape(value: Any) -> dict[str, Any]:
     _expect_string(root["schema"], "$.schema")
     if type(root["schema_version"]) is not int or type(root["policy_version"]) is not int:
         raise StrategyPolicyError("policy/schema versions must be integers, not booleans")
-    if root["schema_version"] != 1 or root["policy_version"] != 1:
+    if (
+        root["schema_version"] != expected_schema_version
+        or root["policy_version"] != expected_policy_version
+    ):
         raise StrategyPolicyError("unsupported policy/schema version")
     return root
 
 
-def _validate_candidate(candidate: dict[str, Any], path: str) -> None:
+def _validate_candidate(
+    candidate: dict[str, Any],
+    path: str,
+    *,
+    expected_cohorts: Mapping[str, tuple[str, ...]] = _EXPECTED_COHORTS,
+    expected_release_families: Mapping[str, tuple[Any, ...]] = _EXPECTED_RELEASE_FAMILIES,
+) -> None:
     candidate_id = cast(str, candidate["candidate_id"])
     activation = _expect_object(
         candidate["activation"],
@@ -385,7 +409,7 @@ def _validate_candidate(candidate: dict[str, Any], path: str) -> None:
         ),
     )
     cohort_ids = tuple(clock["cohort_id"] for clock in clocks)
-    if cohort_ids != _EXPECTED_COHORTS[candidate_id]:
+    if cohort_ids != expected_cohorts[candidate_id]:
         raise StrategyPolicyError(f"{path}.clocks does not contain the frozen cohort order")
     clock_ids: list[str] = []
     for clock_index, clock in enumerate(clocks):
@@ -412,7 +436,7 @@ def _validate_candidate(candidate: dict[str, Any], path: str) -> None:
         release_family = clock["release_family"]
         if release_family is not None:
             _expect_string(release_family, f"{clock_path}.release_family")
-        if release_family != _EXPECTED_RELEASE_FAMILIES[candidate_id][clock_index]:
+        if release_family != expected_release_families[candidate_id][clock_index]:
             raise StrategyPolicyError(
                 f"{clock_path}.release_family does not bind the frozen cohort family"
             )
@@ -742,6 +766,130 @@ def load_strategy_policy() -> StrategyPolicy:
     """Load the exact packaged accepted policy as a deeply immutable object."""
 
     return parse_strategy_policy(strategy_policy_bytes())
+
+
+# V3 is the owner-approved DELAYED-CAPTURE DEMO lane (2026-09-04, MS-Mesh,
+# issue #68/#101): the identical frozen 09:30:00-09:35:00 ET opening-reaction
+# signal window, features, evidence rules, and validation math as V1, with only
+# the capture/decision/entry clocks shifted (evidence 09:51:00, decision
+# 09:51:50, entry 10:01:00 ET) because the host's Alpaca Basic data plan serves
+# SIP trades/quotes only older than fifteen minutes and backdating retrieved_at
+# is forbidden.  Entry lands just after the first armed 10:00 ET scan window so
+# wall-clock processing satisfies the risk-truth freshness bound.  V1 and V2
+# bytes/digests remain untouched; every V3 artifact carries the
+# DELAYED_EXECUTION_DEMO / NOT_THE_VALIDATED_LANE labels, and the demo lane
+# makes no claim that the delayed entry preserves the V1 execution profile.
+POLICY_V3_RESOURCE_NAME: Final = "policies/accepted_event_policy_v3.json"
+# Updated only when the canonical V3 policy bytes are intentionally amended.
+ACCEPTED_EVENT_POLICY_V3_SHA256: Final = (
+    "c3425c8dc259970966addcff9f21949b8fd71a006443a70392cacc868054ed7b"
+)
+POLICY_V3_ID: Final = "ESSCHER_ACCEPTED_EVENT_POLICY_V3"
+CANDIDATE_V3_EARNINGS: Final = "EARNINGS_RESIDUAL_CONTINUATION_V3"
+
+_TOP_LEVEL_FIELDS_V3 = _TOP_LEVEL_FIELDS | {"delayed_capture_disclosure"}
+_EXPECTED_CANDIDATES_V3 = (CANDIDATE_V3_EARNINGS,)
+_EXPECTED_COHORTS_V3: Mapping[str, tuple[str, ...]] = {
+    CANDIDATE_V3_EARNINGS: ("BMO", "AMC"),
+}
+_EXPECTED_RELEASE_FAMILIES_V3: Mapping[str, tuple[Any, ...]] = {
+    CANDIDATE_V3_EARNINGS: (None, None),
+}
+_DELAYED_DISCLOSURE_FIELDS = frozenset(
+    {"data_plan_constraint", "labels", "reason", "signal_window_unchanged"}
+)
+_REQUIRED_V3_LABELS = ("DELAYED_EXECUTION_DEMO", "NOT_THE_VALIDATED_LANE")
+
+
+def _validate_v3_policy_shape(value: Any) -> dict[str, Any]:
+    root = _validate_policy_shape(
+        value,
+        top_level_fields=_TOP_LEVEL_FIELDS_V3,
+        expected_candidates=_EXPECTED_CANDIDATES_V3,
+        expected_cohorts=_EXPECTED_COHORTS_V3,
+        expected_release_families=_EXPECTED_RELEASE_FAMILIES_V3,
+        expected_policy_version=3,
+        expected_schema_version=3,
+    )
+    if root["policy_id"] != POLICY_V3_ID:
+        raise StrategyPolicyError("$.policy_id must be the V3 delayed-demo policy identity")
+    if root["schema"] != "ringdown.accepted_event_strategy_policy":
+        raise StrategyPolicyError("$.schema must remain the accepted event policy schema")
+    disclosure = _expect_object(
+        root["delayed_capture_disclosure"],
+        "$.delayed_capture_disclosure",
+        _DELAYED_DISCLOSURE_FIELDS,
+    )
+    for field in ("data_plan_constraint", "reason", "signal_window_unchanged"):
+        _expect_string(disclosure[field], f"$.delayed_capture_disclosure.{field}")
+    labels = _validate_string_list(disclosure["labels"], "$.delayed_capture_disclosure.labels")
+    for required in _REQUIRED_V3_LABELS:
+        if required not in labels:
+            raise StrategyPolicyError("delayed capture disclosure must carry the demo labels")
+    return root
+
+
+def strategy_policy_v3_bytes() -> bytes:
+    """Return the exact packaged canonical V3 delayed-demo policy bytes."""
+
+    package_root = resources.files("ringdown_market.strategy")
+    return package_root.joinpath(POLICY_V3_RESOURCE_NAME).read_bytes()
+
+
+def strategy_policy_v3_sha256() -> str:
+    """Verify and return the registered digest of the packaged V3 policy bytes."""
+
+    actual = hashlib.sha256(strategy_policy_v3_bytes()).hexdigest()
+    if actual != ACCEPTED_EVENT_POLICY_V3_SHA256:
+        raise StrategyPolicyError(
+            "V3 delayed-demo policy bytes do not match the immutable registry digest"
+        )
+    return actual
+
+
+def parse_strategy_policy_v3(raw: bytes) -> StrategyPolicy:
+    """Authenticate, strictly validate, and deeply freeze exact V3 policy bytes."""
+
+    if type(raw) is not bytes:
+        raise StrategyPolicyError("V3 strategy policy input must be immutable bytes")
+    digest = hashlib.sha256(raw).hexdigest()
+    if digest != ACCEPTED_EVENT_POLICY_V3_SHA256:
+        raise StrategyPolicyError(
+            "V3 delayed-demo policy bytes do not match the immutable registry digest"
+        )
+    try:
+        text = raw.decode("utf-8", errors="strict")
+    except UnicodeDecodeError as error:
+        raise StrategyPolicyError("V3 strategy policy must be valid UTF-8") from error
+    try:
+        parsed = json.loads(
+            text,
+            object_pairs_hook=_unique_object,
+            parse_constant=_reject_constant,
+            parse_float=_reject_float,
+        )
+    except json.JSONDecodeError as error:
+        raise StrategyPolicyError("V3 strategy policy is not valid JSON") from error
+    validated = _validate_v3_policy_shape(parsed)
+    canonical = json.dumps(
+        validated,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    ).encode("utf-8")
+    if raw != canonical:
+        raise StrategyPolicyError("V3 strategy policy bytes are not canonical JSON")
+    frozen = _deep_freeze(validated)
+    if not isinstance(frozen, MappingProxyType):  # pragma: no cover - root validated above
+        raise StrategyPolicyError("V3 strategy policy root must be an object")
+    return StrategyPolicy(data=frozen, sha256=digest)
+
+
+def load_strategy_policy_v3() -> StrategyPolicy:
+    """Load the exact packaged V3 delayed-demo policy as a deeply immutable object."""
+
+    return parse_strategy_policy_v3(strategy_policy_v3_bytes())
 
 
 _V2_TOP_LEVEL_FIELDS = frozenset(

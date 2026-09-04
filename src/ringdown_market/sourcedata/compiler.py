@@ -76,6 +76,10 @@ from ringdown_market.strategy.models import (
 from ringdown_market.strategy.policy import StrategyPolicy, load_strategy_policy
 
 EARNINGS_CANDIDATE: Final = "EARNINGS_RESIDUAL_CONTINUATION_V1"
+# The V3 delayed-capture demo candidate (owner-approved 2026-09-04, #68/#101):
+# identical signal window and validation math; only the capture/decision/entry
+# clocks shift.  Selecting it requires the manifest to bind the V3 policy sha.
+EARNINGS_CANDIDATE_V3: Final = "EARNINGS_RESIDUAL_CONTINUATION_V3"
 MACRO_CANDIDATE: Final = "MACRO_SPY_CONTINUATION_CHALLENGER_V1"
 MARKET_PROXY: Final = "SPY"
 TRADING_TIMEZONE: Final = ZoneInfo("America/New_York")
@@ -304,8 +308,10 @@ def _reaction_session(
     return sorted(matches, key=lambda item: item.session_date)[0]
 
 
-def _sector_proxy(policy: StrategyPolicy, sector: str) -> str:
-    candidate = policy.candidate(EARNINGS_CANDIDATE)
+def _sector_proxy(
+    policy: StrategyPolicy, sector: str, *, candidate_id: str = EARNINGS_CANDIDATE
+) -> str:
+    candidate = policy.candidate(candidate_id)
     universe = candidate["universe"]
     for rule in universe["rules"]:
         if rule["rule_id"] == "sector_proxy_by_point_in_time_gics":
@@ -455,19 +461,32 @@ def compile_strategy_snapshot(
 ) -> CompiledSnapshot:
     """Compile one deterministic snapshot bundle or fail closed."""
 
-    policy = load_strategy_policy()
     manifest = parse_candidate_manifest(configuration.candidate_manifest_bytes)
+    # Policy generation is selected by the manifest's own binding: the V3
+    # delayed-demo sha loads the V3 package, everything else must bind V1.
+    from ringdown_market.strategy.policy import (
+        load_strategy_policy_v3,
+        strategy_policy_v3_sha256,
+    )
+
+    if manifest.policy_sha256 == strategy_policy_v3_sha256():
+        policy = load_strategy_policy_v3()
+        expected_candidate = EARNINGS_CANDIDATE_V3
+    else:
+        policy = load_strategy_policy()
+        expected_candidate = EARNINGS_CANDIDATE
     if manifest.policy_sha256 != policy.sha256:
         raise CollectorRejected(
             CollectorReason.POLICY_HASH_MISMATCH,
             "candidate_manifest.policy_sha256",
             "manifest does not bind the registered strategy policy",
         )
-    if manifest.candidate_id != EARNINGS_CANDIDATE:
+    if manifest.candidate_id != expected_candidate:
         raise CollectorRejected(
             CollectorReason.UNSUPPORTED_INPUT,
             "candidate_manifest.candidate_id",
-            "collector supports only the earnings residual candidate",
+            "collector supports only the earnings residual candidate "
+            "(V1 or the V3 delayed-capture demo lane)",
         )
     record = manifest.record(configuration.event_id)
     if record.eligibility is not EligibilityState.ELIGIBLE:
@@ -479,14 +498,19 @@ def compile_strategy_snapshot(
 
     master = evidence.security_master(record.ticker, manifest.frozen_at)
     _validate_universe(master, exchange_mic="XNYS")
-    sector_symbol = _sector_proxy(policy, master.sector)
+    sector_symbol = _sector_proxy(policy, master.sector, candidate_id=manifest.candidate_id)
     reaction_session = _reaction_session(
         evidence,
         cohort_id=record.cohort_id,
         scheduled_at=record.scheduled_at,
         exchange_mic=master.primary_exchange_mic,
     )
-    clocks = derive_clocks(policy, cohort_id=record.cohort_id, reaction_session=reaction_session)
+    clocks = derive_clocks(
+        policy,
+        cohort_id=record.cohort_id,
+        reaction_session=reaction_session,
+        candidate_id=manifest.candidate_id,
+    )
     if configuration.capture_at > clocks.decision_cutoff_at:
         raise CollectorRejected(
             CollectorReason.RETRIEVED_AFTER_CUTOFF,
@@ -732,7 +756,7 @@ def compile_strategy_snapshot(
             pages_total=configuration.pages_for("market-quotes")[1],
         ),
     ]
-    candidate_policy = policy.candidate(EARNINGS_CANDIDATE)
+    candidate_policy = policy.candidate(manifest.candidate_id)
     evidence_policy = candidate_policy["evidence"]
     packet = build_evidence_packet(
         entries,
