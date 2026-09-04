@@ -255,7 +255,11 @@ RISK_POLICY_V2_RESOURCE_NAME: Final = "policies/risk_policy_v2.json"
 _RISK_POLICY_V2_ID: Final = "PAPER_ACCOUNT_RISK_POLICY_V2"
 _RISK_POLICY_V2_VERSION: Final = "v2"
 _V2_STARTING_EQUITY: Final = Decimal("100000")
-_V2_RISK_TIERS: Final = (Decimal("0.05"), Decimal("0.10"), Decimal("0.20"))
+# Owner-approved refreeze 2026-09-04 (MS-Mesh, issue #68 sizing directive):
+# the FIRST tier is the operative sizing tier consumed by derived_risk_tier;
+# 0.10 puts one-position capacity at 10% of current equity.  The approved
+# value SET is unchanged - 0.05/0.10/0.20 remain the only legal tiers.
+_V2_RISK_TIERS: Final = (Decimal("0.10"), Decimal("0.05"), Decimal("0.20"))
 _V2_PER_UNDERLYING_FRACTION: Final = Decimal("0.20")
 _V2_AGGREGATE_FRACTION: Final = Decimal("0.50")
 _V2_FREEZE_FRACTION: Final = Decimal("0.50")

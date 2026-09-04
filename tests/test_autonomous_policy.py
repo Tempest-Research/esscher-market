@@ -47,8 +47,8 @@ def test_packaged_policy_expresses_owner_approved_autonomous_agent() -> None:
     assert policy.reasoner_broker_authority is False
 
     assert policy.max_loss_tiers == (
-        Decimal("0.05"),
         Decimal("0.10"),
+        Decimal("0.05"),
         Decimal("0.20"),
     )
     assert policy.max_aggregate_open_debit_fraction == Decimal("0.50")
@@ -103,7 +103,7 @@ def test_parser_rejects_unknown_top_level_fields() -> None:
 
 
 def test_packaged_policy_is_bound_to_the_owner_approved_bytes() -> None:
-    expected = "eabb0ade10b19b3e651572f5a3f995f4e5f406f379b63b516db08534411b5055"
+    expected = "168aedb712f11a7e93f0a53b11ed31dfef3ec00bf7f1c4f8bad1313253b582e9"
 
     assert expected == ACCEPTED_AUTONOMOUS_POLICY_V1_SHA256
     assert autonomous_policy_sha256() == expected

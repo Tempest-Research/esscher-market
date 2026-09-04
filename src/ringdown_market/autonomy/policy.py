@@ -12,11 +12,16 @@ from typing import Final
 POLICY_RESOURCE_NAME: Final = "policies/hackathon_autonomous_v1.json"
 # Owner-approved refreeze 2026-09-04 (MS-Mesh, issue #91 governance): the
 # reasoner block pivots from the withdrawn Kimi K3 entitlement to the direct
-# MiniMax-M3 route and policy_version advances to 1.1.0.  Every other owner
-# boundary (PAPER-only, no broker authority, risk caps, memory mode) is
-# byte-identical to the 1.0.0 policy.
+# MiniMax-M3 route and policy_version advances to 1.1.0.
+# Owner-approved refreeze 2026-09-04 (MS-Mesh, issue #68 sizing directive):
+# policy_version 1.2.0 reorders max_loss_tiers so the FIRST (operative) tier is
+# 0.10 - the account-relative allocator then sizes one position up to 10% of
+# current equity ($10,000 at the $100k starting equity).  The tier VALUE set is
+# unchanged (0.05/0.10/0.20), and every other owner boundary (PAPER-only, no
+# broker authority, 20% per-underlying cap, 50% aggregate cap, 50% drawdown
+# freeze, memory mode) is byte-identical.
 ACCEPTED_AUTONOMOUS_POLICY_V1_SHA256: Final = (
-    "eabb0ade10b19b3e651572f5a3f995f4e5f406f379b63b516db08534411b5055"
+    "168aedb712f11a7e93f0a53b11ed31dfef3ec00bf7f1c4f8bad1313253b582e9"
 )
 _TOP_LEVEL_FIELDS: Final = frozenset(
     {

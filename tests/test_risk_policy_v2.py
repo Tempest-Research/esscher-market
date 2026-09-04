@@ -84,7 +84,7 @@ def test_packaged_v2_policy_is_canonical_owner_bound_and_exact() -> None:
 
     assert isinstance(policy, RiskPolicyV2)
     assert policy.starting_equity == Decimal("100000")
-    assert policy.risk_tiers == (Decimal("0.05"), Decimal("0.10"), Decimal("0.20"))
+    assert policy.risk_tiers == (Decimal("0.10"), Decimal("0.05"), Decimal("0.20"))
     assert policy.max_per_underlying_open_debit_fraction == Decimal("0.20")
     assert policy.max_aggregate_open_debit_fraction == Decimal("0.50")
     assert policy.emergency_drawdown_freeze_fraction == Decimal("0.50")
