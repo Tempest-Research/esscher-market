@@ -18,7 +18,7 @@ import json
 
 import pytest
 
-from ringdown_market.contracts.reasoner_route import (
+from esscher.contracts.reasoner_route import (
     FURRY_GATEWAY_BASE_URL,
     FURRY_GATEWAY_MAX_COMPLETION_TOKENS,
     FURRY_GATEWAY_MODEL,
@@ -34,14 +34,14 @@ from ringdown_market.contracts.reasoner_route import (
     packaged_route_descriptor_v4_bytes,
     validate_reasoner_route_v4,
 )
-from ringdown_market.runtime.host_composition import rehearsal_direction, rehearsal_timeline
-from ringdown_market.strategy.contracts import (
+from esscher.runtime.host_composition import rehearsal_direction, rehearsal_timeline
+from esscher.strategy.contracts import (
     reasoner_output_schema_sha256,
     reasoner_policy_hashes,
     reasoner_system_prompt_bytes,
 )
-from ringdown_market.strategy.engine import BoundedDecisionEngine
-from ringdown_market.strategy.host_route import (
+from esscher.strategy.engine import BoundedDecisionEngine
+from esscher.strategy.host_route import (
     ENV_FURRY_API_KEY,
     FurryGatewayReasonerRoute,
     HostRouteConfigurationError,
@@ -51,8 +51,8 @@ from ringdown_market.strategy.host_route import (
     load_furry_route_environment,
     unwrap_openai_chat_envelope,
 )
-from ringdown_market.strategy.models import ExchangeStatus
-from ringdown_market.strategy.reasoner import (
+from esscher.strategy.models import ExchangeStatus
+from esscher.strategy.reasoner import (
     SYNTHETIC_ROUTE_IDENTITY,
     ReasonerRouteRequest,
     RouteIdentity,

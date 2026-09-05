@@ -6,11 +6,11 @@ Esscher is a permanently paper-only scheduled-event research and controlled-PAPE
 
 ## Name and compatibility
 
-Esscher is the public, human-facing product name. The `0.3.0` integration draft keeps the existing machine interfaces:
+Esscher is the product name and Python/CLI interface. The current local migration uses:
 
-- Python distribution: `ringdown-market`;
-- Python import package: `ringdown_market`;
-- CLI command and installed version prefix: `ringdown`;
+- Python distribution: `esscher-market`;
+- Python import package: `esscher`;
+- CLI command and installed version prefix: `esscher`;
 - configuration keys, report schema keys, and receipt identifiers: unchanged;
 - report display: keep legacy `project: "Ringdown"` for compatibility and use additive `product_name: "Esscher"` for new displays;
 - GitHub repository: `Tempest-Research/esscher-market`.
@@ -34,7 +34,7 @@ macro-challenger candidates, complete-denominator universe rules, separate cohor
 permitted source classes, deterministic features and confirmation vetoes, reasoner schema,
 baselines, chronological partitions, and promotion thresholds. Exact canonical policy bytes and
 typed candidate-manifest, snapshot, feature-receipt, reasoner-exchange, and direction-only
-decision contracts live under `ringdown_market.strategy`. Gate A facts remain explicitly
+decision contracts live under `esscher.strategy`. Gate A facts remain explicitly
 `UNVERIFIED`; neither the policy, expression compiler, risk kernel, nor lifecycle worker can
 turn that into data collection, account, broker, or PAPER-mutation authority.
 
@@ -132,13 +132,13 @@ The one-shot scheduled runner accepts one strict approved event manifest, valida
 Render the self-contained read-only walkthrough from the packaged frozen inputs:
 
 ```bash
-uv run ringdown render-judge-trace --output build/esscher-evidence-trace.html
+uv run esscher render-judge-trace --output build/esscher-evidence-trace.html
 ```
 
 Open `build/esscher-evidence-trace.html` in any modern browser. An installed wheel exposes the same command without `uv run`:
 
 ```bash
-ringdown render-judge-trace --output esscher-evidence-trace.html
+esscher render-judge-trace --output esscher-evidence-trace.html
 ```
 
 The page requires no server, JavaScript, network access, credential, or broker session. It shows one issue #2 point-in-time evidence manifest, then leaves its absent research decision and permit visibly missing. Separately labeled issue #13 synthetic fixtures show terminal-flat, rejected-before-mutation, and manual-reconciliation lifecycle outcomes. Every rendered factual value carries its source JSON pointer; the packaged copies are tested byte-for-byte against the committed source artifacts.
@@ -171,13 +171,13 @@ uv run ruff check .
 uv run ruff format --check .
 uv run pytest
 uv build
-uv run ringdown --version
+uv run esscher --version
 ```
 
 Run the labeled synthetic contract fixture:
 
 ```bash
-uv run ringdown evaluate \
+uv run esscher evaluate \
   --input tests/fixtures/synthetic_contract_panel.json \
   --output build/synthetic-contract-report.json
 ```
@@ -190,6 +190,12 @@ Use feature branches and draft pull requests. Keep reviewer requests empty until
 
 ## Repository status
 
-The canonical repository is `Tempest-Research/esscher-market`. Compatibility interfaces remain
-`ringdown-market`, `ringdown_market`, and `ringdown`; this integration neither publishes a
-registry package nor enables a provider, broker, or account action.
+The canonical repository is `Tempest-Research/esscher-market`. The distribution is
+`esscher-market`, the Python package is `esscher`, and the command is `esscher`.
+This migration does not publish a registry package or enable provider/broker actions.
+
+Existing callers must change `import ringdown_market` to `import esscher` and
+replace the `ringdown` command with `esscher`; no old import or command aliases
+are installed. Run `uv sync --extra dev` after updating this checkout. Historical
+reports, schema identifiers and content-addressed evidence are not rewritten.
+Existing host release/arm records are not reapproved by this source rename.

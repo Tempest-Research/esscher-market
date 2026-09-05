@@ -11,8 +11,8 @@ from pathlib import Path
 
 import pytest
 
-from ringdown_market.cli import main as cli_main
-from ringdown_market.contracts.strategy_release import (
+from esscher.cli import main as cli_main
+from esscher.contracts.strategy_release import (
     EXPECTED_LANE_BINDINGS,
     ArmRecord,
     ReleaseLog,
@@ -22,11 +22,11 @@ from ringdown_market.contracts.strategy_release import (
     evaluate_release,
     strategy_release_bytes,
 )
-from ringdown_market.runtime.autonomous import (
+from esscher.runtime.autonomous import (
     AutonomousSessionArm,
     autonomous_session_arm_bytes,
 )
-from ringdown_market.runtime.autonomous_host import (
+from esscher.runtime.autonomous_host import (
     AutonomousHostAuthorityInput,
     AutonomousHostInvocation,
     AutonomousHostPlan,
@@ -286,7 +286,7 @@ def test_invalid_canonical_authority_is_rejected_before_host_plan_resolution(
             plan_resolved = True
         return real_import_module(name, package)
 
-    monkeypatch.setattr("ringdown_market.cli.importlib.import_module", record_import)
+    monkeypatch.setattr("esscher.cli.importlib.import_module", record_import)
     release_path = tmp_path / "release.json"
     arm_path = tmp_path / "arm.json"
     release_path.write_bytes(b"{}")
@@ -354,7 +354,7 @@ def test_noisy_host_import_and_factory_failure_emit_one_honest_receipt(
             return module
         return real_import_module(name, package)
 
-    monkeypatch.setattr("ringdown_market.cli.importlib.import_module", noisy_import)
+    monkeypatch.setattr("esscher.cli.importlib.import_module", noisy_import)
 
     exit_code = _run_cli(
         fixture=fixture,

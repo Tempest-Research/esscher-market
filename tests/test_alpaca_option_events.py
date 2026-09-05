@@ -10,22 +10,22 @@ from pathlib import Path
 
 import pytest
 
-from ringdown_market.contracts.execution_policy import (
+from esscher.contracts.execution_policy import (
     ALPACA_MCP_V2_PROTOCOL_SHA256,
 )
-from ringdown_market.execution.host_mcp import (
+from esscher.execution.host_mcp import (
     HostMcpEnvironment,
     HostMcpPaperSessionFactory,
     HostMcpSessionIdentity,
 )
-from ringdown_market.runtime.option_events import (
+from esscher.runtime.option_events import (
     AssetClass,
     EvidenceClass,
     OptionEventKind,
     parse_option_activity_coverage,
     parse_option_portfolio_observation,
 )
-from ringdown_market.sourcedata.alpaca_option_events import (
+from esscher.sourcedata.alpaca_option_events import (
     ACTIVITY_MAPPING_V1_SHA256,
     ActivityAcquisitionReason,
     ActivityAcquisitionRejected,
@@ -39,7 +39,7 @@ from ringdown_market.sourcedata.alpaca_option_events import (
     normalize_account_activities,
     summarize_orders_state,
 )
-from ringdown_market.strategy.contracts import canonical_json_bytes, sha256_bytes
+from esscher.strategy.contracts import canonical_json_bytes, sha256_bytes
 
 NOW = datetime(2026, 9, 18, 15, 0, tzinfo=UTC)
 WINDOW_START = datetime(2026, 9, 18, 0, 0, tzinfo=UTC)

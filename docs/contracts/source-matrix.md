@@ -6,7 +6,7 @@ Issue #41 fixes the source-rights decision before a snapshot can be compiled. It
 
 The only capture matrix is the packaged `esscher.source_matrix/v1` resource:
 
-- resource: `ringdown_market/contracts/policies/source_matrix_v1.json`
+- resource: `esscher/contracts/policies/source_matrix_v1.json`
 - matrix SHA-256: `888447640aa705510bc0594abc9a78f22c988e961282ff82a6f44337181d04ca`
 - accepted event-policy SHA-256: `afce93b52b96e0d8c71deeb80027a1c87a4cf3623e9417db14de00279fc23bca`
 - Gate A programme-contract SHA-256: `40c2e780c684bdde671b028dbdd8c9b13268e659c24e98a2d452ff7c8692f955`
@@ -57,7 +57,7 @@ Direct provider endpoints are not committed as a live capture path. The matrix d
 The command operates only with an explicit synthetic fixture path, an explicit UTC capture clock, explicit host authorization, and explicitly declared matrix conditions. The fixture is passed through to the compiler adapters; an installed wheel never looks for a repository test-fixture path.
 
 ```bash
-ESSCHER_CAPTURE_AUTHORIZED=yes uv run python -m ringdown_market.sourcedata.capture \
+ESSCHER_CAPTURE_AUTHORIZED=yes uv run python -m esscher.sourcedata.capture \
   --event-id KR-2026Q2-EARNINGS \
   --fixture tests/fixtures/sourcedata/synthetic_snapshot_inputs_v1.json \
   --capture-at 2026-09-11T13:35:10Z \

@@ -2,7 +2,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from ringdown_market.alpha.models import (
+from esscher.alpha.models import (
     DecisionSnapshot,
     Direction,
     PointInTimeViolation,

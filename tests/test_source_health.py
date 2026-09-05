@@ -12,8 +12,8 @@ from pathlib import Path
 
 import pytest
 
-from ringdown_market.audit import source_health
-from ringdown_market.audit.source_health import (
+from esscher.audit import source_health
+from esscher.audit.source_health import (
     FindingSeverity,
     SourceHealthCode,
     SourceHealthReport,
@@ -65,18 +65,18 @@ def test_public_api_exports_are_importable() -> None:
 
 def test_package_root_serializers_have_explicit_stable_identities() -> None:
     public = __import__(
-        "ringdown_market.audit",
+        "esscher.audit",
         fromlist=(
             "canonical_report_bytes",
             "source_health_canonical_report_bytes",
             "bundle_diff_canonical_report_bytes",
         ),
     )
-    assert public is importlib.import_module("ringdown_market.audit")
+    assert public is importlib.import_module("esscher.audit")
 
     source_serializer = public.source_health_canonical_report_bytes
     bundle_serializer = public.bundle_diff_canonical_report_bytes
-    bundle_module = importlib.import_module("ringdown_market.audit.bundle_diff")
+    bundle_module = importlib.import_module("esscher.audit.bundle_diff")
 
     assert public.__all__.count("canonical_report_bytes") == 1
     assert public.canonical_report_bytes is bundle_module.canonical_report_bytes

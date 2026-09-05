@@ -59,12 +59,12 @@ from zoneinfo import ZoneInfo
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
-from ringdown_market.strategy.contracts import (  # noqa: E402
+from esscher.strategy.contracts import (  # noqa: E402
     canonical_json_bytes,
     parse_candidate_manifest,
     sha256_bytes,
 )
-from ringdown_market.strategy.policy import (  # noqa: E402
+from esscher.strategy.policy import (  # noqa: E402
     strategy_policy_sha256,
     strategy_policy_v3_sha256,
 )

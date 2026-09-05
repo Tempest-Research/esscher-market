@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from ringdown_market.contracts.latency_profile import (
+from esscher.contracts.latency_profile import (
     LatencyProfileKind,
     LatencyProfileReason,
     LatencyProfileRejected,

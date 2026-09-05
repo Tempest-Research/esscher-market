@@ -18,7 +18,7 @@ Usage:
     uv run python scripts/mint_paper_release.py \
         --out out/release-packet \
         --code-revision <git-sha> --build-sha256 <wheel-sha256> \
-        --wheel-name ringdown_market-0.4.0-py3-none-any.whl \
+        --wheel-name esscher_market-0.4.0-py3-none-any.whl \
         --account-fingerprint <sha256> \
         --session-id ESSCHER-REHEARSAL-91-20260904 --session-date 2026-09-04 \
         --evidence-summary out/qfast-panel-evidence/evidence_run_summary.json \
@@ -41,11 +41,11 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
-from ringdown_market.contracts.latency_profile import load_latency_profile  # noqa: E402
-from ringdown_market.contracts.reasoner_route import (  # noqa: E402
+from esscher.contracts.latency_profile import load_latency_profile  # noqa: E402
+from esscher.contracts.reasoner_route import (  # noqa: E402
     load_current_approved_reasoner_route,
 )
-from ringdown_market.contracts.strategy_release import (  # noqa: E402
+from esscher.contracts.strategy_release import (  # noqa: E402
     EXPECTED_LANE_BINDINGS,
     ArmRecord,
     PromotionStatus,
@@ -58,12 +58,12 @@ from ringdown_market.contracts.strategy_release import (  # noqa: E402
     parse_strategy_release,
     strategy_release_bytes,
 )
-from ringdown_market.runtime.autonomous import (  # noqa: E402
+from esscher.runtime.autonomous import (  # noqa: E402
     AutonomousSessionArm,
     autonomous_session_arm_bytes,
     parse_autonomous_session_arm,
 )
-from ringdown_market.strategy.contracts import canonical_json_bytes, sha256_bytes  # noqa: E402
+from esscher.strategy.contracts import canonical_json_bytes, sha256_bytes  # noqa: E402
 
 
 def _sha_file(path: Path) -> str:

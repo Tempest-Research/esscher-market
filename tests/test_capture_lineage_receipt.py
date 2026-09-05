@@ -10,8 +10,8 @@ import hashlib
 import json
 from pathlib import Path
 
-from ringdown_market.sourcedata import capture
-from ringdown_market.sourcedata.lineage_gate import evaluate_lineage, lineage_receipt_bytes
+from esscher.sourcedata import capture
+from esscher.sourcedata.lineage_gate import evaluate_lineage, lineage_receipt_bytes
 
 REPO_ROOT = Path(__file__).parent.parent
 FIXTURE_PATH = REPO_ROOT / "tests" / "fixtures" / "sourcedata" / "synthetic_snapshot_inputs_v1.json"

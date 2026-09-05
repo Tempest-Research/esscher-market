@@ -3,7 +3,7 @@ requires = ["hatchling>=1.27,<2"]
 build-backend = "hatchling.build"
 
 [project]
-name = "ringdown-market"
+name = "esscher-market"
 version = "0.4.0"
 description = "Esscher, a permanently paper-only research and execution system for scheduled earnings reactions."
 readme = "README.md"
@@ -23,10 +23,10 @@ dev = [
 ]
 
 [project.scripts]
-ringdown = "ringdown_market.cli:main"
+esscher = "esscher.cli:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/ringdown_market"]
+packages = ["src/esscher"]
 
 [tool.pytest.ini_options]
 addopts = "-ra --strict-markers"

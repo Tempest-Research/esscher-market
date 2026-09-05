@@ -10,7 +10,7 @@ from decimal import Decimal
 
 import pytest
 
-from ringdown_market.execution.models import (
+from esscher.execution.models import (
     DebitVerticalPermit,
     OptionLeg,
     OptionSide,
@@ -19,12 +19,12 @@ from ringdown_market.execution.models import (
     VerticalType,
     debit_vertical_permit_id,
 )
-from ringdown_market.runtime.autonomous import (
+from esscher.runtime.autonomous import (
     ActiveLifecycleIdentity,
     AutonomousOpportunity,
     AutonomousSessionArm,
 )
-from ringdown_market.runtime.option_events import (
+from esscher.runtime.option_events import (
     AssetClass,
     EvidenceClass,
     NormalizedOptionEvent,

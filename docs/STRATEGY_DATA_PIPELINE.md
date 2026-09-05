@@ -20,7 +20,7 @@ source receipts, corporate-action receipts, and one
 thresholds, clocks, or timing rules of its own.
 
 - No network, subprocess, broker, or MCP call exists anywhere in
-  `src/ringdown_market/sourcedata/` (enforced by an AST-level test).
+  `src/esscher/sourcedata/` (enforced by an AST-level test).
 - No order, account, position, trading, or mutation method exists on any
   adapter interface (enforced by a surface test).
 - Host credentials never appear in code, fixtures, logs, reports, or CLI

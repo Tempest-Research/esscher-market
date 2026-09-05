@@ -18,32 +18,32 @@ from pathlib import Path
 
 import pytest
 
-from ringdown_market.sourcedata import compiler as compiler_module
-from ringdown_market.sourcedata.compiler import (
+from esscher.sourcedata import compiler as compiler_module
+from esscher.sourcedata.compiler import (
     EARNINGS_CANDIDATE,
     CaptureConfiguration,
     compile_strategy_snapshot,
 )
-from ringdown_market.sourcedata.fakes import (
+from esscher.sourcedata.fakes import (
     FixtureEvidenceSource,
     FixtureMarketDataSource,
     build_candidate_manifest,
     load_fixture,
 )
-from ringdown_market.sourcedata.reasons import CollectorReason, CollectorRejected
-from ringdown_market.strategy.contracts import (
+from esscher.sourcedata.reasons import CollectorReason, CollectorRejected
+from esscher.strategy.contracts import (
     FEATURE_RECEIPT_SCHEMA,
     StrategyContractRejected,
     feature_receipt_bytes,
     parse_feature_receipt,
 )
-from ringdown_market.strategy.models import (
+from esscher.strategy.models import (
     FeatureReceipt,
     FeatureStatus,
     FeatureValue,
     FeatureValueType,
 )
-from ringdown_market.strategy.policy import load_strategy_policy
+from esscher.strategy.policy import load_strategy_policy
 
 EVENT_ID = "KR-2026Q2-EARNINGS"
 CAPTURE_AT = "2026-09-11T13:35:10Z"
@@ -87,7 +87,7 @@ def compiled():
 
 def test_ac1_receipt_binds_snapshot_policy_build_cutoff_evidence_and_health(compiled) -> None:
     receipt = compiled.feature_receipt
-    from ringdown_market.strategy.contracts import sha256_bytes
+    from esscher.strategy.contracts import sha256_bytes
 
     assert receipt.strategy_snapshot_sha256 == sha256_bytes(compiled.strategy_snapshot_bytes)
     assert receipt.policy_sha256 == compiled.snapshot.policy_sha256
@@ -284,8 +284,8 @@ def test_ac3_non_finite_feature_fails_closed() -> None:
 def test_ac3_adjustment_mismatch_fails_closed() -> None:
     from datetime import date as _date
 
-    from ringdown_market.sourcedata.adjustments import adjust_series
-    from ringdown_market.sourcedata.interfaces import (
+    from esscher.sourcedata.adjustments import adjust_series
+    from esscher.sourcedata.interfaces import (
         CorporateAction,
         DailyBar,
         SourceProvenance,
@@ -460,15 +460,15 @@ def test_ac6_receipt_carries_no_execution_authority_fields(compiled) -> None:
 def test_ac1_macro_compiler_binds_complete_feature_provenance_without_hidden_fields() -> None:
     """Direct macro compilation has the same explicit receipt boundary as earnings."""
 
-    from ringdown_market.sourcedata.compiler import compile_macro_snapshot
-    from ringdown_market.sourcedata.fakes import (
+    from esscher.sourcedata.compiler import compile_macro_snapshot
+    from esscher.sourcedata.fakes import (
         FixtureMacroEvidenceSource,
         FixtureMacroMarketDataSource,
         FixtureMacroReleaseSource,
         build_macro_candidate_manifest,
         load_macro_fixture,
     )
-    from ringdown_market.strategy.contracts import sha256_bytes
+    from esscher.strategy.contracts import sha256_bytes
 
     fixture = load_macro_fixture()
     configuration = CaptureConfiguration(

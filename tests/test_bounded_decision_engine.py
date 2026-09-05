@@ -11,19 +11,19 @@ from pathlib import Path
 
 import pytest
 
-from ringdown_market.alpha.models import Direction
-from ringdown_market.sourcedata import (
+from esscher.alpha.models import Direction
+from esscher.sourcedata import (
     CaptureConfiguration,
     compile_strategy_snapshot,
     compiled_strategy_input,
 )
-from ringdown_market.sourcedata.fakes import (
+from esscher.sourcedata.fakes import (
     FixtureEvidenceSource,
     FixtureMarketDataSource,
     build_candidate_manifest,
     load_fixture,
 )
-from ringdown_market.strategy import (
+from esscher.strategy import (
     DataHealthState,
     DecisionDisposition,
     EligibilityState,
@@ -36,27 +36,27 @@ from ringdown_market.strategy import (
     strategy_snapshot_bytes,
     strategy_snapshot_sha256,
 )
-from ringdown_market.strategy.baselines import (
+from esscher.strategy.baselines import (
     baseline_signal_bytes,
     compile_gate_c_signals,
     frozen_baseline_ids,
 )
-from ringdown_market.strategy.contracts import (
+from esscher.strategy.contracts import (
     build_strategy_input,
     sha256_bytes,
 )
-from ringdown_market.strategy.engine import (
+from esscher.strategy.engine import (
     ENGINE_BUILD_SHA256,
     BoundedDecisionEngine,
     EngineReason,
 )
-from ringdown_market.strategy.reasoner import (
+from esscher.strategy.reasoner import (
     DeterministicFakeReasoner,
     FakeFailure,
     ReasonerRouteRequest,
     ReasonerRouteResult,
 )
-from ringdown_market.strategy.smoke import run_route_smoke
+from esscher.strategy.smoke import run_route_smoke
 from test_strategy_contracts import _macro_strategy_input
 
 FORBIDDEN_MODULES = (
@@ -71,7 +71,7 @@ FORBIDDEN_MODULES = (
     "urllib",
     "webbrowser",
 )
-STRATEGY_FILES = Path(__file__).parents[1] / "src" / "ringdown_market" / "strategy"
+STRATEGY_FILES = Path(__file__).parents[1] / "src" / "esscher" / "strategy"
 
 
 def _compiled():
@@ -105,13 +105,13 @@ def _started(strategy_input: StrategyInput):
 
 
 def _manifest_bytes(manifest) -> bytes:
-    from ringdown_market.strategy import candidate_manifest_bytes
+    from esscher.strategy import candidate_manifest_bytes
 
     return candidate_manifest_bytes(manifest)
 
 
 def _manifest_sha(manifest) -> str:
-    from ringdown_market.strategy import candidate_manifest_sha256
+    from esscher.strategy import candidate_manifest_sha256
 
     return candidate_manifest_sha256(manifest)
 
@@ -422,7 +422,7 @@ def test_engine_decision_payload_has_no_broker_authority() -> None:
         strategy_input, started_at=_started(strategy_input)
     )
 
-    from ringdown_market.strategy.contracts import strategy_decision_payload
+    from esscher.strategy.contracts import strategy_decision_payload
 
     payload = strategy_decision_payload(outcome.decision)
     assert set(payload).isdisjoint(
@@ -453,7 +453,7 @@ def _good_payload(strategy_input: StrategyInput) -> dict:
 
 
 def _rejoin_with_receipt(strategy_input: StrategyInput, receipt) -> StrategyInput:
-    from ringdown_market.strategy import candidate_manifest_bytes
+    from esscher.strategy import candidate_manifest_bytes
 
     return build_strategy_input(
         strategy_snapshot_bytes(strategy_input.snapshot),
@@ -463,7 +463,7 @@ def _rejoin_with_receipt(strategy_input: StrategyInput, receipt) -> StrategyInpu
 
 
 def _route_with_payload(strategy_input: StrategyInput, payload: dict):
-    from ringdown_market.strategy.contracts import canonical_json_bytes, sha256_bytes
+    from esscher.strategy.contracts import canonical_json_bytes, sha256_bytes
 
     raw = canonical_json_bytes(payload)
     base = DeterministicFakeReasoner()(
@@ -641,7 +641,7 @@ def test_macro_parser_votes_use_frozen_component_mapping() -> None:
     receipt = replace(receipt, features=tuple(features))
     mutated = _rejoin_with_receipt(strategy_input, receipt)
 
-    from ringdown_market.strategy.baselines import deterministic_parser_signal
+    from esscher.strategy.baselines import deterministic_parser_signal
 
     signal = deterministic_parser_signal(mutated)
     assert signal.direction is Direction.DOWN

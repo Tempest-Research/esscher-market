@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from ringdown_market.alpha.models import Direction
-from ringdown_market.strategy import (
+from esscher.alpha.models import Direction
+from esscher.strategy import (
     CandidateManifest,
     CandidateRecord,
     DataHealthState,
@@ -54,7 +54,7 @@ from ringdown_market.strategy import (
     strategy_snapshot_sha256,
     validate_reasoner_response,
 )
-from ringdown_market.strategy.contracts import canonical_json_bytes, sha256_bytes
+from esscher.strategy.contracts import canonical_json_bytes, sha256_bytes
 
 HASH_A = "a" * 64
 HASH_B = "b" * 64

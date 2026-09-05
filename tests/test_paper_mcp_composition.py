@@ -19,7 +19,7 @@ from pathlib import Path
 import pytest
 
 import test_autonomous_host_composition as synth
-from ringdown_market.contracts.reasoner_route import (
+from esscher.contracts.reasoner_route import (
     FURRY_GATEWAY_MODEL,
     FURRY_GATEWAY_PROVIDER,
     QWEN_DASHSCOPE_BASE_URL,
@@ -27,20 +27,20 @@ from ringdown_market.contracts.reasoner_route import (
     QWEN_DASHSCOPE_PROVIDER,
     load_approved_reasoner_route_v5,
 )
-from ringdown_market.execution.host_mcp import (
+from esscher.execution.host_mcp import (
     HostMcpEnvironment,
     HostMcpPaperSessionFactory,
     HostMcpSessionIdentity,
 )
-from ringdown_market.risk import RiskLedger
-from ringdown_market.runtime.autonomous_host import (
+from esscher.risk import RiskLedger
+from esscher.runtime.autonomous_host import (
     AutonomousHostDisposition,
     AutonomousHostRejected,
     HostExecutionClass,
     run_autonomous_host_command,
     validate_autonomous_host_authority,
 )
-from ringdown_market.runtime.host_composition import (
+from esscher.runtime.host_composition import (
     EARNINGS_LANE_V2,
     SyntheticRehearsalRoute,
     rehearsal_direction,
@@ -51,8 +51,8 @@ from ringdown_market.runtime.host_composition import (
     split_composition_fixture,
     synthetic_promoted_expression_policy,
 )
-from ringdown_market.runtime.host_fake_broker import SyntheticPaperBroker
-from ringdown_market.runtime.paper_mcp_composition import (
+from esscher.runtime.host_fake_broker import SyntheticPaperBroker
+from esscher.runtime.paper_mcp_composition import (
     BLOCKED_STATE_FILENAME,
     BlockedStateJournal,
     PaperMcpCompositionRejected,
@@ -61,23 +61,23 @@ from ringdown_market.runtime.paper_mcp_composition import (
     PaperMcpHostDoors,
     paper_mcp_plan_factory,
 )
-from ringdown_market.sourcedata import (
+from esscher.sourcedata import (
     CaptureConfiguration,
     compile_strategy_snapshot,
     compiled_strategy_input,
 )
-from ringdown_market.sourcedata.fakes import (
+from esscher.sourcedata.fakes import (
     FixtureEvidenceSource,
     FixtureMarketDataSource,
     build_candidate_manifest,
 )
-from ringdown_market.strategy.contracts import canonical_json_bytes, sha256_bytes
-from ringdown_market.strategy.host_route import (
+from esscher.strategy.contracts import canonical_json_bytes, sha256_bytes
+from esscher.strategy.host_route import (
     FurryGatewayReasonerRoute,
     MinimaxM3ReasonerRoute,
     QwenDashScopeReasonerRoute,
 )
-from ringdown_market.strategy.reasoner import (
+from esscher.strategy.reasoner import (
     SYNTHETIC_ROUTE_IDENTITY,
     RouteIdentity,
     _cited_evidence_ids,
@@ -737,11 +737,7 @@ def test_production_module_never_imports_the_synthetic_stack() -> None:
     import ast
 
     source = (
-        Path(__file__).parent.parent
-        / "src"
-        / "ringdown_market"
-        / "runtime"
-        / "paper_mcp_composition.py"
+        Path(__file__).parent.parent / "src" / "esscher" / "runtime" / "paper_mcp_composition.py"
     )
     tree = ast.parse(source.read_text(encoding="utf-8"))
     imported: set[str] = set()
@@ -751,10 +747,10 @@ def test_production_module_never_imports_the_synthetic_stack() -> None:
         elif isinstance(node, ast.ImportFrom) and node.module:
             imported.add(node.module)
     forbidden_modules = {
-        "ringdown_market.runtime.host_fake_broker",
-        "ringdown_market.runtime.host_composition",
-        "ringdown_market.sourcedata.fakes",
-        "ringdown_market.execution.paper_demo",
+        "esscher.runtime.host_fake_broker",
+        "esscher.runtime.host_composition",
+        "esscher.sourcedata.fakes",
+        "esscher.execution.paper_demo",
     }
     assert not (imported & forbidden_modules)
     names = {node.id for node in ast.walk(tree) if isinstance(node, ast.Name)} | {
@@ -839,8 +835,8 @@ def test_stale_timeline_outside_the_arm_is_rejected_before_any_backend(
 
 
 def test_stale_latency_profile_blocks_the_production_plan(tmp_path: Path, monkeypatch) -> None:
-    import ringdown_market.runtime.paper_mcp_composition as production
-    from ringdown_market.contracts.latency_profile import (
+    import esscher.runtime.paper_mcp_composition as production
+    from esscher.contracts.latency_profile import (
         LatencyProfileReason,
         LatencyProfileRejected,
     )

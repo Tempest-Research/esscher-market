@@ -7,7 +7,7 @@ from dataclasses import replace
 
 import pytest
 
-from ringdown_market.contracts.reasoner_route import (
+from esscher.contracts.reasoner_route import (
     ApprovalState,
     RouteCompatibilityState,
     RouteContractReason,
@@ -18,7 +18,7 @@ from ringdown_market.contracts.reasoner_route import (
     packaged_route_descriptor_bytes,
     validate_reasoner_route,
 )
-from ringdown_market.strategy.contracts import (
+from esscher.strategy.contracts import (
     reasoner_output_schema_bytes,
     reasoner_output_schema_payload,
     reasoner_output_schema_sha256,
@@ -237,8 +237,8 @@ def test_route_hashes_and_schema_hash_are_restart_deterministic() -> None:
             "-c",
             "; ".join(
                 (
-                    "import ringdown_market.contracts.reasoner_route as r",
-                    "import ringdown_market.strategy.contracts as s",
+                    "import esscher.contracts.reasoner_route as r",
+                    "import esscher.strategy.contracts as s",
                     "route = r.load_approved_reasoner_route()",
                     "h = s.reasoner_output_schema_sha256",
                     "print(route.route_sha256, route.model_config_sha256, h())",

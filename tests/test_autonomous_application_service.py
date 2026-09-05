@@ -19,8 +19,8 @@ from pathlib import Path
 
 import pytest
 
-from ringdown_market.contracts.latency_profile import load_latency_profile
-from ringdown_market.contracts.strategy_release import (
+from esscher.contracts.latency_profile import load_latency_profile
+from esscher.contracts.strategy_release import (
     EXPECTED_LANE_BINDINGS,
     ArmRecord,
     ReleaseLog,
@@ -30,18 +30,18 @@ from ringdown_market.contracts.strategy_release import (
     evaluate_release,
     strategy_release_bytes,
 )
-from ringdown_market.risk import RiskLedger
-from ringdown_market.runtime import (
+from esscher.risk import RiskLedger
+from esscher.runtime import (
     autonomous_application_service,
     health_receipts,
     stage_budgets,
 )
-from ringdown_market.runtime.autonomous import (
+from esscher.runtime.autonomous import (
     AutonomousSessionArm,
     DueWindowRequest,
     autonomous_session_arm_bytes,
 )
-from ringdown_market.runtime.autonomous_application_service import (
+from esscher.runtime.autonomous_application_service import (
     EXPOSURE_JOURNAL_FILENAME,
     REASON_BUDGET_VIOLATION,
     REASON_CAPTURE_REJECTED,
@@ -62,29 +62,29 @@ from ringdown_market.runtime.autonomous_application_service import (
     stage_receipt_sha256,
     verify_stage_receipt_chain,
 )
-from ringdown_market.runtime.autonomous_host import (
+from esscher.runtime.autonomous_host import (
     AutonomousHostAuthorityInput,
     ValidatedAutonomousHostAuthority,
     validate_autonomous_host_authority,
 )
-from ringdown_market.runtime.health_receipts import (
+from esscher.runtime.health_receipts import (
     CircuitState,
     health_receipt_bytes,
     health_receipt_sha256,
 )
-from ringdown_market.runtime.host_composition import (
+from esscher.runtime.host_composition import (
     EARNINGS_LANE_V2,
     CompositionFeed,
     CompositionFeedEvent,
     rehearsal_timeline,
     split_composition_fixture,
 )
-from ringdown_market.runtime.host_fake_broker import SyntheticPaperBroker
-from ringdown_market.runtime.host_persistence import (
+from esscher.runtime.host_fake_broker import SyntheticPaperBroker
+from esscher.runtime.host_persistence import (
     HOST_PERSISTENCE_FILENAME,
     HostPersistenceSidecar,
 )
-from ringdown_market.runtime.option_events import (
+from esscher.runtime.option_events import (
     AssetClass,
     EvidenceClass,
     NormalizedOptionEvent,
@@ -95,7 +95,7 @@ from ringdown_market.runtime.option_events import (
     OptionReconciliationState,
     PortfolioPosition,
 )
-from ringdown_market.runtime.stage_budgets import (
+from esscher.runtime.stage_budgets import (
     StageBudgets,
     StageBudgetsRejected,
     arm_window_set_sha256,
@@ -103,18 +103,18 @@ from ringdown_market.runtime.stage_budgets import (
     stage_budgets_sha256,
     validate_stage_budgets_within_window,
 )
-from ringdown_market.sourcedata import (
+from esscher.sourcedata import (
     CaptureConfiguration,
     compile_strategy_snapshot,
     compiled_strategy_input,
 )
-from ringdown_market.sourcedata.fakes import (
+from esscher.sourcedata.fakes import (
     FixtureEvidenceSource,
     FixtureMarketDataSource,
     build_candidate_manifest,
     load_fixture,
 )
-from ringdown_market.strategy.contracts import canonical_json_bytes
+from esscher.strategy.contracts import canonical_json_bytes
 
 BUILD_SHA256 = "b" * 64
 CODE_REVISION = "a" * 40

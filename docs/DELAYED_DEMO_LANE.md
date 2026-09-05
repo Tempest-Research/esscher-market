@@ -70,11 +70,11 @@ uv run python scripts/capture_lane.py capture-window --delayed-demo --session-da
 uv run python scripts/capture_lane.py serialize --event-id <EVENT> ...
 ```
 
-Then: fresh `ringdown paper-preflight` on the final build, session-arm mint for
+Then: fresh `esscher paper-preflight` on the final build, session-arm mint for
 the date, owner review of the exact session manifest, the **second explicit
 owner authorization immediately before broker mutation** (`ESSCHER_MUTATION_AUTHORIZED=yes`
 in the host selector environment — the mutation gate is closed without it), and
-`ringdown paper-run` with the host selector configured for the demo lane
+`esscher paper-run` with the host selector configured for the demo lane
 (`ESSCHER_DEMO_LANE=1`: demo expression policy + delayed captures; the selector
 refuses any mix of the flag and capture claims in either direction). Windows
 10:00–15:00 ET, hard flat 15:30 ET, broker-confirmed flatness, full receipt

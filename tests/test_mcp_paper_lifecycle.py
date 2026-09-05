@@ -8,13 +8,13 @@ from decimal import Decimal
 
 import pytest
 
-from ringdown_market.contracts.execution_policy import (
+from esscher.contracts.execution_policy import (
     ALPACA_MCP_PROTOCOL_SHA256,
     PAPER_PERMIT_POLICY_SHA256,
     RESEARCH_DECISION_PROTOCOL_SHA256,
     paper_event_run_id,
 )
-from ringdown_market.execution.mcp import (
+from esscher.execution.mcp import (
     McpPaperBroker,
     OpenOrderReceipt,
     PaperLifecycleManualRequired,
@@ -24,7 +24,7 @@ from ringdown_market.execution.mcp import (
     build_close_order_call,
     build_open_order_call,
 )
-from ringdown_market.execution.models import (
+from esscher.execution.models import (
     ClosePermit,
     DataClass,
     DebitVerticalPermit,

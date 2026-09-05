@@ -5,22 +5,22 @@ from datetime import timedelta
 
 import pytest
 
-from ringdown_market.autonomy.episodes import build_episodic_summary
-from ringdown_market.risk.ledger import RiskLedger
-from ringdown_market.strategy import (
+from esscher.autonomy.episodes import build_episodic_summary
+from esscher.risk.ledger import RiskLedger
+from esscher.strategy import (
     candidate_manifest_bytes,
     candidate_manifest_sha256,
     feature_receipt_bytes,
     strategy_snapshot_bytes,
     strategy_snapshot_sha256,
 )
-from ringdown_market.strategy.contracts import (
+from esscher.strategy.contracts import (
     StrategyV2ContextRejected,
     build_strategy_v2_context,
     strategy_v2_context_bytes,
     strategy_v2_context_sha256,
 )
-from ringdown_market.strategy.policy import load_strategy_policy_v2
+from esscher.strategy.policy import load_strategy_policy_v2
 from test_strategy_contracts import _strategy_input
 
 V2_EARNINGS = "EARNINGS_RESIDUAL_CONTINUATION_V2"

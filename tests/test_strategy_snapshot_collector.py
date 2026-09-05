@@ -11,22 +11,22 @@ from pathlib import Path
 
 import pytest
 
-from ringdown_market.sourcedata.adjustments import (
+from esscher.sourcedata.adjustments import (
     AdjustedClose,
     AdjustmentOutcome,
     adjust_series,
     split_factor,
 )
-from ringdown_market.sourcedata.betas import (
+from esscher.sourcedata.betas import (
     estimate_betas,
     select_beta_window,
 )
-from ringdown_market.sourcedata.compiler import (
+from esscher.sourcedata.compiler import (
     CaptureConfiguration,
     compile_strategy_snapshot,
     compiled_strategy_input,
 )
-from ringdown_market.sourcedata.fakes import (
+from esscher.sourcedata.fakes import (
     FIXTURE_PATH,
     MACRO_FIXTURE_PATH,
     FixtureEvidenceSource,
@@ -34,20 +34,20 @@ from ringdown_market.sourcedata.fakes import (
     build_candidate_manifest,
     load_fixture,
 )
-from ringdown_market.sourcedata.interfaces import CorporateAction, DailyBar, SourceProvenance, Trade
-from ringdown_market.sourcedata.reasons import CollectorReason, CollectorRejected
-from ringdown_market.sourcedata.receipts import (
+from esscher.sourcedata.interfaces import CorporateAction, DailyBar, SourceProvenance, Trade
+from esscher.sourcedata.reasons import CollectorReason, CollectorRejected
+from esscher.sourcedata.receipts import (
     SourceReceipt,
     corporate_action_receipt_bytes,
     parse_corporate_action_receipt,
     parse_source_receipt,
     source_receipt_bytes,
 )
-from ringdown_market.sourcedata.windows import build_synchronized_window
-from ringdown_market.strategy.models import FeatureStatus, ReleaseFamily, TimingBucket
+from esscher.sourcedata.windows import build_synchronized_window
+from esscher.strategy.models import FeatureStatus, ReleaseFamily, TimingBucket
 
 EVENT_ID = "KR-2026Q2-EARNINGS"
-PACKAGE_ROOT = Path(__file__).parents[1] / "src" / "ringdown_market" / "sourcedata"
+PACKAGE_ROOT = Path(__file__).parents[1] / "src" / "esscher" / "sourcedata"
 
 
 def _at(value: str) -> datetime:
@@ -219,9 +219,9 @@ def test_unverified_quote_entitlement_fails_closed() -> None:
 
 
 def test_quote_spread_requires_minimum_samples() -> None:
-    from ringdown_market.sourcedata.interfaces import QuoteSample
-    from ringdown_market.sourcedata.reasons import CollectorReason as _Reason
-    from ringdown_market.sourcedata.windows import quote_spread_basis_points
+    from esscher.sourcedata.interfaces import QuoteSample
+    from esscher.sourcedata.reasons import CollectorReason as _Reason
+    from esscher.sourcedata.windows import quote_spread_basis_points
 
     quotes = tuple(
         QuoteSample(
@@ -272,7 +272,7 @@ def test_split_adjustment_halves_pre_ex_date_prices() -> None:
         ),
     )
     receipt_id = "action-kr-2026-03-13-split"
-    from ringdown_market.sourcedata.receipts import CorporateActionReceipt
+    from esscher.sourcedata.receipts import CorporateActionReceipt
 
     receipt = CorporateActionReceipt.from_action(receipt_id, action, source_receipt_id="source")
     outcome = adjust_series(bars, (action,), ticker="KR", receipts_by_action={action: receipt})
@@ -527,7 +527,7 @@ def test_capture_runs_with_socket_disabled(compiled_snapshot) -> None:
 
 
 def test_adapter_protocols_expose_only_read_methods() -> None:
-    from ringdown_market.sourcedata.interfaces import EvidenceSource, MarketDataSource
+    from esscher.sourcedata.interfaces import EvidenceSource, MarketDataSource
 
     allowed = {
         "sessions",
@@ -549,7 +549,7 @@ def test_adapter_protocols_expose_only_read_methods() -> None:
 
 
 def test_capture_command_requires_host_authorization(tmp_path: Path, monkeypatch) -> None:
-    from ringdown_market.sourcedata.capture import main
+    from esscher.sourcedata.capture import main
 
     monkeypatch.delenv("ESSCHER_CAPTURE_AUTHORIZED", raising=False)
     exit_code = main(
@@ -568,7 +568,7 @@ def test_capture_command_requires_host_authorization(tmp_path: Path, monkeypatch
 
 
 def test_capture_command_rejects_unpinned_live_boundary(tmp_path: Path, monkeypatch) -> None:
-    from ringdown_market.sourcedata.capture import main
+    from esscher.sourcedata.capture import main
 
     monkeypatch.setenv("ESSCHER_CAPTURE_AUTHORIZED", "yes")
     exit_code = main(
@@ -614,8 +614,8 @@ def test_amc_release_before_prior_session_close_fails_closed() -> None:
 def test_bmo_and_amc_reaction_session_selection_is_distinct() -> None:
     from datetime import date
 
-    from ringdown_market.sourcedata.compiler import _reaction_session, derive_clocks
-    from ringdown_market.strategy.policy import load_strategy_policy
+    from esscher.sourcedata.compiler import _reaction_session, derive_clocks
+    from esscher.strategy.policy import load_strategy_policy
 
     fixture = load_fixture()
     evidence = FixtureEvidenceSource(fixture)
@@ -678,8 +678,8 @@ def test_invalid_pagination_configuration_fails_closed() -> None:
 
 
 def test_duplicate_source_record_fails_closed() -> None:
-    from ringdown_market.sourcedata.evidence import EvidenceEntry, build_evidence_packet
-    from ringdown_market.strategy.models import EvidenceRole
+    from esscher.sourcedata.evidence import EvidenceEntry, build_evidence_packet
+    from esscher.strategy.models import EvidenceRole
 
     def entry(evidence_id: str) -> EvidenceEntry:
         return EvidenceEntry(
@@ -712,7 +712,7 @@ def test_duplicate_source_record_fails_closed() -> None:
 
 
 def test_capture_command_writes_canonical_artifacts(tmp_path: Path, monkeypatch) -> None:
-    from ringdown_market.sourcedata.capture import main
+    from esscher.sourcedata.capture import main
 
     monkeypatch.setenv("ESSCHER_CAPTURE_AUTHORIZED", "yes")
     exit_code = main(
@@ -750,7 +750,7 @@ def test_capture_command_writes_canonical_artifacts(tmp_path: Path, monkeypatch)
 def test_capture_command_fails_closed_without_source_rights_conditions(
     tmp_path: Path, monkeypatch
 ) -> None:
-    from ringdown_market.sourcedata.capture import main
+    from esscher.sourcedata.capture import main
 
     monkeypatch.setenv("ESSCHER_CAPTURE_AUTHORIZED", "yes")
     exit_code = main(
@@ -772,7 +772,7 @@ def test_capture_command_fails_closed_without_source_rights_conditions(
 def test_capture_command_rejects_unknown_source_rights_condition(
     tmp_path: Path, monkeypatch, capsys
 ) -> None:
-    from ringdown_market.sourcedata.capture import main
+    from esscher.sourcedata.capture import main
 
     monkeypatch.setenv("ESSCHER_CAPTURE_AUTHORIZED", "yes")
     exit_code = main(
@@ -796,8 +796,8 @@ def test_capture_command_rejects_unknown_source_rights_condition(
 def test_capture_identity_binds_source_matrix_digest(tmp_path: Path, monkeypatch) -> None:
     import json
 
-    from ringdown_market.contracts.source_matrix import SOURCE_MATRIX_V1_SHA256
-    from ringdown_market.sourcedata.capture import main
+    from esscher.contracts.source_matrix import SOURCE_MATRIX_V1_SHA256
+    from esscher.sourcedata.capture import main
 
     monkeypatch.setenv("ESSCHER_CAPTURE_AUTHORIZED", "yes")
     exit_code = main(
@@ -824,7 +824,7 @@ def test_capture_identity_binds_source_matrix_digest(tmp_path: Path, monkeypatch
 
 
 def compiled_strategy_input_bytes(snapshot_bytes: bytes, tmp_path: Path) -> bytes:
-    from ringdown_market.strategy.contracts import parse_strategy_snapshot, strategy_snapshot_bytes
+    from esscher.strategy.contracts import parse_strategy_snapshot, strategy_snapshot_bytes
 
     return strategy_snapshot_bytes(parse_strategy_snapshot(snapshot_bytes))
 
@@ -833,13 +833,13 @@ MACRO_EVENT_ID = "BLS-JOLTS-2026-07"
 
 
 def _macro_fixture():
-    from ringdown_market.sourcedata.fakes import load_macro_fixture
+    from esscher.sourcedata.fakes import load_macro_fixture
 
     return load_macro_fixture()
 
 
 def _macro_configuration(fixture, capture_at: str = "2026-09-09T14:15:10Z"):
-    from ringdown_market.sourcedata.fakes import build_macro_candidate_manifest
+    from esscher.sourcedata.fakes import build_macro_candidate_manifest
 
     return CaptureConfiguration(
         candidate_manifest_bytes=build_macro_candidate_manifest(fixture),
@@ -852,8 +852,8 @@ def _macro_configuration(fixture, capture_at: str = "2026-09-09T14:15:10Z"):
 
 
 def _compile_macro(fixture=None, capture_at: str = "2026-09-09T14:15:10Z"):
-    from ringdown_market.sourcedata.compiler import compile_macro_snapshot
-    from ringdown_market.sourcedata.fakes import (
+    from esscher.sourcedata.compiler import compile_macro_snapshot
+    from esscher.sourcedata.fakes import (
         FixtureMacroEvidenceSource,
         FixtureMacroMarketDataSource,
         FixtureMacroReleaseSource,
@@ -869,8 +869,8 @@ def _compile_macro(fixture=None, capture_at: str = "2026-09-09T14:15:10Z"):
 
 
 def _rejects_macro(fixture, reason: CollectorReason, capture_at: str = "2026-09-09T14:15:10Z"):
-    from ringdown_market.sourcedata.compiler import compile_macro_snapshot
-    from ringdown_market.sourcedata.fakes import (
+    from esscher.sourcedata.compiler import compile_macro_snapshot
+    from esscher.sourcedata.fakes import (
         FixtureMacroEvidenceSource,
         FixtureMacroMarketDataSource,
         FixtureMacroReleaseSource,
@@ -902,7 +902,7 @@ def test_macro_identical_inputs_produce_byte_identical_snapshots(compiled_macro_
 
 
 def test_macro_snapshot_passes_the_frozen_strategy_contract(compiled_macro_snapshot) -> None:
-    from ringdown_market.strategy.models import EventCategory, TimingBucket
+    from esscher.strategy.models import EventCategory, TimingBucket
 
     joined = compiled_strategy_input(compiled_macro_snapshot)
     assert joined.snapshot.event_id == MACRO_EVENT_ID
@@ -966,7 +966,7 @@ def test_macro_insufficient_normalization_history_fails_closed() -> None:
 
 
 def test_macro_capture_command_writes_canonical_artifacts(tmp_path: Path, monkeypatch) -> None:
-    from ringdown_market.sourcedata.capture import main
+    from esscher.sourcedata.capture import main
 
     monkeypatch.setenv("ESSCHER_CAPTURE_AUTHORIZED", "yes")
     exit_code = main(
@@ -995,9 +995,9 @@ def test_macro_capture_command_writes_canonical_artifacts(tmp_path: Path, monkey
 
 
 def _earnings_feasibility():
-    from ringdown_market.sourcedata.fakes import load_feasibility_declarations
-    from ringdown_market.sourcedata.feasibility import build_feasibility_for_candidate
-    from ringdown_market.strategy.policy import load_strategy_policy
+    from esscher.sourcedata.fakes import load_feasibility_declarations
+    from esscher.sourcedata.feasibility import build_feasibility_for_candidate
+    from esscher.strategy.policy import load_strategy_policy
 
     fixture = load_fixture()
     compiled = _compile(fixture)
@@ -1013,7 +1013,7 @@ def _earnings_feasibility():
 
 
 def test_earnings_feasibility_is_feasible_with_bound_receipts() -> None:
-    from ringdown_market.sourcedata.feasibility import VERDICT_FEASIBLE
+    from esscher.sourcedata.feasibility import VERDICT_FEASIBLE
 
     manifest = _earnings_feasibility()
     assert manifest.verdict is VERDICT_FEASIBLE
@@ -1025,7 +1025,7 @@ def test_earnings_feasibility_is_feasible_with_bound_receipts() -> None:
 
 
 def test_feasibility_manifest_is_byte_identical_across_rebuilds() -> None:
-    from ringdown_market.sourcedata.feasibility import feasibility_manifest_bytes
+    from esscher.sourcedata.feasibility import feasibility_manifest_bytes
 
     first = feasibility_manifest_bytes(_earnings_feasibility())
     second = feasibility_manifest_bytes(_earnings_feasibility())
@@ -1033,7 +1033,7 @@ def test_feasibility_manifest_is_byte_identical_across_rebuilds() -> None:
 
 
 def test_feasibility_manifest_round_trip_and_tamper_rejection() -> None:
-    from ringdown_market.sourcedata.feasibility import (
+    from esscher.sourcedata.feasibility import (
         feasibility_manifest_bytes,
         parse_feasibility_manifest,
     )
@@ -1047,12 +1047,12 @@ def test_feasibility_manifest_round_trip_and_tamper_rejection() -> None:
 
 
 def test_missing_required_source_makes_earnings_infeasible_with_macro_fallback() -> None:
-    from ringdown_market.sourcedata.fakes import load_feasibility_declarations
-    from ringdown_market.sourcedata.feasibility import (
+    from esscher.sourcedata.fakes import load_feasibility_declarations
+    from esscher.sourcedata.feasibility import (
         VERDICT_INFEASIBLE,
         build_feasibility_for_candidate,
     )
-    from ringdown_market.strategy.policy import load_strategy_policy
+    from esscher.strategy.policy import load_strategy_policy
 
     fixture = load_fixture()
     compiled = _compile(fixture)
@@ -1077,18 +1077,18 @@ def test_missing_required_source_makes_earnings_infeasible_with_macro_fallback()
 
 
 def _feasibility_claims():
-    from ringdown_market.sourcedata.feasibility import FEASIBILITY_CLAIMS
+    from esscher.sourcedata.feasibility import FEASIBILITY_CLAIMS
 
     return FEASIBILITY_CLAIMS
 
 
 def test_unverified_rights_make_candidate_infeasible() -> None:
-    from ringdown_market.sourcedata.fakes import load_feasibility_declarations
-    from ringdown_market.sourcedata.feasibility import (
+    from esscher.sourcedata.fakes import load_feasibility_declarations
+    from esscher.sourcedata.feasibility import (
         VERDICT_INFEASIBLE,
         build_feasibility_for_candidate,
     )
-    from ringdown_market.strategy.policy import load_strategy_policy
+    from esscher.strategy.policy import load_strategy_policy
 
     fixture = copy.deepcopy(load_fixture())
     for entry in fixture["feasibility"]:
@@ -1109,7 +1109,7 @@ def test_unverified_rights_make_candidate_infeasible() -> None:
 
 
 def test_capture_command_writes_feasibility_manifest(tmp_path: Path, monkeypatch) -> None:
-    from ringdown_market.sourcedata.capture import main
+    from esscher.sourcedata.capture import main
 
     monkeypatch.setenv("ESSCHER_CAPTURE_AUTHORIZED", "yes")
     exit_code = main(

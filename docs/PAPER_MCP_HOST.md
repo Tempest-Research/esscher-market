@@ -107,7 +107,7 @@ synthetic broker, synthetic clocks, or the sourcedata fixture loaders
 
 ## Read-only preflight
 
-`ringdown paper-preflight` connects one host-owned MCP session through the
+`esscher paper-preflight` connects one host-owned MCP session through the
 packaged factory (tool/schema provenance and account eligibility preflight),
 then verifies, exclusively through the read-only door:
 
@@ -134,7 +134,7 @@ MS-Mesh).
 
 ## paper-run and scheduling
 
-`ringdown paper-run --release --arm --state-dir --ledger --output-dir
+`esscher paper-run --release --arm --state-dir --ledger --output-dir
 --host-invocation module:function` requires the explicit authority paths, and
 the selector's `PaperSessionInvocation` must bind byte-identical release/arm
 bytes, the same state directory, and the declared ledger path, or the CLI

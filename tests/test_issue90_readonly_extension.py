@@ -13,7 +13,7 @@ import hashlib
 import json
 from pathlib import Path
 
-from ringdown_market.contracts.execution_policy import (
+from esscher.contracts.execution_policy import (
     ACTIVITIES_TOOL,
     ALPACA_MCP_HOST_OPERATIONS_PROTOCOL,
     ALPACA_MCP_HOST_OPERATIONS_PROTOCOL_SHA256,

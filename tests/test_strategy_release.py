@@ -8,7 +8,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from ringdown_market.contracts.strategy_release import (
+from esscher.contracts.strategy_release import (
     EXPECTED_LANE_BINDINGS,
     ArmRecord,
     PromotionReason,

@@ -7,7 +7,7 @@ contains no credential or raw account identifier.
 ## Current result
 
 The official event page was retrieved on 30 August 2026 at 20:54:04 UTC. The canonical exact-excerpt
-snapshot is packaged as `ringdown_market/contracts/policies/gate_a_programme_v1.json` with SHA-256
+snapshot is packaged as `esscher/contracts/policies/gate_a_programme_v1.json` with SHA-256
 `40c2e780c684bdde671b028dbdd8c9b13268e659c24e98a2d452ff7c8692f955`.
 
 The current result is `ENTRY_DISABLED`. Four entry-relevant organizer rules remain unpublished:

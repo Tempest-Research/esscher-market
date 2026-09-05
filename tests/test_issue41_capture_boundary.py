@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from ringdown_market.contracts.source_matrix import (
+from esscher.contracts.source_matrix import (
     CONDITIONS,
     HumanApprovalDecision,
     MatrixReason,
@@ -17,13 +17,13 @@ from ringdown_market.contracts.source_matrix import (
     parse_source_matrix,
     source_matrix_bytes,
 )
-from ringdown_market.sourcedata.reasons import CollectorReason, CollectorRejected
-from ringdown_market.sourcedata.rights_gate import (
+from esscher.sourcedata.reasons import CollectorReason, CollectorRejected
+from esscher.sourcedata.rights_gate import (
     EARNINGS_CANDIDATE_ID,
     MACRO_CANDIDATE_ID,
     evaluate_capture_rights,
 )
-from ringdown_market.strategy.policy import load_strategy_policy
+from esscher.strategy.policy import load_strategy_policy
 
 REPO_ROOT = Path(__file__).parent.parent
 FIXTURE_PATH = REPO_ROOT / "tests" / "fixtures" / "sourcedata" / "synthetic_snapshot_inputs_v1.json"
@@ -157,7 +157,7 @@ def test_rights_gate_uses_the_exact_selected_candidate_source_classes() -> None:
 
 
 def test_packaged_matrix_is_rebound_after_an_accepted_policy_change(monkeypatch) -> None:
-    import ringdown_market.sourcedata.rights_gate as rights_gate
+    import esscher.sourcedata.rights_gate as rights_gate
 
     amended_policy_bytes = b"accepted-policy-with-a-new-registered-digest"
     monkeypatch.setattr(rights_gate, "strategy_policy_bytes", lambda: amended_policy_bytes)
@@ -199,7 +199,7 @@ def _capture_args(fixture_path: Path, output_dir: Path) -> list[str]:
 
 
 def test_capture_command_requires_an_explicit_fixture(tmp_path: Path, monkeypatch) -> None:
-    from ringdown_market.sourcedata.capture import main
+    from esscher.sourcedata.capture import main
 
     monkeypatch.setenv("ESSCHER_CAPTURE_AUTHORIZED", "yes")
     with pytest.raises(SystemExit) as error:
@@ -225,7 +225,7 @@ def test_capture_command_requires_an_explicit_fixture(tmp_path: Path, monkeypatc
     ),
 )
 def test_capture_clock_requires_explicit_zero_offset_utc(value: str) -> None:
-    from ringdown_market.sourcedata.capture import _capture_timestamp
+    from esscher.sourcedata.capture import _capture_timestamp
 
     with pytest.raises(CollectorRejected) as error:
         _capture_timestamp(value)
@@ -235,7 +235,7 @@ def test_capture_clock_requires_explicit_zero_offset_utc(value: str) -> None:
 def test_capture_command_threads_the_explicit_fixture_to_adapters(
     tmp_path: Path, monkeypatch
 ) -> None:
-    from ringdown_market.sourcedata.capture import main
+    from esscher.sourcedata.capture import main
 
     fixture = copy.deepcopy(json.loads(FIXTURE_PATH.read_text(encoding="utf-8")))
     fixture["security_master"]["prior_regular_close"] = "0.01"

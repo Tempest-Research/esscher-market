@@ -20,7 +20,7 @@ immutable PAPER debit-vertical permit
 existing single official Alpaca MCP boundary
 ```
 
-The implementation is in `src/ringdown_market/contracts/research_to_permit.py`. The frozen research-decision protocol, Alpaca MCP execution protocol, and paper-risk registry entry are defined once in `src/ringdown_market/contracts/execution_policy.py`. The downstream adapter remains `src/ringdown_market/execution/mcp.py`; this bridge adds no order, REST, CLI, network, or alternate-adapter path.
+The implementation is in `src/esscher/contracts/research_to_permit.py`. The frozen research-decision protocol, Alpaca MCP execution protocol, and paper-risk registry entry are defined once in `src/esscher/contracts/execution_policy.py`. The downstream adapter remains `src/esscher/execution/mcp.py`; this bridge adds no order, REST, CLI, network, or alternate-adapter path.
 
 ## Versioned inputs
 

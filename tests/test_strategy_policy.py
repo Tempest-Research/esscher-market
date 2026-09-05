@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from ringdown_market.strategy import (
+from esscher.strategy import (
     load_strategy_policy,
     parse_strategy_policy,
     reasoner_policy_hashes,
@@ -57,9 +57,9 @@ FORBIDDEN_IMPORT_PREFIXES = (
     "httpx",
     "mcp",
     "requests",
-    "ringdown_market.contracts.execution_policy",
-    "ringdown_market.execution",
-    "ringdown_market.runtime",
+    "esscher.contracts.execution_policy",
+    "esscher.execution",
+    "esscher.runtime",
     "socket",
     "subprocess",
     "urllib",
@@ -182,7 +182,7 @@ FORBIDDEN_EXECUTION_PARAMETER_KEYS = {
 
 
 def _resource_bytes() -> bytes:
-    return files("ringdown_market.strategy").joinpath(POLICY_RESOURCE).read_bytes()
+    return files("esscher.strategy").joinpath(POLICY_RESOURCE).read_bytes()
 
 
 def _payload() -> dict[str, object]:
@@ -470,7 +470,7 @@ def test_policy_parser_rejects_post_freeze_mutation() -> None:
 
 
 def test_strategy_package_has_no_execution_runtime_network_or_broker_imports() -> None:
-    strategy_root = ROOT / "src" / "ringdown_market" / "strategy"
+    strategy_root = ROOT / "src" / "esscher" / "strategy"
     violations: list[str] = []
     for path in sorted(strategy_root.rglob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))

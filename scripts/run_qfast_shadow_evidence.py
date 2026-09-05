@@ -14,14 +14,14 @@ import sys
 from decimal import Decimal
 from pathlib import Path
 
-from ringdown_market.alpha.fullstack_adapter import (
+from esscher.alpha.fullstack_adapter import (
     build_shadow_replay_plan,
     shadow_replay_plan_bytes,
 )
-from ringdown_market.alpha.shadow_ledger import SHADOW_PNL_CLASS
-from ringdown_market.alpha.shadow_runner import run_shadow_evaluation
-from ringdown_market.contracts.latency_profile import packaged_latency_profile_bytes
-from ringdown_market.strategy.policy import strategy_policy_sha256
+from esscher.alpha.shadow_ledger import SHADOW_PNL_CLASS
+from esscher.alpha.shadow_runner import run_shadow_evaluation
+from esscher.contracts.latency_profile import packaged_latency_profile_bytes
+from esscher.strategy.policy import strategy_policy_sha256
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_COST_DECIMAL = "0.000000000000"

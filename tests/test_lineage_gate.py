@@ -6,18 +6,16 @@ from pathlib import Path
 
 import pytest
 
-from ringdown_market.contracts.security_lineage import (
+from esscher.contracts.security_lineage import (
     SECURITY_LINEAGE_V1_SHA256,
     load_security_lineage,
 )
-from ringdown_market.contracts.source_matrix import source_matrix_bytes
-from ringdown_market.sourcedata.lineage_gate import evaluate_lineage
-from ringdown_market.sourcedata.reasons import CollectorReason, CollectorRejected
+from esscher.contracts.source_matrix import source_matrix_bytes
+from esscher.sourcedata.lineage_gate import evaluate_lineage
+from esscher.sourcedata.reasons import CollectorReason, CollectorRejected
 
 REPO_ROOT = Path(__file__).parent.parent
-LINEAGE_PATH = (
-    REPO_ROOT / "src" / "ringdown_market" / "contracts" / "policies" / "security_lineage_v1.json"
-)
+LINEAGE_PATH = REPO_ROOT / "src" / "esscher" / "contracts" / "policies" / "security_lineage_v1.json"
 EVIDENCE_DIR = REPO_ROOT / "data" / "security-lineage" / "evidence"
 FIXTURE_PATH = REPO_ROOT / "tests" / "fixtures" / "sourcedata" / "synthetic_snapshot_inputs_v1.json"
 FULL_DEV_CONDITIONS = (
@@ -126,7 +124,7 @@ def _capture_args(output_dir: Path, *, event_id: str = "KR-2026Q2-EARNINGS") -> 
 def test_capture_command_writes_lineage_receipt_and_identity_binding(
     tmp_path: Path, monkeypatch
 ) -> None:
-    from ringdown_market.sourcedata.capture import main
+    from esscher.sourcedata.capture import main
 
     monkeypatch.setenv("ESSCHER_CAPTURE_AUTHORIZED", "yes")
     exit_code = main(_capture_args(tmp_path))
@@ -145,7 +143,7 @@ def test_capture_command_writes_lineage_receipt_and_identity_binding(
 def test_capture_uses_one_canonical_matrix_for_identity_and_lineage(
     tmp_path: Path, monkeypatch
 ) -> None:
-    from ringdown_market.sourcedata.capture import main
+    from esscher.sourcedata.capture import main
 
     monkeypatch.setenv("ESSCHER_CAPTURE_AUTHORIZED", "yes")
     assert main(_capture_args(tmp_path)) == 0
@@ -169,7 +167,7 @@ def test_lineage_gate_rejects_an_alternate_matrix_before_resolution() -> None:
 def test_capture_command_rejects_unknown_lineage_before_snapshot(
     tmp_path: Path, monkeypatch
 ) -> None:
-    from ringdown_market.sourcedata.capture import main
+    from esscher.sourcedata.capture import main
 
     monkeypatch.setenv("ESSCHER_CAPTURE_AUTHORIZED", "yes")
     exit_code = main(_capture_args(tmp_path, event_id="GHOST-2099Q1-EARNINGS"))
@@ -179,7 +177,7 @@ def test_capture_command_rejects_unknown_lineage_before_snapshot(
 
 
 def test_capture_is_byte_identical_with_lineage_gate(tmp_path: Path, monkeypatch) -> None:
-    from ringdown_market.sourcedata.capture import main
+    from esscher.sourcedata.capture import main
 
     monkeypatch.setenv("ESSCHER_CAPTURE_AUTHORIZED", "yes")
     outputs = []

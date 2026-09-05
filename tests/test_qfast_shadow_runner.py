@@ -13,46 +13,46 @@ from pathlib import Path
 
 import pytest
 
-import ringdown_market.alpha.direction_receipts as receipts_module
-import ringdown_market.alpha.evidence_validator as validator_module
-import ringdown_market.alpha.fullstack_adapter as adapter_module
-import ringdown_market.alpha.shadow_ledger as ledger_module
-import ringdown_market.alpha.shadow_runner as runner_module
-from ringdown_market.alpha.direction_receipts import (
+import esscher.alpha.direction_receipts as receipts_module
+import esscher.alpha.evidence_validator as validator_module
+import esscher.alpha.fullstack_adapter as adapter_module
+import esscher.alpha.shadow_ledger as ledger_module
+import esscher.alpha.shadow_runner as runner_module
+from esscher.alpha.direction_receipts import (
     DirectionReceipt,
     DirectionReceiptRejected,
     direction_receipt_bytes,
     parse_direction_receipt,
 )
-from ringdown_market.alpha.evidence_validator import validate_evidence_configuration
-from ringdown_market.alpha.fullstack_adapter import (
+from esscher.alpha.evidence_validator import validate_evidence_configuration
+from esscher.alpha.fullstack_adapter import (
     PLAN_LABELS,
     ReplayPlanReason,
     build_shadow_replay_plan,
     parse_shadow_replay_plan,
     shadow_replay_plan_bytes,
 )
-from ringdown_market.alpha.models import Direction
-from ringdown_market.alpha.shadow_ledger import (
+from esscher.alpha.models import Direction
+from esscher.alpha.shadow_ledger import (
     SHADOW_PNL_CLASS,
     ShadowLedgerRejection,
     append_shadow_episode_pair,
     record_shadow_run,
 )
-from ringdown_market.alpha.shadow_runner import (
+from esscher.alpha.shadow_runner import (
     PromotionRecommendation,
     ShadowRunReason,
     run_shadow_evaluation,
 )
-from ringdown_market.contracts.execution_policy import RESEARCH_DECISION_PROTOCOL_SHA256
-from ringdown_market.contracts.latency_profile import (
+from esscher.contracts.execution_policy import RESEARCH_DECISION_PROTOCOL_SHA256
+from esscher.contracts.latency_profile import (
     latency_profile_content_sha256,
     packaged_latency_profile_bytes,
     validate_latency_profile,
 )
-from ringdown_market.panel.manifest import P0_CONTRACT_DEVELOPMENT_EVENT_IDS
-from ringdown_market.risk.ledger import RiskLedger
-from ringdown_market.strategy.policy import strategy_policy_sha256
+from esscher.panel.manifest import P0_CONTRACT_DEVELOPMENT_EVENT_IDS
+from esscher.risk.ledger import RiskLedger
+from esscher.strategy.policy import strategy_policy_sha256
 
 CUTOFF = datetime(2026, 8, 28, 13, 35, tzinfo=UTC)
 POLICY_SHA = strategy_policy_sha256()
@@ -275,7 +275,7 @@ def _bundle_bytes(manifest_sha: str, directions: tuple[Direction, ...] = DIRECTI
 
 @pytest.fixture()
 def config(monkeypatch: pytest.MonkeyPatch) -> dict[str, bytes]:
-    import ringdown_market.panel.manifest as panel_manifest
+    import esscher.panel.manifest as panel_manifest
 
     rule = _rule_bytes()
     manifest = _manifest_bytes(_sha(rule))
@@ -489,7 +489,7 @@ def test_shadow_ledger_cutoff_violation_raises(config: dict[str, bytes]) -> None
         "snapshot_sha256": result.sha256,
         "costs": Decimal("0"),
     }
-    import ringdown_market.risk.ledger as _unused  # noqa: F401  (documentation anchor)
+    import esscher.risk.ledger as _unused  # noqa: F401  (documentation anchor)
 
     with pytest.raises(ShadowLedgerRejection):
         append_shadow_episode_pair(_LedgerStub(), **ledger_args)

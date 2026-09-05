@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from ringdown_market.cli import main
+from esscher.cli import main
 
 FIXTURES = Path(__file__).parent / "fixtures"
 SYNTHETIC_RULE = FIXTURES / "synthetic_qfast_panel_selection_rule.json"

@@ -9,7 +9,7 @@ from decimal import Decimal
 
 import pytest
 
-from ringdown_market.contracts.broker_preflight import (
+from esscher.contracts.broker_preflight import (
     PREFLIGHT_CLAIMS,
     BrokerPreflightReceipt,
     BrokerPreflightRejected,
@@ -18,7 +18,7 @@ from ringdown_market.contracts.broker_preflight import (
     finalize_broker_preflight_receipt,
     parse_broker_preflight_receipt,
 )
-from ringdown_market.contracts.execution_policy import (
+from esscher.contracts.execution_policy import (
     ALPACA_MCP_HOST_OPERATIONS_PROTOCOL_SHA256,
     ALPACA_MCP_READONLY_EXTENSION_SCHEMA_SHA256,
     ALPACA_MCP_V2_PROTOCOL_SHA256,

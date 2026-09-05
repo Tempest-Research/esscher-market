@@ -5,7 +5,7 @@ from types import MappingProxyType
 
 import pytest
 
-from ringdown_market.strategy.policy import (
+from esscher.strategy.policy import (
     StrategyPolicyError,
     load_strategy_policy,
     load_strategy_policy_v2,

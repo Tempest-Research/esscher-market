@@ -15,8 +15,8 @@ from threading import Barrier
 
 import pytest
 
-from ringdown_market.autonomy import autonomous_policy_sha256
-from ringdown_market.autonomy.universe import (
+from esscher.autonomy import autonomous_policy_sha256
+from esscher.autonomy.universe import (
     AbstainReason,
     AllocationStatus,
     DefinedRiskOpportunity,
@@ -24,12 +24,12 @@ from ringdown_market.autonomy.universe import (
     RiskTier,
     allocate_defined_risk,
 )
-from ringdown_market.execution.expression.compiler import (
+from esscher.execution.expression.compiler import (
     CompiledExpression,
     compiled_expression_sha256,
 )
-from ringdown_market.execution.expression.reasons import ExpressionKind
-from ringdown_market.execution.models import (
+from esscher.execution.expression.reasons import ExpressionKind
+from esscher.execution.models import (
     DebitVerticalPermit,
     OptionLeg,
     OptionSide,
@@ -38,7 +38,7 @@ from ringdown_market.execution.models import (
     VerticalType,
     debit_vertical_permit_id,
 )
-from ringdown_market.risk import (
+from esscher.risk import (
     RISK_POLICY_V2_SCHEMA,
     RISK_POLICY_V2_SCHEMA_VERSION,
     AccountSnapshot,
@@ -57,7 +57,7 @@ from ringdown_market.risk import (
     risk_policy_v2_payload,
     risk_policy_v2_sha256,
 )
-from ringdown_market.risk.snapshots import OrderSnapshot, PositionSnapshot
+from esscher.risk.snapshots import OrderSnapshot, PositionSnapshot
 
 NOW = datetime(2026, 9, 1, 15, 0, tzinfo=UTC)
 
@@ -953,7 +953,7 @@ def _fresh_process_v2_state(database: Path, event_id: str) -> dict[str, str]:
     )
     script = (
         "import json, sys\n"
-        "from ringdown_market.risk import RiskLedger\n"
+        "from esscher.risk import RiskLedger\n"
         "ledger = RiskLedger(sys.argv[1])\n"
         "try:\n"
         "    row = ledger.v2_reservation_for_event(sys.argv[2])\n"

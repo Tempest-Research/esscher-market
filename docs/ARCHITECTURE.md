@@ -106,7 +106,7 @@ The adapter, host boundary, inert paper-demo runner, and one-shot scheduled runt
 
 ## Product and machine-interface naming
 
-Esscher is the human-facing product name. The `0.3.0` integration draft deliberately keeps the `ringdown-market` distribution, `ringdown_market` import package, `ringdown` command and version prefix, configuration keys, report schema keys, and receipt identifiers. The canonical repository is `Tempest-Research/esscher-market`.
+Esscher uses the `esscher-market` distribution, `esscher` import package, and `esscher` command and version prefix. Configuration keys, report schema keys, and receipt identifiers remain unchanged. Old imports and commands must be migrated; no aliases are installed. The canonical repository is `Tempest-Research/esscher-market`.
 
 The deterministic report keeps the legacy `project: "Ringdown"` value and adds `product_name: "Esscher"` for public display. This is an additive alias; existing schema keys and values remain available.
 
@@ -244,10 +244,10 @@ broker, MCP, order, or trading authority.
 
 ## Path ownership
 
-- `src/ringdown_market/alpha/`, evidence manifests, and replay fixtures: evidence lane.
-- `src/ringdown_market/strategy/`: strategy-contract lane.
-- `src/ringdown_market/contracts/`: shared frozen decision, policy, and protocol boundary.
-- `src/ringdown_market/execution/`: runtime/integration lane.
+- `src/esscher/alpha/`, evidence manifests, and replay fixtures: evidence lane.
+- `src/esscher/strategy/`: strategy-contract lane.
+- `src/esscher/contracts/`: shared frozen decision, policy, and protocol boundary.
+- `src/esscher/execution/`: runtime/integration lane.
 - `web/` and public presentation assets: proof/submission lane.
 - `.github/`, packaging, shared contracts, and final integration: Ben.
 

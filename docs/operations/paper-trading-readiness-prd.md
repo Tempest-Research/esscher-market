@@ -105,8 +105,8 @@ Required sequence:
 - Commit authorship remains attributable.
 - `git diff --check`, formatting/lint, full pytest, and package build pass on the exact head.
 - Because the bound `main` baseline has no configured type checker and does not pass an unsuppressed whole-repository type check, the RC uses this approved production no-new-regressions type policy:
-  - pin Pyright `1.1.411` and run it with the same Python environment over `src/ringdown_market` on the exact base SHA and exact RC SHA;
-  - every production Python file added under `src/ringdown_market` must have zero Pyright `error` diagnostics on the RC;
+  - pin Pyright `1.1.411` and run it with the same Python environment over `src/esscher` on the exact base SHA and exact RC SHA;
+  - every production Python file added under `src/esscher` must have zero Pyright `error` diagnostics on the RC;
   - for modified and unchanged production Python files, normalized RC error diagnostics must be a subset of the exact-base diagnostics for that file;
   - the RC production-source error total must not exceed the exact-base production-source total;
   - normalize diagnostics by repository-relative file, rule, severity, and message so line movement alone cannot manufacture a regression or a pass;

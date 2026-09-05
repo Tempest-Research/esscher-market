@@ -36,4 +36,4 @@ The command writes `qfast_shadow_report.json`, `evidence_validation.json`, and (
 
 ## Boundary
 
-No Kimi or provider call, no latency fabrication, no account query, no Alpaca MCP invocation, no PAPER order, cancellation, position mutation, deployment, merge, tag, or real-money path. Owned surface: `src/ringdown_market/alpha/` evaluation/reporting modules, `scripts/run_qfast_shadow_evidence.py`, focused tests and synthetic fixtures, and this document. `runtime/autonomous.py`, `cli.py`, `risk/ledger.py`, execution/MCP code, policy JSON, and release contracts are consumed, never edited.
+No Kimi or provider call, no latency fabrication, no account query, no Alpaca MCP invocation, no PAPER order, cancellation, position mutation, deployment, merge, tag, or real-money path. Owned surface: `src/esscher/alpha/` evaluation/reporting modules, `scripts/run_qfast_shadow_evidence.py`, focused tests and synthetic fixtures, and this document. `runtime/autonomous.py`, `cli.py`, `risk/ledger.py`, execution/MCP code, policy JSON, and release contracts are consumed, never edited.

@@ -8,8 +8,8 @@ from datetime import UTC, datetime
 
 import pytest
 
-from ringdown_market.runtime.autonomous import ReconciliationRequest, ReconciliationStatus
-from ringdown_market.runtime.autonomous_host import (
+from esscher.runtime.autonomous import ReconciliationRequest, ReconciliationStatus
+from esscher.runtime.autonomous_host import (
     AUTONOMOUS_HOST_CLAIMS,
     AUTONOMOUS_HOST_PAPER_MCP_CLAIM_BASIS,
     AUTONOMOUS_HOST_PAPER_MCP_CLAIMS,

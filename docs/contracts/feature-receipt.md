@@ -4,8 +4,8 @@ Issue #43 owns the canonical deterministic arithmetic boundary between
 immutable evidence and every baseline or LLM decision arm. Numeric arithmetic
 and data-health decisions are never delegated to model prose. The receipt
 schema is `esscher.feature_receipt/v1`, serialized by
-`ringdown_market/strategy/contracts.py` and produced by
-`ringdown_market/sourcedata/compiler.py`.
+`esscher/strategy/contracts.py` and produced by
+`esscher/sourcedata/compiler.py`.
 
 ## Bound fields
 

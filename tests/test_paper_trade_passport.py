@@ -8,13 +8,13 @@ from decimal import Decimal
 
 import pytest
 
-from ringdown_market.contracts.execution_policy import (
+from esscher.contracts.execution_policy import (
     ALPACA_MCP_PROTOCOL_SHA256,
     PAPER_PERMIT_POLICY_SHA256,
     RESEARCH_DECISION_PROTOCOL_SHA256,
     paper_event_run_id,
 )
-from ringdown_market.execution.models import (
+from esscher.execution.models import (
     DebitVerticalPermit,
     OptionLeg,
     OptionSide,
@@ -23,17 +23,17 @@ from ringdown_market.execution.models import (
     VerticalType,
     debit_vertical_permit_id,
 )
-from ringdown_market.execution.paper_demo import (
+from esscher.execution.paper_demo import (
     PaperPnlClass,
     PaperPnlObservation,
     PaperReceiptBundle,
 )
-from ringdown_market.passport.chain import (
+from esscher.passport.chain import (
     PassportChainError,
     TradePassport,
     parse_passport_bytes,
 )
-from ringdown_market.passport.paper import (
+from esscher.passport.paper import (
     PaperPassportRejected,
     PaperPassportStage,
     PaperPassportVerdictReason,

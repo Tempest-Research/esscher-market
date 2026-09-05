@@ -6,16 +6,16 @@ A `HEALTHY` report is **engineering evidence only**: it shows that the manifest 
 
 ## Boundary
 
-- Library API only: `ringdown_market.audit.source_health`. No CLI, runtime, evaluation, or execution surface is touched.
+- Library API only: `esscher.audit.source_health`. No CLI, runtime, evaluation, or execution surface is touched.
 - Zero network capability: no DNS, HTTP, browser, MCP, broker, or account access. The module imports no network, subprocess, or broker capability, and tests enforce this.
 - No source scraping, correction, schema evolution, or outcome inspection.
-- Reuses the strict parsing of the frozen replay-evidence contract (`ringdown_market.contracts.replay_evidence`) instead of defining a parallel schema.
+- Reuses the strict parsing of the frozen replay-evidence contract (`esscher.contracts.replay_evidence`) instead of defining a parallel schema.
 
 ## Usage
 
 ```python
 from pathlib import Path
-from ringdown_market.audit.source_health import (
+from esscher.audit.source_health import (
     canonical_report_bytes,
     check_manifest,
     check_path,

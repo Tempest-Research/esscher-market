@@ -13,20 +13,20 @@ from pathlib import Path
 
 import pytest
 
-import ringdown_market.runtime.scheduled as scheduled_module
-from ringdown_market.cli import main as cli_main
-from ringdown_market.contracts.execution_policy import (
+import esscher.runtime.scheduled as scheduled_module
+from esscher.cli import main as cli_main
+from esscher.contracts.execution_policy import (
     ALPACA_MCP_PROTOCOL_SHA256,
     PAPER_PERMIT_POLICY_SHA256,
     RESEARCH_DECISION_PROTOCOL_SHA256,
     paper_event_run_id,
 )
-from ringdown_market.execution.host_mcp import (
+from esscher.execution.host_mcp import (
     HostMcpEnvironment,
     HostMcpPaperSessionFactory,
     HostMcpSessionIdentity,
 )
-from ringdown_market.execution.mcp import (
+from esscher.execution.mcp import (
     CANCEL_TOOL,
     OPEN_TOOL,
     ORDER_BY_ID_TOOL,
@@ -35,7 +35,7 @@ from ringdown_market.execution.mcp import (
     build_close_order_call,
     build_open_order_call,
 )
-from ringdown_market.execution.models import (
+from esscher.execution.models import (
     ClosePermit,
     DebitVerticalPermit,
     OptionLeg,
@@ -45,8 +45,8 @@ from ringdown_market.execution.models import (
     VerticalType,
     debit_vertical_permit_id,
 )
-from ringdown_market.execution.paper_demo import PaperDemoPlan
-from ringdown_market.runtime.scheduled import (
+from esscher.execution.paper_demo import PaperDemoPlan
+from esscher.runtime.scheduled import (
     FileScheduledEventStore,
     ScheduledEventManifest,
     ScheduledEventOverlap,

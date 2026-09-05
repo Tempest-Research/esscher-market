@@ -12,7 +12,7 @@ from typing import Any
 
 import pytest
 
-from ringdown_market.contracts.research_to_permit import (
+from esscher.contracts.research_to_permit import (
     ALPACA_MCP_PROTOCOL_SHA256,
     PAPER_PERMIT_POLICY_SHA256,
     PAPER_PERMIT_POLICY_VERSION,
@@ -22,8 +22,8 @@ from ringdown_market.contracts.research_to_permit import (
     PermitRejectionReason,
     map_frozen_decision_to_permit,
 )
-from ringdown_market.execution.mcp import build_open_order_call
-from ringdown_market.execution.models import (
+from esscher.execution.mcp import build_open_order_call
+from esscher.execution.models import (
     DataClass,
     OptionSide,
     PositionIntent,

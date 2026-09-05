@@ -9,11 +9,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from ringdown_market.contracts.reasoner_route import (
+from esscher.contracts.reasoner_route import (
     RouteCompatibilityState,
     load_approved_reasoner_route,
 )
-from ringdown_market.strategy.contracts import (
+from esscher.strategy.contracts import (
     build_strategy_input,
     candidate_manifest_bytes,
     canonical_json_bytes,
@@ -21,7 +21,7 @@ from ringdown_market.strategy.contracts import (
     sha256_bytes,
     strategy_snapshot_bytes,
 )
-from ringdown_market.strategy.host_route import (
+from esscher.strategy.host_route import (
     ENV_API_KEY,
     HostRouteConfigurationError,
     HostRouteInputIntegrityError,
@@ -32,7 +32,7 @@ from ringdown_market.strategy.host_route import (
     invoke_kimi_k3_transport,
     load_route_environment,
 )
-from ringdown_market.strategy.reasoner import ReasonerRouteRequest
+from esscher.strategy.reasoner import ReasonerRouteRequest
 from test_strategy_contracts import _strategy_input
 
 FORBIDDEN_REQUEST_FIELDS = {

@@ -2,12 +2,12 @@
 * @bbeennyy860-cyber
 
 # Evidence, strategy, and deterministic replay
-/src/ringdown_market/alpha/ @MS-Mesh @bbeennyy860-cyber
+/src/esscher/alpha/ @MS-Mesh @bbeennyy860-cyber
 /tests/fixtures/ @MS-Mesh @bbeennyy860-cyber
 /data/ @MS-Mesh @bbeennyy860-cyber
 
 # Runtime and the sole broker boundary
-/src/ringdown_market/execution/ @bbeennyy860-cyber
+/src/esscher/execution/ @bbeennyy860-cyber
 
 # Static proof and public submission surfaces
 /web/ @akurkar07 @bbeennyy860-cyber

@@ -13,7 +13,7 @@ from decimal import Decimal
 
 import pytest
 
-from ringdown_market.autonomy.universe import (
+from esscher.autonomy.universe import (
     AbstainReason,
     AllocationReservation,
     AllocationStatus,
@@ -1256,8 +1256,8 @@ def test_first_owner_tier_drives_ten_percent_operative_sizing() -> None:
     max loss on a fresh $100k account while every frozen capacity cap still
     binds (20% per underlying, 50% aggregate, unborrowed cash)."""
 
-    from ringdown_market.application.autonomous_bridge import derived_risk_tier
-    from ringdown_market.risk.policy import load_risk_policy_v2
+    from esscher.application.autonomous_bridge import derived_risk_tier
+    from esscher.risk.policy import load_risk_policy_v2
 
     policy = load_risk_policy_v2()
     assert policy.risk_tiers[0] == Decimal("0.10")

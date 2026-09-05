@@ -39,7 +39,7 @@ def _build_local_wheel(wheel_dir: Path) -> tuple[Path, str]:
     config = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     project = config["project"]
     packages = config["tool"]["hatch"]["build"]["targets"]["wheel"]["packages"]
-    assert packages == ["src/ringdown_market"]
+    assert packages == ["src/esscher"]
 
     name = project["name"]
     version = project["version"]
@@ -78,7 +78,7 @@ def _build_local_wheel(wheel_dir: Path) -> tuple[Path, str]:
     dist_info = f"{normalized_name}-{version}.dist-info"
     wheel_path = wheel_dir / f"{normalized_name}-{version}-py3-none-any.whl"
     source_root = REPO_ROOT / "src"
-    package_root = source_root / "ringdown_market"
+    package_root = source_root / "esscher"
     members = [
         (path.relative_to(source_root).as_posix(), path.read_bytes())
         for path in sorted(package_root.rglob("*"))
@@ -183,20 +183,17 @@ def test_installed_wheel_runs_capture_with_explicit_fixture(tmp_path: Path) -> N
             [
                 str(python),
                 "-c",
-                (
-                    "import pathlib, ringdown_market; "
-                    "print(pathlib.Path(ringdown_market.__file__).resolve())"
-                ),
+                ("import pathlib, esscher; print(pathlib.Path(esscher.__file__).resolve())"),
             ],
             cwd=tmp_path,
             env=env,
         ).stdout.strip()
     )
     assert installed_path.is_relative_to(target_site)
-    cli = _venv_executable(venv_dir, "ringdown")
+    cli = _venv_executable(venv_dir, "esscher")
     assert cli.is_file()
     assert (
-        _run([str(cli), "--version"], cwd=tmp_path, env=env).stdout.strip() == f"ringdown {version}"
+        _run([str(cli), "--version"], cwd=tmp_path, env=env).stdout.strip() == f"esscher {version}"
     )
 
     output_dir = tmp_path / "capture-output"
@@ -204,7 +201,7 @@ def test_installed_wheel_runs_capture_with_explicit_fixture(tmp_path: Path) -> N
     capture_command = [
         str(python),
         "-m",
-        "ringdown_market.sourcedata.capture",
+        "esscher.sourcedata.capture",
         "--event-id",
         "KR-2026Q2-EARNINGS",
         "--fixture",

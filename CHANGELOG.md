@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased] - Package/CLI migration
+
+### Changed
+- Renamed the Python package to `esscher`, distribution to `esscher-market`, and command to `esscher`; updated imports, resources, tests, CI and current usage documentation. Old imports and commands have no compatibility aliases.
+- Frozen schema identifiers, report fields, policy/fixture bytes and historical evidence remain unchanged. Host deployments and release/arm records are not activated or reapproved.
+- Version impact: **major** (incompatible import and CLI interfaces). The numeric bump is deferred to the release-train PR; this unpublished working branch retains canonical version `0.4.0`.
+
 ## [0.4.0] - Unreleased
 
 ### Added

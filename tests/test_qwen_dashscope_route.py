@@ -19,7 +19,7 @@ import json
 
 import pytest
 
-from ringdown_market.contracts.reasoner_route import (
+from esscher.contracts.reasoner_route import (
     QWEN_DASHSCOPE_BASE_URL,
     QWEN_DASHSCOPE_MAX_COMPLETION_TOKENS,
     QWEN_DASHSCOPE_MODEL,
@@ -34,14 +34,14 @@ from ringdown_market.contracts.reasoner_route import (
     packaged_route_descriptor_v5_bytes,
     validate_reasoner_route_v5,
 )
-from ringdown_market.runtime.host_composition import rehearsal_direction, rehearsal_timeline
-from ringdown_market.strategy.contracts import (
+from esscher.runtime.host_composition import rehearsal_direction, rehearsal_timeline
+from esscher.strategy.contracts import (
     reasoner_output_schema_sha256,
     reasoner_policy_hashes,
     reasoner_system_prompt_bytes,
 )
-from ringdown_market.strategy.engine import BoundedDecisionEngine
-from ringdown_market.strategy.host_route import (
+from esscher.strategy.engine import BoundedDecisionEngine
+from esscher.strategy.host_route import (
     ENV_QWEN_DASHSCOPE_API_KEY,
     HostRouteConfigurationError,
     HostRouteSecretBoundaryError,
@@ -51,8 +51,8 @@ from ringdown_market.strategy.host_route import (
     load_qwen_dashscope_route_environment,
     unwrap_openai_chat_envelope,
 )
-from ringdown_market.strategy.models import ExchangeStatus
-from ringdown_market.strategy.reasoner import (
+from esscher.strategy.models import ExchangeStatus
+from esscher.strategy.reasoner import (
     SYNTHETIC_ROUTE_IDENTITY,
     ReasonerRouteRequest,
     RouteIdentity,

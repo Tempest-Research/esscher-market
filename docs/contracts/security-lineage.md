@@ -3,7 +3,7 @@
 Issue #42 makes issuer, security, listing, and event identity reconstructible
 at every decision cutoff without depending on the current ticker. The canonical
 lineage is packaged as
-`ringdown_market/contracts/policies/security_lineage_v1.json` with SHA-256
+`esscher/contracts/policies/security_lineage_v1.json` with SHA-256
 `b400453a62ced05dacaa338dd59b90bceeba04853d9aef572ebfbcd16cb97ff5` and binds
 the accepted event policy digest `afce93b52b96e0d8c71deeb80027a1c87a4cf3623e9417db14de00279fc23bca`
 and the packaged source-matrix digest

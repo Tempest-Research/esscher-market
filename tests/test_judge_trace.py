@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from ringdown_market.cli import main
+from esscher.cli import main
 
 ROOT = Path(__file__).parents[1]
 
@@ -98,11 +98,11 @@ def test_cli_exposes_read_only_judge_trace_command(
 
 
 def test_packaged_inputs_are_byte_identical_to_merged_sources() -> None:
-    package_spec = importlib.util.find_spec("ringdown_market.demo")
+    package_spec = importlib.util.find_spec("esscher.demo")
     assert package_spec is not None
-    spec = importlib.util.find_spec("ringdown_market.demo.judge_trace")
+    spec = importlib.util.find_spec("esscher.demo.judge_trace")
     assert spec is not None
-    judge_trace = importlib.import_module("ringdown_market.demo.judge_trace")
+    judge_trace = importlib.import_module("esscher.demo.judge_trace")
 
     inputs = judge_trace.load_packaged_trace_inputs()
 
@@ -129,7 +129,7 @@ def test_packaged_inputs_are_byte_identical_to_merged_sources() -> None:
 
 
 def test_renderer_produces_byte_stable_offline_evidence_trace() -> None:
-    judge_trace = importlib.import_module("ringdown_market.demo.judge_trace")
+    judge_trace = importlib.import_module("esscher.demo.judge_trace")
     inputs = judge_trace.load_packaged_trace_inputs()
 
     first = judge_trace.render_judge_trace(inputs)
@@ -157,7 +157,7 @@ def test_renderer_produces_byte_stable_offline_evidence_trace() -> None:
 
 
 def test_renderer_shows_contract_valid_terminal_rejected_and_manual_outcomes() -> None:
-    judge_trace = importlib.import_module("ringdown_market.demo.judge_trace")
+    judge_trace = importlib.import_module("esscher.demo.judge_trace")
     page = judge_trace.render_judge_trace(judge_trace.load_packaged_trace_inputs()).decode("utf-8")
 
     assert "Official Alpaca MCP PAPER lifecycle" in page
@@ -192,7 +192,7 @@ def test_renderer_shows_contract_valid_terminal_rejected_and_manual_outcomes() -
 
 
 def test_untrusted_text_is_escaped_and_never_becomes_an_html_attribute() -> None:
-    judge_trace = importlib.import_module("ringdown_market.demo.judge_trace")
+    judge_trace = importlib.import_module("esscher.demo.judge_trace")
     inputs = judge_trace.load_packaged_trace_inputs()
     evidence = json.loads(inputs.evidence_bytes)
     evidence["issuer"] = "</dd><img src=x onerror=alert(1)>"
@@ -219,7 +219,7 @@ def test_untrusted_text_is_escaped_and_never_becomes_an_html_attribute() -> None
 
 
 def test_renderer_rejects_a_fixture_that_weakens_the_safety_labels() -> None:
-    judge_trace = importlib.import_module("ringdown_market.demo.judge_trace")
+    judge_trace = importlib.import_module("esscher.demo.judge_trace")
     inputs = judge_trace.load_packaged_trace_inputs()
     accepted = json.loads(inputs.accepted_bytes)
     accepted["limitations"].remove("NO_BROKER_EXECUTION")
@@ -233,7 +233,7 @@ def test_renderer_rejects_a_fixture_that_weakens_the_safety_labels() -> None:
 
 
 def test_renderer_rejects_a_nonpaper_lifecycle_artifact() -> None:
-    judge_trace = importlib.import_module("ringdown_market.demo.judge_trace")
+    judge_trace = importlib.import_module("esscher.demo.judge_trace")
     inputs = judge_trace.load_packaged_trace_inputs()
     accepted = json.loads(inputs.accepted_bytes)
     accepted["artifact"]["run_mode"] = "LIVE"
@@ -250,7 +250,7 @@ def test_renderer_rejects_a_nonpaper_lifecycle_artifact() -> None:
 
 
 def test_renderer_rejects_an_unsupported_evidence_contract() -> None:
-    judge_trace = importlib.import_module("ringdown_market.demo.judge_trace")
+    judge_trace = importlib.import_module("esscher.demo.judge_trace")
     inputs = judge_trace.load_packaged_trace_inputs()
     evidence = json.loads(inputs.evidence_bytes)
     evidence["schema_version"] = 1
@@ -302,7 +302,7 @@ def test_renderer_rejects_malformed_displayed_evidence_provenance(
     path: tuple[str | int, ...],
     invalid_value: object,
 ) -> None:
-    judge_trace = importlib.import_module("ringdown_market.demo.judge_trace")
+    judge_trace = importlib.import_module("esscher.demo.judge_trace")
     inputs = judge_trace.load_packaged_trace_inputs()
     evidence = json.loads(inputs.evidence_bytes)
     _set_json_path(evidence, path, invalid_value)
@@ -316,7 +316,7 @@ def test_renderer_rejects_malformed_displayed_evidence_provenance(
 
 
 def test_renderer_rejects_an_accepted_outcome_without_a_terminal_receipt() -> None:
-    judge_trace = importlib.import_module("ringdown_market.demo.judge_trace")
+    judge_trace = importlib.import_module("esscher.demo.judge_trace")
     inputs = judge_trace.load_packaged_trace_inputs()
     accepted = json.loads(inputs.accepted_bytes)
     del accepted["artifact"]["receipt"]
@@ -333,7 +333,7 @@ def test_renderer_rejects_an_accepted_outcome_without_a_terminal_receipt() -> No
 
 
 def test_renderer_rejects_a_manual_stop_that_claims_a_receipt() -> None:
-    judge_trace = importlib.import_module("ringdown_market.demo.judge_trace")
+    judge_trace = importlib.import_module("esscher.demo.judge_trace")
     inputs = judge_trace.load_packaged_trace_inputs()
     manual = json.loads(inputs.manual_bytes)
     manual["artifact"]["receipt"] = {"paper_pnl": "invented"}
@@ -350,7 +350,7 @@ def test_renderer_rejects_a_manual_stop_that_claims_a_receipt() -> None:
 
 
 def test_renderer_rejects_a_receipt_outside_the_paper_boundary() -> None:
-    judge_trace = importlib.import_module("ringdown_market.demo.judge_trace")
+    judge_trace = importlib.import_module("esscher.demo.judge_trace")
     inputs = judge_trace.load_packaged_trace_inputs()
     accepted = json.loads(inputs.accepted_bytes)
     accepted["artifact"]["receipt"]["run_mode"] = "LIVE"
@@ -399,7 +399,7 @@ def test_renderer_rejects_a_rehashed_semantically_invalid_terminal_receipt(
     path: tuple[str | int, ...],
     invalid_value: object,
 ) -> None:
-    judge_trace = importlib.import_module("ringdown_market.demo.judge_trace")
+    judge_trace = importlib.import_module("esscher.demo.judge_trace")
     inputs = judge_trace.load_packaged_trace_inputs()
     accepted = json.loads(inputs.accepted_bytes)
     artifact = accepted["artifact"]
@@ -418,7 +418,7 @@ def test_renderer_rejects_a_rehashed_semantically_invalid_terminal_receipt(
 
 
 def test_renderer_rejects_a_rehashed_receipt_with_a_missing_event_identity() -> None:
-    judge_trace = importlib.import_module("ringdown_market.demo.judge_trace")
+    judge_trace = importlib.import_module("esscher.demo.judge_trace")
     inputs = judge_trace.load_packaged_trace_inputs()
     accepted = json.loads(inputs.accepted_bytes)
     artifact = accepted["artifact"]
@@ -455,7 +455,7 @@ def test_cli_writes_a_byte_stable_self_contained_trace(tmp_path: Path) -> None:
 
 
 def test_all_normal_text_palette_tokens_meet_wcag_aa_contrast() -> None:
-    judge_trace = importlib.import_module("ringdown_market.demo.judge_trace")
+    judge_trace = importlib.import_module("esscher.demo.judge_trace")
     page = judge_trace.render_judge_trace(judge_trace.load_packaged_trace_inputs()).decode("utf-8")
     root_tokens = page.split(":root {", 1)[1].split("}", 1)[0]
     colors = dict(re.findall(r"--([a-z-]+): (#[0-9a-f]{6});", root_tokens))
@@ -465,7 +465,7 @@ def test_all_normal_text_palette_tokens_meet_wcag_aa_contrast() -> None:
 
 
 def test_page_explains_the_full_read_only_contract_path_in_plain_english() -> None:
-    judge_trace = importlib.import_module("ringdown_market.demo.judge_trace")
+    judge_trace = importlib.import_module("esscher.demo.judge_trace")
     page = judge_trace.render_judge_trace(judge_trace.load_packaged_trace_inputs()).decode("utf-8")
 
     assert "Frozen evidence. Missing links. Receipt contracts." in page

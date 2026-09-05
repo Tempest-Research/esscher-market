@@ -7,7 +7,7 @@ import inspect
 from collections.abc import Awaitable, Callable, Sequence
 from pathlib import Path
 
-from ringdown_market.execution.paper_demo import (
+from esscher.execution.paper_demo import (
     FilePaperAttemptStore,
     PaperDemoApproval,
     PaperDemoPlan,

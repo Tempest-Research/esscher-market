@@ -40,25 +40,25 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 sys.path.insert(0, str(REPO_ROOT / "tests"))
 
-from ringdown_market.alpha.fullstack_adapter import (  # noqa: E402
+from esscher.alpha.fullstack_adapter import (  # noqa: E402
     build_shadow_replay_plan,
     shadow_replay_plan_bytes,
 )
-from ringdown_market.alpha.fullstack_shadow_comparison import compare_fullstack  # noqa: E402
-from ringdown_market.alpha.prospective_ledger import (  # noqa: E402
+from esscher.alpha.fullstack_shadow_comparison import compare_fullstack  # noqa: E402
+from esscher.alpha.prospective_ledger import (  # noqa: E402
     ProspectiveLedger,
     verify_ledger_bytes,
 )
-from ringdown_market.alpha.qfast_panel_reports import (  # noqa: E402
+from esscher.alpha.qfast_panel_reports import (  # noqa: E402
     run_qfast_panel,
     run_source_health_gate,
 )
-from ringdown_market.alpha.shadow_runner import run_shadow_evaluation  # noqa: E402
-from ringdown_market.contracts.latency_profile import (  # noqa: E402
+from esscher.alpha.shadow_runner import run_shadow_evaluation  # noqa: E402
+from esscher.contracts.latency_profile import (  # noqa: E402
     load_latency_profile,
     packaged_latency_profile_bytes,
 )
-from ringdown_market.strategy.contracts import canonical_json_bytes, sha256_bytes  # noqa: E402
+from esscher.strategy.contracts import canonical_json_bytes, sha256_bytes  # noqa: E402
 from test_qfast_panel_evidence import (  # noqa: E402
     FREEZE_RECORDED_AT,
     POLICY_SHA,

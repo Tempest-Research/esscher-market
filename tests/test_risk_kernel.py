@@ -14,12 +14,12 @@ from decimal import Decimal
 
 import pytest
 
-from ringdown_market.execution.expression.compiler import (
+from esscher.execution.expression.compiler import (
     CompiledExpression,
     compiled_expression_sha256,
 )
-from ringdown_market.execution.expression.reasons import ExpressionKind
-from ringdown_market.execution.models import (
+from esscher.execution.expression.reasons import ExpressionKind
+from esscher.execution.models import (
     DebitVerticalPermit,
     OptionLeg,
     OptionSide,
@@ -28,7 +28,7 @@ from ringdown_market.execution.models import (
     VerticalType,
     debit_vertical_permit_id,
 )
-from ringdown_market.risk import (
+from esscher.risk import (
     SCHEMA_VERSION,
     ControlState,
     PassportEventType,
@@ -42,7 +42,7 @@ from ringdown_market.risk import (
     risk_policy_sha256,
     verify_passport,
 )
-from ringdown_market.risk.snapshots import AccountSnapshot, OrderSnapshot, PositionSnapshot
+from esscher.risk.snapshots import AccountSnapshot, OrderSnapshot, PositionSnapshot
 
 NOW = datetime(2026, 9, 11, 14, 0, 0, tzinfo=UTC)
 EVENT = "KR-2026Q2-EARNINGS"

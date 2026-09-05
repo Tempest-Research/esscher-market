@@ -43,26 +43,26 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 sys.path.insert(0, str(REPO_ROOT / "tests"))
 
-from ringdown_market.contracts.latency_profile import load_latency_profile  # noqa: E402
-from ringdown_market.contracts.reasoner_route import (  # noqa: E402
+from esscher.contracts.latency_profile import load_latency_profile  # noqa: E402
+from esscher.contracts.reasoner_route import (  # noqa: E402
     load_current_approved_reasoner_route,
 )
-from ringdown_market.runtime.host_composition import rehearsal_timeline  # noqa: E402
-from ringdown_market.strategy.contracts import (  # noqa: E402
+from esscher.runtime.host_composition import rehearsal_timeline  # noqa: E402
+from esscher.strategy.contracts import (  # noqa: E402
     canonical_json_bytes,
     reasoner_policy_hashes,
     sha256_bytes,
     strategy_decision_payload,
 )
-from ringdown_market.strategy.engine import BoundedDecisionEngine  # noqa: E402
-from ringdown_market.strategy.host_route import (  # noqa: E402
+from esscher.strategy.engine import BoundedDecisionEngine  # noqa: E402
+from esscher.strategy.host_route import (  # noqa: E402
     ENV_FURRY_API_KEY,
     ENV_QWEN_DASHSCOPE_API_KEY,
     FurryGatewayReasonerRoute,
     QwenDashScopeReasonerRoute,
 )
-from ringdown_market.strategy.models import ExchangeStatus  # noqa: E402
-from ringdown_market.strategy.reasoner import RouteIdentity  # noqa: E402
+from esscher.strategy.models import ExchangeStatus  # noqa: E402
+from esscher.strategy.reasoner import RouteIdentity  # noqa: E402
 from test_paper_mcp_composition import _joined_input  # noqa: E402
 
 _DIRECT_ADAPTERS = {

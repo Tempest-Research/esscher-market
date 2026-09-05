@@ -6,7 +6,7 @@ A decision from this package is **engineering evidence only**: it carries `autho
 
 ## Boundary
 
-- Pure services under `src/ringdown_market/strategy/`: `reasoner.py`, `engine.py`, `baselines.py`, `smoke.py`.
+- Pure services under `src/esscher/strategy/`: `reasoner.py`, `engine.py`, `baselines.py`, `smoke.py`.
 - Stdlib-only; no DNS, HTTP, browser, MCP, broker, account, position, or order capability. Tests prove this with an AST import scan and socket denial.
 - No expression selection, account risk, untouched-panel tuning, PAPER order, demo, or submission work. Those belong to #29, #30, #3, and #31 respectively.
 - Feature arithmetic and feature-receipt compilation remain owned by the snapshot collector (#27) and the feature-receipt slice (#43); this package consumes `StrategyInput` and never imputes a feature.

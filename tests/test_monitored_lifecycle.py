@@ -16,13 +16,13 @@ from decimal import Decimal
 
 import pytest
 
-from ringdown_market.contracts.execution_policy import (
+from esscher.contracts.execution_policy import (
     ALPACA_MCP_PROTOCOL_SHA256,
     PAPER_PERMIT_POLICY_SHA256,
     RESEARCH_DECISION_PROTOCOL_SHA256,
     paper_event_run_id,
 )
-from ringdown_market.execution.models import (
+from esscher.execution.models import (
     ClosePermit,
     DebitVerticalPermit,
     OptionLeg,
@@ -32,7 +32,7 @@ from ringdown_market.execution.models import (
     VerticalType,
     debit_vertical_permit_id,
 )
-from ringdown_market.lifecycle import (
+from esscher.lifecycle import (
     BrokerOrderState,
     ClosedMutationGate,
     CorrelationIdentity,
@@ -57,10 +57,10 @@ from ringdown_market.lifecycle import (
     reduce_open_order,
     require_transition,
 )
-from ringdown_market.lifecycle.broker import AccountTruth, BrokerOrderTruth, PositionTruth
-from ringdown_market.lifecycle.clocks import LIFECYCLE_CLOCKS_SCHEMA
-from ringdown_market.risk.ledger import RiskLedger
-from ringdown_market.risk.passport import PassportEventType, verify_passport
+from esscher.lifecycle.broker import AccountTruth, BrokerOrderTruth, PositionTruth
+from esscher.lifecycle.clocks import LIFECYCLE_CLOCKS_SCHEMA
+from esscher.risk.ledger import RiskLedger
+from esscher.risk.passport import PassportEventType, verify_passport
 
 NOW = datetime(2026, 9, 11, 14, 0, tzinfo=UTC)
 LONG_SYMBOL = "NVDA260918C00180000"
@@ -200,8 +200,8 @@ def test_clocks_unverified_source_fails_closed() -> None:
 
 
 def test_clocks_misordered_fails_closed() -> None:
-    from ringdown_market.lifecycle.clocks import lifecycle_clocks_payload
-    from ringdown_market.strategy.contracts import canonical_json_bytes
+    from esscher.lifecycle.clocks import lifecycle_clocks_payload
+    from esscher.strategy.contracts import canonical_json_bytes
 
     clocks = _clocks()
     payload = lifecycle_clocks_payload(clocks)

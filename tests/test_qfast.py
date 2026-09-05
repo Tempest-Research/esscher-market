@@ -1,6 +1,6 @@
 import pytest
 
-from ringdown_market.alpha.qfast import (
+from esscher.alpha.qfast import (
     CANDIDATE_METHOD,
     LatencyGateStatus,
     PanelRow,

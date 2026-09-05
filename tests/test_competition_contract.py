@@ -5,7 +5,7 @@ import json
 
 import pytest
 
-from ringdown_market.contracts.competition import (
+from esscher.contracts.competition import (
     CompetitionContractRejected,
     ValidatedCompetitionContract,
     validate_competition_contract,

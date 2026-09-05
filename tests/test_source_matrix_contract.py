@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from ringdown_market.contracts.gate_a import programme_contract_bytes
-from ringdown_market.contracts.source_matrix import (
+from esscher.contracts.gate_a import programme_contract_bytes
+from esscher.contracts.source_matrix import (
     CONDITIONS,
     MATRIX_ID,
     REQUIRED_CATEGORY_ORDER,
@@ -22,12 +22,12 @@ from ringdown_market.contracts.source_matrix import (
     source_matrix_sha256,
     verify_upstream_bindings,
 )
-from ringdown_market.strategy.policy import strategy_policy_bytes
+from esscher.strategy.policy import strategy_policy_bytes
 
 MATRIX_PATH = (
     Path(__file__).parent.parent
     / "src"
-    / "ringdown_market"
+    / "esscher"
     / "contracts"
     / "policies"
     / "source_matrix_v1.json"

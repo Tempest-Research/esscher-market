@@ -7,10 +7,10 @@ from pathlib import Path
 
 import pytest
 
-import ringdown_market.panel.manifest as panel_manifest
-from ringdown_market.contracts.execution_policy import RESEARCH_DECISION_PROTOCOL_SHA256
-from ringdown_market.panel.assembler import PANEL_REPORT_SCHEMA, assemble_panel_report
-from ringdown_market.panel.manifest import P0_EXCLUSION_REASON_CODE, PanelRejectionReason
+import esscher.panel.manifest as panel_manifest
+from esscher.contracts.execution_policy import RESEARCH_DECISION_PROTOCOL_SHA256
+from esscher.panel.assembler import PANEL_REPORT_SCHEMA, assemble_panel_report
+from esscher.panel.manifest import P0_EXCLUSION_REASON_CODE, PanelRejectionReason
 
 FIXTURES = Path(__file__).parent / "fixtures"
 SYNTHETIC_RULE = FIXTURES / "synthetic_qfast_panel_selection_rule.json"

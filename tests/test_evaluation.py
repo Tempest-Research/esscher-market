@@ -3,8 +3,8 @@ from math import log
 
 import pytest
 
-from ringdown_market.alpha.evaluation import MissingPricePoint, evaluate_event
-from ringdown_market.alpha.models import (
+from esscher.alpha.evaluation import MissingPricePoint, evaluate_event
+from esscher.alpha.models import (
     DecisionSnapshot,
     Direction,
     EventCase,

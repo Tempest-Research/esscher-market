@@ -5,7 +5,7 @@ from shutil import copyfile
 
 import pytest
 
-from ringdown_market.audit import (
+from esscher.audit import (
     BundleDiffError,
     BundleDiffErrorReason,
     canonical_report_bytes,
@@ -14,14 +14,14 @@ from ringdown_market.audit import (
     main,
     write_report,
 )
-from ringdown_market.cli import build_report
-from ringdown_market.contracts.research_to_permit import (
+from esscher.cli import build_report
+from esscher.contracts.research_to_permit import (
     PAPER_PERMIT_POLICY_SHA256,
     PAPER_PERMIT_POLICY_VERSION,
     RESEARCH_DECISION_PROTOCOL_SHA256,
     map_frozen_decision_to_permit,
 )
-from ringdown_market.execution.models import debit_vertical_permit_bytes
+from esscher.execution.models import debit_vertical_permit_bytes
 
 ROOT = Path(__file__).parents[1]
 DATA = ROOT / "data" / "earnings-replays"
@@ -45,20 +45,10 @@ SHIPPED_ARTIFACTS = (
     ROOT / "tests" / "contract_fixtures" / "scheduled_rejected_before_mutation_v1.json",
     ROOT / "tests" / "contract_fixtures" / "scheduled_terminal_flat_v1.json",
     SYNTHETIC_PANEL,
-    ROOT / "src" / "ringdown_market" / "demo" / "fixtures" / "KR-2026Q2-EARNINGS.json",
-    ROOT
-    / "src"
-    / "ringdown_market"
-    / "demo"
-    / "fixtures"
-    / "scheduled_manual_reconciliation_v1.json",
-    ROOT
-    / "src"
-    / "ringdown_market"
-    / "demo"
-    / "fixtures"
-    / "scheduled_rejected_before_mutation_v1.json",
-    ROOT / "src" / "ringdown_market" / "demo" / "fixtures" / "scheduled_terminal_flat_v1.json",
+    ROOT / "src" / "esscher" / "demo" / "fixtures" / "KR-2026Q2-EARNINGS.json",
+    ROOT / "src" / "esscher" / "demo" / "fixtures" / "scheduled_manual_reconciliation_v1.json",
+    ROOT / "src" / "esscher" / "demo" / "fixtures" / "scheduled_rejected_before_mutation_v1.json",
+    ROOT / "src" / "esscher" / "demo" / "fixtures" / "scheduled_terminal_flat_v1.json",
 )
 
 BUNDLE_MEMBERS = (

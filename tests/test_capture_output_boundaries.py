@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from ringdown_market.sourcedata import capture
+from esscher.sourcedata import capture
 
 REPO_ROOT = Path(__file__).parent.parent
 FIXTURE_PATH = REPO_ROOT / "tests" / "fixtures" / "sourcedata" / "synthetic_snapshot_inputs_v1.json"

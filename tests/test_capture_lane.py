@@ -23,7 +23,7 @@ sys.path.insert(0, str(REPO_ROOT / "scripts"))
 import capture_lane as cl  # noqa: E402
 import capture_replay as cr  # noqa: E402
 
-from ringdown_market.strategy.contracts import parse_candidate_manifest  # noqa: E402
+from esscher.strategy.contracts import parse_candidate_manifest  # noqa: E402
 
 # --- dateline parsing --------------------------------------------------------
 
@@ -465,8 +465,8 @@ def test_replay_market_source_serves_protocol_records() -> None:
 
 
 def test_capture_doors_build_configuration_from_feed_event_bytes() -> None:
-    from ringdown_market.strategy.contracts import canonical_json_bytes
-    from ringdown_market.strategy.policy import strategy_policy_sha256
+    from esscher.strategy.contracts import canonical_json_bytes
+    from esscher.strategy.policy import strategy_policy_sha256
 
     blob = _blob()
     manifest = {

@@ -8,23 +8,23 @@ from pathlib import Path
 
 import pytest
 
-from ringdown_market.contracts.execution_policy import (
+from esscher.contracts.execution_policy import (
     ALPACA_MCP_V2_PROTOCOL,
     ALPACA_MCP_V2_PROTOCOL_SHA256,
 )
-from ringdown_market.contracts.gate_a import (
+from esscher.contracts.gate_a import (
     EntryState,
     evaluate_gate_a,
     load_programme_contract,
     parse_capability_receipt,
     parse_current_capability_receipt,
 )
-from ringdown_market.execution.host_mcp import (
+from esscher.execution.host_mcp import (
     HostMcpEnvironment,
     HostMcpPaperSessionFactory,
     HostMcpSessionIdentity,
 )
-from ringdown_market.execution.mcp import OpenOrderReceipt
+from esscher.execution.mcp import OpenOrderReceipt
 
 NOW = datetime(2026, 9, 1, 12, 0, tzinfo=UTC)
 ROOT = Path(__file__).parent

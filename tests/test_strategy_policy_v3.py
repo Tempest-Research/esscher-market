@@ -17,45 +17,45 @@ from datetime import UTC, datetime
 
 import pytest
 
-from ringdown_market.application.autonomous_bridge import (
+from esscher.application.autonomous_bridge import (
     confirmation_epsilon,
     confirmation_epsilon_map,
 )
-from ringdown_market.execution.expression.observations import (
+from esscher.execution.expression.observations import (
     EXECUTABLE_DATA,
     INDICATIVE_DATA,
 )
-from ringdown_market.execution.expression.policy import (
+from esscher.execution.expression.policy import (
     parse_promoted_expression_policy,
     promoted_expression_policy_bytes,
     promoted_expression_policy_payload,
 )
-from ringdown_market.execution.expression.reasons import (
+from esscher.execution.expression.reasons import (
     ExpressionReason,
     ExpressionRejected,
 )
-from ringdown_market.execution.expression.validation import validate_executable_data
-from ringdown_market.runtime.host_composition import (
+from esscher.execution.expression.validation import validate_executable_data
+from esscher.runtime.host_composition import (
     demo_delayed_promoted_expression_policy,
     synthetic_promoted_expression_policy,
 )
-from ringdown_market.sourcedata.compiler import (
+from esscher.sourcedata.compiler import (
     CaptureConfiguration,
     compile_strategy_snapshot,
     compiled_strategy_input,
 )
-from ringdown_market.sourcedata.fakes import (
+from esscher.sourcedata.fakes import (
     FixtureEvidenceSource,
     FixtureMarketDataSource,
     load_fixture,
 )
-from ringdown_market.strategy.contracts import (
+from esscher.strategy.contracts import (
     canonical_json_bytes,
     reasoner_policy_hashes,
     reasoner_system_prompt_bytes,
     reasoner_system_prompt_sha256,
 )
-from ringdown_market.strategy.policy import (
+from esscher.strategy.policy import (
     ACCEPTED_EVENT_POLICY_V1_SHA256,
     ACCEPTED_EVENT_POLICY_V2_SHA256,
     ACCEPTED_EVENT_POLICY_V3_SHA256,
@@ -244,7 +244,7 @@ def test_full_compile_runs_on_the_delayed_v3_clocks() -> None:
 
 
 def test_v3_compile_still_enforces_the_delayed_cutoffs() -> None:
-    from ringdown_market.sourcedata.compiler import CollectorRejected
+    from esscher.sourcedata.compiler import CollectorRejected
 
     configuration, evidence, market = _v3_fixture_inputs()
     late = CaptureConfiguration(
@@ -262,7 +262,7 @@ def test_v3_compile_still_enforces_the_delayed_cutoffs() -> None:
 
 def test_v1_fixture_still_compiles_under_v1_clocks() -> None:
     # The additive V3 generation must not disturb the validated V1 lane.
-    from ringdown_market.sourcedata.fakes import build_candidate_manifest
+    from esscher.sourcedata.fakes import build_candidate_manifest
 
     fixture = load_fixture()
     configuration = CaptureConfiguration(
@@ -281,7 +281,7 @@ def test_v1_fixture_still_compiles_under_v1_clocks() -> None:
 
 
 def test_production_lane_mapping_accepts_the_v3_source_candidate() -> None:
-    from ringdown_market.runtime.paper_mcp_composition import (
+    from esscher.runtime.paper_mcp_composition import (
         _SOURCE_CANDIDATE_BY_AUTONOMOUS_LANE,
         EARNINGS_LANE_V2,
     )

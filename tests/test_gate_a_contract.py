@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from ringdown_market.contracts.gate_a import (
+from esscher.contracts.gate_a import (
     PROGRAMME_CONTRACT_SHA256,
     EntryState,
     GateAContractError,
@@ -75,8 +75,8 @@ FORBIDDEN_IMPORTS = (
     "httpx",
     "mcp",
     "requests",
-    "ringdown_market.execution.host_mcp",
-    "ringdown_market.execution.mcp",
+    "esscher.execution.host_mcp",
+    "esscher.execution.mcp",
     "socket",
     "subprocess",
     "urllib.request",
@@ -388,7 +388,7 @@ def test_boolean_schema_versions_are_rejected(target: str) -> None:
 
 
 def test_gate_a_module_has_no_network_broker_or_mutation_dependency() -> None:
-    path = Path(__file__).parents[1] / "src" / "ringdown_market" / "contracts" / "gate_a.py"
+    path = Path(__file__).parents[1] / "src" / "esscher" / "contracts" / "gate_a.py"
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
     imported: list[str] = []
     for node in ast.walk(tree):

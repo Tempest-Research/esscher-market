@@ -18,7 +18,7 @@ from datetime import timedelta
 
 import pytest
 
-from ringdown_market.contracts.reasoner_route import (
+from esscher.contracts.reasoner_route import (
     MINIMAX_DIRECT_BASE_URL,
     MINIMAX_DIRECT_MODEL,
     MINIMAX_DIRECT_PROVIDER,
@@ -33,14 +33,14 @@ from ringdown_market.contracts.reasoner_route import (
     packaged_route_descriptor_v3_bytes,
     validate_reasoner_route_v3,
 )
-from ringdown_market.runtime.host_composition import rehearsal_direction, rehearsal_timeline
-from ringdown_market.strategy.contracts import (
+from esscher.runtime.host_composition import rehearsal_direction, rehearsal_timeline
+from esscher.strategy.contracts import (
     reasoner_output_schema_sha256,
     reasoner_policy_hashes,
     reasoner_system_prompt_bytes,
 )
-from ringdown_market.strategy.engine import BoundedDecisionEngine
-from ringdown_market.strategy.host_route import (
+from esscher.strategy.engine import BoundedDecisionEngine
+from esscher.strategy.host_route import (
     ENV_MINIMAX_API_KEY,
     HostRouteConfigurationError,
     HostRouteSecretBoundaryError,
@@ -49,8 +49,8 @@ from ringdown_market.strategy.host_route import (
     load_minimax_route_environment,
     unwrap_minimax_response,
 )
-from ringdown_market.strategy.models import ExchangeStatus
-from ringdown_market.strategy.reasoner import (
+from esscher.strategy.models import ExchangeStatus
+from esscher.strategy.reasoner import (
     SYNTHETIC_ROUTE_IDENTITY,
     ReasonerRouteRequest,
     RouteIdentity,

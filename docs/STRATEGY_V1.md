@@ -1,7 +1,7 @@
 # Accepted event-strategy research contract V1
 
 **Status:** preregistered research policy; no alpha or execution authority
-**Canonical policy:** `src/ringdown_market/strategy/policies/accepted_event_policy_v1.json`
+**Canonical policy:** `src/esscher/strategy/policies/accepted_event_policy_v1.json`
 **Registry digest:** `afce93b52b96e0d8c71deeb80027a1c87a4cf3623e9417db14de00279fc23bca`
 **Execution boundary:** Alpaca PAPER only, with entry currently disabled
 

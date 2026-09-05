@@ -4,14 +4,14 @@ from pathlib import Path
 
 import pytest
 
-from ringdown_market import __version__
-from ringdown_market.cli import build_report, main
+from esscher import __version__
+from esscher.cli import build_report, main
 
 FIXTURE = Path(__file__).parent / "fixtures" / "synthetic_contract_panel.json"
 
 
 def test_package_version_alias_matches_canonical_metadata() -> None:
-    assert __version__ == version("ringdown-market")
+    assert __version__ == version("esscher-market")
 
 
 def test_cli_reports_the_installed_package_version(capsys: pytest.CaptureFixture[str]) -> None:
@@ -19,10 +19,10 @@ def test_cli_reports_the_installed_package_version(capsys: pytest.CaptureFixture
         main(["--version"])
 
     assert exit_info.value.code == 0
-    assert capsys.readouterr().out.strip() == f"ringdown {version('ringdown-market')}"
+    assert capsys.readouterr().out.strip() == f"esscher {version('esscher-market')}"
 
 
-def test_cli_help_uses_public_product_name_and_compatibility_command(
+def test_cli_help_uses_public_product_name_and_command(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     with pytest.raises(SystemExit) as exit_info:
@@ -30,7 +30,7 @@ def test_cli_help_uses_public_product_name_and_compatibility_command(
 
     assert exit_info.value.code == 0
     help_text = capsys.readouterr().out
-    assert "usage: ringdown" in help_text
+    assert "usage: esscher" in help_text
     assert "Esscher" in help_text
     assert "paper-only" in help_text
 

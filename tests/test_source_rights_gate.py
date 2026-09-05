@@ -7,10 +7,10 @@ from pathlib import Path
 
 import pytest
 
-from ringdown_market.contracts.source_matrix import SOURCE_MATRIX_V1_SHA256
-from ringdown_market.sourcedata.reasons import CollectorReason, CollectorRejected
-from ringdown_market.sourcedata.rights_gate import EARNINGS_CANDIDATE_ID, evaluate_capture_rights
-from ringdown_market.strategy.policy import parse_strategy_policy, strategy_policy_bytes
+from esscher.contracts.source_matrix import SOURCE_MATRIX_V1_SHA256
+from esscher.sourcedata.reasons import CollectorReason, CollectorRejected
+from esscher.sourcedata.rights_gate import EARNINGS_CANDIDATE_ID, evaluate_capture_rights
+from esscher.strategy.policy import parse_strategy_policy, strategy_policy_bytes
 
 REPO_ROOT = Path(__file__).parent.parent
 BUNDLES_DIR = REPO_ROOT / "data" / "source-feasibility" / "golden-bundles"
@@ -95,7 +95,7 @@ def test_rights_gate_passes_with_dev_conditions_and_binds_matrix_digest() -> Non
 
 
 def test_rights_gate_rejects_drifted_matrix_bytes(tmp_path: Path) -> None:
-    from ringdown_market.contracts.source_matrix import source_matrix_bytes
+    from esscher.contracts.source_matrix import source_matrix_bytes
 
     payload = json.loads(source_matrix_bytes().decode("utf-8"))
     payload["policy_sha256"] = "0" * 64
@@ -110,7 +110,7 @@ def test_rights_gate_rejects_drifted_matrix_bytes(tmp_path: Path) -> None:
 
 
 def test_capture_command_rejects_removed_source_matrix_switch(tmp_path: Path, monkeypatch) -> None:
-    from ringdown_market.sourcedata.capture import main
+    from esscher.sourcedata.capture import main
 
     monkeypatch.setenv("ESSCHER_CAPTURE_AUTHORIZED", "yes")
     fixture = REPO_ROOT / "tests" / "fixtures" / "sourcedata" / "synthetic_snapshot_inputs_v1.json"
@@ -137,12 +137,7 @@ def test_acceptance_golden_bundle_count_and_registration() -> None:
     assert 3 <= len(manifests) <= 5
     matrix = json.loads(
         (
-            REPO_ROOT
-            / "src"
-            / "ringdown_market"
-            / "contracts"
-            / "policies"
-            / "source_matrix_v1.json"
+            REPO_ROOT / "src" / "esscher" / "contracts" / "policies" / "source_matrix_v1.json"
         ).read_text(encoding="utf-8")
     )
     registered = {bundle_id.casefold() for bundle_id in matrix["bundles"]}

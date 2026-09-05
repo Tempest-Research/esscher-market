@@ -5,7 +5,7 @@ from decimal import Decimal
 
 import pytest
 
-from ringdown_market.autonomy import (
+from esscher.autonomy import (
     ACCEPTED_AUTONOMOUS_POLICY_V1_SHA256,
     AutonomousPolicyError,
     autonomous_policy_bytes,

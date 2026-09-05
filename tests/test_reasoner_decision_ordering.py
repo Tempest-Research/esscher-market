@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import pytest
 
-from ringdown_market.strategy.contracts import (
+from esscher.strategy.contracts import (
     StrategyContractRejected,
     parse_reasoner_decision,
     reasoner_decision_bytes,

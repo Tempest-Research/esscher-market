@@ -1,6 +1,6 @@
 # Evidence bundle diff
 
-`ringdown_market.audit.bundle_diff` is deterministic, offline comparison
+`esscher.audit.bundle_diff` is deterministic, offline comparison
 tooling for already-produced Esscher JSON artifacts. It explains changes
 between two artifacts or two directory bundles without rerunning research,
 collecting sources, opening a broker session, or changing local state except
@@ -74,7 +74,7 @@ Delta categories: `SCHEMA`, `CLASSIFICATION`, `HASH`, `EVENT_ID`, `INCLUSION`,
 Compare immutable artifact bytes:
 
 ```python
-from ringdown_market.audit.bundle_diff import compare_artifacts, canonical_report_bytes
+from esscher.audit.bundle_diff import compare_artifacts, canonical_report_bytes
 
 report = compare_artifacts(left_bytes, right_bytes)
 report_bytes = canonical_report_bytes(report)
@@ -83,7 +83,7 @@ report_bytes = canonical_report_bytes(report)
 Compare `.json` files or directory bundles by path:
 
 ```python
-from ringdown_market.audit.bundle_diff import compare_paths
+from esscher.audit.bundle_diff import compare_paths
 
 report = compare_paths("left-bundle", "right-bundle")
 ```
@@ -91,7 +91,7 @@ report = compare_paths("left-bundle", "right-bundle")
 Write only to an explicitly requested output file whose parent already exists:
 
 ```python
-from ringdown_market.audit.bundle_diff import write_report
+from esscher.audit.bundle_diff import write_report
 
 write_report("left-bundle", "right-bundle", "build/evidence-bundle-diff.json")
 ```
@@ -102,7 +102,7 @@ The isolated module entry point does not modify the top-level `ringdown` CLI:
 
 ```bash
 mkdir -p build
-uv run python -m ringdown_market.audit.bundle_diff \
+uv run python -m esscher.audit.bundle_diff \
   data/earnings-replays \
   data/earnings-replays \
   --output build/evidence-bundle-diff.json
@@ -117,8 +117,8 @@ raises `BundleDiffError` with the same reason, path, and detail.
 The Issue #22 implementation was verified locally with:
 
 ```bash
-uv run ruff check src/ringdown_market/audit tests/test_bundle_diff.py
-uv run ruff format --check src/ringdown_market/audit tests/test_bundle_diff.py
+uv run ruff check src/esscher/audit tests/test_bundle_diff.py
+uv run ruff format --check src/esscher/audit tests/test_bundle_diff.py
 uv run pytest tests/test_bundle_diff.py -q
 ```
 

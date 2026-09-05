@@ -10,12 +10,12 @@ carries `NOT_ALPHA_EVIDENCE`; a green run is engineering evidence only.
 
 Owned surface:
 
-- `src/ringdown_market/alpha/prospective_ledger.py` — hash-chained append-only
+- `src/esscher/alpha/prospective_ledger.py` — hash-chained append-only
   prospective signal ledger (`esscher.prospective_ledger_entry/v1`).
-- `src/ringdown_market/alpha/qfast_panel_reports.py` — panel manifest builder,
+- `src/esscher/alpha/qfast_panel_reports.py` — panel manifest builder,
   source-health gate (`esscher.qfast_source_health_gate/v1`), and the panel
   evidence report (`esscher.qfast_panel_report/v1`).
-- `src/ringdown_market/alpha/fullstack_shadow_comparison.py` — full-stack
+- `src/esscher/alpha/fullstack_shadow_comparison.py` — full-stack
   shadow comparison (`esscher.qfast_fullstack_comparison/v1`) against the #66
   application-service receipts.
 - `tests/test_qfast_panel_evidence.py` and this document.

@@ -5,7 +5,7 @@ from datetime import date
 
 import pytest
 
-from ringdown_market.contracts.security_lineage import (
+from esscher.contracts.security_lineage import (
     ACTION_TYPES,
     CROSS_SERIES_RULE,
     LINEAGE_ID,
@@ -22,8 +22,8 @@ from ringdown_market.contracts.security_lineage import (
     security_lineage_bytes,
     verify_lineage_upstream_bindings,
 )
-from ringdown_market.contracts.source_matrix import source_matrix_bytes
-from ringdown_market.strategy.policy import strategy_policy_bytes
+from esscher.contracts.source_matrix import source_matrix_bytes
+from esscher.strategy.policy import strategy_policy_bytes
 
 P0_EVENTS = (
     "KR-2026Q2-EARNINGS",
@@ -55,7 +55,7 @@ def test_packaged_lineage_file_matches_packaged_bytes() -> None:
     packaged = (
         Path(__file__).parent.parent
         / "src"
-        / "ringdown_market"
+        / "esscher"
         / "contracts"
         / "policies"
         / "security_lineage_v1.json"

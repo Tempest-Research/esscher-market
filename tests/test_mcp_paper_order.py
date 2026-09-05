@@ -9,24 +9,24 @@ from typing import Any
 
 import pytest
 
-from ringdown_market.contracts.execution_policy import (
+from esscher.contracts.execution_policy import (
     ALPACA_MCP_PROTOCOL_SHA256,
     PAPER_PERMIT_POLICY_SHA256,
     RESEARCH_DECISION_PROTOCOL_SHA256,
     paper_event_run_id,
 )
-from ringdown_market.execution.host_mcp import (
+from esscher.execution.host_mcp import (
     HostMcpEnvironment,
     HostMcpPaperSessionFactory,
     HostMcpSessionIdentity,
 )
-from ringdown_market.execution.mcp import (
+from esscher.execution.mcp import (
     BrokerResponseError,
     McpPaperBroker,
     PermitNotExecutable,
     build_open_order_call,
 )
-from ringdown_market.execution.models import (
+from esscher.execution.models import (
     DataClass,
     DebitVerticalPermit,
     OptionLeg,

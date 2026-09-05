@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from ringdown_market.panel.manifest import PanelRejectionReason
-from ringdown_market.panel.universe import validate_panel_universe
+from esscher.panel.manifest import PanelRejectionReason
+from esscher.panel.universe import validate_panel_universe
 
 ROOT = Path(__file__).parents[1]
 UNIVERSE = ROOT / "data" / "qfast-panel" / "universe"

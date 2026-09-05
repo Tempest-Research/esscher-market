@@ -15,8 +15,8 @@ from collections.abc import Mapping, Sequence
 from datetime import UTC, date, datetime
 from decimal import Decimal
 
-from ringdown_market.sourcedata.compiler import CaptureConfiguration
-from ringdown_market.sourcedata.interfaces import (
+from esscher.sourcedata.compiler import CaptureConfiguration
+from esscher.sourcedata.interfaces import (
     CorporateAction,
     DailyBar,
     GuidanceStatement,
@@ -254,7 +254,7 @@ class LiveCaptureDoors:
             str(key): (int(pair[0]), int(pair[1]))
             for key, pair in (blob.get("retrieval_pages") or {}).items()
         }
-        from ringdown_market.strategy.contracts import canonical_json_bytes
+        from esscher.strategy.contracts import canonical_json_bytes
 
         capture = CaptureConfiguration(
             candidate_manifest_bytes=canonical_json_bytes(blob["candidate_manifest"]),

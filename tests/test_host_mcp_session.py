@@ -9,14 +9,14 @@ from typing import Any
 
 import pytest
 
-import ringdown_market.execution.host_mcp as host_mcp
-from ringdown_market.contracts.execution_policy import (
+import esscher.execution.host_mcp as host_mcp
+from esscher.contracts.execution_policy import (
     ALPACA_MCP_HOST_OPERATIONS_PROTOCOL_SHA256,
     ALPACA_MCP_READONLY_EXTENSION_COUNT,
     ALPACA_MCP_READONLY_EXTENSION_SCHEMA_SHA256,
     ALPACA_MCP_V2_PROTOCOL_SHA256,
 )
-from ringdown_market.execution.host_mcp import (
+from esscher.execution.host_mcp import (
     HostMcpAccountError,
     HostMcpConfigurationError,
     HostMcpEnvironment,
@@ -28,8 +28,8 @@ from ringdown_market.execution.host_mcp import (
     PreparedHostMcpSession,
     _GuardedHostMcpSession,
 )
-from ringdown_market.execution.lifecycle_mcp import LifecycleMcpPaperBroker
-from ringdown_market.execution.mcp import (
+from esscher.execution.lifecycle_mcp import LifecycleMcpPaperBroker
+from esscher.execution.mcp import (
     ALPACA_MCP_VERSION,
     CANCEL_TOOL,
     OPEN_TOOL,

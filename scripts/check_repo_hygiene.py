@@ -104,7 +104,7 @@ LEGACY_BRAND_ALLOWLIST: dict[Path, frozenset[str]] = {
             "alias; existing schema keys and values remain available."
         }
     ),
-    Path("src/ringdown_market/cli.py"): frozenset({f'"project": "{LEGACY_PUBLIC_BRAND}",'}),
+    Path("src/esscher/cli.py"): frozenset({f'"project": "{LEGACY_PUBLIC_BRAND}",'}),
     Path("tests/test_cli.py"): frozenset({f'assert report["project"] == "{LEGACY_PUBLIC_BRAND}"'}),
 }
 

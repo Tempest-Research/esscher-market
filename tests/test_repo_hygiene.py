@@ -47,7 +47,7 @@ def test_lowercase_ringdown_casing_is_reserved_for_machine_identifiers() -> None
 
     HYGIENE._check_legacy_brand(
         Path("docs/technical-identifiers.md"),
-        "Use the `ringdown`, `ringdown-market`, and `ringdown_market` interfaces.\n",
+        "Use the `ringdown`, `ringdown-market`, and `esscher` interfaces.\n",
         errors,
     )
 
@@ -55,7 +55,7 @@ def test_lowercase_ringdown_casing_is_reserved_for_machine_identifiers() -> None
 
 
 def test_exact_legacy_brand_compatibility_line_is_allowed() -> None:
-    path = Path("src/ringdown_market/cli.py")
+    path = Path("src/esscher/cli.py")
     allowed_line = next(iter(HYGIENE.LEGACY_BRAND_ALLOWLIST[path]))
     errors: list[str] = []
 
@@ -105,7 +105,7 @@ def test_required_files_must_be_tracked_not_only_present() -> None:
 @pytest.mark.parametrize(
     "path",
     [
-        Path("src/ringdown_market/direct.py"),
+        Path("src/esscher/direct.py"),
         Path("scripts/direct.py"),
         Path("web/direct.ts"),
     ],

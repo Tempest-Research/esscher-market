@@ -20,22 +20,22 @@ from pathlib import Path
 
 import pytest
 
-import ringdown_market.alpha.fullstack_shadow_comparison as comparison_module
-import ringdown_market.alpha.prospective_ledger as ledger_module
-import ringdown_market.alpha.qfast_panel_reports as reports_module
-from ringdown_market.alpha.direction_receipts import (
+import esscher.alpha.fullstack_shadow_comparison as comparison_module
+import esscher.alpha.prospective_ledger as ledger_module
+import esscher.alpha.qfast_panel_reports as reports_module
+from esscher.alpha.direction_receipts import (
     DirectionReceipt,
     ProducerKind,
     direction_receipt_bytes,
 )
-from ringdown_market.alpha.fullstack_shadow_comparison import (
+from esscher.alpha.fullstack_shadow_comparison import (
     ComparisonFindingCode,
     ServiceEventReceipts,
     compare_fullstack,
     service_event_receipts_from_window_run,
 )
-from ringdown_market.alpha.models import Direction
-from ringdown_market.alpha.prospective_ledger import (
+from esscher.alpha.models import Direction
+from esscher.alpha.prospective_ledger import (
     LEDGER_GENESIS_SHA256,
     FrozenEventRegistration,
     ProspectiveLedger,
@@ -43,8 +43,8 @@ from ringdown_market.alpha.prospective_ledger import (
     ProspectiveLedgerRejected,
     verify_ledger_bytes,
 )
-from ringdown_market.alpha.qfast import CANDIDATE_METHOD
-from ringdown_market.alpha.qfast_panel_reports import (
+from esscher.alpha.qfast import CANDIDATE_METHOD
+from esscher.alpha.qfast_panel_reports import (
     NOT_AVAILABLE,
     PANEL_CONTRACT_MULTIPLIER,
     PANEL_EVIDENCE_REPORT_SCHEMA,
@@ -59,19 +59,19 @@ from ringdown_market.alpha.qfast_panel_reports import (
     run_qfast_panel,
     run_source_health_gate,
 )
-from ringdown_market.contracts.execution_policy import RESEARCH_DECISION_PROTOCOL_SHA256
-from ringdown_market.contracts.latency_profile import (
+from esscher.contracts.execution_policy import RESEARCH_DECISION_PROTOCOL_SHA256
+from esscher.contracts.latency_profile import (
     latency_profile_content_sha256,
     packaged_latency_profile_bytes,
 )
-from ringdown_market.contracts.strategy_release import (
+from esscher.contracts.strategy_release import (
     EXPECTED_LANE_BINDINGS,
     StrategyRelease,
     parse_strategy_release,
     strategy_release_bytes,
 )
-from ringdown_market.panel.manifest import DATA_CLASS_REAL, PANEL_MANIFEST_SCHEMA
-from ringdown_market.runtime.autonomous_application_service import (
+from esscher.panel.manifest import DATA_CLASS_REAL, PANEL_MANIFEST_SCHEMA
+from esscher.runtime.autonomous_application_service import (
     STAGE_ORDER,
     RunDisposition,
     ServiceTerminalReceipt,
@@ -82,12 +82,12 @@ from ringdown_market.runtime.autonomous_application_service import (
     service_terminal_receipt_sha256,
     stage_receipt_sha256,
 )
-from ringdown_market.runtime.health_receipts import (
+from esscher.runtime.health_receipts import (
     HealthReceiptRejected,
     build_operational_health_receipt,
     health_receipt_sha256,
 )
-from ringdown_market.strategy.policy import strategy_policy_sha256
+from esscher.strategy.policy import strategy_policy_sha256
 
 ROOT = Path(__file__).parents[1]
 PANEL_DATA = ROOT / "data" / "qfast-panel"

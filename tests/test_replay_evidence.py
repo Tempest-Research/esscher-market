@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from ringdown_market.contracts.replay_evidence import (
+from esscher.contracts.replay_evidence import (
     ReplayEvidenceRejected,
     ReplayEvidenceRejectionReason,
     validate_replay_evidence_set,

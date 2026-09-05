@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from ringdown_market.contracts.strategy_release import (
+from esscher.contracts.strategy_release import (
     EXPECTED_LANE_BINDINGS,
     ArmRecord,
     ReleaseLog,
@@ -20,14 +20,14 @@ from ringdown_market.contracts.strategy_release import (
     evaluate_release,
     strategy_release_bytes,
 )
-from ringdown_market.runtime.autonomous import (
+from esscher.runtime.autonomous import (
     AutonomousDisposition,
     AutonomousSessionArm,
     AutonomousSessionStore,
     MutationState,
     autonomous_session_arm_bytes,
 )
-from ringdown_market.runtime.autonomous_host import (
+from esscher.runtime.autonomous_host import (
     AUTONOMOUS_HOST_CLAIMS,
     AutonomousHostAuthorityInput,
     AutonomousHostDisposition,

@@ -11,7 +11,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from ringdown_market.autonomy.episodes import (
+from esscher.autonomy.episodes import (
     BrokerTruthSnapshot,
     DecisionEpisode,
     EpisodeRejected,
@@ -30,8 +30,8 @@ from ringdown_market.autonomy.episodes import (
     parse_decision_episode,
     parse_episodic_summary,
 )
-from ringdown_market.risk import ledger as ledger_module
-from ringdown_market.risk.ledger import SCHEMA_VERSION, RiskLedger
+from esscher.risk import ledger as ledger_module
+from esscher.risk.ledger import SCHEMA_VERSION, RiskLedger
 
 H = "a" * 64
 H2 = "b" * 64
@@ -131,7 +131,7 @@ def test_v5_migration_creates_append_only_episode_and_v2_reservation_tables(tmp_
 
 
 def test_public_episodic_module_is_available() -> None:
-    episodes = importlib.import_module("ringdown_market.autonomy.episodes")
+    episodes = importlib.import_module("esscher.autonomy.episodes")
     assert callable(episodes.build_episodic_summary)
 
 
@@ -662,7 +662,7 @@ def test_summary_bytes_are_strict_and_later_payload_tampering_is_not_hidden_by_a
 
 
 def test_future_appends_and_corrections_cannot_change_a_past_summary(tmp_path) -> None:
-    from ringdown_market.autonomy.episodes import broker_truth_snapshot_sha256
+    from esscher.autonomy.episodes import broker_truth_snapshot_sha256
 
     ledger = RiskLedger(tmp_path / "risk.sqlite3")
     as_of = NOW + timedelta(minutes=10)

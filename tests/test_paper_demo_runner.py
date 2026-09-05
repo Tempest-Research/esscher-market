@@ -10,19 +10,19 @@ from pathlib import Path
 
 import pytest
 
-from ringdown_market.contracts.execution_policy import (
+from esscher.contracts.execution_policy import (
     ALPACA_MCP_PROTOCOL_SHA256,
     PAPER_PERMIT_POLICY_SHA256,
     RESEARCH_DECISION_PROTOCOL_SHA256,
     paper_event_run_id,
 )
-from ringdown_market.execution.host_mcp import (
+from esscher.execution.host_mcp import (
     HostMcpConfigurationError,
     HostMcpEnvironment,
     HostMcpPaperSessionFactory,
     HostMcpSessionIdentity,
 )
-from ringdown_market.execution.mcp import (
+from esscher.execution.mcp import (
     CANCEL_TOOL,
     OPEN_TOOL,
     ORDER_BY_ID_TOOL,
@@ -30,7 +30,7 @@ from ringdown_market.execution.mcp import (
     READBACK_TOOL,
     PaperLifecycleManualRequired,
 )
-from ringdown_market.execution.models import (
+from esscher.execution.models import (
     ClosePermit,
     DebitVerticalPermit,
     OptionLeg,
@@ -40,7 +40,7 @@ from ringdown_market.execution.models import (
     VerticalType,
     debit_vertical_permit_id,
 )
-from ringdown_market.execution.paper_demo import (
+from esscher.execution.paper_demo import (
     FilePaperAttemptStore,
     PaperDemoApproval,
     PaperDemoNotApproved,
@@ -311,7 +311,7 @@ def test_expired_permit_does_not_consume_attempt_identity(tmp_path: Path) -> Non
 
 def test_unfilled_open_produces_zero_no_fill_bundle(tmp_path: Path) -> None:
     opening = open_permit()
-    from ringdown_market.execution.mcp import build_open_order_call
+    from esscher.execution.mcp import build_open_order_call
 
     open_call = build_open_order_call(opening)
     submitted = order(
@@ -355,7 +355,7 @@ def test_unfilled_open_produces_zero_no_fill_bundle(tmp_path: Path) -> None:
 def test_full_open_and_close_fill_reports_exact_gross_paper_pnl(tmp_path: Path) -> None:
     opening = open_permit()
     exit_permit = close_permit(opening)
-    from ringdown_market.execution.mcp import build_close_order_call, build_open_order_call
+    from esscher.execution.mcp import build_close_order_call, build_open_order_call
 
     open_call = build_open_order_call(opening)
     close_call = build_close_order_call(opening, exit_permit)
@@ -389,7 +389,7 @@ def test_full_open_and_close_fill_reports_exact_gross_paper_pnl(tmp_path: Path) 
 def test_missing_or_contradictory_fill_economics_never_guesses_pnl(tmp_path: Path) -> None:
     opening = open_permit()
     exit_permit = close_permit(opening)
-    from ringdown_market.execution.mcp import build_close_order_call, build_open_order_call
+    from esscher.execution.mcp import build_close_order_call, build_open_order_call
 
     open_call = build_open_order_call(opening)
     close_call = build_close_order_call(opening, exit_permit)
@@ -442,7 +442,7 @@ def test_missing_or_contradictory_fill_economics_never_guesses_pnl(tmp_path: Pat
 def test_unavailable_pnl_reason_sanitizes_invalid_broker_timestamp(tmp_path: Path) -> None:
     opening = open_permit()
     exit_permit = close_permit(opening)
-    from ringdown_market.execution.mcp import build_close_order_call, build_open_order_call
+    from esscher.execution.mcp import build_close_order_call, build_open_order_call
 
     open_call = build_open_order_call(opening)
     close_call = build_close_order_call(opening, exit_permit)
@@ -485,7 +485,7 @@ def test_unavailable_pnl_reason_sanitizes_invalid_broker_timestamp(tmp_path: Pat
 
 def test_attempt_store_prevents_resubmission_after_restart(tmp_path: Path) -> None:
     opening = open_permit()
-    from ringdown_market.execution.mcp import build_open_order_call
+    from esscher.execution.mcp import build_open_order_call
 
     open_call = build_open_order_call(opening)
     attempt_store = FilePaperAttemptStore(tmp_path / "attempts")
@@ -524,7 +524,7 @@ def test_attempt_store_prevents_resubmission_after_restart(tmp_path: Path) -> No
 
 def test_sanitized_bundle_contains_no_raw_broker_or_secret_identifiers(tmp_path: Path) -> None:
     opening = open_permit()
-    from ringdown_market.execution.mcp import build_open_order_call
+    from esscher.execution.mcp import build_open_order_call
 
     open_call = build_open_order_call(opening)
     submitted = order(
@@ -569,7 +569,7 @@ def test_sanitized_bundle_contains_no_raw_broker_or_secret_identifiers(tmp_path:
 def test_partial_close_fill_stops_before_final_flat_receipt(tmp_path: Path) -> None:
     opening = open_permit()
     exit_permit = close_permit(opening)
-    from ringdown_market.execution.mcp import build_close_order_call, build_open_order_call
+    from esscher.execution.mcp import build_close_order_call, build_open_order_call
 
     open_call = build_open_order_call(opening)
     close_call = build_close_order_call(opening, exit_permit)

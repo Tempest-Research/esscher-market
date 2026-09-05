@@ -53,7 +53,7 @@ The host plan may perform the already-reviewed read-only capability/account pref
 ## 2. Dry run
 
 ```bash
-uv run ringdown run-scheduled-event \
+uv run esscher run-scheduled-event \
   --manifest .local/scheduled/<event_run_id>.json \
   --state-dir .local/scheduled-state \
   --host-plan operator_paper_plan:build_plan \
@@ -69,7 +69,7 @@ Stop if the output is rejected, the event or permit identities differ, PAPER can
 Run only after the separate operator approval for this exact manifest and PAPER event:
 
 ```bash
-uv run ringdown run-scheduled-event \
+uv run esscher run-scheduled-event \
   --manifest .local/scheduled/<event_run_id>.json \
   --state-dir .local/scheduled-state \
   --host-plan operator_paper_plan:build_plan

@@ -12,22 +12,22 @@ from pathlib import Path
 
 import pytest
 
-from ringdown_market.cli import main as cli_main
-from ringdown_market.contracts.broker_preflight import (
+from esscher.cli import main as cli_main
+from esscher.contracts.broker_preflight import (
     PreflightVerdict,
     parse_broker_preflight_receipt,
 )
-from ringdown_market.contracts.execution_policy import CANCEL_TOOL, OPEN_TOOL
-from ringdown_market.execution.host_mcp import (
+from esscher.contracts.execution_policy import CANCEL_TOOL, OPEN_TOOL
+from esscher.execution.host_mcp import (
     HostMcpConfigurationError,
     HostMcpEnvironment,
     HostMcpPaperSessionFactory,
     HostMcpSessionIdentity,
 )
-from ringdown_market.risk import RiskLedger
-from ringdown_market.runtime.autonomous_host import AutonomousHostDisposition
-from ringdown_market.runtime.paper_mcp_composition import paper_mcp_plan_factory
-from ringdown_market.runtime.paper_scheduler import (
+from esscher.risk import RiskLedger
+from esscher.runtime.autonomous_host import AutonomousHostDisposition
+from esscher.runtime.paper_mcp_composition import paper_mcp_plan_factory
+from esscher.runtime.paper_scheduler import (
     PaperSessionInvocation,
     run_paper_session,
     session_observation_timeline,
@@ -291,7 +291,7 @@ def test_paper_run_cli_drives_the_scheduled_session_to_terminal_flat(
 
 
 def parse_arm_from_bytes(raw: bytes):
-    from ringdown_market.runtime.autonomous import parse_autonomous_session_arm
+    from esscher.runtime.autonomous import parse_autonomous_session_arm
 
     return parse_autonomous_session_arm(raw)
 
@@ -346,7 +346,7 @@ def test_scheduler_stops_at_manual_reconciliation_without_later_points(
 def test_preflight_open_order_probe_paginates_and_counts_every_page(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import ringdown_market.runtime.paper_preflight as preflight_module
+    import esscher.runtime.paper_preflight as preflight_module
 
     monkeypatch.setattr(preflight_module, "PREFLIGHT_ORDERS_PAGE_LIMIT", 2)
     host = FakeMcpHost(
@@ -387,7 +387,7 @@ class CyclingOrdersHost(FakeMcpHost):
 def test_preflight_open_order_pagination_cycle_is_incomplete_never_guessed(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import ringdown_market.runtime.paper_preflight as preflight_module
+    import esscher.runtime.paper_preflight as preflight_module
 
     monkeypatch.setattr(preflight_module, "PREFLIGHT_ORDERS_PAGE_LIMIT", 2)
     host = CyclingOrdersHost()

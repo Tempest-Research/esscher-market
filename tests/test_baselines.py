@@ -1,7 +1,7 @@
 from datetime import UTC, datetime, timedelta
 
-from ringdown_market.alpha.baselines import BaselineName, build_frozen_baselines
-from ringdown_market.alpha.models import DecisionSnapshot, Direction
+from esscher.alpha.baselines import BaselineName, build_frozen_baselines
+from esscher.alpha.models import DecisionSnapshot, Direction
 
 UTC = UTC
 

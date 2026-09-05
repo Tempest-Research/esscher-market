@@ -15,7 +15,7 @@ from decimal import Decimal
 
 import pytest
 
-from ringdown_market.contracts.execution_policy import (
+from esscher.contracts.execution_policy import (
     ACCOUNT_TOOL,
     CANCEL_TOOL,
     OPEN_TOOL,
@@ -23,7 +23,7 @@ from ringdown_market.contracts.execution_policy import (
     POSITIONS_TOOL,
     READBACK_TOOL,
 )
-from ringdown_market.execution.host_mcp import (
+from esscher.execution.host_mcp import (
     HostMcpConfigurationError,
     HostMcpEnvironment,
     HostMcpPaperSessionFactory,
@@ -31,8 +31,8 @@ from ringdown_market.execution.host_mcp import (
     HostMcpSessionIdentity,
     _GuardedHostMcpSession,
 )
-from ringdown_market.execution.lifecycle_mcp import LifecycleMcpPaperBroker
-from ringdown_market.lifecycle.broker import (
+from esscher.execution.lifecycle_mcp import LifecycleMcpPaperBroker
+from esscher.lifecycle.broker import (
     BrokerOptionLeg,
     BrokerOrderRequest,
     BrokerOutage,

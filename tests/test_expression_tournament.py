@@ -13,7 +13,7 @@ from decimal import Decimal
 
 import pytest
 
-from ringdown_market.execution.expression import (
+from esscher.execution.expression import (
     COMPILED,
     EXECUTABLE_DATA,
     INDICATIVE_DATA,
@@ -41,11 +41,11 @@ from ringdown_market.execution.expression import (
     promoted_expression_policy_sha256,
     run_gate_d_tournament,
 )
-from ringdown_market.execution.expression.compiler import no_package_payload
-from ringdown_market.execution.expression.validation import _observation_age
-from ringdown_market.execution.models import VerticalType
-from ringdown_market.strategy.contracts import sha256_bytes, strategy_decision_bytes
-from ringdown_market.strategy.models import (
+from esscher.execution.expression.compiler import no_package_payload
+from esscher.execution.expression.validation import _observation_age
+from esscher.execution.models import VerticalType
+from esscher.strategy.contracts import sha256_bytes, strategy_decision_bytes
+from esscher.strategy.models import (
     DecisionDisposition,
     Direction,
     ReactionRelation,
@@ -870,8 +870,8 @@ def test_selection_tie_breaks_deterministically_on_strike_then_symbol() -> None:
     twin_a = _contract("KR260918C00061000", "CALL", "61", delta="0.45", bid="0.80", ask="0.84")
     twin_b = _contract("KR260918C00062000", "CALL", "62", delta="0.44", bid="0.80", ask="0.84")
     snapshot = _snapshot(chain=(twin_a, twin_b))
-    from ringdown_market.execution.expression.geometry import select_long_contract
-    from ringdown_market.execution.models import OptionType
+    from esscher.execution.expression.geometry import select_long_contract
+    from esscher.execution.models import OptionType
 
     selected = select_long_contract(
         snapshot,

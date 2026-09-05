@@ -7,14 +7,14 @@ from decimal import Decimal
 
 import pytest
 
-from ringdown_market.autonomy.episodes import build_episodic_summary
-from ringdown_market.autonomy.universe import (
+from esscher.autonomy.episodes import build_episodic_summary
+from esscher.autonomy.universe import (
     ProductKind,
     UniverseLane,
     UniverseObservation,
     scan_universe,
 )
-from ringdown_market.contracts.reasoner_route import (
+from esscher.contracts.reasoner_route import (
     RouteCompatibilityState,
     RouteContractRejected,
     load_approved_reasoner_route,
@@ -23,8 +23,8 @@ from ringdown_market.contracts.reasoner_route import (
     packaged_route_descriptor_v2_bytes,
     validate_reasoner_route_v2,
 )
-from ringdown_market.risk.ledger import RiskLedger
-from ringdown_market.sourcedata.alpaca_news import (
+from esscher.risk.ledger import RiskLedger
+from esscher.sourcedata.alpaca_news import (
     PUBLISHER_ID,
     REDISTRIBUTION_STATUS,
     SOURCE_ID,
@@ -32,20 +32,20 @@ from ringdown_market.sourcedata.alpaca_news import (
     SOURCE_URL_PREFIX,
     ArticleAttribution,
 )
-from ringdown_market.sourcedata.news import (
+from esscher.sourcedata.news import (
     NewsObservation,
     NewsSourceAuthorization,
     news_content_sha256,
     news_observation_sha256,
 )
-from ringdown_market.strategy import (
+from esscher.strategy import (
     candidate_manifest_bytes,
     candidate_manifest_sha256,
     feature_receipt_bytes,
     strategy_snapshot_bytes,
     strategy_snapshot_sha256,
 )
-from ringdown_market.strategy.contracts import (
+from esscher.strategy.contracts import (
     StrategyV2ContextRejected,
     build_strategy_v2_context,
     reasoner_output_schema_sha256,
@@ -54,13 +54,13 @@ from ringdown_market.strategy.contracts import (
     reasoner_system_prompt_v2_sha256,
     sha256_bytes,
 )
-from ringdown_market.strategy.host_route import (
+from esscher.strategy.host_route import (
     HostRouteConfigurationError,
     HostRouteInputIntegrityError,
     build_kimi_k3_v2_request,
 )
-from ringdown_market.strategy.models import GuidanceDirection
-from ringdown_market.strategy.policy import load_strategy_policy, load_strategy_policy_v2
+from esscher.strategy.models import GuidanceDirection
+from esscher.strategy.policy import load_strategy_policy, load_strategy_policy_v2
 from test_strategy_contracts import _strategy_input
 
 V2_EARNINGS = "EARNINGS_RESIDUAL_CONTINUATION_V2"

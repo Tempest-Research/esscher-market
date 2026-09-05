@@ -20,9 +20,9 @@ from pathlib import Path
 
 import pytest
 
-from ringdown_market.application import autonomous_bridge
-from ringdown_market.cli import main as cli_main
-from ringdown_market.contracts.strategy_release import (
+from esscher.application import autonomous_bridge
+from esscher.cli import main as cli_main
+from esscher.contracts.strategy_release import (
     EXPECTED_LANE_BINDINGS,
     ArmRecord,
     ReleaseLog,
@@ -32,16 +32,16 @@ from ringdown_market.contracts.strategy_release import (
     evaluate_release,
     strategy_release_bytes,
 )
-from ringdown_market.risk import RiskLedger, verify_passport
-from ringdown_market.runtime import host_composition, host_fake_broker, host_persistence
-from ringdown_market.runtime.autonomous import (
+from esscher.risk import RiskLedger, verify_passport
+from esscher.runtime import host_composition, host_fake_broker, host_persistence
+from esscher.runtime.autonomous import (
     ActiveLifecycleIdentity,
     AutonomousOpportunity,
     AutonomousSessionArm,
     LifecycleCloseRequest,
     autonomous_session_arm_bytes,
 )
-from ringdown_market.runtime.autonomous_host import (
+from esscher.runtime.autonomous_host import (
     AutonomousHostAuthorityInput,
     AutonomousHostDisposition,
     AutonomousHostInvocation,
@@ -49,7 +49,7 @@ from ringdown_market.runtime.autonomous_host import (
     HostLifecycleCloserAdapter,
     run_autonomous_host_command,
 )
-from ringdown_market.runtime.host_composition import (
+from esscher.runtime.host_composition import (
     EARNINGS_LANE_V2,
     MARKET_ANCHOR_LANE_V2,
     CompositionFeed,
@@ -57,12 +57,12 @@ from ringdown_market.runtime.host_composition import (
     composition_plan_factory,
     split_composition_fixture,
 )
-from ringdown_market.runtime.host_fake_broker import SyntheticPaperBroker
-from ringdown_market.runtime.host_persistence import (
+from esscher.runtime.host_fake_broker import SyntheticPaperBroker
+from esscher.runtime.host_persistence import (
     HOST_PERSISTENCE_FILENAME,
     HostPersistenceSidecar,
 )
-from ringdown_market.sourcedata.fakes import load_fixture
+from esscher.sourcedata.fakes import load_fixture
 
 BUILD_SHA256 = "b" * 64
 CODE_REVISION = "a" * 40

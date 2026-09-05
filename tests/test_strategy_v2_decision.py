@@ -7,9 +7,9 @@ from datetime import timedelta
 
 import pytest
 
-from ringdown_market.contracts.reasoner_route import load_approved_reasoner_route_v2
-from ringdown_market.risk.ledger import RiskLedger
-from ringdown_market.strategy import (
+from esscher.contracts.reasoner_route import load_approved_reasoner_route_v2
+from esscher.risk.ledger import RiskLedger
+from esscher.strategy import (
     DIRECTION_ONLY_UNCONFIRMED_AUTHORITY,
     StrategyV2DirectionDecision,
     StrategyV2DirectionDecisionRejected,
@@ -19,8 +19,8 @@ from ringdown_market.strategy import (
     strategy_v2_direction_decision_sha256,
     validate_strategy_v2_direction_decision,
 )
-from ringdown_market.strategy.host_route import KimiTransportResult, build_kimi_k3_v2_request
-from ringdown_market.strategy.models import Direction, ExchangeStatus, StrategyDecision
+from esscher.strategy.host_route import KimiTransportResult, build_kimi_k3_v2_request
+from esscher.strategy.models import Direction, ExchangeStatus, StrategyDecision
 from test_strategy_v2_route import _context
 
 

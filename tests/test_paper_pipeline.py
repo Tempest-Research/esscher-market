@@ -15,9 +15,9 @@ from decimal import Decimal
 
 import pytest
 
-from ringdown_market.application import PaperPipelineRejected, PaperStrategyApplication
-from ringdown_market.contracts.execution_policy import ALPACA_MCP_PROTOCOL_SHA256
-from ringdown_market.execution.expression import (
+from esscher.application import PaperPipelineRejected, PaperStrategyApplication
+from esscher.contracts.execution_policy import ALPACA_MCP_PROTOCOL_SHA256
+from esscher.execution.expression import (
     EXECUTABLE_DATA,
     BorrowLocateEvidence,
     ExpressionKind,
@@ -30,22 +30,22 @@ from ringdown_market.execution.expression import (
     TwoSidedQuote,
     compiled_expression_sha256,
 )
-from ringdown_market.execution.host_mcp import (
+from esscher.execution.host_mcp import (
     ACCOUNT_TOOL,
     HostMcpEnvironment,
     HostMcpPaperSessionFactory,
     HostMcpSessionIdentity,
     PreparedHostMcpSession,
 )
-from ringdown_market.execution.mcp import (
+from esscher.execution.mcp import (
     CANCEL_TOOL,
     OPEN_TOOL,
     ORDER_BY_ID_TOOL,
     POSITIONS_TOOL,
     READBACK_TOOL,
 )
-from ringdown_market.execution.models import debit_vertical_permit_id
-from ringdown_market.lifecycle import (
+from esscher.execution.models import debit_vertical_permit_id
+from esscher.lifecycle import (
     MULTI_LEG_ORDER_CLASS,
     PAPER_ACCOUNT_CLASS,
     BrokerOptionLeg,
@@ -57,7 +57,7 @@ from ringdown_market.lifecycle import (
     issue_close_permit,
     lifecycle_clocks_sha256,
 )
-from ringdown_market.risk import (
+from esscher.risk import (
     ControlState,
     PassportEventType,
     RiskKernel,
@@ -66,15 +66,15 @@ from ringdown_market.risk import (
     risk_policy_sha256,
     verify_passport,
 )
-from ringdown_market.risk.snapshots import AccountSnapshot, OrderSnapshot, PositionSnapshot
-from ringdown_market.sourcedata import CaptureConfiguration, compiled_strategy_input
-from ringdown_market.sourcedata.fakes import (
+from esscher.risk.snapshots import AccountSnapshot, OrderSnapshot, PositionSnapshot
+from esscher.sourcedata import CaptureConfiguration, compiled_strategy_input
+from esscher.sourcedata.fakes import (
     FixtureEvidenceSource,
     FixtureMarketDataSource,
     build_candidate_manifest,
     load_fixture,
 )
-from ringdown_market.strategy.contracts import (
+from esscher.strategy.contracts import (
     candidate_manifest_bytes,
     feature_receipt_bytes,
     parse_candidate_manifest,
@@ -83,8 +83,8 @@ from ringdown_market.strategy.contracts import (
     sha256_bytes,
     strategy_snapshot_bytes,
 )
-from ringdown_market.strategy.engine import decision_trace_payload
-from ringdown_market.strategy.reasoner import (
+from esscher.strategy.engine import decision_trace_payload
+from esscher.strategy.reasoner import (
     SYNTHETIC_ROUTE_IDENTITY,
     DeterministicFakeReasoner,
     ReasonerRouteRequest,
