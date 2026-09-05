@@ -7,7 +7,7 @@
     "equity": "100000",
     "equity_pct_vs_start": 0.0,
     "equity_vs_start": 0.0,
-    "observed_at": "2026-09-04T23:43:36Z",
+    "observed_at": "2026-09-05T00:17:47Z",
     "open_order_count": 0,
     "positions": [],
     "positions_unrealized_pl": 0.0,
@@ -60,6 +60,22 @@
         "receipt_sha256": "c267052a80dc14c3",
         "session_id": "ESSCHER-REHEARSAL-RC2B-20260911",
         "terminal_flat_proven": true
+      },
+      {
+        "disposition": "TERMINAL",
+        "mode": "live",
+        "mutating_tool_calls": [],
+        "receipt_sha256": "c916a521a346c91e",
+        "session_id": "ESSCHER-REHEARSAL-RC2A-20260911",
+        "terminal_flat_proven": true
+      },
+      {
+        "disposition": "TERMINAL",
+        "mode": "fixture",
+        "mutating_tool_calls": [],
+        "receipt_sha256": "c267052a80dc14c3",
+        "session_id": "ESSCHER-REHEARSAL-RC2B-20260911",
+        "terminal_flat_proven": true
       }
     ],
     "release": {
@@ -69,12 +85,12 @@
       "release_sha256": "facbc15bbf4ef0e1"
     }
   },
-  "generated_at": "2026-09-04T23:43:35Z",
+  "generated_at": "2026-09-05T00:17:46Z",
   "lane": {
     "kind": "PRE_SESSION",
     "labels": []
   },
   "schema": "esscher.public_session_state",
   "schema_version": 1,
-  "session_status": "PRE_SESSION"
+  "session_status": "LIVE_REHEARSAL_PASSED"
 }
