@@ -7,7 +7,7 @@
     "equity": "100000",
     "equity_pct_vs_start": 0.0,
     "equity_vs_start": 0.0,
-    "observed_at": "2026-09-05T00:17:47Z",
+    "observed_at": "2026-09-05T00:20:33Z",
     "open_order_count": 0,
     "positions": [],
     "positions_unrealized_pl": 0.0,
@@ -47,6 +47,13 @@
     "rehearsals": [
       {
         "disposition": "TERMINAL",
+        "disposition_counts": {
+          "ABSTAINED": 1,
+          "ACTIVE": 0,
+          "MANUAL_RECONCILIATION_REQUIRED": 0,
+          "REJECTED_BEFORE_MUTATION": 0,
+          "TERMINAL_FLAT": 0
+        },
         "mode": "live",
         "mutating_tool_calls": [],
         "receipt_sha256": "c916a521a346c91e",
@@ -55,6 +62,13 @@
       },
       {
         "disposition": "TERMINAL",
+        "disposition_counts": {
+          "ABSTAINED": 0,
+          "ACTIVE": 0,
+          "MANUAL_RECONCILIATION_REQUIRED": 0,
+          "REJECTED_BEFORE_MUTATION": 1,
+          "TERMINAL_FLAT": 0
+        },
         "mode": "fixture",
         "mutating_tool_calls": [],
         "receipt_sha256": "c267052a80dc14c3",
@@ -63,6 +77,13 @@
       },
       {
         "disposition": "TERMINAL",
+        "disposition_counts": {
+          "ABSTAINED": 1,
+          "ACTIVE": 0,
+          "MANUAL_RECONCILIATION_REQUIRED": 0,
+          "REJECTED_BEFORE_MUTATION": 0,
+          "TERMINAL_FLAT": 0
+        },
         "mode": "live",
         "mutating_tool_calls": [],
         "receipt_sha256": "c916a521a346c91e",
@@ -71,6 +92,13 @@
       },
       {
         "disposition": "TERMINAL",
+        "disposition_counts": {
+          "ABSTAINED": 0,
+          "ACTIVE": 0,
+          "MANUAL_RECONCILIATION_REQUIRED": 0,
+          "REJECTED_BEFORE_MUTATION": 1,
+          "TERMINAL_FLAT": 0
+        },
         "mode": "fixture",
         "mutating_tool_calls": [],
         "receipt_sha256": "c267052a80dc14c3",
@@ -85,7 +113,7 @@
       "release_sha256": "facbc15bbf4ef0e1"
     }
   },
-  "generated_at": "2026-09-05T00:17:46Z",
+  "generated_at": "2026-09-05T00:20:32Z",
   "lane": {
     "kind": "PRE_SESSION",
     "labels": []
