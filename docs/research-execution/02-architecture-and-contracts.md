@@ -1,14 +1,22 @@
 # Architecture and contract discussion
 
-Draft 0.1 · 8 September 2026 · Proposal for Ben, Alex and Yaroslav
+Draft 0.2 · 8 September 2026 · Proposal for Ben, Alex and Yaroslav
 
 This document expands [the group brief](01-project-brief.md). All record names and semantics here are proposed, not implemented APIs. Alex's repository has not been inspected for this pack. Do not interpret this as permission to change code or connect an account.
+
+## Before ratifying a contract
+
+The first research milestone is a baseline/candidate experiment that a teammate can reproduce and challenge. It does not need these execution records, an adapter or a shared account profile. See [L0, M1 and M1U](03-collaboration-and-roadmap.md).
+
+For later integration, M0 must trace one real research output into one real simulator input and record the mismatches. Check instrument identity, decision/availability clocks, adjusted versus executable prices, target meaning, current holdings, cash and rounding. Only then agree the smallest supported schema and transport. If the research market is incompatible, use a separate integration reference rather than silently relabelling the research output.
+
+The details below are a requirements checklist to validate, not frozen fields. Preserve independent authority, unambiguous accounting, idempotency and unresolved-state handling even when simplifying the layout. Do not implement a generic contract framework before the concrete mapping has been inspected.
 
 ## 1. System ownership
 
 ### Research laboratory
 
-Own hypotheses, source provenance, datasets, features, model artifacts, evaluation splits, portfolio policy, target selection and experiment conclusions. Run models here and emit reviewed targets. Keep training labels and historical reports immutable with versioned corrections.
+Own hypotheses, source provenance, datasets, features, model artifacts, evaluation splits, portfolio policy, target selection and experiment conclusions. First support baseline/candidate comparison and teammate replay/review using existing tooling. Run models here; emit reviewed targets only in the later integration scope. Keep training labels and historical reports immutable with versioned corrections.
 
 ### Execution pipeline
 
@@ -117,7 +125,23 @@ Each case needs inputs, initial state, fault schedule, expected events/state inv
 
 Keep synthetic lifecycle fixtures separate from market-performance experiments. Test evidence should include real assertions and failure traces, not just a green process exit.
 
-## 6. Integration files — only after inspection
+## 6. First discrepancy study: fees
+
+**Question:** how much of the simulated cash/net-asset-value difference is explained by the declared fees when the fills themselves are held fixed?
+
+Start with a fixed-fill accounting comparison, not a claim to explain every execution discrepancy:
+
+1. Pin the initial account/cash, currency, event/fill identities, quantities, fill prices and common valuation path. Require complete, deduplicated, reconciled inputs. Exclude interest, cash flows, FX effects and other varying costs for this bounded case.
+2. Define reference A with zero fees and scenario B with one explicit fee schedule. Keep fills and valuation prices identical. Ensure sufficient starting cash for both schedules; if the fixed fills would become infeasible, report that incompatibility rather than silently allowing an overdraft or changing quantities.
+3. Attach every calculated fee to its fill/event and show schedule, fee currency, rounding convention and accounting time. A modelled fee is not an observed venue charge; label the two separately if observed charges are later available.
+4. At each comparison time, reconcile `cash_B - cash_A` and `NAV_B - NAV_A` to the negative cumulative charge difference under the stated assumptions. Position quantities and dollar holdings under common prices stay equal; percentage weights can differ because NAV differs. Report these meanings separately.
+5. Save input/configuration identities, the two ledgers, event-linked fee totals, reconciliation residuals and an exercised replay command. Set numeric tolerances before checking the result; missing/duplicate/mismatched evidence must produce a failed or unresolved comparison rather than a polished explanation.
+
+**Acceptance:** a reviewer can reproduce the ledgers, trace each charge to its event and verify the accounting identity within declared tolerances. Also exercise a zero-fee equality case and a deliberately duplicated/missing event case. These are proposed tests, not completed results.
+
+**Interpretation limit:** this isolates fee sensitivity under fixed fills. It does not estimate how fees would change later sizing, trade selection, market impact or real-world PnL. Such feedback requires a separate controlled strategy rerun. Partial fills, rounding and latency need their own reference cases; a list of events alone is not an explanation of their economic effect.
+
+## 7. Integration files — only after inspection
 
 Possible logical modules: contract schemas, research export adapter, execution intake adapter, normalized event importer, discrepancy analysis and shared test fixtures. Actual paths and native test commands must follow both repositories. Do not invent runnable commands for files that do not exist.
 

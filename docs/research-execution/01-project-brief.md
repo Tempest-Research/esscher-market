@@ -2,7 +2,7 @@
 
 **Two connected projects. One traceable research loop.**
 
-Discussion draft for Ben, Alex and Yaroslav · 8 September 2026 · Draft 0.1
+Discussion draft for Ben, Alex and Yaroslav · 8 September 2026 · Draft 0.2
 
 Prepared by Atlas (AI assistant) from Ben's project discussion and public sources. Not yet reviewed or agreed by Alex or Yaroslav. Project names below are descriptive working labels, not final brands.
 
@@ -10,7 +10,7 @@ Prepared by Atlas (AI assistant) from Ben's project discussion and public source
 
 Build two useful projects that cooperate without becoming the same codebase:
 
-- **Project A — Research Laboratory:** a collaborative workspace for turning questions about markets into sourced, reproducible experiments and evaluated portfolio strategies. Ben's proposed starting point is a separate product using Qlib.
+- **Project A — Research Laboratory:** a collaborative workspace for turning questions about markets into sourced, reproducible experiments and evaluated portfolio strategies. Qlib is the first learning and fit-test candidate, not a final foundation decision. Research-side usefulness comes before execution integration.
 - **Project B — Execution Pipeline:** Alex's project, connected through a small adapter if its existing architecture supports that. Its proposed role is to carry out selected portfolio decisions in a simulator, later potentially a paper venue, and keep an accurate record of what happened.
 - **The connection:** reviewed portfolio targets go out; orders, fills, costs and reconciled positions come back. Research can then investigate the gap between expectations and outcomes.
 
@@ -28,7 +28,11 @@ The first scope is historical research plus local simulated execution. Broker-pa
 
 ### The recommended first result
 
-One reproducible research run, one portfolio target passed into a recoverable simulator, and one report explaining any difference between the intended and achieved portfolio. A useful negative result counts: discovering a cost assumption or recovery bug is progress.
+One researcher compares a simple baseline with one candidate; a teammate then reproduces the comparison, changes one declared assumption in a separate run, and explains the conclusion without the author's verbal help. The first result is useful research collaboration, not a broker order or a simulator integration. A defensible rejection or inconclusive result counts as success.
+
+**The first user:** a member of a small code-based research team who wants to understand and challenge a teammate's experiment. The working problem hypothesis is that reconstructing data, configuration, assumptions and reasoning across notebooks and scripts is unnecessarily difficult. That difficulty is not yet demonstrated: test the journey using existing tools before deciding what custom product layer is justified.
+
+The promise is: **test an idea, let someone else challenge it, and reach an understandable conclusion**. It is not a promise to generate profitable strategies. Execution feedback remains a later, independently valuable extension.
 
 ## 2. Project A — the research laboratory
 
@@ -41,15 +45,19 @@ One reproducible research run, one portfolio target passed into a recoverable si
 3. Build a simple baseline and one candidate feature or model.
 4. Run a chronological evaluation with realistic costs and protected test data.
 5. Compare results, inspect failures and retain rejected ideas as well as successful ones.
-6. Review the strategy before exporting a time-specific portfolio target.
+6. Give a teammate the recorded experiment, comparison and rationale; retain their reproduction, challenge and review.
 
-A possible question, not a selected strategy: **does a timestamped feature extracted from company disclosures improve a price-only baseline after costs?** This would require reliable publication times, data rights and a common market. A simple price-based baseline is enough for the first integration; document extraction should not block it.
+Only later, after separate review and an agreed integration profile, export a time-specific portfolio target. A score is not a holding, a holding is not an order, and a backtest is not execution evidence.
+
+A possible later question, not a selected strategy: **does a timestamped feature extracted from company disclosures improve a price-only baseline after costs?** This would require reliable publication times, data rights and a chosen research market. A simple price-based experiment is enough to test the initial collaboration journey; document extraction and a common execution market should not block it.
 
 ### What Qlib supplies; what the team would own
 
 Qlib provides a machine-learning workflow spanning data processing, model training and backtesting.[1] It also includes portfolio strategies: its documented weight-based strategy can derive order lists from target positions.[2] The project should reuse these capabilities rather than rebuild them under a new name.
 
-The proposed product layer is the team's research workspace: hypothesis records, source-linked document features, experiment specifications, shared comparison/review, original research methods and the execution-feedback connection. Initially wrap Qlib behind a small adapter; contribute generally useful improvements upstream where appropriate. Do not fork it without a concrete blocker.
+The first candidate product layer is shared experiment comparison and review: keep the question, data/code/environment identities, assumptions, outputs, failures and conclusion together so another person can reproduce and challenge them. Test Qlib's existing recording/replay workflow and suitable tracking, versioned-data and notebook tools before adding an adapter or interface. If those tools already serve the team well, reuse and document that workflow; do not build a wrapper merely to own one.
+
+Source-linked document features, original research methods and the execution-feedback connection are later options, not simultaneous first products. Contribute generally useful improvements upstream where appropriate. Do not fork Qlib without a concrete blocker. The existence of Qlib or RD-Agent does not invalidate an engineering project; it changes what the team must demonstrate as useful.
 
 ### Where AI helps
 
@@ -58,6 +66,14 @@ AI could find and summarise sources, propose testable hypotheses, draft feature 
 AI-assisted factor/model research already has close reference projects, including RD-Agent.[8] The proposed value must therefore be demonstrated through reproducibility, collaboration or research usefulness—not the label “AI agents”.
 
 **First scope:** one market, one horizon, one baseline and one candidate. Defer a large dashboard, autonomous strategy promotion and training a proprietary foundation model.
+
+### Learn the workflow before building the platform
+
+Keep programming and maths foundations as the main learning work; use this experiment as a bounded application rather than a replacement curriculum. First trace **question -> data -> features/labels -> temporal splits -> model scores -> portfolio rule -> cost-aware backtest -> conclusion**. Learn each unfamiliar concept at the point it is used.
+
+Small learner-owned exercises can connect functions/collections to selecting instruments from scores, weighted sums to portfolio returns, and basic statistics to interpreting a comparison. Use a hand-worked example and a tiny checked implementation before relying on framework output. Advanced calculus, a custom model and distributed infrastructure are not prerequisites for this first guided path.
+
+Guided cell execution is not independent implementation or research competence. Record what was explained, what was written independently and what remains unclear. This is a learning sequence, not a requirement to pass a quiz before publishing or reviewing the proposal. The roadmap's L0 describes the next bounded exercise; no broad platform build is authorized by this draft.
 
 ## 3. Project B — the execution pipeline
 
@@ -106,6 +122,8 @@ Expected vs achieved -> investigate -> next experiment
 ```
 
 ### Four proposed records
+
+These are design requirements to validate against a real Qlib output and a real simulator input, not frozen APIs or prerequisites for the research-only milestone. Preserve the authority and accounting constraints while revising field names and transport after inspection.
 
 **StrategyBundle:** identifies the strategy being evaluated: dataset, features, model, portfolio policy, universe, validation report and cost assumptions. It identifies artifacts; it is not permission to load arbitrary generated code into execution.
 
@@ -158,19 +176,29 @@ If someone authors a change, another person should review its evidence before in
 
 No deadlines, repository ownership transfers, licences or contribution quotas are decided by this document.
 
-## 6. A staged first build, with proof at each step
+## 6. A staged path, with proof at each step
 
-### M0 — Inspect and agree
+The [roadmap](03-collaboration-and-roadmap.md) owns detailed acceptance and dependencies. No milestone is marked complete by this proposal.
 
-Trace one actual input-to-order-to-state path in Alex's repository. Establish the research baseline and choose a compatible market, horizon and account profile. Decide what to reuse and who owns the boundary. **Proof:** a source-linked capability map and an agreed small change list.
+### L0 — Understand one guided experiment
 
-### M1 — Freeze a research reference
+Continue from model scores into a small portfolio rule and a cost-aware backtest. Explain the data flow and write a bounded piece of the calculation. **Proof:** a saved learning example with checked outputs, limitations and support level; not a claim of independent research or predictive edge.
 
-Complete one Qlib portfolio backtest with identifiable data, model, policy, starting account state and cost assumptions. Export its targets. **Proof:** a rerun reproduces declared outputs within stated tolerances. Synthetic lifecycle fixtures remain separate from market-performance evidence.
+### M1 — Freeze a research reference, independently
+
+Compare a baseline and one candidate with identifiable data, code/environment, model, policy, splits, starting account state and costs. **Proof:** a rerun reproduces declared outputs within stated tolerances. M1 does not depend on M0, a simulator, exported targets or Alex's adapter.
+
+### M1U — Test teammate usefulness before custom product work
+
+A non-author reproduces both runs, compares assumptions and results, varies one assumption in a new run, and explains continue/reject/inconclusive reasoning using only the supplied artifacts. Record missing information, manual repairs and author intervention. **Proof:** a teammate-authored explanation and an observed friction record. First try existing tools; build only for a demonstrated unmet need.
+
+### M0 — Inspect and agree the later integration
+
+This is a separate workstream, not a prerequisite for L0, M1 or M1U. Inspect Alex's actual lifecycle and map one research output to one simulator input. Choose a compatible profile and validate the minimum contract. **Proof:** a source-linked map, explicit unsupported assumptions and an agreed small change list.
 
 ### M2 — Complete the simulator round-trip
 
-Export one target, validate it in execution, simulate the required changes, and import events and a reconciled snapshot into the research run. **Proof:** a trace from research decision to achieved holdings. Differing fill assumptions should produce an explained difference, not forced identical results.
+After M0, M1, M1U and a reviewed integration decision, export one target, validate it in execution, simulate the changes, and import events plus a reconciled snapshot. **Proof:** a trace from research decision to achieved holdings. Differing assumptions should produce an explained difference, not forced identical results.
 
 ### M3 — Prove bounded recovery behavior
 
@@ -178,9 +206,9 @@ Exercise duplicate intents, changed-payload ID reuse, restart, lost acknowledgem
 
 ### M4 — Explain the gap
 
-Show target versus achieved holdings, fees, delays, rejects, unfilled quantities and implementation shortfall against a stated price benchmark. **Proof:** seeded faults appear in an event-linked comparison report. Counterfactual replay is labelled as simulation, not an observed or uniquely proven cause.
+Start with fees, not every discrepancy at once. Hold the initial account, fill quantities/prices and valuation path fixed; compare zero fees with a declared fee schedule and reconcile the cash/net-asset-value difference to event-linked charges. **Proof:** the controlled accounting comparison in the [architecture document](02-architecture-and-contracts.md#6-first-discrepancy-study-fees). This is fee sensitivity under fixed fills, not the total effect of fees on future trading or proof of real-world causation.
 
-**Stop here for the first integrated milestone:** a reproducible research run, a recoverable simulator and a useful discrepancy report.
+**The first useful research milestone is M1U.** M2-M4 are the later integrated slice; research can remain independently useful without them. Synthetic lifecycle fixtures remain separate from market-performance evidence.
 
 ### Later — optional broker-paper integration
 
@@ -195,13 +223,17 @@ Only after review and explicit agreement on the venue/account setup. Use current
 
 ## 7. Where the interesting engineering and research could be
 
-### First: explain the research-to-execution gap
+### First: make a teammate's experiment understandable
+
+Observe where a non-author gets stuck reproducing, comparing or challenging a baseline/candidate experiment. Improve only those parts not already served adequately by existing tools. A run-linked rationale and a useful rejected experiment can matter more than a new dashboard. Hands-on workflow evidence, not an agent review or feature list, decides the next product slice.
+
+### Later: explain the research-to-execution gap
 
 Build a discrepancy investigator that connects a hypothesis and dataset cutoff to targets, order attempts, fills and final positions. Ask: **where did expectation and outcome first diverge?**
 
 This gives the two projects a practical reason to cooperate. Its contribution is a usable cross-project evidence trail—not simply another PnL chart. Avoid claiming unique causation when market effects and operational events overlap.
 
-### Second: make failures reproducible
+### Alongside integration: make failures reproducible
 
 A controllable fake venue, virtual clock and portable test corpus could test lost acknowledgements, message duplication and cancellation races across supported adapters. Minimise failures into regression traces. Reuse an existing harness if one fits; the valuable result is demonstrated invariants for the chosen scope, not novelty by assertion.
 
@@ -253,7 +285,7 @@ A useful response challenges scope, identifies existing solutions, tests whether
 - **Paper execution:** execution through a venue's simulated account, distinct from both historical backtesting and live-money trading.
 - **Implementation shortfall:** execution outcome measured against an explicitly chosen reference-price benchmark, including relevant costs and unfilled opportunity cost.
 
-**Next conversation:** Alex brings a repository/branch or diagram and sample messages; Ben brings a small research run; Yaroslav chooses a contribution he wants to explore. The group agrees one compatible slice before anyone starts a broad rewrite.
+**Next research step:** continue from prediction scores to a portfolio rule and a small checked backtest, then prepare the baseline/candidate comparison. Separately, Alex can bring an authorized repository/branch or diagram and sample messages, and Yaroslav can choose a contribution. Those conversations need not block learning or research-only usefulness.
 
 ## Sources
 
