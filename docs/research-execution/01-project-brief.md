@@ -10,7 +10,7 @@ Prepared by Atlas (AI assistant) from Ben's project discussion and public source
 
 Build two useful projects that cooperate without becoming the same codebase:
 
-- **Project A — Research Laboratory:** a collaborative workspace for turning questions about markets into sourced, reproducible experiments and evaluated portfolio strategies. Qlib is the first learning and fit-test candidate, not a final foundation decision. Research-side usefulness comes before execution integration.
+- **Project A — Research Laboratory:** a collaborative workspace for turning questions about markets into sourced, reproducible experiments and evaluated portfolio strategies. Qlib is the first fit-test candidate, not a final platform decision. Research-side usefulness comes before execution integration.
 - **Project B — Execution Pipeline:** Alex's project, connected through a small adapter if its existing architecture supports that. Its proposed role is to carry out selected portfolio decisions in a simulator, later potentially a paper venue, and keep an accurate record of what happened.
 - **The connection:** reviewed portfolio targets go out; orders, fills, costs and reconciled positions come back. Research can then investigate the gap between expectations and outcomes.
 
@@ -66,14 +66,6 @@ AI could find and summarise sources, propose testable hypotheses, draft feature 
 AI-assisted factor/model research already has close reference projects, including RD-Agent.[8] The proposed value must therefore be demonstrated through reproducibility, collaboration or research usefulness—not the label “AI agents”.
 
 **First scope:** one market, one horizon, one baseline and one candidate. Defer a large dashboard, autonomous strategy promotion and training a proprietary foundation model.
-
-### Learn the workflow before building the platform
-
-Keep programming and maths foundations as the main learning work; use this experiment as a bounded application rather than a replacement curriculum. First trace **question -> data -> features/labels -> temporal splits -> model scores -> portfolio rule -> cost-aware backtest -> conclusion**. Learn each unfamiliar concept at the point it is used.
-
-Small learner-owned exercises can connect functions/collections to selecting instruments from scores, weighted sums to portfolio returns, and basic statistics to interpreting a comparison. Use a hand-worked example and a tiny checked implementation before relying on framework output. Advanced calculus, a custom model and distributed infrastructure are not prerequisites for this first guided path.
-
-Guided cell execution is not independent implementation or research competence. Record what was explained, what was written independently and what remains unclear. This is a learning sequence, not a requirement to pass a quiz before publishing or reviewing the proposal. The roadmap's L0 describes the next bounded exercise; no broad platform build is authorized by this draft.
 
 ## 3. Project B — the execution pipeline
 
@@ -180,10 +172,6 @@ No deadlines, repository ownership transfers, licences or contribution quotas ar
 
 The [roadmap](03-collaboration-and-roadmap.md) owns detailed acceptance and dependencies. No milestone is marked complete by this proposal.
 
-### L0 — Understand one guided experiment
-
-Continue from model scores into a small portfolio rule and a cost-aware backtest. Explain the data flow and write a bounded piece of the calculation. **Proof:** a saved learning example with checked outputs, limitations and support level; not a claim of independent research or predictive edge.
-
 ### M1 — Freeze a research reference, independently
 
 Compare a baseline and one candidate with identifiable data, code/environment, model, policy, splits, starting account state and costs. **Proof:** a rerun reproduces declared outputs within stated tolerances. M1 does not depend on M0, a simulator, exported targets or Alex's adapter.
@@ -194,7 +182,7 @@ A non-author reproduces both runs, compares assumptions and results, varies one 
 
 ### M0 — Inspect and agree the later integration
 
-This is a separate workstream, not a prerequisite for L0, M1 or M1U. Inspect Alex's actual lifecycle and map one research output to one simulator input. Choose a compatible profile and validate the minimum contract. **Proof:** a source-linked map, explicit unsupported assumptions and an agreed small change list.
+This is a separate workstream, not a prerequisite for M1 or M1U. Inspect Alex's actual lifecycle and map one research output to one simulator input. Choose a compatible profile and validate the minimum contract. **Proof:** a source-linked map, explicit unsupported assumptions and an agreed small change list.
 
 ### M2 — Complete the simulator round-trip
 
@@ -285,7 +273,7 @@ A useful response challenges scope, identifies existing solutions, tests whether
 - **Paper execution:** execution through a venue's simulated account, distinct from both historical backtesting and live-money trading.
 - **Implementation shortfall:** execution outcome measured against an explicitly chosen reference-price benchmark, including relevant costs and unfilled opportunity cost.
 
-**Next research step:** continue from prediction scores to a portfolio rule and a small checked backtest, then prepare the baseline/candidate comparison. Separately, Alex can bring an authorized repository/branch or diagram and sample messages, and Yaroslav can choose a contribution. Those conversations need not block learning or research-only usefulness.
+**Next research step:** choose the initial research question and prepare the reproducible baseline/candidate comparison for M1, followed by the M1U teammate test. Separately, Alex can bring an authorized repository/branch or diagram and sample messages, and Yaroslav can choose a contribution. Those conversations need not block research-only usefulness.
 
 ## Sources
 

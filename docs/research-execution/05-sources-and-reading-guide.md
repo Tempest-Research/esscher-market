@@ -8,15 +8,13 @@ These are first-party project documentation/repositories, not an exhaustive comp
 
 The earlier architecture discussion informed this pack; its proposed responsibilities are labelled as proposals. No tests or trading operations were performed to create this document package. Local PDF/document checks are not tests of either project.
 
-Draft 0.2 changes the proposed learning/product sequence, not the evidence status of these references. A plan review or an agent's endorsement does not demonstrate teammate usability, demand, predictive quality or a completed integration.
+Draft 0.2 changes the proposed product sequence, not the evidence status of these references. A plan review or an agent's endorsement does not demonstrate teammate usability, demand, predictive quality or a completed integration.
 
 ## Read in the order needed
 
-For L0, follow one Qlib example from features/labels and time splits to scores, a portfolio rule and a cost-aware backtest. Pair it with the existing programming/maths curriculum: write small functions and checked weighted-return calculations instead of studying every framework first.
-
 For M1/M1U, inspect what the actual installed workflow records and whether a teammate can reproduce and challenge it with existing tools. Capture manual steps and missing information. Source-linked document models, custom ML, dashboards and execution-framework study are not prerequisites for that first journey.
 
-Read the execution references when M0 has an authorized concrete pipeline/sample to compare against them. Do not freeze schemas from documentation alone or delay research-only learning while awaiting execution details.
+Read the execution references when M0 has an authorized concrete pipeline/sample to compare against them. Do not freeze schemas from documentation alone or delay research-only work while awaiting execution details.
 
 ## Reading map
 
@@ -24,13 +22,13 @@ Read the execution references when M0 has an authorized concrete pipeline/sample
 
 The overview describes data processing, training and backtesting.[1] The portfolio-strategy documentation describes custom strategies and weight-based generation of positions/order lists.[2]
 
-Read with this question: **can a teammate reproduce and explain this Qlib experiment using the existing workflow, and where would an extension help?** Trace a baseline from data to model to prediction to portfolio strategy. Qlib is the first learning/fit-test candidate, not a selected foundation, an immediate fork or an engine limited to generating scores.
+Read with this question: **can a teammate reproduce and explain this Qlib experiment using the existing workflow, and where would an extension help?** Trace a baseline from data to model to prediction to portfolio strategy. Qlib is the first fit-test candidate, not a selected platform, an immediate fork or an engine limited to generating scores.
 
 ### RD-Agent — adjacent automated R&D
 
 The repository describes automated R&D and coordinated factor/model work in its quantitative-finance scenario.[8] Read it as a close comparator for AI-assisted research, not proof that the team's idea is unique. This pack does not reproduce or adopt its advertised performance claims.
 
-Question: **what would the team's collaboration, provenance or later execution feedback add to the chosen user's workflow?** Existing components can make the project more feasible; novelty is not required for learning/engineering value, while claims of better usability still need an observed comparison.
+Question: **what would the team's collaboration, provenance or later execution feedback add to the chosen user's workflow?** Existing components can make the project more feasible; novelty is not required for engineering value, while claims of better usability still need an observed comparison.
 
 ### NautilusTrader — execution and reconciliation
 
