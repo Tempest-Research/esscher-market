@@ -6,7 +6,7 @@ This document expands [the group brief](01-project-brief.md). All record names a
 
 ## Before ratifying a contract
 
-The first research milestone is a baseline/candidate experiment that a teammate can reproduce and challenge. It does not need these execution records, an adapter or a shared account profile. See [L0, M1 and M1U](03-collaboration-and-roadmap.md).
+The first research milestone is a baseline/candidate experiment that a teammate can reproduce and challenge. It does not need these execution records, an adapter or a shared account profile. See [M1 and M1U](03-collaboration-and-roadmap.md).
 
 For later integration, M0 must trace one real research output into one real simulator input and record the mismatches. Check instrument identity, decision/availability clocks, adjusted versus executable prices, target meaning, current holdings, cash and rounding. Only then agree the smallest supported schema and transport. If the research market is incompatible, use a separate integration reference rather than silently relabelling the research output.
 

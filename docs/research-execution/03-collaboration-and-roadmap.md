@@ -6,7 +6,7 @@ Draft 0.2 · 8 September 2026 · Discussion proposal, not an assigned schedule
 
 First make one research experiment understandable and reproducible by another person. Keep the research laboratory independently useful; connect execution only after a working research example and an inspected simulator boundary exist.
 
-Qlib is the first learning and fit-test candidate, not a final platform selection. This plan authorizes neither a broad implementation nor an account connection. No milestone below is claimed complete. Publication is not agreement from Alex or Yaroslav, and does not supersede Esscher's [current plan](../plans/CURRENT.md).
+Qlib is the first fit-test candidate, not a final platform selection. This plan authorizes neither a broad implementation nor an account connection. No milestone below is claimed complete. Publication is not agreement from Alex or Yaroslav, and does not supersede Esscher's [current plan](../plans/CURRENT.md).
 
 ## People and responsibility
 
@@ -26,10 +26,10 @@ Choose one bounded deliverable rather than making him the default owner of all i
 ## Two workstreams, not one blocking chain
 
 ```text
-Research:     L0 guided understanding -> M1 reference -> M1U teammate usefulness
-                                                       |
-                                                       v
-                                         reuse / bounded extension decision
+Research:     M1 reference -> M1U teammate usefulness
+                                  |
+                                  v
+                    reuse / bounded extension decision
 
 Integration: M0 inspect real systems and agree a compatible profile
                   |
@@ -39,26 +39,7 @@ Later:        M2 simulator round-trip -> M3 recovery -> M4 fee investigation
                                                      -> M5 only by approval
 ```
 
-M0 retains its original identifier for continuity; the number does not make it a prerequisite for research. L0 is the learning path for contributors who need it, not a universal qualification exam or a publication gate. A team can prepare M1 while a contributor learns the workflow.
-
-## L0: understand one guided experiment
-
-**Purpose:** learn the research loop before designing abstractions around it. Keep the existing programming and maths curriculum primary, with the project as a small application rather than a competing course or a full-platform commitment.
-
-Work through one saved example, one step at a time:
-
-1. State the question, baseline and candidate; distinguish data, features and labels.
-2. Explain the chronological train/validation/test split and what information is allowed at each decision time.
-3. Inspect model scores and the portfolio rule that converts rankings into holdings. Scores do not directly become orders.
-4. Calculate a tiny weighted portfolio return and a fee effect by hand, then check them with a small learner-written function and tests.
-5. Inspect a bounded portfolio backtest: returns, losses, turnover and cost assumptions. Separate prediction quality from portfolio results.
-6. Save the example and explain what the result supports, what it does not, and what remains unclear.
-
-Programming connections: functions, collections, indexing/tabular data and tests. Maths connections: percentage returns, compounding, weighted sums, averages, variability and uncertainty. Learn unfamiliar concepts when needed; advanced calculus, deep learning and infrastructure design are not entrance requirements.
-
-**Evidence:** a saved worked example, checked code/output, an own-words explanation and a clear record of guided versus independent work. Running framework cells alone does not establish implementation fluency or research validity. Unknown data rights, adjustments or point-in-time integrity keep the run learning-only; successful loading/training does not resolve them.
-
-**Next bounded exercise:** continue from the existing prediction scores into the portfolio-selection rule, using a tiny example before running and interpreting the backtest. Do not start with a dashboard or integration adapter.
+M0 retains its original identifier for continuity; the number does not make it a prerequisite for research.
 
 ## M1: reproducible research reference
 
@@ -76,7 +57,7 @@ Use existing Qlib and appropriate recording/versioning tools to compare one simp
 - Prediction and portfolio metrics, relevant sensitivity results, failed runs and continue/reject/inconclusive rationale.
 - Exact setup/run instructions exercised against the real implementation, artifact identities and declared comparison tolerances.
 
-**Acceptance:** a rerun reproduces declared outputs within tolerances fixed before comparison; differences or nondeterminism are reported rather than hidden. The baseline and candidate use comparable data, periods and costs except for the declared experimental change. Preserve rejected experiments. A learning dataset with unresolved fitness questions is not promoted into validated market evidence just because replay works.
+**Acceptance:** a rerun reproduces declared outputs within tolerances fixed before comparison; differences or nondeterminism are reported rather than hidden. The baseline and candidate use comparable data, periods and costs except for the declared experimental change. Preserve rejected experiments. An example dataset with unresolved fitness questions is not promoted into validated market evidence just because replay works.
 
 ## M1U: teammate usefulness and reuse test
 
@@ -98,7 +79,7 @@ Using only the supplied artifacts and instructions, without author narration, th
 
 ## M0: inspect and ratify the later integration
 
-This work can happen separately when authorized inputs are available; it must not block L0, M1 or M1U.
+This work can happen separately when authorized inputs are available; it must not block M1 or M1U.
 
 **Inputs:** canonical repositories/branches, or an architecture diagram plus actual sample input/output if code cannot be shared.
 
@@ -148,7 +129,7 @@ State which invariants and failures were tested, which adapters were exercised, 
 
 ### Product value
 
-Use the M1U attempt and before/after evidence, not an agent's endorsement, feature count or passing integration tests. A valuable engineering/learning project need not invent a new category; claims of improved research productivity still require observation.
+Use the M1U attempt and before/after evidence, not an agent's endorsement, feature count or passing integration tests. A valuable engineering project need not invent a new category; claims of improved research productivity still require observation.
 
 ## Collaboration mechanics
 
@@ -161,14 +142,14 @@ Use the M1U attempt and before/after evidence, not an agent's endorsement, featu
 
 ## First group discussion agenda
 
-1. Choose the initial research question and baseline/candidate comparison; distinguish a learning run from research evidence.
+1. Choose the initial research question and baseline/candidate comparison; distinguish a demonstration run from validated research evidence.
 2. Agree who will perform the non-author M1U attempt and what acceptable friction means.
 3. Identify which existing tools to try before custom work, without treating Qlib as already selected.
 4. Let Alex and Yaroslav choose their own bounded contributions. Inspect execution independently when authorized samples exist.
 5. Record the next artifact and review owner, not a broad build commitment or invented deadline.
 
-## Exact resume point
+## Next project actions
 
-The research learning path resumes at prediction scores -> portfolio-selection rule -> small checked calculation -> interpreted backtest. Preserve what is already understood; fill gaps through bounded programming and maths practice rather than restarting setup or generating the whole platform.
+Prepare the M1 baseline/candidate comparison and identify a non-author for M1U. Record the research question, permitted data, evaluation procedure and reproduction instructions before proposing custom platform work.
 
-The separate integration path awaits an authorized inspection of Alex's canonical repository/branch or supplied architecture/sample messages. No execution dependency blocks the research learning path. The next platform-selection decision follows M1U evidence, not this document's publication.
+The separate integration path awaits an authorized inspection of Alex's canonical repository/branch or supplied architecture/sample messages. No execution dependency blocks the research-only milestones. The next platform-selection decision follows M1U evidence, not this document's publication.
