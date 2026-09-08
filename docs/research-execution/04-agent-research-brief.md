@@ -1,10 +1,10 @@
 # Agent research and critique brief
 
-Draft 0.1 · 8 September 2026 · Read-only discussion/research by default
+Draft 0.2 · 8 September 2026 · Read-only discussion/research by default
 
 ## Context in one paragraph
 
-Ben proposes a collaborative AI-assisted quantitative research laboratory using Qlib as an initial engine. Alex has an execution project that might connect to it. Yaroslav will probably contribute across both, but has not agreed a role. The proposed boundary sends reviewed strategy identities and portfolio targets to execution and returns immutable events and reconciled positions. The initial goal is a reproducible historical experiment connected to a recoverable local simulator and an explanation of differences between expected and achieved outcomes. The system is not implemented or validated by this documentation; Alex's repository has not been inspected for this pack.
+Ben proposes a collaborative research laboratory, with Qlib as the first learning and fit-test candidate rather than an adopted foundation. The first goal is a baseline/candidate experiment that a non-author can reproduce, vary and explain without author narration using existing tools. A bounded learning path develops programming, maths and workflow understanding alongside that goal; no broad platform build is implied. Alex has an execution project that might connect later through reviewed targets and immutable events/reconciled positions. Yaroslav may contribute across both but has not agreed a role. Execution inspection and contract ratification are separate from the research-only milestones. The system is not implemented or validated by this documentation; Alex's repository has not been inspected for this pack.
 
 ## What to upload
 
@@ -15,6 +15,8 @@ If upload limits allow only two files, start with this brief and `01-project-bri
 ## Copy-ready starting prompt
 
 > Please independently critique the attached two-project proposal for our group: Ben's Qlib-based research laboratory and Alex's execution pipeline, with Yaroslav potentially contributing across both. Begin by explaining each project's purpose and the integration in plain English. Then identify the strongest reasons to pursue it, the strongest reasons to simplify or reject parts of it, and the most important unanswered questions.
+>
+> Prioritize the research-only journey and the M1U non-author usefulness test. Qlib is a fit-test candidate, not a settled foundation. Do not make research learning or reproduction depend on inspecting Alex's execution system. Distinguish project/learning value from proven product demand; an existing component is a reuse opportunity, not by itself a reason to reject the whole project. Do not restart broad competitor discovery when supplied prior evidence already addresses the question: name the unresolved issue and propose a bounded hands-on test.
 >
 > This is a research/discussion task, not permission to implement. Use read-only access to any repositories explicitly provided to you and public primary sources. Do not modify code, create repositories or PRs, contact anyone, use credentials, install untrusted code, deploy, or connect trading accounts. Do not presume agreement from Alex or Yaroslav. If you lack source/repository access, state that limit rather than inventing current capabilities.
 >
@@ -34,10 +36,10 @@ Questions:
 
 - Which parts of the proposed research workflow already exist in Qlib or RD-Agent?
 - What should remain a wrapper, what might fit upstream, and what would justify a fork?
-- Is source-linked document research the right first differentiator, or is reproducible experiment collaboration more useful?
+- Can a non-author reproduce, vary and explain one comparison with the supplied artifacts and existing tools? Where is meaningful friction actually observed, rather than inferred from missing documentation?
 - What minimum dataset, baseline, horizon and experiment would test the product thesis?
 
-Output: reuse/build/defer map; one researcher journey; one proposed experiment with data rights, availability timing, baseline, splits, costs and falsification condition. Do not substitute a dashboard for valid evaluation.
+Output: reuse/build/defer map; the smallest M1/M1U test with data rights, timing, baseline, splits, costs and falsification condition; and a method to record teammate interventions and missing information. First test existing tooling. Document what would justify a bounded extension or adoption without custom work. Do not substitute a dashboard for valid evaluation or a feature checklist for observed usability.
 
 ### Track B — execution architecture and reuse
 
@@ -51,13 +53,13 @@ Output: source-linked lifecycle diagram, gap/compatibility list, reuse recommend
 
 Challenge target-weight versus quantity/order requests against one concrete account profile. Examine data cutoff, clock domains, instrument identity, cash semantics, independent authority, partial fills, uncertain acknowledgement, retries and reconciliation.
 
-Output: proposed semantic corrections, explicit invariants and a small set of adversarial scenarios. Identify which properties can be proven in a simulator and which depend on a venue's guarantees. Avoid unconditional exactly-once claims.
+Output: an example-driven mapping from a real research output to a real simulator input, proposed semantic corrections, explicit invariants and a small set of adversarial scenarios. Treat detailed field names as provisional until that mapping exists. Identify which properties can be proven in a simulator and which depend on a venue's guarantees. Avoid unconditional exactly-once claims.
 
 ### Track D — data, evaluation and execution discrepancy
 
 Identify leakage, survivorship, revision/corporate-action, selection and cost-model risks. Assess train/validation/test use and repeated experiment selection. Explain what data would support execution-cost/fill calibration and what paper-only observations cannot establish.
 
-Output: one cost-aware evaluation protocol plus an event-linked discrepancy report specification. Include unfilled attempts and opportunity cost. Separate observation, model assumption and counterfactual replay from causal proof.
+Output: one cost-aware evaluation protocol and a critique of the bounded fee study in the architecture document. Check its fixed-fill reference, feasible cash, accounting identity and limits on causal interpretation. Broader partial-fill/unfilled-opportunity-cost analysis is later scope, not a prerequisite for research usefulness. Separate observation, model assumption and counterfactual replay from causal proof.
 
 ### Track E — collaboration and scope
 
@@ -90,4 +92,4 @@ A benchmark quoted by its authors should be attributed as their reported result,
 
 ## Group synthesis afterward
 
-Compare actual evidence, not agent confidence or majority vote. Merge overlapping findings, preserve disagreements and resolve high-impact ones with a source inspection or small experiment. Ratify one vocabulary and one contract owner before implementation. This pack does not automatically authorize that later work.
+Compare actual evidence, not agent confidence or majority vote. Merge overlapping findings, preserve disagreements and resolve high-impact ones with a source inspection or small experiment. Use M1U to decide the next research-product scope; ratify the shared contract and its owner only for later integration implementation. This pack does not automatically authorize either build.
